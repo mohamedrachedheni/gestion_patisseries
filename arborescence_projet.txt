@@ -1,0 +1,44 @@
+================================================================================
+ARBORESCENCE DU PROJET
+================================================================================
+
+patisserie_management/
+├── administration/
+│   ├── __init__.py (0 o)
+│   ├── admin.py (66 o)
+│   ├── apps.py (166 o)
+│   ├── models.py (60 o)
+│   ├── tests.py (63 o)
+│   └── views.py (66 o)
+├── arborescence_projet.txt (0 o)
+├── commercial/
+│   ├── __init__.py (0 o)
+│   ├── admin.py (66 o)
+│   ├── apps.py (158 o)
+│   ├── models.py (60 o)
+│   ├── tests.py (63 o)
+│   └── views.py (66 o)
+├── config/
+│   ├── __init__.py (0 o)
+│   ├── asgi.py (405 o)
+│   ├── settings.py (3.6 Ko)
+│   ├── urls.py (784 o)
+│   └── wsgi.py (405 o)
+├── db.sqlite3 (128.0 Ko)
+├── generate_tree.py (3.2 Ko)
+├── manage.py (684 o)
+├── production/
+│   ├── __init__.py (0 o)
+│   ├── admin.py (66 o)
+│   ├── apps.py (158 o)
+│   ├── models.py (60 o)
+│   ├── tests.py (63 o)
+│   └── views.py (66 o)
+├── requirements.txt (127 o)
+├── structure.dot (13.6 Ko)
+└── structure.png (47.2 Ko)
+
+================================================================================
+Résumé:
+  - Dossiers: 4
+  - Fichiers: 30

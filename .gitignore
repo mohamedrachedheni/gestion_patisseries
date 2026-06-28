@@ -1,0 +1,17 @@
+.env
+venv/
+media/
+*/migrations/
+
+# Fichiers Python compilés
+*.pyc
+*.pyo
+*.pyd
+
+# Dossiers de cache Python
+__pycache__/
+
+# Logs
+Appligne/logs/
+*.log
+**/log/
