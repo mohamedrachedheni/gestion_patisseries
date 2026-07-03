@@ -4,7 +4,6 @@ from django.utils.html import format_html
 from .models import (
     Produit, MatierePremiereFamille, MatierePremiere,
     Recette, RecetteDetaille, CommandeInterne,
-    HistoriqueStockInitial, HistoriqueStockInitialDetaille,
     BonRestitution, BonSortie,
 )
 
@@ -43,15 +42,6 @@ class MatierePremiereInline(admin.TabularInline):
     show_change_link = True
     verbose_name = 'Matière première'
     verbose_name_plural = 'Matières premières'
-
-
-class HistoriqueStockInitialDetailleInline(admin.TabularInline):
-    model = HistoriqueStockInitialDetaille
-    extra = 0
-    autocomplete_fields = ['produit']
-    fields = ['produit', 'calcul_stock', 'reel_stock', 'observation']
-    verbose_name = 'Ligne de stock'
-    verbose_name_plural = 'Lignes de stock'
 
 
 # ─── Produit ─────────────────────────────────────────────────────────────────
@@ -198,28 +188,6 @@ class CommandeInterneAdmin(admin.ModelAdmin):
     def marquer_stock_maj(self, request, queryset):
         nb = queryset.update(is_stock_maj=True)
         self.message_user(request, f'Stock mis à jour pour {nb} commande(s).')
-
-
-# ─── Historique stock initial ─────────────────────────────────────────────────
-
-@admin.register(HistoriqueStockInitial)
-class HistoriqueStockInitialAdmin(admin.ModelAdmin):
-    list_display = ['stock_initial_at', 'user', 'nb_produits']
-    search_fields = ['user__username', 'user__first_name', 'user__last_name']
-    list_filter = ['stock_initial_at']
-    ordering = ['-stock_initial_at']
-    readonly_fields = ['stock_initial_at', 'user']
-    inlines = [HistoriqueStockInitialDetailleInline]
-    list_per_page = 25
-    fieldsets = (
-        (None, {
-            'fields': ('user', 'stock_initial_at'),
-        }),
-    )
-
-    @admin.display(description='Nb produits')
-    def nb_produits(self, obj):
-        return obj.details.count()
 
 
 # ─── Bon de restitution ───────────────────────────────────────────────────────

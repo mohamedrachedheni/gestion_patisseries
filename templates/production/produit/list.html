@@ -1,0 +1,183 @@
+{% extends "production/base.html" %}
+
+{% block title %}Produits — Production{% endblock %}
+{% block page_title %}Produits{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Produits</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Liste des produits</h4>
+  <a href="{% url 'production:produit-create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i> Nouveau produit
+  </a>
+</div>
+
+{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="row g-2 align-items-end">
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <label class="form-label small mb-1">Nom</label>
+          <input type="text" name="nom" value="{{ nom }}"
+                 class="form-control form-control-sm" placeholder="Rechercher par nom…" data-autosubmit>
+        </div>
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <label class="form-label small mb-1">Prix unitaire inférieur à</label>
+          <input type="number" step="0.001" name="prix_max" value="{{ prix_max }}"
+                 class="form-control form-control-sm no-spinner" placeholder="TND" data-autosubmit>
+        </div>
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <div class="form-check mt-4">
+            <input type="checkbox" name="stock_faible" value="1" id="stock_faible"
+                   class="form-check-input" {% if stock_faible %}checked{% endif %} data-autosubmit>
+            <label class="form-check-label small" for="stock_faible">
+              Stock inférieur à la quantité minimale
+            </label>
+          </div>
+        </div>
+
+        <div class="col-auto">
+          <a href="{% url 'production:produit-list' %}"
+             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Tableau ──────────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nom</th>
+            <th class="text-end">Stock</th>
+            <th class="text-end">Quantité minimale</th>
+            <th class="text-end">Prix unitaire (TND)</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in page_obj.object_list %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm" value="{{ p.nom }}" readonly>
+            </td>
+            <td class="text-end">
+              <input type="number" class="form-control form-control-sm text-end no-spinner"
+                     value="{{ p.stock }}" readonly>
+            </td>
+            <td class="text-end">
+              <input type="number" class="form-control form-control-sm text-end no-spinner"
+                     value="{{ p.quantite_minimale }}" readonly>
+            </td>
+            <td class="text-end">
+              <input type="number" class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ p.prix_unitaire|stringformat:'s' }}" readonly>
+            </td>
+            <td class="text-center pe-3">
+              <a href="{% url 'production:produit-detail' p.pk %}"
+                 class="btn btn-sm btn-outline-secondary" title="Voir le détail">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{% url 'production:produit-update' p.pk %}"
+                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} produit{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?nom={{ nom }}&prix_max={{ prix_max }}&stock_faible={{ stock_faible }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?nom={{ nom }}&prix_max={{ prix_max }}&stock_faible={{ stock_faible }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?nom={{ nom }}&prix_max={{ prix_max }}&stock_faible={{ stock_faible }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-cake2 fs-1 d-block mb-2 opacity-25"></i>
+      Aucun produit ne correspond à ces critères.
+      {% if nom or prix_max or stock_faible %}
+      <br>
+      <a href="{% url 'production:produit-list' %}" class="mt-2 d-inline-block">Effacer les filtres</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
+{% endblock %}

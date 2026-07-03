@@ -1,0 +1,81 @@
+{% extends "production/base.html" %}
+
+{% block title %}{{ produit.nom }} — Production{% endblock %}
+{% block page_title %}Fiche produit{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'production:produit-list' %}">Produits</a></li>
+    <li class="breadcrumb-item active">{{ produit.nom }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-cake2 me-2 text-primary"></i>{{ produit.nom }}
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+
+      <div class="col-md-6">
+        <label class="form-label small text-muted mb-1">Nom</label>
+        <input type="text" class="form-control" value="{{ produit.nom }}" readonly>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label small text-muted mb-1">Taille</label>
+        <input type="text" class="form-control" value="{{ produit.get_taille_display|default:'—' }}" readonly>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Poids (g)</label>
+        <input type="number" class="form-control no-spinner" value="{{ produit.poids|default_if_none:'' }}" readonly>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Prix unitaire (TND)</label>
+        <input type="number" class="form-control no-spinner" value="{{ produit.prix_unitaire|stringformat:'s' }}" readonly>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Stock</label>
+        <input type="number" class="form-control no-spinner" value="{{ produit.stock }}" readonly>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Quantité minimale</label>
+        <input type="number" class="form-control no-spinner" value="{{ produit.quantite_minimale }}" readonly>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small text-muted mb-1">Produit semi-fini</label>
+        <div class="form-check form-switch pt-2">
+          <input type="checkbox" class="form-check-input" disabled {% if produit.is_produit_semi_fini %}checked{% endif %}>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label small text-muted mb-1">Observation</label>
+        <textarea class="form-control" rows="3" readonly>{{ produit.observation|default:'' }}</textarea>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="d-flex gap-2 justify-content-end mt-4">
+  <a href="{% url 'production:produit-list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+  </a>
+  <a href="{% url 'production:produit-update' produit.pk %}" class="btn btn-outline-primary">
+    <i class="bi bi-pencil me-1"></i>Modifier
+  </a>
+  <a href="{% url 'production:produit-delete' produit.pk %}" class="btn btn-outline-danger">
+    <i class="bi bi-trash me-1"></i>Supprimer
+  </a>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base_global.html" %}
+
+{% block sidebar_app_name %}Production{% endblock %}
+{% block sidebar_brand %}Pâtisseries{% endblock %}
+
+{% block sidebar_nav %}
+  <a href="{% url 'production:home' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'production' %}active{% endif %}">
+    <i class="bi bi-house-door"></i> Accueil
+  </a>
+
+  <div class="sidebar-section">Catalogue</div>
+  <a href="{% url 'production:produit-list' %}"
+     class="nav-link {% if 'produit' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cake2"></i> Produits
+  </a>
+  <a href="#" class="nav-link"><i class="bi bi-egg-fried"></i> Matières premières</a>
+  <a href="#" class="nav-link"><i class="bi bi-journal-text"></i> Recettes</a>
+
+  <div class="sidebar-section">Production</div>
+  <a href="#" class="nav-link"><i class="bi bi-clipboard-check"></i> Commandes internes</a>
+
+  <div class="sidebar-section">Stock</div>
+  <a href="#" class="nav-link"><i class="bi bi-boxes"></i> Stock initial</a>
+  <a href="#" class="nav-link"><i class="bi bi-box-arrow-up"></i> Bons de sortie</a>
+  <a href="#" class="nav-link"><i class="bi bi-arrow-counterclockwise"></i> Bons de restitution</a>
+{% endblock %}

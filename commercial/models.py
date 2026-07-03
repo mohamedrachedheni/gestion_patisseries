@@ -117,12 +117,6 @@ class Client(models.Model):
     observation = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(null=True, blank=True)
-    users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        through='ClientUser',
-        related_name='clients',
-        blank=True,
-    )
 
     class Meta:
         verbose_name = 'Client'
@@ -151,7 +145,7 @@ class ClientUser(models.Model):
 
     def __str__(self):
         return f'{self.client} → {self.user}'
-
+# fin corection 29/06/2026
 
 class Agenda(models.Model):
     STATUS_CHOICES = [
@@ -253,6 +247,47 @@ class Vente(models.Model):
         return f'Vente {self.vente_code} — {self.total_montant} TND'
 
 
+class HistoriqueStockInitial(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.RESTRICT,
+        related_name='historiques_stock_initial',
+    )
+    stock_initial_at = models.DateField()
+
+    class Meta:
+        verbose_name = 'Historique stock initial'
+        verbose_name_plural = 'Historiques stock initial'
+        ordering = ['-stock_initial_at']
+
+    def __str__(self):
+        return f'Stock initial du {self.stock_initial_at} — {self.user}'
+
+
+class HistoriqueStockInitialDetaille(models.Model):
+    historique_stock_initial = models.ForeignKey(
+        HistoriqueStockInitial,
+        on_delete=models.RESTRICT,
+        related_name='details',
+    )
+    produit = models.ForeignKey(
+        'production.Produit',
+        on_delete=models.RESTRICT,
+        null=True, blank=True,
+        related_name='historiques_stock',
+    )
+    calcul_stock = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Stock calculé système')
+    reel_stock = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Stock réel constaté')
+    observation = models.CharField(max_length=255, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Détail historique stock initial'
+        verbose_name_plural = 'Détails historique stock initial'
+
+    def __str__(self):
+        return f'{self.historique_stock_initial} — {self.produit}'
+
+
 class BonLivraisonCode(models.Model):
     bon_livraison_at = models.DateField()
     bon_livraison_numero = models.SmallIntegerField()
@@ -268,7 +303,7 @@ class BonLivraisonCode(models.Model):
         related_name='bons_livraison_code',
     )
     hist_stock_initial = models.ForeignKey(
-        'production.HistoriqueStockInitial',
+        HistoriqueStockInitial,
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='bons_livraison_code',
@@ -324,7 +359,7 @@ class BonLivraisonDetaille(models.Model):
     )
     produit = models.ForeignKey(
         'production.Produit',
-        on_delete=models.CASCADE,
+        on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='bons_livraison_details',
     )
@@ -364,7 +399,7 @@ class VenteDetaille(models.Model):
 
 class AchatCode(models.Model):
     achat_at = models.DateField()
-    achat_numero = models.SmallIntegerField()
+    achat_numero = models.CharField(max_length=25)
     fournisseur = models.ForeignKey(
         Fournisseur,
         on_delete=models.RESTRICT,
@@ -438,7 +473,7 @@ class AchatDetaille(models.Model):
 
 class DepenseCode(models.Model):
     depense_at = models.DateField()
-    depense_numero = models.SmallIntegerField()
+    depense_numero = models.CharField(max_length=25)
     fournisseur = models.ForeignKey(
         Fournisseur,
         on_delete=models.RESTRICT,

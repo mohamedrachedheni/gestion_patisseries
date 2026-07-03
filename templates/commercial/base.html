@@ -1,0 +1,24 @@
+{% extends "base_global.html" %}
+
+{% block sidebar_app_name %}Commercial{% endblock %}
+{% block sidebar_brand %}Pâtisseries{% endblock %}
+
+{% block sidebar_nav %}
+  <a href="{% url 'commercial:home' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'commercial' %}active{% endif %}">
+    <i class="bi bi-house-door"></i> Accueil
+  </a>
+
+  <div class="sidebar-section">Clients & Secteur</div>
+  <a href="#" class="nav-link"><i class="bi bi-people"></i> Clients</a>
+  <a href="#" class="nav-link"><i class="bi bi-calendar-event"></i> Agenda</a>
+
+  <div class="sidebar-section">Ventes</div>
+  <a href="#" class="nav-link"><i class="bi bi-receipt"></i> Ventes</a>
+  <a href="#" class="nav-link"><i class="bi bi-truck"></i> Bons de livraison</a>
+
+  <div class="sidebar-section">Achats & Dépenses</div>
+  <a href="#" class="nav-link"><i class="bi bi-cart3"></i> Achats</a>
+  <a href="#" class="nav-link"><i class="bi bi-cash-stack"></i> Dépenses</a>
+  <a href="#" class="nav-link"><i class="bi bi-building"></i> Fournisseurs</a>
+{% endblock %}

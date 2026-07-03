@@ -12,6 +12,6 @@ media/
 __pycache__/
 
 # Logs
-Appligne/logs/
+patisserie_management/logs/
 *.log
 **/log/

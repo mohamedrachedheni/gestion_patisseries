@@ -5,6 +5,7 @@ from .models import (
     Gouvernorat, Delegation, Zone,
     Fournisseur, Client, ClientUser, Agenda,
     VenteCode, Vente, VenteDetaille,
+    HistoriqueStockInitial, HistoriqueStockInitialDetaille,
     BonLivraisonCode, BonLivraison, BonLivraisonDetaille,
     AchatCode, Achat, AchatDetaille,
     DepenseCode, Depense, DepenseDetaille,
@@ -104,6 +105,15 @@ class BonLivraisonDetailleInline(admin.TabularInline):
     fields = ['produit', 'quantite', 'prix_unitaire', 'total_ligne']
     verbose_name = 'Ligne produit'
     verbose_name_plural = 'Lignes produit'
+
+
+class HistoriqueStockInitialDetailleInline(admin.TabularInline):
+    model = HistoriqueStockInitialDetaille
+    extra = 0
+    autocomplete_fields = ['produit']
+    fields = ['produit', 'calcul_stock', 'reel_stock', 'observation']
+    verbose_name = 'Ligne de stock'
+    verbose_name_plural = 'Lignes de stock'
 
 
 # ─── Inlines achat ────────────────────────────────────────────────────────────
@@ -340,6 +350,28 @@ class VenteAdmin(admin.ModelAdmin):
     def marquer_payees(self, request, queryset):
         nb = queryset.update(statut='Payé', reste_a_payer=0)
         self.message_user(request, f'{nb} vente(s) marquée(s) comme payée(s).')
+
+
+# ─── Historique stock initial ─────────────────────────────────────────────────
+
+@admin.register(HistoriqueStockInitial)
+class HistoriqueStockInitialAdmin(admin.ModelAdmin):
+    list_display = ['stock_initial_at', 'user', 'nb_produits']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name']
+    list_filter = ['stock_initial_at']
+    ordering = ['-stock_initial_at']
+    readonly_fields = ['stock_initial_at', 'user']
+    inlines = [HistoriqueStockInitialDetailleInline]
+    list_per_page = 25
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'stock_initial_at'),
+        }),
+    )
+
+    @admin.display(description='Nb produits')
+    def nb_produits(self, obj):
+        return obj.details.count()
 
 
 @admin.register(BonLivraisonCode)

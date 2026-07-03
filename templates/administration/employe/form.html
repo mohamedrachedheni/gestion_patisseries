@@ -1,0 +1,67 @@
+{% extends "administration/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} — Administration{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:employe-list' %}">Employés</a></li>
+    {% if employe %}
+    <li class="breadcrumb-item">
+      <a href="{% url 'administration:employe-detail' employe.pk %}">{{ employe.user.get_full_name }}</a>
+    </li>
+    {% endif %}
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+
+    {# ── Compte utilisateur ─────────────────────────────────────── #}
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent fw-semibold py-3">
+          <i class="bi bi-person-lock me-2 text-primary"></i>Compte utilisateur
+        </div>
+        <div class="card-body">
+          {% crispy user_form %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Informations professionnelles ──────────────────────────── #}
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent fw-semibold py-3">
+          <i class="bi bi-briefcase me-2 text-primary"></i>Informations professionnelles
+        </div>
+        <div class="card-body">
+          {% crispy employe_form %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Boutons ────────────────────────────────────────────────── #}
+    <div class="col-12 d-flex gap-2 justify-content-end">
+      <a href="{% if employe %}{% url 'administration:employe-detail' employe.pk %}{% else %}{% url 'administration:employe-list' %}{% endif %}"
+         class="btn btn-outline-secondary">
+        Annuler
+      </a>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>
+        {% if is_update %}Enregistrer les modifications{% else %}Créer l'employé{% endif %}
+      </button>
+    </div>
+
+  </div>
+</form>
+{% endblock %}
+

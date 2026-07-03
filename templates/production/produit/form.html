@@ -1,0 +1,51 @@
+{% extends "production/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} — Production{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'production:produit-list' %}">Produits</a></li>
+    {% if produit %}
+    <li class="breadcrumb-item">
+      <a href="{% url 'production:produit-detail' produit.pk %}">{{ produit.nom }}</a>
+    </li>
+    {% endif %}
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent fw-semibold py-3">
+        <i class="bi bi-cake2 me-2 text-primary"></i>Informations produit
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% crispy form %}
+
+          <div class="d-flex gap-2 justify-content-end mt-2">
+            <a href="{% if produit %}{% url 'production:produit-detail' produit.pk %}{% else %}{% url 'production:produit-list' %}{% endif %}"
+               class="btn btn-outline-secondary">
+              Annuler
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>
+              {% if is_update %}Enregistrer les modifications{% else %}Créer un nouveau produit{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

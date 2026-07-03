@@ -1,0 +1,130 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ employe.user.get_full_name }} — Employés{% endblock %}
+{% block page_title %}Fiche employé{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:employe-list' %}">Employés</a></li>
+    <li class="breadcrumb-item active">{{ employe.user.get_full_name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  {# ── Carte identité ────────────────────────────────────────────── #}
+  <div class="col-md-4 col-lg-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-4">
+        {% if employe.photo %}
+        <img src="{{ employe.photo.url }}" alt="{{ employe.user.get_full_name }}"
+             style="width:96px;height:96px;border-radius:50%;object-fit:cover;" class="mb-3">
+        {% else %}
+        <div style="width:96px;height:96px;border-radius:50%;background:#2c7be5;color:#fff;
+                    display:flex;align-items:center;justify-content:center;font-size:2rem;
+                    font-weight:700;margin:0 auto 1rem;">
+          {{ employe.user.first_name|slice:":1"|upper }}{{ employe.user.last_name|slice:":1"|upper }}
+        </div>
+        {% endif %}
+        <h5 class="fw-bold mb-1">{{ employe.user.get_full_name }}</h5>
+        <p class="text-muted small mb-3">@{{ employe.user.username }}</p>
+        <div class="d-flex flex-wrap gap-1 justify-content-center">
+          {% if employe.matricule %}
+          <span class="badge bg-light text-dark border font-monospace">{{ employe.matricule }}</span>
+          {% endif %}
+          {% if employe.type_contrat %}
+          <span class="badge bg-primary">{{ employe.type_contrat }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-footer bg-transparent d-flex gap-2 justify-content-center pb-3 flex-wrap">
+        <a href="{% url 'administration:employe-update' employe.pk %}"
+           class="btn btn-primary btn-sm">
+          <i class="bi bi-pencil me-1"></i>Modifier
+        </a>
+        <a href="{% url 'administration:employe-delete' employe.pk %}"
+           class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-trash me-1"></i>Supprimer
+        </a>
+        <a href="{% url 'administration:employe-list' %}"
+           class="btn btn-outline-secondary btn-sm" title="Retour à la liste">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# ── Détails ───────────────────────────────────────────────────── #}
+  <div class="col-md-8 col-lg-9">
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent fw-semibold py-3">
+        <i class="bi bi-briefcase me-2 text-primary"></i>Informations professionnelles
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6 col-lg-4">
+            <p class="text-muted small mb-1">Service</p>
+            <p class="fw-medium mb-0">{{ employe.service|default:"—" }}</p>
+          </div>
+          <div class="col-sm-6 col-lg-4">
+            <p class="text-muted small mb-1">Type de contrat</p>
+            <p class="fw-medium mb-0">{{ employe.type_contrat|default:"—" }}</p>
+          </div>
+          <div class="col-sm-6 col-lg-4">
+            <p class="text-muted small mb-1">Date d'embauche</p>
+            <p class="fw-medium mb-0">
+              {% if employe.embauche_at %}{{ employe.embauche_at|date:"d/m/Y" }}{% else %}—{% endif %}
+            </p>
+          </div>
+          <div class="col-sm-6 col-lg-4">
+            <p class="text-muted small mb-1">Salaire</p>
+            <p class="fw-medium font-monospace mb-0">
+              {% if employe.salaire %}{{ employe.salaire }} TND{% else %}—{% endif %}
+            </p>
+          </div>
+          <div class="col-sm-6 col-lg-4">
+            <p class="text-muted small mb-1">Téléphone</p>
+            <p class="fw-medium mb-0">{{ employe.telephone|default:"—" }}</p>
+          </div>
+          <div class="col-sm-6 col-lg-4">
+            <p class="text-muted small mb-1">Email</p>
+            <p class="fw-medium mb-0">{{ employe.user.email|default:"—" }}</p>
+          </div>
+          <div class="col-12">
+            <p class="text-muted small mb-1">Adresse</p>
+            <p class="fw-medium mb-0">{{ employe.adresse|default:"—" }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent fw-semibold py-3">
+        <i class="bi bi-person me-2 text-primary"></i>Informations personnelles
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <p class="text-muted small mb-1">Date de naissance</p>
+            <p class="fw-medium mb-0">
+              {% if employe.naissance_at %}{{ employe.naissance_at|date:"d/m/Y" }}{% else %}—{% endif %}
+            </p>
+          </div>
+          {% if employe.observation %}
+          <div class="col-12">
+            <p class="text-muted small mb-1">Observation</p>
+            <p class="fw-medium mb-0">{{ employe.observation }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

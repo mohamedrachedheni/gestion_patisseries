@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Employe, HistoriqueSoldeCompte, Transaction, Transfere
+from .models import Employe, HistoriqueSoldeCompte, LibelleTransaction, Transaction, Transfere
 
 
 # ─── Inlines ─────────────────────────────────────────────────────────────────
@@ -101,28 +101,43 @@ class HistoriqueSoldeCompteAdmin(admin.ModelAdmin):
         return request.user.is_superuser
 
 
+# ─── Libellé transaction ──────────────────────────────────────────────────────
+
+@admin.register(LibelleTransaction)
+class LibelleTransactionAdmin(admin.ModelAdmin):
+    list_display = ['libelle', 'observation']
+    search_fields = ['libelle']
+    ordering = ['libelle']
+    list_per_page = 50
+
+
 # ─── Transaction caisse ───────────────────────────────────────────────────────
 
 @admin.register(Transaction)
 class TransactionAdmin(admin.ModelAdmin):
     list_display = [
-        'created_at', 'user', 'operation',
-        'table_id', 'montant_affiche',
+        'created_at', 'user', 'libelle',
+        'table_id', 'montant_affiche', 'solde_affiche',
     ]
-    search_fields = ['operation', 'table_id', 'user__username', 'user__last_name']
-    list_filter = ['created_at', 'user']
+    search_fields = ['libelle__libelle', 'table_id', 'user__username', 'user__last_name']
+    list_filter = ['created_at', 'user', 'libelle']
     ordering = ['-created_at']
+    autocomplete_fields = ['user', 'libelle', 'hist_solde_compte']
     # Toutes les colonnes sont en lecture seule : journal non modifiable
-    readonly_fields = ['created_at', 'user', 'operation', 'table_id', 'montant']
+    readonly_fields = ['created_at', 'user', 'libelle', 'table_id', 'montant', 'hist_solde_compte']
     list_per_page = 50
     fieldsets = (
         ('Opération', {
-            'fields': ('user', 'created_at', 'operation', 'table_id'),
+            'fields': ('user', 'created_at', 'libelle', 'table_id'),
         }),
         ('Montant', {
-            'fields': ('montant',),
+            'fields': ('montant', 'hist_solde_compte'),
         }),
     )
+
+    @admin.display(description='Soldé', boolean=True)
+    def solde_affiche(self, obj):
+        return obj.hist_solde_compte_id is not None
 
     @admin.display(description='Montant', ordering='montant')
     def montant_affiche(self, obj):
@@ -181,6 +196,13 @@ class TransfereAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return request.user.is_staff
+
+    def save_model(self, request, obj, form, change):
+        # changeform_view englobe cet appel dans une transaction.atomic() :
+        # si creer_transactions() échoue, l'ajout du transfert est aussi annulé.
+        super().save_model(request, obj, form, change)
+        if not change:
+            obj.creer_transactions()
 
     def has_change_permission(self, request, obj=None):
         return request.user.is_superuser

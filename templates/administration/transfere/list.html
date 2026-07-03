@@ -1,0 +1,219 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Transferts — Administration{% endblock %}
+{% block page_title %}Transferts entre comptes{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Transferts</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<datalist id="libelles-transfere">
+  {% for l in libelles_list %}
+  <option value="{{ l }}"></option>
+  {% endfor %}
+</datalist>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Liste des transferts</h4>
+  <a href="{% url 'administration:transfere-create' %}" class="btn btn-primary">
+    <i class="bi bi-bank me-1"></i> Nouveau transfert
+  </a>
+</div>
+
+{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="row g-2 align-items-end">
+
+        <div class="col-sm-6 col-md-3 col-lg-2">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div class="col-sm-6 col-md-3 col-lg-2">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div class="col-sm-6 col-md-3 col-lg-3">
+          <label class="form-label small mb-1">Opérateur</label>
+          <select name="operateur_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les opérateurs —</option>
+            {% for u in operateurs_list %}
+            <option value="{{ u.pk }}" {% if operateur_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-sm-6 col-md-3 col-lg-3">
+          <label class="form-label small mb-1">Libellé</label>
+          <select name="libelle" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les libellés —</option>
+            {% for l in libelles_list %}
+            <option value="{{ l }}" {% if libelle == l %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-auto">
+          <a href="{% url 'administration:transfere-list' %}"
+             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Tableau ──────────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Date transfert</th>
+            <th>Libellé</th>
+            <th>Opérateur</th>
+            <th class="text-end">Montant (TND)</th>
+            <th>Receveur</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in page_obj.object_list %}
+          <tr>
+            <td class="ps-3">
+              <input type="date" class="form-control form-control-sm"
+                     value="{{ t.transfere_at|date:'Y-m-d' }}">
+            </td>
+            <td>
+              <input type="text" class="combobox-input textinput form-control form-control-sm"
+                     list="libelles-transfere" autocomplete="off" value="{{ t.libelle }}">
+            </td>
+            <td>
+              <select class="form-select form-select-sm">
+                {% for u in users_list %}
+                <option value="{{ u.pk }}" {% if u.pk == t.compte_source_id %}selected{% endif %}>
+                  {{ u.get_full_name|default:u.username }}
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <input type="number" step="0.001" min="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ t.montant|stringformat:'s' }}">
+            </td>
+            <td>
+              <select class="form-select form-select-sm">
+                {% for u in users_list %}
+                <option value="{{ u.pk }}" {% if u.pk == t.compte_destination_id %}selected{% endif %}>
+                  {{ u.get_full_name|default:u.username }}
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center pe-3">
+              <a href="{% url 'administration:transfere-update' t.pk %}"
+                 class="btn btn-sm btn-outline-primary" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'administration:transfere-delete' t.pk %}"
+                 class="btn btn-sm btn-outline-danger ms-1" title="Supprimer">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} transfert{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&operateur_id={{ operateur_id }}&libelle={{ libelle }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&operateur_id={{ operateur_id }}&libelle={{ libelle }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&operateur_id={{ operateur_id }}&libelle={{ libelle }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-bank fs-1 d-block mb-2 opacity-25"></i>
+      Aucun transfert sur la période
+      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+      →
+      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
+      {% if operateur_id or libelle %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
+{% endblock %}

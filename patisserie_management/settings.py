@@ -29,6 +29,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ajouté par Claude
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-1wocmxu_h4g*6nwc%vg==e)605$)7blu4_p_xqzi=4%nslf4(%')
 
+# Sel utilisé pour encoder les ID dans les URLs (voir core/converters.py).
+# Distinct de SECRET_KEY pour pouvoir le faire tourner indépendamment
+# (rotation = les anciens liens partagés deviennent invalides).
+HASHIDS_SALT = config('HASHIDS_SALT', default=SECRET_KEY)
+
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
 # ajouté par Claude
@@ -54,6 +59,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',      # Pour le thème Bootstrap 5
     
     # Vos applications Django
+    'core',
     'administration',
     'commercial',
     'production',
@@ -144,7 +150,7 @@ TIME_ZONE = 'Africa/Tunis'  # ✅ Changé pour le fuseau horaire tunisien
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False  # Données stockées en heure locale Tunisia, pas en UTC
 
 
 # Static files (CSS, JavaScript, Images)
@@ -164,6 +170,11 @@ MEDIA_ROOT = BASE_DIR / 'media'  # ✅ Dossier pour les fichiers uploadés
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Auth routing
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'
 
 # ✅ Ajout d'une configuration pour les messages (optionnel)
 from django.contrib.messages import constants as messages

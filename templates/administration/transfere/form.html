@@ -1,0 +1,51 @@
+{% extends "administration/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }} — Administration{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:transfere-list' %}">Transferts</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<datalist id="libelles-transfere">
+  {% for l in libelles_transfere %}
+  <option value="{{ l }}"></option>
+  {% endfor %}
+</datalist>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent fw-semibold py-3">
+          <i class="bi bi-bank me-2 text-primary"></i>Transfert entre comptes
+        </div>
+        <div class="card-body">
+          {% crispy form %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 d-flex gap-2 justify-content-end">
+      <a href="{% url 'administration:transfere-list' %}" class="btn btn-outline-secondary">
+        Annuler
+      </a>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>
+        {% if is_update %}Enregistrer les modifications{% else %}Enregistrer le transfert{% endif %}
+      </button>
+    </div>
+
+  </div>
+</form>
+{% endblock %}

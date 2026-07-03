@@ -1,0 +1,48 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Supprimer un transfert — Administration{% endblock %}
+{% block page_title %}Supprimer un transfert{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:transfere-list' %}">Transferts</a></li>
+    <li class="breadcrumb-item active">Supprimer</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5 px-4">
+        <i class="bi bi-exclamation-triangle-fill text-danger d-block mb-3"
+           style="font-size:3rem;"></i>
+        <h5 class="fw-bold mb-2">Confirmer la suppression</h5>
+        <p class="text-muted mb-1">
+          Voulez-vous vraiment supprimer le transfert de
+          <strong>{{ transfere.montant }} TND</strong>
+          du <strong>{{ transfere.compte_source.get_full_name|default:transfere.compte_source.username }}</strong>
+          vers <strong>{{ transfere.compte_destination.get_full_name|default:transfere.compte_destination.username }}</strong>
+          ({{ transfere.transfere_at|date:"d/m/Y" }}) ?
+        </p>
+        <p class="text-muted small mb-1">
+          Les transactions caisse associées (reçue et versée), si elles existent, seront supprimées avec.
+        </p>
+        <p class="text-danger small mb-4">Cette action est irréversible.</p>
+        <form method="post" class="d-flex gap-2 justify-content-center">
+          {% csrf_token %}
+          <a href="{% url 'administration:transfere-list' %}" class="btn btn-outline-secondary">
+            Annuler
+          </a>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Transactions — Administration{% endblock %}
+{% block page_title %}Transactions caisse{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Transactions</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="row g-2 align-items-end">
+
+        <div class="col-sm-6 col-md-3 col-lg-2">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div class="col-sm-6 col-md-3 col-lg-2">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div class="col-sm-6 col-md-3 col-lg-3">
+          <label class="form-label small mb-1">Utilisateur</label>
+          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les utilisateurs —</option>
+            {% for u in users_list %}
+            <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-sm-6 col-md-3 col-lg-3">
+          <label class="form-label small mb-1">Libellé</label>
+          <select name="libelle_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les libellés —</option>
+            {% for l in libelles_list %}
+            <option value="{{ l.pk }}" {% if libelle_id == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.libelle }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-auto">
+          <a href="{% url 'administration:transaction-list' %}"
+             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Barre de résumé ──────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <div class="fw-bold fs-5">{{ total_count }}</div>
+      <div class="text-muted small">Transaction{{ total_count|pluralize }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <div class="fw-bold fs-5 text-success font-monospace">
+        +{{ totaux.credit|default:"0.000" }}
+      </div>
+      <div class="text-muted small">Crédits (TND)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <div class="fw-bold fs-5 text-danger font-monospace">
+        {{ totaux.debit|default:"0.000" }}
+      </div>
+      <div class="text-muted small">Débits (TND)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center py-3">
+      <div class="fw-bold fs-5 font-monospace
+                  {% if totaux.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+        {{ totaux.net|default:"0.000" }}
+      </div>
+      <div class="text-muted small">Solde net (TND)</div>
+    </div>
+  </div>
+</div>
+
+{# ── Tableau ──────────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Date / Heure</th>
+            <th>Utilisateur</th>
+            <th>Libellé</th>
+            <th class="d-none">Référence</th>
+            <th class="text-end">Montant (TND)</th>
+            <th class="text-center">Soldé</th>
+            <th class="text-center pe-3" style="width:70px">Détail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in page_obj.object_list %}
+          <tr>
+            <td class="ps-3">
+              {% if t.created_at %}
+              <div class="fw-medium small">{{ t.created_at|date:"d/m/Y" }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ t.created_at|date:"H:i" }}</div>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="fw-medium small">{{ t.user.get_full_name|default:t.user.username }}</div>
+            </td>
+            <td>
+              <span class="badge rounded-pill bg-light text-dark border small">{{ t.libelle }}</span>
+            </td>
+            <td class="d-none">
+              <span class="font-monospace text-muted" style="font-size:.8rem;">{{ t.table_id }}</span>
+            </td>
+            <td class="text-end font-monospace fw-semibold">
+              {% if t.montant >= 0 %}
+              <span class="text-success">+{{ t.montant }}</span>
+              {% else %}
+              <span class="text-danger">{{ t.montant }}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input" disabled
+                     {% if t.hist_solde_compte_id %}checked{% endif %}
+                     title="{% if t.hist_solde_compte_id %}Soldée{% else %}Non soldée{% endif %}">
+            </td>
+            <td class="text-center pe-3">
+              {# Bouton placeholder — fonctionnel après conception des formulaires des tables liées #}
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      disabled
+                      title="Formulaire {{ t.table_id }} — à venir">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} enregistrement{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+      Aucune transaction sur la période
+      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+      →
+      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
+      {% if user_id or libelle_id %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    // Réinitialiser la pagination à la page 1 lors d'un changement de filtre
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
+{% endblock %}

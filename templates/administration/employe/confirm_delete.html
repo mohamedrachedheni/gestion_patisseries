@@ -1,0 +1,52 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Supprimer {{ employe.user.get_full_name }} — Administration{% endblock %}
+{% block page_title %}Supprimer un employé{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:employe-list' %}">Employés</a></li>
+    <li class="breadcrumb-item">
+      <a href="{% url 'administration:employe-detail' employe.pk %}">{{ employe.user.get_full_name }}</a>
+    </li>
+    <li class="breadcrumb-item active">Supprimer</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5 px-4">
+        <i class="bi bi-exclamation-triangle-fill text-danger d-block mb-3"
+           style="font-size:3rem;"></i>
+        <h5 class="fw-bold mb-2">Confirmer la suppression</h5>
+        <p class="text-muted mb-1">
+          Voulez-vous vraiment supprimer l'employé
+          <strong>{{ employe.user.get_full_name }}</strong>
+          {% if employe.matricule %}({{ employe.matricule }}){% endif %} ?
+        </p>
+        <p class="text-muted small mb-1">
+          Son compte utilisateur sera également supprimé, sauf s'il est encore
+          lié à d'autres enregistrements (transactions, ventes, transferts…) —
+          dans ce cas, la suppression sera refusée.
+        </p>
+        <p class="text-danger small mb-4">Cette action est irréversible.</p>
+        <form method="post" class="d-flex gap-2 justify-content-center">
+          {% csrf_token %}
+          <a href="{% url 'administration:employe-detail' employe.pk %}"
+             class="btn btn-outline-secondary">
+            Annuler
+          </a>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

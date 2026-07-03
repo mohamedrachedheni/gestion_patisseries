@@ -153,47 +153,6 @@ class CommandeInterne(models.Model):
         return f'CI#{self.id} — {self.produit} ({self.livraison_at})'
 
 
-class HistoriqueStockInitial(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.RESTRICT,
-        related_name='historiques_stock_initial',
-    )
-    stock_initial_at = models.DateField()
-
-    class Meta:
-        verbose_name = 'Historique stock initial'
-        verbose_name_plural = 'Historiques stock initial'
-        ordering = ['-stock_initial_at']
-
-    def __str__(self):
-        return f'Stock initial du {self.stock_initial_at} — {self.user}'
-
-
-class HistoriqueStockInitialDetaille(models.Model):
-    historique_stock_initial = models.ForeignKey(
-        HistoriqueStockInitial,
-        on_delete=models.RESTRICT,
-        related_name='details',
-    )
-    produit = models.ForeignKey(
-        Produit,
-        on_delete=models.RESTRICT,
-        null=True, blank=True,
-        related_name='historiques_stock',
-    )
-    calcul_stock = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Stock calculé système')
-    reel_stock = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Stock réel constaté')
-    observation = models.CharField(max_length=255, null=True, blank=True)
-
-    class Meta:
-        verbose_name = 'Détail historique stock initial'
-        verbose_name_plural = 'Détails historique stock initial'
-
-    def __str__(self):
-        return f'{self.historique_stock_initial} — {self.produit}'
-
-
 class BonRestitution(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -212,7 +171,7 @@ class BonRestitution(models.Model):
         validators=[MinValueValidator(0)],
     )
     hist_stock_initial = models.ForeignKey(
-        HistoriqueStockInitial,
+        'commercial.HistoriqueStockInitial',
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='bons_restitution',
@@ -246,7 +205,7 @@ class BonSortie(models.Model):
         validators=[MinValueValidator(0)],
     )
     hist_stock_initial = models.ForeignKey(
-        HistoriqueStockInitial,
+        'commercial.HistoriqueStockInitial',
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='bons_sortie',
@@ -259,3 +218,5 @@ class BonSortie(models.Model):
 
     def __str__(self):
         return f'BS#{self.id} — {self.produit} ({self.sortie_at})'
+    
+    # fin 30/06/2026

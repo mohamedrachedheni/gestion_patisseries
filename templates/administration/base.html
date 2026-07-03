@@ -1,0 +1,31 @@
+{% extends "base_global.html" %}
+
+{% block sidebar_app_name %}Administration{% endblock %}
+{% block sidebar_brand %}Pâtisseries{% endblock %}
+
+{% block sidebar_nav %}
+  {# ── Menu principal ──────────────────────────────── #}
+  <a href="{% url 'administration:home' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'administration' %}active{% endif %}">
+    <i class="bi bi-house-door"></i> Accueil
+  </a>
+
+  <div class="sidebar-section">Ressources humaines</div>
+  <a href="{% url 'administration:employe-list' %}"
+     class="nav-link {% if 'employe' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-person-badge"></i> Employés
+  </a>
+
+  <div class="sidebar-section">Finance</div>
+  <a href="#" class="nav-link">
+    <i class="bi bi-wallet2"></i> Soldes comptes
+  </a>
+  <a href="{% url 'administration:transaction-list' %}"
+     class="nav-link {% if 'transaction' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-arrow-left-right"></i> Transactions
+  </a>
+  <a href="{% url 'administration:transfere-list' %}"
+     class="nav-link {% if 'transfere' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-bank"></i> Transferts
+  </a>
+{% endblock %}
