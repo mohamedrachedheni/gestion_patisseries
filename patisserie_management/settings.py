@@ -76,6 +76,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.RequestLogContextMiddleware',  # après Authentication : request.user est résolu
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -184,4 +185,127 @@ MESSAGE_TAGS = {
     messages.SUCCESS: 'success',
     messages.WARNING: 'warning',
     messages.ERROR: 'danger',
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging — deux journaux séparés et étanches :
+#   logs/technical/ : erreurs Python/Django/HTTP/SQL/API — pour les développeurs
+#   logs/audit/     : opérations métier critiques (CRUD, auth, import/export,
+#                     sauvegarde) — pour les administrateurs
+# Le détail des choix (rotation, filtre, masquage) est documenté dans le chat/
+# la doc du projet ; voir aussi core/logging_filters.py et core/audit.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
+LOGS_DIR = BASE_DIR / 'logs'
+(LOGS_DIR / 'technical').mkdir(parents=True, exist_ok=True)
+(LOGS_DIR / 'audit').mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'filters': {
+        'audit_context': {
+            '()': 'core.logging_filters.AuditContextFilter',
+        },
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+    },
+
+    'formatters': {
+        'technical': {
+            'format': '{asctime} {levelname} {name} {module}.{funcName}:{lineno} — {message}',
+            'style': '{',
+        },
+        'audit': {
+            'format': (
+                '{asctime} | {action} | user={user} (id={user_id}, rôle={role}) | ip={ip} '
+                '| {device_type}/{os}/{browser} | {method} {path} | {module}.{funcName}:{lineno} '
+                '| table={table} id={record_id} | avant={old_value} | après={new_value} | {message}'
+            ),
+            'style': '{',
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'WARNING',
+            'formatter': 'technical',
+        },
+        # Erreurs techniques : rotation quotidienne, 30 jours conservés.
+        'technical_file': {
+            'class': 'core.logging_handlers.SafeTimedRotatingFileHandler',
+            'filename': LOGS_DIR / 'technical' / 'technical.log',
+            'when': 'midnight',
+            'interval': 1,
+            'backupCount': 30,
+            'encoding': 'utf-8',
+            'level': 'WARNING',
+            'formatter': 'technical',
+        },
+        # E-mail aux admins sur les 500 en production (jamais en DEBUG).
+        'mail_admins': {
+            'class': 'django.utils.log.AdminEmailHandler',
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+        },
+        # Audit métier : même politique de rétention, fichier et filtre distincts.
+        'audit_file': {
+            'class': 'core.logging_handlers.SafeTimedRotatingFileHandler',
+            'filename': LOGS_DIR / 'audit' / 'audit.log',
+            'when': 'midnight',
+            'interval': 1,
+            'backupCount': 30,
+            'encoding': 'utf-8',
+            'level': 'INFO',
+            'formatter': 'audit',
+            'filters': ['audit_context'],
+        },
+    },
+
+    'loggers': {
+        # Erreurs serveur (500) et exceptions non gérées remontées par Django.
+        'django.request': {
+            'handlers': ['technical_file', 'mail_admins', 'console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        # Failles/anomalies de sécurité détectées par Django (CSRF, hôte
+        # invalide, en-têtes suspects...).
+        'django.security': {
+            'handlers': ['technical_file', 'console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Erreurs SQL importantes seulement (le logger par défaut de Django
+        # loggue TOUTES les requêtes en DEBUG : on ne l'active pas, on ne
+        # garde que les erreurs réelles remontées par le driver/l'ORM).
+        'django.db.backends': {
+            'handlers': ['technical_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        # Reste du framework Django (avertissements de dépréciation, etc.).
+        'django': {
+            'handlers': ['console', 'technical_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Logger applicatif technique : à utiliser dans le code métier pour
+        # les erreurs d'API, de sauvegarde, d'import/export (logging.getLogger('app.technical')).
+        'app.technical': {
+            'handlers': ['technical_file', 'console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        # Journal d'audit dédié — voir core/audit.py:log_audit().
+        'app.audit': {
+            'handlers': ['audit_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
 }

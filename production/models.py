@@ -29,7 +29,7 @@ class Produit(models.Model):
 
 
 class MatierePremiereFamille(models.Model):
-    famille = models.CharField(max_length=50)
+    famille = models.CharField(max_length=50, unique=True)
     observation = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:

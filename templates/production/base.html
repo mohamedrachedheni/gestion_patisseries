@@ -11,10 +11,21 @@
 
   <div class="sidebar-section">Catalogue</div>
   <a href="{% url 'production:produit-list' %}"
-     class="nav-link {% if 'produit' in request.resolver_match.url_name %}active{% endif %}">
+     class="nav-link {% if 'produit-' in request.resolver_match.url_name and 'semi-fini' not in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-cake2"></i> Produits
   </a>
-  <a href="#" class="nav-link"><i class="bi bi-egg-fried"></i> Matières premières</a>
+  <a href="{% url 'production:matiere-premiere-list' %}"
+     class="nav-link {% if 'matiere-premiere' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-egg-fried"></i> Matières premières
+  </a>
+  <a href="{% url 'production:famille-list' %}"
+     class="nav-link {% if 'famille' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-tags"></i> Familles de matière première
+  </a>
+  <a href="{% url 'production:produit-semi-fini-list' %}"
+     class="nav-link {% if 'semi-fini' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-box2-heart"></i> Produits semi-finis
+  </a>
   <a href="#" class="nav-link"><i class="bi bi-journal-text"></i> Recettes</a>
 
   <div class="sidebar-section">Production</div>

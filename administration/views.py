@@ -6,9 +6,11 @@ from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, RestrictedError, Sum
+from django.forms.models import model_to_dict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import DetailView, ListView, TemplateView, View
 
+from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
 
 from .forms import EmployeForm, TransfereForm, UserCreateForm, UserUpdateForm
@@ -78,6 +80,10 @@ class EmployeCreateView(GroupRequiredMixin, View):
                 employe = employe_form.save(commit=False)
                 employe.user = user
                 employe.save()
+            log_audit(
+                AuditAction.CREATE, f'Création employé {user.get_full_name()}',
+                table='Employe', record_id=employe.pk, new_value=model_to_dict(employe),
+            )
             messages.success(request, f'Employé {user.get_full_name()} créé avec succès.')
             return redirect('administration:employe-detail', pk=employe.pk)
         return render(request, self.template_name, {
@@ -106,12 +112,17 @@ class EmployeUpdateView(GroupRequiredMixin, View):
 
     def post(self, request, pk):
         employe = self._get(pk)
+        avant = model_to_dict(employe)
         user_form = UserUpdateForm(request.POST, instance=employe.user)
         employe_form = EmployeForm(request.POST, request.FILES, instance=employe)
         if user_form.is_valid() and employe_form.is_valid():
             with transaction.atomic():
                 user_form.save()
                 employe_form.save()
+            log_audit(
+                AuditAction.UPDATE, f'Modification employé {employe.user.get_full_name()}',
+                table='Employe', record_id=employe.pk, old_value=avant, new_value=model_to_dict(employe),
+            )
             messages.success(request, 'Employé mis à jour avec succès.')
             return redirect('administration:employe-detail', pk=employe.pk)
         return render(request, self.template_name, {
@@ -137,6 +148,7 @@ class EmployeDeleteView(GroupRequiredMixin, View):
         employe = self._get(pk)
         user = employe.user
         nom = user.get_full_name()
+        avant = model_to_dict(employe)
         try:
             with transaction.atomic():
                 employe.delete()
@@ -152,6 +164,10 @@ class EmployeDeleteView(GroupRequiredMixin, View):
             )
             return redirect('administration:employe-detail', pk=pk)
 
+        log_audit(
+            AuditAction.DELETE, f'Suppression employé {nom}',
+            table='Employe', record_id=pk, old_value=avant,
+        )
         messages.success(request, f'Employé {nom} et son compte utilisateur ont été supprimés.')
         return redirect('administration:employe-list')
 
@@ -287,6 +303,12 @@ class TransfereCreateView(GroupRequiredMixin, View):
             )
             return render(request, self.template_name, self._context(form))
 
+        log_audit(
+            AuditAction.CREATE,
+            f'Création transfert {transfere.compte_source} → {transfere.compte_destination} '
+            f'({transfere.montant} TND)',
+            table='Transfere', record_id=transfere.pk, new_value=model_to_dict(transfere),
+        )
         messages.success(
             request,
             f'Transfert de {transfere.montant} TND enregistré avec succès.',
@@ -332,6 +354,7 @@ class TransfereUpdateView(GroupRequiredMixin, View):
                 "été utilisé pour le calcul du solde d'un compte.",
             )
             return redirect('administration:transfere-list')
+        valeurs_avant = model_to_dict(transfere_avant)
         form = TransfereForm(request.POST, instance=transfere_avant)
         if not form.is_valid():
             return render(request, self.template_name, self._context(form, transfere_avant))
@@ -357,6 +380,11 @@ class TransfereUpdateView(GroupRequiredMixin, View):
             )
             return render(request, self.template_name, self._context(form, transfere_avant))
 
+        log_audit(
+            AuditAction.UPDATE, f'Modification transfert #{transfere.pk}',
+            table='Transfere', record_id=transfere.pk,
+            old_value=valeurs_avant, new_value=model_to_dict(transfere),
+        )
         messages.success(request, 'Transfert modifié avec succès.')
         return redirect('administration:transfere-list')
 
@@ -390,9 +418,14 @@ class TransfereDeleteView(GroupRequiredMixin, View):
                 "été utilisé pour le calcul du solde d'un compte.",
             )
             return redirect('administration:transfere-list')
+        valeurs_avant = model_to_dict(transfere)
         with transaction.atomic():
             transfere.supprimer_transactions_liees()
             transfere.delete()
+        log_audit(
+            AuditAction.DELETE, f'Suppression transfert #{pk}',
+            table='Transfere', record_id=pk, old_value=valeurs_avant,
+        )
         messages.success(request, 'Transfert supprimé avec succès.')
         return redirect('administration:transfere-list')
 
