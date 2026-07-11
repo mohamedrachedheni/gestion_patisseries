@@ -32,4 +32,18 @@ urlpatterns = [
     path('produits-semi-finis/nouveau/',                views.ProduitSemiFiniCreateView.as_view(), name='produit-semi-fini-create'),
     path('produits-semi-finis/<hashid:pk>/modifier/',   views.ProduitSemiFiniUpdateView.as_view(), name='produit-semi-fini-update'),
     path('produits-semi-finis/<hashid:pk>/supprimer/',  views.ProduitSemiFiniDeleteView.as_view(), name='produit-semi-fini-delete'),
+
+    # Recettes
+    path('recettes/',                        views.RecetteListView.as_view(),   name='recette-list'),
+    path('recettes/nouvelle/',               views.RecetteCreateView.as_view(), name='recette-create'),
+    path('recettes/<hashid:pk>/modifier/',   views.RecetteUpdateView.as_view(), name='recette-update'),
+    path('recettes/<hashid:pk>/supprimer/',  views.RecetteDeleteView.as_view(), name='recette-delete'),
+
+    # Commandes internes
+    path('commandes-internes/',                       views.CommandeInterneListView.as_view(),       name='commande-interne-list'),
+    path('commandes-internes/ligne/nouvelle/',        views.CommandeInterneQuickCreateView.as_view(), name='commande-interne-quick-create'),
+    path('commandes-internes/ajout-tout/',            views.CommandeInterneBulkCreateView.as_view(),  name='commande-interne-bulk-create'),
+    path('commandes-internes/<hashid:pk>/modifier/',  views.CommandeInterneUpdateView.as_view(),      name='commande-interne-update'),
+    path('commandes-internes/<hashid:pk>/supprimer/', views.CommandeInterneDeleteView.as_view(),      name='commande-interne-delete'),
+    path('commandes-internes/<hashid:pk>/stock/',     views.CommandeInterneStockUpdateView.as_view(), name='commande-interne-stock-update'),
 ]

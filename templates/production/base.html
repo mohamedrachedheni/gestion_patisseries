@@ -26,10 +26,16 @@
      class="nav-link {% if 'semi-fini' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-box2-heart"></i> Produits semi-finis
   </a>
-  <a href="#" class="nav-link"><i class="bi bi-journal-text"></i> Recettes</a>
+  <a href="{% url 'production:recette-list' %}"
+     class="nav-link {% if 'recette' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-journal-text"></i> Recettes
+  </a>
 
   <div class="sidebar-section">Production</div>
-  <a href="#" class="nav-link"><i class="bi bi-clipboard-check"></i> Commandes internes</a>
+  <a href="{% url 'production:commande-interne-list' %}"
+     class="nav-link {% if 'commande-interne' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-clipboard-check"></i> Commandes internes
+  </a>
 
   <div class="sidebar-section">Stock</div>
   <a href="#" class="nav-link"><i class="bi bi-boxes"></i> Stock initial</a>

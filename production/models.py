@@ -85,6 +85,12 @@ class MatierePremiere(models.Model):
 
 
 class Recette(models.Model):
+    UNITE_CHOICES = [
+        ('Pièce', 'Pièce'),
+        ('Kg', 'Kg'),
+        ('Litre', 'Litre'),
+    ]
+
     produit = models.ForeignKey(
         Produit,
         on_delete=models.RESTRICT,
@@ -96,6 +102,7 @@ class Recette(models.Model):
         validators=[MinValueValidator(0)],
         help_text='Quantité produite par cette recette',
     )
+    unite = models.CharField(max_length=10, choices=UNITE_CHOICES, default='Pièce', null=True, blank=True)
     observation = models.TextField(null=True, blank=True)
 
     class Meta:
@@ -132,12 +139,13 @@ class RecetteDetaille(models.Model):
 
 
 class CommandeInterne(models.Model):
-    produit = models.ForeignKey(
-        Produit,
+    recette = models.ForeignKey(
+        Recette,
         on_delete=models.RESTRICT,
         null=True, blank=True,
         related_name='commandes_internes',
     )
+
     livraison_at = models.DateField(null=True, blank=True)
     quantite_commander = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
     quantite_produite = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
@@ -150,7 +158,8 @@ class CommandeInterne(models.Model):
         ordering = ['-livraison_at']
 
     def __str__(self):
-        return f'CI#{self.id} — {self.produit} ({self.livraison_at})'
+        produit = self.recette.produit if self.recette_id else '—'
+        return f'CI#{self.id} — {produit} ({self.livraison_at})'
 
 
 class BonRestitution(models.Model):

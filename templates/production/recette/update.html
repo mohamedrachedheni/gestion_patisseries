@@ -1,0 +1,156 @@
+{% extends "production/base.html" %}
+
+{% block title %}{{ title }} — Production{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'production:recette-list' %}">Recettes</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="recette-form" novalidate>
+  {% csrf_token %}
+
+  {# ══ Partie 1 : la recette ═══════════════════════════════════════════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-journal-text me-2 text-primary"></i>Recette
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small mb-1">Produit</label>
+          <input type="text" class="form-control" value="{{ recette.produit.nom }}" readonly>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Quantité produite</label>
+          <input type="number" step="0.001" name="quantite" value="{{ quantite }}"
+                 class="form-control no-spinner" {% if focus_quantite %}autofocus{% endif %}>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Unité</label>
+          <select name="unite" class="form-select">
+            {% for value, label in unite_choices %}
+            <option value="{{ value }}" {% if value == unite %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small mb-1">Observation</label>
+          <textarea name="observation" rows="2" class="form-control">{{ observation }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ══ Partie 2 : composition (matières premières) ═════════════════════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-list-check me-2 text-primary"></i>Composition
+    </div>
+    <div class="card-body">
+      <div class="row g-2 mb-1 d-none d-md-flex">
+        <div class="col-md-5"><span class="form-label small text-muted mb-0">Matière première</span></div>
+        <div class="col-md-3"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div class="col-md-3"><span class="form-label small text-muted mb-0">Unité</span></div>
+      </div>
+      <div id="detail-rows"></div>
+      <div class="d-flex justify-content-end mt-2">
+        <button type="button" id="add-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'production:recette-list' %}" class="btn btn-outline-secondary">Annuler</a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // Le produit ne change jamais ici : la matière première qui le représente
+  // (cas d'un produit semi-fini) est déjà exclue de MATIERES côté serveur.
+  var MATIERES = {{ matieres_json|safe }};
+  var INITIAL_ROWS = {{ detail_rows_json|safe }};
+
+  var container = document.getElementById('detail-rows');
+
+  function buildOptions() {
+    var html = '<option value="">— Choisir —</option>';
+    MATIERES.forEach(function (m) {
+      html += '<option value="' + m.id + '" data-unite="' + (m.unite || '') + '">' + m.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildUniteOptions() {
+    var html = '<option value="">—</option>';
+    ['Pièce', 'Kg', 'Litre'].forEach(function (u) {
+      html += '<option value="' + u + '">' + u + '</option>';
+    });
+    return html;
+  }
+
+  function addRow(prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'row g-2 align-items-center detail-row mb-2';
+    row.innerHTML =
+      '<div class="col-md-5">' +
+        '<select name="matiere_premiere_id" class="form-select form-select-sm mp-select">' + buildOptions() + '</select>' +
+      '</div>' +
+      '<div class="col-md-3">' +
+        '<input type="number" step="0.001" name="quantite_detail" class="form-control form-control-sm no-spinner" value="0">' +
+      '</div>' +
+      '<div class="col-md-3">' +
+        '<select class="form-select form-select-sm unite-auto" disabled>' + buildUniteOptions() + '</select>' +
+      '</div>' +
+      '<div class="col-md-1 text-end">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne">' +
+          '<i class="bi bi-trash"></i>' +
+        '</button>' +
+      '</div>';
+
+    var mpSelect = row.querySelector('.mp-select');
+    var uniteSelect = row.querySelector('.unite-auto');
+    var quantiteInput = row.querySelector('input[name="quantite_detail"]');
+
+    function syncUnite() {
+      var opt = mpSelect.options[mpSelect.selectedIndex];
+      uniteSelect.value = (opt && opt.dataset.unite) ? opt.dataset.unite : '';
+    }
+    mpSelect.addEventListener('change', syncUnite);
+    row.querySelector('.remove-row').addEventListener('click', function () { row.remove(); });
+
+    if (prefill.matiere_premiere_id) { mpSelect.value = String(prefill.matiere_premiere_id); }
+    if (prefill.quantite !== undefined && prefill.quantite !== null && prefill.quantite !== '') {
+      quantiteInput.value = prefill.quantite;
+    }
+    syncUnite();
+
+    container.appendChild(row);
+  }
+
+  if (INITIAL_ROWS.length > 0) {
+    INITIAL_ROWS.forEach(function (r) { addRow(r); });
+  } else {
+    for (var i = 0; i < 4; i++) { addRow(); }
+  }
+
+  document.getElementById('add-row-btn').addEventListener('click', function () { addRow(); });
+})();
+</script>
+{% endblock %}

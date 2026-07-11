@@ -18,7 +18,10 @@
   <a href="#" class="nav-link"><i class="bi bi-truck"></i> Bons de livraison</a>
 
   <div class="sidebar-section">Achats & Dépenses</div>
-  <a href="#" class="nav-link"><i class="bi bi-cart3"></i> Achats</a>
+  <a href="{% url 'commercial:achat-list' %}"
+     class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cart3"></i> Achats
+  </a>
   <a href="#" class="nav-link"><i class="bi bi-cash-stack"></i> Dépenses</a>
   <a href="#" class="nav-link"><i class="bi bi-building"></i> Fournisseurs</a>
 {% endblock %}

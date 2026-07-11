@@ -130,14 +130,14 @@ class MatierePremiereAdmin(admin.ModelAdmin):
 
 @admin.register(Recette)
 class RecetteAdmin(admin.ModelAdmin):
-    list_display = ['produit', 'quantite', 'nb_ingredients']
+    list_display = ['produit', 'quantite', 'unite', 'nb_ingredients']
     search_fields = ['produit__nom']
     ordering = ['produit__nom']
     autocomplete_fields = ['produit']
     inlines = [RecetteDetailleInline]
     fieldsets = (
         (None, {
-            'fields': ('produit', 'quantite', 'observation'),
+            'fields': ('produit', 'quantite', 'unite', 'observation'),
         }),
     )
 
@@ -151,19 +151,19 @@ class RecetteAdmin(admin.ModelAdmin):
 @admin.register(CommandeInterne)
 class CommandeInterneAdmin(admin.ModelAdmin):
     list_display = [
-        'produit', 'livraison_at',
+        'produit_affiche', 'livraison_at',
         'quantite_commander', 'quantite_produite',
         'statut_commande', 'is_stock_maj',
     ]
-    search_fields = ['produit__nom']
+    search_fields = ['recette__produit__nom']
     list_filter = ['is_completed', 'is_stock_maj', 'livraison_at']
     ordering = ['-livraison_at']
-    autocomplete_fields = ['produit']
+    autocomplete_fields = ['recette']
     actions = ['marquer_completees', 'marquer_stock_maj']
     list_per_page = 25
     fieldsets = (
         (None, {
-            'fields': ('produit', 'livraison_at'),
+            'fields': ('recette', 'livraison_at'),
         }),
         ('Quantités', {
             'fields': ('quantite_commander', 'quantite_produite'),
@@ -172,6 +172,10 @@ class CommandeInterneAdmin(admin.ModelAdmin):
             'fields': ('is_completed', 'is_stock_maj'),
         }),
     )
+
+    @admin.display(description='Produit', ordering='recette__produit__nom')
+    def produit_affiche(self, obj):
+        return obj.recette.produit if obj.recette_id else '—'
 
     @admin.display(description='Statut')
     def statut_commande(self, obj):

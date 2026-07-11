@@ -1,0 +1,396 @@
+{% extends "production/base.html" %}
+
+{% block title %}Commandes internes — Production{% endblock %}
+{% block page_title %}Commandes internes{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Commandes internes</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ══ Partie 1 : liste des commandes internes ═════════════════════════════ #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-clipboard-check me-2 text-primary"></i>Commandes internes enregistrées
+  </div>
+
+  {# ── Barre de filtres ────────────────────────────────────────────────── #}
+  <div class="card-body py-3 border-bottom">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-2 overflow-auto">
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Produit</label>
+          <select name="produit_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les produits —</option>
+            {% for p in produits_list %}
+            <option value="{{ p.pk }}" {% if produit_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:90px;flex:0 0 auto;">
+          <div class="form-check mt-4 text-nowrap">
+            <input type="hidden" name="is_completed" value="0">
+            <input type="checkbox" name="is_completed" value="1" id="filter_is_completed"
+                   class="form-check-input" {% if is_completed_filter %}checked{% endif %} data-autosubmit>
+            <label class="form-check-label small" for="filter_is_completed">Achevé</label>
+          </div>
+        </div>
+
+        <div style="width:100px;flex:0 0 auto;">
+          <div class="form-check mt-4 text-nowrap">
+            <input type="hidden" name="is_stock_maj" value="0">
+            <input type="checkbox" name="is_stock_maj" value="1" id="filter_is_stock_maj"
+                   class="form-check-input" {% if is_stock_maj_filter %}checked{% endif %} data-autosubmit>
+            <label class="form-check-label small" for="filter_is_stock_maj">Stock MAJ</label>
+          </div>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <button type="submit" name="show_all" value="1"
+                  class="btn btn-outline-primary btn-sm text-nowrap"
+                  title="Afficher toutes les commandes de la période, sans tenir compte des autres filtres">
+            <i class="bi bi-list-ul"></i> Tout afficher
+          </button>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'production:commande-interne-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+
+  {# ── Tableau ──────────────────────────────────────────────────────────── #}
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    {% for ci in page_obj.object_list %}
+    <form id="ci-update-{{ ci.pk }}" method="post"
+          action="{% url 'production:commande-interne-update' ci.pk %}?{{ querystring }}">{% csrf_token %}</form>
+    <form id="ci-delete-{{ ci.pk }}" method="post"
+          action="{% url 'production:commande-interne-delete' ci.pk %}?{{ querystring }}">{% csrf_token %}</form>
+    <form id="ci-stock-{{ ci.pk }}" method="post"
+          action="{% url 'production:commande-interne-stock-update' ci.pk %}?{{ querystring }}">{% csrf_token %}</form>
+    {% endfor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Échéance</th>
+            <th>Produit</th>
+            <th class="text-end" style="width:110px">Qté commandée</th>
+            <th>Unité</th>
+            <th class="text-center">Achevé</th>
+            <th class="text-center">Stock MAJ</th>
+            <th class="text-end" style="width:110px">Qté produite</th>
+            <th class="text-center pe-3" style="width:150px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ci in page_obj.object_list %}
+          <tr class="ci-row">
+            <td class="ps-3">
+              <input type="date" name="livraison_at" value="{{ ci.livraison_at|date:'Y-m-d' }}"
+                     class="form-control form-control-sm" form="ci-update-{{ ci.pk }}"
+                     {% if ci.is_stock_maj %}disabled{% endif %}>
+            </td>
+            <td>
+              <select name="produit_id" class="form-select form-select-sm produit-select"
+                      form="ci-update-{{ ci.pk }}" {% if ci.is_stock_maj %}disabled{% endif %}>
+                <option value="">— Choisir —</option>
+                {% for p in produits_list %}
+                <option value="{{ p.pk }}" {% if ci.recette.produit_id == p.pk %}selected{% endif %}>{{ p.nom }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <input type="number" step="0.001" min="0.001" name="quantite_commander"
+                     value="{{ ci.quantite_commander|default_if_none:'0'|stringformat:'s' }}"
+                     class="form-control form-control-sm text-end no-spinner quantite-commander-input"
+                     form="ci-update-{{ ci.pk }}" {% if ci.is_completed %}disabled{% endif %}>
+            </td>
+            <td>
+              <select class="form-select form-select-sm unite-auto" disabled>
+                <option value="">—</option>
+                {% for value, label in unite_choices %}
+                <option value="{{ value }}" {% if value == ci.recette.unite %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center">
+              <input type="checkbox" name="is_completed" value="1"
+                     class="form-check-input is-completed-checkbox" form="ci-update-{{ ci.pk }}"
+                     {% if ci.is_completed %}checked{% endif %} {% if ci.is_stock_maj %}disabled{% endif %}>
+            </td>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input" disabled {% if ci.is_stock_maj %}checked{% endif %}>
+            </td>
+            <td class="text-end">
+              <input type="number" step="0.001" min="0" name="quantite_produite"
+                     value="{{ ci.quantite_produite|default_if_none:'0'|stringformat:'s' }}"
+                     class="form-control form-control-sm text-end no-spinner quantite-produite-input"
+                     form="ci-update-{{ ci.pk }}" {% if not ci.is_completed %}disabled{% endif %}>
+            </td>
+            <td class="text-center pe-3">
+              <button type="submit" form="ci-delete-{{ ci.pk }}"
+                      class="btn btn-sm btn-outline-danger" title="Supprimer"
+                      onclick="return confirm('Supprimer cette commande interne ?');">
+                <i class="bi bi-trash"></i>
+              </button>
+              <button type="submit" form="ci-update-{{ ci.pk }}"
+                      class="btn btn-sm btn-outline-primary ms-1" title="Modifier"
+                      {% if ci.is_stock_maj %}disabled{% endif %}>
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="submit" form="ci-stock-{{ ci.pk }}"
+                      class="btn btn-sm btn-outline-secondary ms-1" title="Mise à jour du stock"
+                      onclick="return confirm('Mettre à jour le stock du produit et décrémenter les matières premières utilisées ? Cette action est définitive.');"
+                      {% if not ci.is_completed or ci.is_stock_maj %}disabled{% endif %}>
+                <i class="bi bi-arrow-repeat"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination (max 4 lignes) ───────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} commande{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?{{ querystring }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-clipboard-x fs-1 d-block mb-2 opacity-25"></i>
+      Aucune commande interne ne correspond à ces critères.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ══ Partie 2 : ajout de commandes internes ══════════════════════════════ #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter des commandes internes
+  </div>
+  <div class="card-body">
+    <form method="post" id="bulk-form" action="{% url 'production:commande-interne-bulk-create' %}">
+      {% csrf_token %}
+      <div class="row g-2 mb-1 d-none d-md-flex">
+        <div class="col-md-3"><span class="form-label small text-muted mb-0">Échéance</span></div>
+        <div class="col-md-3"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div class="col-md-2"><span class="form-label small text-muted mb-0">Qté commandée</span></div>
+        <div class="col-md-2"><span class="form-label small text-muted mb-0">Unité</span></div>
+      </div>
+      <div id="ci-rows"></div>
+      <div class="d-flex justify-content-end gap-2 mt-2">
+        <button type="button" id="add-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Nouvelle commande
+        </button>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-check-lg me-1"></i>Ajout toutes les commandes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var RECETTES = {{ recettes_json|safe }};
+  var PRODUITS = {{ produits_json|safe }};
+  var PART2_ROWS = {{ part2_rows_json|safe }};
+  var FOCUS_ROW_INDEX = {% if focus_row_index is not None %}{{ focus_row_index }}{% else %}null{% endif %};
+  var FOCUS_FIELD = {% if focus_field %}"{{ focus_field }}"{% else %}null{% endif %};
+
+  // ── Filtres : auto-soumission ───────────────────────────────────────────
+  document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var form = this.closest('form');
+      var pageInput = form.querySelector('[name="page"]');
+      if (pageInput) { pageInput.remove(); }
+      form.submit();
+    });
+  });
+
+  // ── Produit → Unité (lecture seule, dérivée de la Recette du produit) ──
+  function bindProduitUniteSync(row) {
+    var produitSelect = row.querySelector('.produit-select');
+    var uniteSelect = row.querySelector('.unite-auto');
+    if (!produitSelect || !uniteSelect) { return; }
+    function sync() {
+      var match = RECETTES.find(function (r) { return String(r.produit_id) === String(produitSelect.value); });
+      uniteSelect.value = match ? match.unite : '';
+    }
+    produitSelect.addEventListener('change', sync);
+    sync();
+  }
+  document.querySelectorAll('.ci-row').forEach(bindProduitUniteSync);
+
+  // ── Achevé → Qté produite (verrouillée à 0, ou modifiable pré-remplie) ──
+  function bindIsCompletedToggle(row) {
+    var isCompleted = row.querySelector('.is-completed-checkbox');
+    var qCommander = row.querySelector('.quantite-commander-input');
+    var qProduite = row.querySelector('.quantite-produite-input');
+    if (!isCompleted || !qProduite) { return; }
+    isCompleted.addEventListener('change', function () {
+      if (isCompleted.checked) {
+        if (qCommander) { qCommander.disabled = true; }
+        qProduite.disabled = false;
+        qProduite.value = qCommander ? qCommander.value : qProduite.value;
+      } else {
+        if (qCommander) { qCommander.disabled = false; }
+        qProduite.disabled = true;
+        qProduite.value = '0';
+      }
+    });
+  }
+  document.querySelectorAll('.ci-row').forEach(bindIsCompletedToggle);
+
+  // ── Partie 2 : lignes dynamiques ────────────────────────────────────────
+  var rowsContainer = document.getElementById('ci-rows');
+
+  function buildProduitOptions() {
+    var html = '<option value="">— Choisir —</option>';
+    PRODUITS.forEach(function (p) {
+      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildUniteOptions() {
+    var html = '<option value="">—</option>';
+    ['Pièce', 'Kg', 'Litre'].forEach(function (u) {
+      html += '<option value="' + u + '">' + u + '</option>';
+    });
+    return html;
+  }
+
+  function reindexRows() {
+    rowsContainer.querySelectorAll('.ci-add-row').forEach(function (row, idx) {
+      var btn = row.querySelector('.save-row-btn');
+      if (btn) { btn.value = idx; }
+    });
+  }
+
+  function addRow(prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'row g-2 align-items-center ci-add-row ci-row mb-2';
+    row.innerHTML =
+      '<div class="col-md-3">' +
+        '<input type="date" name="livraison_at" class="form-control form-control-sm">' +
+      '</div>' +
+      '<div class="col-md-3">' +
+        '<select name="produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '</div>' +
+      '<div class="col-md-2">' +
+        '<input type="number" step="0.001" min="0.001" name="quantite_commander" value="0" class="form-control form-control-sm no-spinner">' +
+      '</div>' +
+      '<div class="col-md-2">' +
+        '<select class="form-select form-select-sm unite-auto" disabled>' + buildUniteOptions() + '</select>' +
+      '</div>' +
+      '<div class="col-md-2 d-flex gap-1">' +
+        '<button type="submit" name="save_row_index" value="0" ' +
+          'formaction="{% url 'production:commande-interne-quick-create' %}" ' +
+          'class="btn btn-sm btn-success save-row-btn">Enregistrer</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne">' +
+          '<i class="bi bi-trash"></i>' +
+        '</button>' +
+      '</div>';
+
+    if (prefill.livraison_at) { row.querySelector('[name="livraison_at"]').value = prefill.livraison_at; }
+    if (prefill.produit_id) { row.querySelector('.produit-select').value = String(prefill.produit_id); }
+    if (prefill.quantite_commander !== undefined && prefill.quantite_commander !== null && prefill.quantite_commander !== '') {
+      row.querySelector('[name="quantite_commander"]').value = prefill.quantite_commander;
+    }
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+      reindexRows();
+    });
+
+    bindProduitUniteSync(row);
+    rowsContainer.appendChild(row);
+    reindexRows();
+    return row;
+  }
+
+  if (PART2_ROWS.length > 0) {
+    PART2_ROWS.forEach(function (r) { addRow(r); });
+  } else {
+    addRow();
+  }
+
+  document.getElementById('add-row-btn').addEventListener('click', function () { addRow(); });
+
+  if (FOCUS_ROW_INDEX !== null && FOCUS_FIELD) {
+    var rows = rowsContainer.querySelectorAll('.ci-add-row');
+    var targetRow = rows[FOCUS_ROW_INDEX];
+    if (targetRow) {
+      var field = targetRow.querySelector('[name="' + FOCUS_FIELD + '"]');
+      if (field) { field.focus(); }
+    }
+  }
+})();
+</script>
+{% endblock %}

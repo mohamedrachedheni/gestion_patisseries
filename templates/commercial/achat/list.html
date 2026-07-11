@@ -1,0 +1,216 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Achats — Commercial{% endblock %}
+{% block page_title %}Achats de matières premières{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Achats</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Liste des achats de matières premières</h4>
+  <a href="{% url 'commercial:achat-create' %}" class="btn btn-primary">
+    <i class="bi bi-cart-plus me-1"></i> Nouveau achat
+  </a>
+</div>
+
+{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-2 overflow-auto">
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Début période</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Fin période</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Fournisseur</label>
+          <select name="fournisseur_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les fournisseurs —</option>
+            {% for f in fournisseurs_list %}
+            <option value="{{ f.pk }}" {% if fournisseur_id == f.pk|stringformat:"s" %}selected{% endif %}>
+              {{ f.raison_sociale }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Statut</label>
+          <select name="statut" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les statuts —</option>
+            {% for value, label in statut_choices %}
+            <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:achat-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Tableau ──────────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Date achat</th>
+            <th>Numéro</th>
+            <th>Fournisseur</th>
+            <th class="text-end">Montant (TND)</th>
+            <th class="text-end">Reste à payer (TND)</th>
+            <th>Statut</th>
+            <th class="text-center pe-3" style="width:120px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in page_obj.object_list %}
+          <tr>
+            <td class="ps-3">
+              <input type="date" class="form-control form-control-sm"
+                     value="{{ a.achat_code.achat_at|date:'Y-m-d' }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ a.achat_code.achat_numero }}" disabled>
+            </td>
+            <td>
+              <select class="form-select form-select-sm" disabled>
+                {% for f in fournisseurs_list %}
+                <option value="{{ f.pk }}" {% if f.pk == a.achat_code.fournisseur_id %}selected{% endif %}>
+                  {{ f.raison_sociale }}
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ a.total_montant|stringformat:'s' }}" disabled>
+            </td>
+            <td class="text-end">
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ a.reste_a_payer|stringformat:'s' }}" disabled>
+            </td>
+            <td>
+              <select class="form-select form-select-sm" disabled>
+                {% for value, label in statut_choices %}
+                <option value="{{ value }}" {% if value == a.statut %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center pe-3">
+              <a href="#" class="btn btn-sm btn-outline-primary" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'commercial:achat-delete' a.pk %}" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} achat{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&fournisseur_id={{ fournisseur_id }}&statut={{ statut }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&fournisseur_id={{ fournisseur_id }}&statut={{ statut }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&fournisseur_id={{ fournisseur_id }}&statut={{ statut }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-cart3 fs-1 d-block mb-2 opacity-25"></i>
+      Aucun achat sur la période
+      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+      →
+      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
+      {% if fournisseur_id or statut %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
+{% endblock %}

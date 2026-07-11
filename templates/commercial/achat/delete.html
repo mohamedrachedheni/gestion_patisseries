@@ -1,0 +1,263 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Suppression achat — Commercial{% endblock %}
+{% block page_title %}Suppression d'une facture Achat de matières premières{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:achat-list' %}">Achats</a></li>
+    <li class="breadcrumb-item active">Suppression</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="alert alert-danger d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  Vous êtes sur le point de supprimer cette facture d'achat. Vérifiez les informations ci-dessous avant de confirmer.
+</div>
+
+<form method="post" id="achat-delete-form" novalidate>
+  {% csrf_token %}
+
+  {# ══ Partie 1 : informations générales de l'achat (lecture seule) ═══════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-cart3 me-2 text-primary"></i>Informations de l'achat
+    </div>
+    <div class="card-body">
+
+      {# ── Ligne 1 ────────────────────────────────────────────────────── #}
+      <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date achat</label>
+          <input type="date" value="{{ achat_code.achat_at|date:'Y-m-d' }}"
+                 class="form-control form-control-sm" disabled>
+        </div>
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Fournisseur</label>
+          <select class="form-select form-select-sm" disabled>
+            {% for f in fournisseurs_list %}
+            <option value="{{ f.pk }}" {% if f.pk == achat_code.fournisseur_id %}selected{% endif %}>{{ f.raison_sociale }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:140px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant payé</label>
+          <input type="number" step="0.001" value="{{ achat.nouveau_acompte|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Mode paiement</label>
+          <select class="form-select form-select-sm" disabled>
+            {% for value, label in mode_paiement_choices %}
+            <option value="{{ value }}" {% if value == achat.mode_paiement %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:1 1 auto;min-width:200px;">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" value="{{ achat.observation|default:'' }}" class="form-control form-control-sm" disabled>
+        </div>
+      </div>
+
+      {# ── Ligne 2 ────────────────────────────────────────────────────── #}
+      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3 overflow-auto">
+        <div style="width:140px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Numéro achat</label>
+          <input type="text" value="{{ achat_code.achat_numero }}" class="form-control form-control-sm" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant total</label>
+          <input type="number" step="0.001" value="{{ achat.total_montant|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant total payé</label>
+          <input type="number" step="0.001" value="{{ achat.total_acompte|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Reste à payer</label>
+          <input type="number" step="0.001" value="{{ achat.reste_a_payer|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace {% if achat.reste_a_payer < 0 %}text-danger{% endif %}"
+                 disabled>
+        </div>
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Statut paiement</label>
+          <input type="text" value="{{ achat.statut }}" class="form-control form-control-sm" disabled>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ══ Partie 2 : détails des achats par unité (lecture seule) ═══════════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-box-seam me-2 text-primary"></i>Détails des achats par unité
+    </div>
+    <div class="card-body p-0">
+      {% if unite_page_obj.object_list %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Matière première</th>
+              <th>Quantité</th>
+              <th>Unité</th>
+              <th>Prix unitaire</th>
+              <th class="pe-3">Total ligne</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in unite_page_obj.object_list %}
+            <tr>
+              <td class="ps-3">
+                <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.nom }}" disabled>
+              </td>
+              <td style="width:110px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
+              </td>
+              <td style="width:90px;">
+                <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.unite }}" disabled>
+              </td>
+              <td style="width:120px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
+              </td>
+              <td class="pe-3" style="width:130px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if unite_is_paginated %}
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+        <small class="text-muted">Page {{ unite_page_obj.number }}/{{ unite_page_obj.paginator.num_pages }}</small>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if unite_page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page_unite={{ unite_page_obj.previous_page_number }}&page_pack={{ pack_page_obj.number }}"><i class="bi bi-chevron-left"></i></a></li>
+            {% endif %}
+            {% for num in unite_page_obj.paginator.page_range %}
+              {% if unite_page_obj.number == num %}
+              <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > unite_page_obj.number|add:"-3" and num < unite_page_obj.number|add:"3" %}
+              <li class="page-item"><a class="page-link" href="?page_unite={{ num }}&page_pack={{ pack_page_obj.number }}">{{ num }}</a></li>
+              {% endif %}
+            {% endfor %}
+            {% if unite_page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page_unite={{ unite_page_obj.next_page_number }}&page_pack={{ pack_page_obj.number }}"><i class="bi bi-chevron-right"></i></a></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="text-center py-4 text-muted">Aucun détail par unité pour cet achat.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ══ Partie 3 : détails des achats par pack (lecture seule) ════════════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-boxes me-2 text-primary"></i>Détails des achats par pack
+    </div>
+    <div class="card-body p-0">
+      {% if pack_page_obj.object_list %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Matière première</th>
+              <th>Nombre de pack</th>
+              <th>Prix pack</th>
+              <th>Unité par pack</th>
+              <th>Unité</th>
+              <th>Total quantité</th>
+              <th>Prix unitaire</th>
+              <th class="pe-3">Total ligne</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in pack_page_obj.object_list %}
+            <tr>
+              <td class="ps-3">
+                <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.nom }}" disabled>
+              </td>
+              <td style="width:110px;">
+                <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.nombre_pack|stringformat:'s' }}" disabled>
+              </td>
+              <td style="width:100px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_pack|stringformat:'s' }}" disabled>
+              </td>
+              <td style="width:110px;">
+                <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.unite_pack }}" disabled>
+              </td>
+              <td style="width:80px;">
+                <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.unite }}" disabled>
+              </td>
+              <td style="width:110px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
+              </td>
+              <td style="width:110px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
+              </td>
+              <td class="pe-3" style="width:120px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if pack_is_paginated %}
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+        <small class="text-muted">Page {{ pack_page_obj.number }}/{{ pack_page_obj.paginator.num_pages }}</small>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if pack_page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page_pack={{ pack_page_obj.previous_page_number }}&page_unite={{ unite_page_obj.number }}"><i class="bi bi-chevron-left"></i></a></li>
+            {% endif %}
+            {% for num in pack_page_obj.paginator.page_range %}
+              {% if pack_page_obj.number == num %}
+              <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > pack_page_obj.number|add:"-3" and num < pack_page_obj.number|add:"3" %}
+              <li class="page-item"><a class="page-link" href="?page_pack={{ num }}&page_unite={{ unite_page_obj.number }}">{{ num }}</a></li>
+              {% endif %}
+            {% endfor %}
+            {% if pack_page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page_pack={{ pack_page_obj.next_page_number }}&page_unite={{ unite_page_obj.number }}"><i class="bi bi-chevron-right"></i></a></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="text-center py-4 text-muted">Aucun détail par pack pour cet achat.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:achat-list' %}" class="btn btn-outline-secondary">Annuler</a>
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('Supprimer définitivement cet achat et tous ses détails ? Cette action est irréversible.');">
+      <i class="bi bi-trash me-1"></i>Supprimer l'enregistrement
+    </button>
+  </div>
+</form>
+{% endblock %}
