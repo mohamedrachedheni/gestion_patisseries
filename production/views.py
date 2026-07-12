@@ -603,8 +603,7 @@ class ProduitSemiFiniDeleteView(GroupRequiredMixin, View):
 
 # ─── Recettes ─────────────────────────────────────────────────────────────────
 
-PAGINATE_RECETTES = 2
-PAGINATE_DETAILS = 4
+PAGINATE_RECETTES = 8
 
 
 def _recette_list_context(request):
@@ -617,37 +616,11 @@ def _recette_list_context(request):
     paginator = Paginator(qs, PAGINATE_RECETTES)
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
-    # Sélection de la recette dont le détail est affiché en partie 2 : la
-    # recette demandée en GET si elle existe, sinon la première de la page
-    # courante — jamais de partie 2 vide tant qu'il y a au moins une recette.
-    recette_id = request.GET.get('recette_id', '').strip()
-    selected_recette = None
-    if recette_id:
-        selected_recette = next((r for r in page_obj.object_list if str(r.pk) == recette_id), None)
-        if selected_recette is None:
-            selected_recette = Recette.objects.select_related('produit').filter(pk=recette_id).first()
-    if selected_recette is None and page_obj.object_list:
-        selected_recette = page_obj.object_list[0]
-
-    details_page_obj = None
-    if selected_recette is not None:
-        details_qs = (
-            RecetteDetaille.objects
-            .filter(recette=selected_recette)
-            .select_related('matiere_premiere')
-            .order_by('matiere_premiere__nom')
-        )
-        details_paginator = Paginator(details_qs, PAGINATE_DETAILS)
-        details_page_obj = details_paginator.get_page(request.GET.get('page2', 1))
-
     return {
-        'page_obj':             page_obj,
-        'is_paginated':         page_obj.has_other_pages(),
-        'nom':                  nom,
-        'total_count':          paginator.count,
-        'selected_recette':     selected_recette,
-        'details_page_obj':     details_page_obj,
-        'details_is_paginated': details_page_obj.has_other_pages() if details_page_obj else False,
+        'page_obj':     page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'nom':          nom,
+        'total_count':  paginator.count,
     }
 
 
@@ -657,6 +630,30 @@ class RecetteListView(GroupRequiredMixin, View):
 
     def get(self, request):
         return render(request, self.template_name, _recette_list_context(request))
+
+
+def _recette_detail_context(recette):
+    return {
+        'title': f'Détail de la recette — {recette.produit.nom}',
+        'recette': recette,
+        'details': (
+            recette.details
+            .select_related('matiere_premiere')
+            .order_by('matiere_premiere__nom')
+        ),
+    }
+
+
+class RecetteDetailView(GroupRequiredMixin, View):
+    """Détail en lecture seule d'une recette — bouton « Visualiser » de la
+    liste. Tous les champs sont verrouillés ; pas d'ajout/suppression de
+    ligne ni d'enregistrement (voir RecetteUpdateView pour la modification)."""
+    group_required = 'Production'
+    template_name = 'production/recette/detail.html'
+
+    def get(self, request, pk):
+        recette = get_object_or_404(Recette.objects.select_related('produit'), pk=pk)
+        return render(request, self.template_name, _recette_detail_context(recette))
 
 
 class RecetteDeleteView(GroupRequiredMixin, View):
@@ -845,7 +842,7 @@ class RecetteCreateView(GroupRequiredMixin, View):
             request,
             f'Recette « {produit.nom} » créée avec succès ({len(lignes_valides)} ligne(s)).',
         )
-        return redirect(f"{reverse('production:recette-list')}?recette_id={recette.pk}")
+        return redirect('production:recette-detail', pk=recette.pk)
 
 
 def _recette_detail_rows_json(recette):
@@ -1017,7 +1014,7 @@ class RecetteUpdateView(GroupRequiredMixin, View):
             request,
             f'Recette « {recette.produit.nom} » modifiée avec succès ({len(lignes_valides)} ligne(s)).',
         )
-        return redirect(f"{reverse('production:recette-list')}?recette_id={recette.pk}")
+        return redirect('production:recette-detail', pk=recette.pk)
 
 
 # ─── Commandes internes ───────────────────────────────────────────────────────
@@ -1110,8 +1107,6 @@ def _commande_interne_list_context(request):
 def _commande_interne_part2_context(**overrides):
     context = {
         'part2_rows_json':  '[]',
-        'focus_row_index':  None,
-        'focus_field':      None,
     }
     context.update(overrides)
     return context
@@ -1230,74 +1225,6 @@ class CommandeInterneDeleteView(GroupRequiredMixin, View):
         )
         messages.success(request, 'Commande interne supprimée avec succès.')
         return _commande_interne_redirect(request)
-
-
-class CommandeInterneQuickCreateView(GroupRequiredMixin, View):
-    """Bouton « Enregistrer » d'une seule ligne de la partie 2 — les autres
-    lignes (non sauvegardées) sont préservées dans le formulaire commun."""
-    group_required = 'Production'
-    template_name = 'production/commande_interne/list.html'
-
-    def post(self, request):
-        livraison_ats = request.POST.getlist('livraison_at')
-        produit_ids   = request.POST.getlist('produit_id')
-        quantites     = request.POST.getlist('quantite_commander')
-        raw_rows = [
-            {'livraison_at': l, 'produit_id': p, 'quantite_commander': q}
-            for l, p, q in zip(livraison_ats, produit_ids, quantites)
-        ]
-
-        try:
-            row_index = int(request.POST.get('save_row_index', ''))
-        except (TypeError, ValueError):
-            row_index = -1
-
-        def _echec(message, focus_field):
-            messages.error(request, message)
-            context = _commande_interne_list_context(request)
-            context.update(_commande_interne_part2_context(
-                part2_rows_json=json.dumps(raw_rows),
-                focus_row_index=row_index,
-                focus_field=focus_field,
-            ))
-            return render(request, self.template_name, context)
-
-        if not (0 <= row_index < len(produit_ids)):
-            return _echec("Ligne introuvable.", None)
-
-        livraison_at_str = (livraison_ats[row_index] or '').strip()
-        produit_id       = (produit_ids[row_index] or '').strip()
-        quantite_str     = (quantites[row_index] or '').strip()
-
-        if not livraison_at_str:
-            return _echec("Veuillez renseigner l'échéance.", 'livraison_at')
-        try:
-            livraison_at = date.fromisoformat(livraison_at_str)
-        except ValueError:
-            return _echec("Échéance invalide.", 'livraison_at')
-
-        if not produit_id:
-            return _echec("Veuillez sélectionner un produit.", 'produit_id')
-        recette = _resoudre_recette(produit_id)
-        if recette is None:
-            return _echec("Aucune recette n'est associée à ce produit.", 'produit_id')
-
-        try:
-            quantite = Decimal(quantite_str) if quantite_str else Decimal('0')
-        except InvalidOperation:
-            return _echec("Quantité à commander invalide.", 'quantite_commander')
-        if quantite <= 0:
-            return _echec("La quantité à commander doit être strictement supérieure à zéro.", 'quantite_commander')
-
-        ci = CommandeInterne.objects.create(
-            recette=recette, livraison_at=livraison_at, quantite_commander=quantite,
-        )
-        log_audit(
-            AuditAction.CREATE, f'Création commande interne « {recette.produit.nom} »',
-            table='CommandeInterne', record_id=ci.pk, new_value=model_to_dict(ci),
-        )
-        messages.success(request, f'Commande interne enregistrée pour « {recette.produit.nom} ».')
-        return redirect('production:commande-interne-list')
 
 
 class CommandeInterneBulkCreateView(GroupRequiredMixin, View):

@@ -232,13 +232,14 @@
   <div class="card-body">
     <form method="post" id="bulk-form" action="{% url 'production:commande-interne-bulk-create' %}">
       {% csrf_token %}
-      <div class="row g-2 mb-1 d-none d-md-flex">
-        <div class="col-md-3"><span class="form-label small text-muted mb-0">Échéance</span></div>
-        <div class="col-md-3"><span class="form-label small text-muted mb-0">Produit</span></div>
-        <div class="col-md-2"><span class="form-label small text-muted mb-0">Qté commandée</span></div>
-        <div class="col-md-2"><span class="form-label small text-muted mb-0">Unité</span></div>
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex overflow-auto">
+        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Échéance</span></div>
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté commandée</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
       </div>
-      <div id="ci-rows"></div>
+      <div id="ci-rows" style="overflow-x:auto;"></div>
       <div class="d-flex justify-content-end gap-2 mt-2">
         <button type="button" id="add-row-btn" class="btn btn-outline-primary btn-sm">
           <i class="bi bi-plus-lg me-1"></i>Nouvelle commande
@@ -259,8 +260,6 @@
   var RECETTES = {{ recettes_json|safe }};
   var PRODUITS = {{ produits_json|safe }};
   var PART2_ROWS = {{ part2_rows_json|safe }};
-  var FOCUS_ROW_INDEX = {% if focus_row_index is not None %}{{ focus_row_index }}{% else %}null{% endif %};
-  var FOCUS_FIELD = {% if focus_field %}"{{ focus_field }}"{% else %}null{% endif %};
 
   // ── Filtres : auto-soumission ───────────────────────────────────────────
   document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
@@ -325,34 +324,24 @@
     return html;
   }
 
-  function reindexRows() {
-    rowsContainer.querySelectorAll('.ci-add-row').forEach(function (row, idx) {
-      var btn = row.querySelector('.save-row-btn');
-      if (btn) { btn.value = idx; }
-    });
-  }
-
   function addRow(prefill) {
     prefill = prefill || {};
     var row = document.createElement('div');
-    row.className = 'row g-2 align-items-center ci-add-row ci-row mb-2';
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 ci-add-row ci-row mb-2';
     row.innerHTML =
-      '<div class="col-md-3">' +
+      '<div style="width:150px;flex:0 0 auto;">' +
         '<input type="date" name="livraison_at" class="form-control form-control-sm">' +
       '</div>' +
-      '<div class="col-md-3">' +
+      '<div style="flex:1 1 220px;min-width:180px;">' +
         '<select name="produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
       '</div>' +
-      '<div class="col-md-2">' +
+      '<div style="width:130px;flex:0 0 auto;">' +
         '<input type="number" step="0.001" min="0.001" name="quantite_commander" value="0" class="form-control form-control-sm no-spinner">' +
       '</div>' +
-      '<div class="col-md-2">' +
+      '<div style="width:110px;flex:0 0 auto;">' +
         '<select class="form-select form-select-sm unite-auto" disabled>' + buildUniteOptions() + '</select>' +
       '</div>' +
-      '<div class="col-md-2 d-flex gap-1">' +
-        '<button type="submit" name="save_row_index" value="0" ' +
-          'formaction="{% url 'production:commande-interne-quick-create' %}" ' +
-          'class="btn btn-sm btn-success save-row-btn">Enregistrer</button>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
         '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne">' +
           '<i class="bi bi-trash"></i>' +
         '</button>' +
@@ -366,12 +355,10 @@
 
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
-      reindexRows();
     });
 
     bindProduitUniteSync(row);
     rowsContainer.appendChild(row);
-    reindexRows();
     return row;
   }
 
@@ -382,15 +369,6 @@
   }
 
   document.getElementById('add-row-btn').addEventListener('click', function () { addRow(); });
-
-  if (FOCUS_ROW_INDEX !== null && FOCUS_FIELD) {
-    var rows = rowsContainer.querySelectorAll('.ci-add-row');
-    var targetRow = rows[FOCUS_ROW_INDEX];
-    if (targetRow) {
-      var field = targetRow.querySelector('[name="' + FOCUS_FIELD + '"]');
-      if (field) { field.focus(); }
-    }
-  }
 })();
 </script>
 {% endblock %}

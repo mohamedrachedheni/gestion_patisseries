@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Max
 from django.forms.models import model_to_dict
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -19,6 +20,7 @@ from .models import Achat, AchatCode, AchatDetaille, Fournisseur, MODE_PAIEMENT_
 
 FOURNISSEUR_TYPE_ACHAT = 'Matières premières et Emballages'
 LIBELLE_PAIEMENT_ACHAT = 'Paiement nouveau achat matière première'
+LIBELLE_PAIEMENT_ANCIEN_ACHAT = 'Paiement ancien achat matière première'
 
 
 class HomeView(GroupRequiredMixin, TemplateView):
@@ -61,16 +63,24 @@ class AchatListView(GroupRequiredMixin, View):
             date_fin_str = date_fin.isoformat()
 
         # ── Queryset filtré ────────────────────────────────────────
-        qs = Achat.objects.select_related('achat_code__fournisseur').filter(
-            achat_code__achat_at__gte=date_debut,
-            achat_code__achat_at__lte=date_fin,
+        # La table Achat est un historique (voir AchatUpdateView) : un même
+        # AchatCode peut avoir plusieurs Achat. On affiche tous les AchatCode
+        # de la période, mais chacun représenté uniquement par son DERNIER
+        # Achat (celui dont l'id est le plus grand pour ce achat_code_id).
+        dernier_achat_id_par_code = (
+            Achat.objects
+            .filter(achat_code__achat_at__gte=date_debut, achat_code__achat_at__lte=date_fin)
+            .values('achat_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
         )
+        qs = Achat.objects.select_related('achat_code__fournisseur').filter(pk__in=dernier_achat_id_par_code)
         if fournisseur_id:
             qs = qs.filter(achat_code__fournisseur_id=fournisseur_id)
         if statut:
             qs = qs.filter(statut=statut)
 
-        qs = qs.order_by('achat_code__achat_at', 'achat_code__achat_numero')
+        qs = qs.order_by('achat_code__achat_at', 'pk')
 
         # ── Données pour les listes déroulantes ───────────────────
         fournisseurs_list = (
@@ -525,5 +535,313 @@ class AchatDeleteView(GroupRequiredMixin, View):
         messages.success(
             request,
             f'Achat {numero} supprimé avec succès ({montant} TND, {nb_details} ligne(s) de détail).',
+        )
+        return redirect('commercial:achat-list')
+
+
+def _achat_update_context(request, achat, **overrides):
+    achat_code = achat.achat_code
+    fournisseurs_list = (
+        Fournisseur.objects
+        .filter(type_fournisseur=FOURNISSEUR_TYPE_ACHAT)
+        .order_by('raison_sociale')
+    )
+    matieres_list = MatierePremiere.objects.order_by('nom')
+
+    unite_rows = [
+        {
+            'matiere_premiere_id': d.matiere_premiere_id,
+            'quantite': str(d.quantite),
+            'prix_unitaire': str(d.prix_unitaire),
+        }
+        for d in achat.details.filter(pack=False).order_by('pk')
+    ]
+    pack_rows = [
+        {
+            'matiere_premiere_id': d.matiere_premiere_id,
+            'nombre_pack': str(d.nombre_pack),
+            'prix_pack': str(d.prix_pack),
+            'unite_pack': d.unite_pack,
+        }
+        for d in achat.details.filter(pack=True).order_by('pk')
+    ]
+
+    context = {
+        'achat':                 achat,
+        'achat_code':            achat_code,
+        'achat_at':              achat_code.achat_at.isoformat(),
+        'achat_numero':          achat_code.achat_numero,
+        'fournisseur_id':        str(achat_code.fournisseur_id) if achat_code.fournisseur_id else '',
+        # Montant payé repart de zéro : c'est un nouveau paiement, distinct du
+        # total_acompte déjà réglé (voir champ Total acompte, verrouillé).
+        'nouveau_acompte':       '0',
+        'mode_paiement':         achat.mode_paiement,
+        'observation':           achat.observation or '',
+        'total_acompte':         str(achat.total_acompte),
+        'fournisseurs_list':     fournisseurs_list,
+        'mode_paiement_choices': MODE_PAIEMENT_CHOICES,
+        'matieres_json':         json.dumps([
+            {'id': m.pk, 'nom': m.nom, 'unite': m.unite or ''} for m in matieres_list
+        ]),
+        'unite_rows_json':       json.dumps(unite_rows),
+        'pack_rows_json':        json.dumps(pack_rows),
+        'focus_field':           None,
+    }
+    context.update(overrides)
+    return context
+
+
+class AchatUpdateView(GroupRequiredMixin, View):
+    """Formulaire « Modification de l'enregistrement Achat des matières
+    premières » — même structure que AchatCreateView (parties 2 et 3
+    identiques : ajout/suppression de ligne et auto-calculs inchangés),
+    sauf : Date achat verrouillée, Montant payé réinitialisé à 0, et un
+    nouveau champ Total acompte (verrouillé, valeur figée = l'ancien
+    Achat.total_acompte, jamais recalculé) inséré avant Reste à payer.
+
+    post() : la table Achat est un historique — l'ancien enregistrement
+    n'est jamais modifié ni supprimé. Seul AchatCode.fournisseur_id peut
+    être mis à jour (achat_at/achat_numero restent figés). Un NOUVEL
+    enregistrement Achat est créé (même achat_code_id), avec
+    nouveau_acompte = Montant payé (saisi) et
+    total_acompte = ancien total_acompte + Montant payé. Le reste de la
+    procédure (validations, AchatDetaille, Transaction caisse) est identique
+    à AchatCreateView, sauf le libellé de la Transaction.
+
+    Stock (MatierePremiere.quantite) : avant d'appliquer l'incrément des
+    nouvelles lignes de détail, la contribution de l'ANCIEN dernier Achat de
+    ce même achat_code_id (ses AchatDetaille existants) est d'abord annulée
+    (décrément, plancher zéro) — sinon les quantités achetées seraient
+    comptées deux fois."""
+    group_required = 'Commercial'
+    template_name = 'commercial/achat/update.html'
+
+    def get(self, request, pk):
+        achat = get_object_or_404(
+            Achat.objects.select_related('achat_code__fournisseur'), pk=pk,
+        )
+        return render(request, self.template_name, _achat_update_context(request, achat))
+
+    def post(self, request, pk):
+        achat = get_object_or_404(
+            Achat.objects.select_related('achat_code__fournisseur'), pk=pk,
+        )
+        achat_code = achat.achat_code
+
+        fournisseur_id    = request.POST.get('fournisseur_id', '').strip()
+        nouveau_acompte_s = request.POST.get('nouveau_acompte', '').strip()
+        mode_paiement     = request.POST.get('mode_paiement', '').strip() or 'Espèces'
+        observation       = request.POST.get('observation', '').strip()
+
+        unite_mp_ids  = request.POST.getlist('detail_unite_matiere_premiere_id')
+        unite_qtes    = request.POST.getlist('detail_unite_quantite')
+        unite_prix    = request.POST.getlist('detail_unite_prix_unitaire')
+        raw_unite_rows = [
+            {'matiere_premiere_id': m, 'quantite': q, 'prix_unitaire': p}
+            for m, q, p in zip(unite_mp_ids, unite_qtes, unite_prix)
+        ]
+
+        pack_mp_ids   = request.POST.getlist('detail_pack_matiere_premiere_id')
+        pack_nombres  = request.POST.getlist('detail_pack_nombre_pack')
+        pack_prix     = request.POST.getlist('detail_pack_prix_pack')
+        pack_unites   = request.POST.getlist('detail_pack_unite_pack')
+        raw_pack_rows = [
+            {'matiere_premiere_id': m, 'nombre_pack': n, 'prix_pack': p, 'unite_pack': u}
+            for m, n, p, u in zip(pack_mp_ids, pack_nombres, pack_prix, pack_unites)
+        ]
+
+        def _echec(message, *, focus_field=None):
+            messages.error(request, message)
+            context = _achat_update_context(
+                request, achat,
+                fournisseur_id=fournisseur_id,
+                nouveau_acompte=nouveau_acompte_s or '0',
+                mode_paiement=mode_paiement,
+                observation=observation,
+                unite_rows_json=json.dumps(raw_unite_rows),
+                pack_rows_json=json.dumps(raw_pack_rows),
+                focus_field=focus_field,
+            )
+            return render(request, self.template_name, context)
+
+        # ── Étape 1 : validations des champs obligatoires (partie 1) ──────
+        if not fournisseur_id:
+            return _echec('Le fournisseur est obligatoire.')
+
+        if not nouveau_acompte_s:
+            return _echec('Le montant payé est obligatoire.')
+        nouveau_acompte = _decimal_or_zero(nouveau_acompte_s)
+        if nouveau_acompte < 0:
+            return _echec('Le montant payé doit être positif ou nul.', focus_field='nouveau_acompte')
+
+        # ── Étape 2 : lignes valides (partie 2 : par unité) ────────────────
+        unite_rows_valides = []
+        for mp_id, qte_s, prix_s in zip(unite_mp_ids, unite_qtes, unite_prix):
+            mp_id = (mp_id or '').strip()
+            if not mp_id:
+                continue
+            qte = _decimal_or_zero(qte_s)
+            prix = _decimal_or_zero(prix_s)
+            if qte <= 0 or prix <= 0:
+                continue
+            unite_rows_valides.append({
+                'matiere_premiere_id': mp_id,
+                'quantite': _quantize(qte),
+                'prix_unitaire': _quantize(prix),
+                'total_ligne': _quantize(qte * prix),
+            })
+
+        # ── Étape 3 : lignes valides (partie 3 : par pack) ─────────────────
+        pack_rows_valides = []
+        for mp_id, nb_s, prixp_s, unitep_s in zip(pack_mp_ids, pack_nombres, pack_prix, pack_unites):
+            mp_id = (mp_id or '').strip()
+            if not mp_id:
+                continue
+            nombre_pack = _decimal_or_zero(nb_s)
+            prix_pack = _decimal_or_zero(prixp_s)
+            unite_pack = _decimal_or_zero(unitep_s)
+            if nombre_pack <= 0 or prix_pack <= 0 or unite_pack <= 0:
+                continue
+            pack_rows_valides.append({
+                'matiere_premiere_id': mp_id,
+                'nombre_pack': _quantize(nombre_pack),
+                'prix_pack': _quantize(prix_pack),
+                'unite_pack': unite_pack,
+                'quantite': _quantize(unite_pack * nombre_pack),
+                'prix_unitaire': _quantize(prix_pack / unite_pack),
+                'total_ligne': _quantize(nombre_pack * prix_pack),
+            })
+
+        if not unite_rows_valides and not pack_rows_valides:
+            return _echec(
+                "Aucune ligne de détail valide : ajoutez au moins un achat par unité ou par "
+                "pack (matière première, quantités et prix strictement positifs)."
+            )
+
+        # Quantités des lignes de l'ANCIEN dernier Achat de ce même achat_code_id
+        # (celui affiché/modifié ici) — utilisées pour annuler sa contribution au
+        # stock avant d'appliquer celle des nouvelles lignes (voir étape 5).
+        ancienne_quantite_par_mp = {}
+        for d in achat.details.all():
+            mp_id = str(d.matiere_premiere_id)
+            ancienne_quantite_par_mp[mp_id] = ancienne_quantite_par_mp.get(mp_id, Decimal('0')) + d.quantite
+
+        matieres_ids = {r['matiere_premiere_id'] for r in unite_rows_valides + pack_rows_valides}
+        matieres_par_id = {
+            str(mp.pk): mp
+            for mp in MatierePremiere.objects.filter(pk__in=matieres_ids | set(ancienne_quantite_par_mp))
+        }
+        if not matieres_ids.issubset(matieres_par_id):
+            return _echec(
+                "Une ou plusieurs matières premières sélectionnées n'existent plus. "
+                'Veuillez rafraîchir la page et recommencer.'
+            )
+
+        # ── Étape 4 : Montant total / Total acompte / Reste à payer ───────
+        total_montant = sum((r['total_ligne'] for r in unite_rows_valides + pack_rows_valides), Decimal('0'))
+        total_acompte = achat.total_acompte + nouveau_acompte
+        reste_a_payer = total_montant - total_acompte
+        if reste_a_payer < 0:
+            return _echec(
+                'Le montant total à payé ne peut pas être inférieur au montant payé',
+                focus_field='nouveau_acompte',
+            )
+
+        if reste_a_payer == 0:
+            statut = 'Payé'
+        elif 0 < reste_a_payer < total_montant:
+            statut = 'Partiellement payé'
+        elif reste_a_payer == total_montant:
+            statut = 'Non payé'
+        else:
+            statut = ''
+
+        quantite_achetee_par_mp = {}
+        for r in unite_rows_valides + pack_rows_valides:
+            mp_id = r['matiere_premiere_id']
+            quantite_achetee_par_mp[mp_id] = quantite_achetee_par_mp.get(mp_id, Decimal('0')) + r['quantite']
+
+        # ── Étape 5 : écriture atomique ─────────────────────────────────────
+        try:
+            with transaction.atomic():
+                if str(achat_code.fournisseur_id) != fournisseur_id:
+                    achat_code.fournisseur_id = fournisseur_id
+                    achat_code.save(update_fields=['fournisseur_id'])
+
+                # Annule la contribution stock de l'ancien Achat (plancher zéro)
+                # AVANT d'appliquer celle des nouvelles lignes ci-dessous.
+                for mp_id, ancienne_quantite in ancienne_quantite_par_mp.items():
+                    mp = matieres_par_id[mp_id]
+                    nouvelle_quantite = (mp.quantite or Decimal('0')) - ancienne_quantite
+                    if nouvelle_quantite < 0:
+                        nouvelle_quantite = Decimal('0')
+                    mp.quantite = nouvelle_quantite
+                    mp.save(update_fields=['quantite'])
+
+                nouvel_achat = Achat.objects.create(
+                    achat_code=achat_code,
+                    total_montant=total_montant,
+                    total_acompte=total_acompte,
+                    nouveau_acompte=nouveau_acompte,
+                    reste_a_payer=reste_a_payer,
+                    mode_paiement=mode_paiement,
+                    statut=statut,
+                    observation=observation or None,
+                )
+                AchatDetaille.objects.bulk_create([
+                    AchatDetaille(
+                        achat=nouvel_achat,
+                        matiere_premiere=matieres_par_id[r['matiere_premiere_id']],
+                        quantite=r['quantite'], prix_unitaire=r['prix_unitaire'],
+                        total_ligne=r['total_ligne'], pack=False,
+                    )
+                    for r in unite_rows_valides
+                ] + [
+                    AchatDetaille(
+                        achat=nouvel_achat,
+                        matiere_premiere=matieres_par_id[r['matiere_premiere_id']],
+                        nombre_pack=r['nombre_pack'], prix_pack=r['prix_pack'],
+                        unite_pack=int(r['unite_pack']),
+                        quantite=r['quantite'], prix_unitaire=r['prix_unitaire'],
+                        total_ligne=r['total_ligne'], pack=True,
+                    )
+                    for r in pack_rows_valides
+                ])
+                for mp_id, quantite_achetee in quantite_achetee_par_mp.items():
+                    mp = matieres_par_id[mp_id]
+                    mp.quantite = (mp.quantite or Decimal('0')) + quantite_achetee
+                    mp.save(update_fields=['quantite'])
+
+                libelle = LibelleTransaction.objects.get_or_create(libelle=LIBELLE_PAIEMENT_ANCIEN_ACHAT)[0]
+                Transaction.objects.create(
+                    user=request.user,
+                    created_at=date.today(),
+                    libelle=libelle,
+                    table_id=f'Achat_id_{nouvel_achat.pk}',
+                    montant=nouveau_acompte,
+                )
+        except Exception:
+            messages.error(
+                request,
+                f"Échec de la modification de l'achat {achat_code} : aucune donnée n'a été modifiée.",
+            )
+            context = _achat_update_context(
+                request, achat,
+                fournisseur_id=fournisseur_id, nouveau_acompte=nouveau_acompte_s or '0',
+                mode_paiement=mode_paiement, observation=observation,
+                unite_rows_json=json.dumps(raw_unite_rows), pack_rows_json=json.dumps(raw_pack_rows),
+            )
+            return render(request, self.template_name, context)
+
+        log_audit(
+            AuditAction.UPDATE,
+            f'Modification achat {achat_code} — nouvel enregistrement #{nouvel_achat.pk} ({total_montant} TND)',
+            table='Achat', record_id=nouvel_achat.pk,
+            old_value={'achat_code': model_to_dict(achat_code), 'achat': model_to_dict(achat)},
+            new_value={'achat_code': model_to_dict(achat_code), 'achat': model_to_dict(nouvel_achat)},
+        )
+        messages.success(
+            request,
+            f'Achat {achat_code} modifié avec succès (nouvel enregistrement de {total_montant} TND).',
         )
         return redirect('commercial:achat-list')

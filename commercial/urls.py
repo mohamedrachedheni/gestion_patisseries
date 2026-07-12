@@ -12,4 +12,5 @@ urlpatterns = [
     path('achats/nouveau/',                views.AchatCreateView.as_view(),        name='achat-create'),
     path('achats/numero-suivant/',         views.AchatNumeroSuivantView.as_view(), name='achat-numero-suivant'),
     path('achats/<hashid:pk>/supprimer/',  views.AchatDeleteView.as_view(),        name='achat-delete'),
+    path('achats/<hashid:pk>/modifier/',   views.AchatUpdateView.as_view(),        name='achat-update'),
 ]

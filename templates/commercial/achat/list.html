@@ -128,7 +128,7 @@
               </select>
             </td>
             <td class="text-center pe-3">
-              <a href="#" class="btn btn-sm btn-outline-primary" title="Modifier">
+              <a href="{% url 'commercial:achat-update' a.pk %}" class="btn btn-sm btn-outline-primary" title="Modifier">
                 <i class="bi bi-pencil"></i>
               </a>
               <a href="{% url 'commercial:achat-delete' a.pk %}" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer">

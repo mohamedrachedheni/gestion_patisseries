@@ -183,10 +183,11 @@ class TransactionListView(GroupRequiredMixin, View):
         today = date.today()
 
         # ── Lecture des filtres GET ───────────────────────────────
-        date_debut_str = request.GET.get('date_debut', '').strip()
-        date_fin_str   = request.GET.get('date_fin',   '').strip()
-        user_id        = request.GET.get('user_id',    '').strip()
-        libelle_id     = request.GET.get('libelle_id', '').strip()
+        date_debut_str    = request.GET.get('date_debut', '').strip()
+        date_fin_str      = request.GET.get('date_fin',   '').strip()
+        user_id           = request.GET.get('user_id',    '').strip()
+        libelle_id        = request.GET.get('libelle_id', '').strip()
+        montant_non_zero  = request.GET.get('montant_non_zero', '').strip()
 
         # Valeurs par défaut : 7 derniers jours
         try:
@@ -214,6 +215,8 @@ class TransactionListView(GroupRequiredMixin, View):
             qs = qs.filter(user_id=user_id)
         if libelle_id:
             qs = qs.filter(libelle_id=libelle_id)
+        if montant_non_zero:
+            qs = qs.exclude(montant=0)
 
         qs = qs.order_by('-created_at', '-pk')
 
@@ -244,6 +247,7 @@ class TransactionListView(GroupRequiredMixin, View):
             'date_fin':       date_fin_str,
             'user_id':        user_id,
             'libelle_id':     libelle_id,
+            'montant_non_zero': montant_non_zero,
             'users_list':     users_list,
             'libelles_list':  libelles_list,
             'totaux':         totaux,

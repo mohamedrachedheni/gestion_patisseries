@@ -18,21 +18,21 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="get" id="filter-form">
-      <div class="row g-2 align-items-end">
+      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-2 overflow-auto">
 
-        <div class="col-sm-6 col-md-3 col-lg-2">
+        <div style="width:135px;flex:0 0 auto;">
           <label class="form-label small mb-1">Date début</label>
           <input type="date" name="date_debut" value="{{ date_debut }}"
                  class="form-control form-control-sm" data-autosubmit>
         </div>
 
-        <div class="col-sm-6 col-md-3 col-lg-2">
+        <div style="width:135px;flex:0 0 auto;">
           <label class="form-label small mb-1">Date fin</label>
           <input type="date" name="date_fin" value="{{ date_fin }}"
                  class="form-control form-control-sm" data-autosubmit>
         </div>
 
-        <div class="col-sm-6 col-md-3 col-lg-3">
+        <div style="width:200px;flex:0 0 auto;">
           <label class="form-label small mb-1">Utilisateur</label>
           <select name="user_id" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Tous les utilisateurs —</option>
@@ -44,7 +44,7 @@
           </select>
         </div>
 
-        <div class="col-sm-6 col-md-3 col-lg-3">
+        <div style="width:180px;flex:0 0 auto;">
           <label class="form-label small mb-1">Libellé</label>
           <select name="libelle_id" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Tous les libellés —</option>
@@ -54,9 +54,19 @@
           </select>
         </div>
 
-        <div class="col-auto">
+        <div style="flex:0 0 auto;">
+          <div class="form-check mt-4 text-nowrap">
+            <input type="checkbox" name="montant_non_zero" value="1" id="montant_non_zero"
+                   class="form-check-input" {% if montant_non_zero %}checked{% endif %} data-autosubmit>
+            <label class="form-check-label small" for="montant_non_zero">
+              Montant différent de zéro
+            </label>
+          </div>
+        </div>
+
+        <div style="flex:0 0 auto;">
           <a href="{% url 'administration:transaction-list' %}"
-             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
             <i class="bi bi-x-circle"></i> Réinitialiser
           </a>
         </div>
@@ -178,7 +188,7 @@
           {% if page_obj.has_previous %}
           <li class="page-item">
             <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&page={{ page_obj.previous_page_number }}">
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&montant_non_zero={{ montant_non_zero }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -190,7 +200,7 @@
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
               <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&page={{ num }}">
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&montant_non_zero={{ montant_non_zero }}&page={{ num }}">
                 {{ num }}
               </a>
             </li>
@@ -200,7 +210,7 @@
           {% if page_obj.has_next %}
           <li class="page-item">
             <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&page={{ page_obj.next_page_number }}">
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&montant_non_zero={{ montant_non_zero }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>

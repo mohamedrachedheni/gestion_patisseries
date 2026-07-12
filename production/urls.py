@@ -36,12 +36,12 @@ urlpatterns = [
     # Recettes
     path('recettes/',                        views.RecetteListView.as_view(),   name='recette-list'),
     path('recettes/nouvelle/',               views.RecetteCreateView.as_view(), name='recette-create'),
+    path('recettes/<hashid:pk>/',            views.RecetteDetailView.as_view(), name='recette-detail'),
     path('recettes/<hashid:pk>/modifier/',   views.RecetteUpdateView.as_view(), name='recette-update'),
     path('recettes/<hashid:pk>/supprimer/',  views.RecetteDeleteView.as_view(), name='recette-delete'),
 
     # Commandes internes
     path('commandes-internes/',                       views.CommandeInterneListView.as_view(),       name='commande-interne-list'),
-    path('commandes-internes/ligne/nouvelle/',        views.CommandeInterneQuickCreateView.as_view(), name='commande-interne-quick-create'),
     path('commandes-internes/ajout-tout/',            views.CommandeInterneBulkCreateView.as_view(),  name='commande-interne-bulk-create'),
     path('commandes-internes/<hashid:pk>/modifier/',  views.CommandeInterneUpdateView.as_view(),      name='commande-interne-update'),
     path('commandes-internes/<hashid:pk>/supprimer/', views.CommandeInterneDeleteView.as_view(),      name='commande-interne-delete'),

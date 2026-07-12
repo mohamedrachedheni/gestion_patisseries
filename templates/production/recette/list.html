@@ -28,7 +28,6 @@
 
   <div class="card-body py-3 border-bottom">
     <form method="get" id="filter-form">
-      {% if selected_recette %}<input type="hidden" name="recette_id" value="{{ selected_recette.pk }}">{% endif %}
       <div class="row g-2 align-items-end">
         <div class="col-sm-6 col-md-4 col-lg-3">
           <label class="form-label small mb-1">Nom du produit</label>
@@ -51,30 +50,28 @@
     <form id="recette-delete-{{ r.pk }}" method="post" action="{% url 'production:recette-delete' r.pk %}"></form>
     {% endfor %}
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0" style="table-layout:fixed">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Produit</th>
-            <th class="text-end">Quantité</th>
-            <th>Unité</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
+            <th class="ps-3" style="width:25%">Produit</th>
+            <th class="text-end" style="width:25%">Quantité</th>
+            <th style="width:25%">Unité</th>
+            <th class="text-center pe-3" style="width:25%">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for r in page_obj.object_list %}
-          <tr class="{% if selected_recette.pk == r.pk %}table-active{% endif %}">
-            <td class="ps-3">
-              <a href="?nom={{ nom }}&page={{ page_obj.number }}&recette_id={{ r.pk }}"
-                 class="link-body-emphasis text-decoration-none fw-medium">
-                {% if selected_recette.pk == r.pk %}<i class="bi bi-caret-right-fill text-primary me-1"></i>{% endif %}
-                {{ r.produit.nom }}
-              </a>
-            </td>
+          <tr>
+            <td class="ps-3 fw-medium text-truncate" title="{{ r.produit.nom }}">{{ r.produit.nom }}</td>
             <td class="text-end font-monospace">{{ r.quantite|stringformat:'s' }}</td>
             <td>{{ r.unite|default:'—' }}</td>
-            <td class="text-center pe-3">
+            <td class="text-center pe-3 text-nowrap">
+              <a href="{% url 'production:recette-detail' r.pk %}"
+                 class="btn btn-sm btn-outline-secondary" title="Visualiser">
+                <i class="bi bi-eye"></i>
+              </a>
               <a href="{% url 'production:recette-update' r.pk %}"
-                 class="btn btn-sm btn-outline-primary" title="Modifier recette">
+                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier recette">
                 <i class="bi bi-pencil"></i>
               </a>
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="recette-delete-{{ r.pk }}">
@@ -100,7 +97,7 @@
         <ul class="pagination pagination-sm mb-0">
           {% if page_obj.has_previous %}
           <li class="page-item">
-            <a class="page-link" href="?nom={{ nom }}&recette_id={{ selected_recette.pk }}&page={{ page_obj.previous_page_number }}">
+            <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -110,13 +107,13 @@
             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
-              <a class="page-link" href="?nom={{ nom }}&recette_id={{ selected_recette.pk }}&page={{ num }}">{{ num }}</a>
+              <a class="page-link" href="?nom={{ nom }}&page={{ num }}">{{ num }}</a>
             </li>
             {% endif %}
           {% endfor %}
           {% if page_obj.has_next %}
           <li class="page-item">
-            <a class="page-link" href="?nom={{ nom }}&recette_id={{ selected_recette.pk }}&page={{ page_obj.next_page_number }}">
+            <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -133,89 +130,6 @@
       {% if nom %}
       <br><a href="{% url 'production:recette-list' %}" class="mt-2 d-inline-block">Effacer le filtre</a>
       {% endif %}
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-{# ══ Partie 2 : composition de la recette sélectionnée ═══════════════════ #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-list-check me-2 text-primary"></i>
-    {% if selected_recette %}
-    Composition — {{ selected_recette.produit.nom }}
-    {% else %}
-    Composition
-    {% endif %}
-  </div>
-  <div class="card-body p-0">
-    {% if details_page_obj and details_page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Matière première</th>
-            <th class="text-end">Quantité</th>
-            <th class="pe-3">Unité</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in details_page_obj.object_list %}
-          <tr>
-            <td class="ps-3">{{ d.matiere_premiere.nom }}</td>
-            <td class="text-end font-monospace">{{ d.quantite|default_if_none:''|stringformat:'s' }}</td>
-            <td class="pe-3">{{ d.matiere_premiere.get_unite_display|default:'—' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {% if details_is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ details_page_obj.number }}/{{ details_page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ details_page_obj.paginator.count }} ligne{{ details_page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          {% if details_page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.number }}&recette_id={{ selected_recette.pk }}&page2={{ details_page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-          {% for num in details_page_obj.paginator.page_range %}
-            {% if details_page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > details_page_obj.number|add:"-3" and num < details_page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.number }}&recette_id={{ selected_recette.pk }}&page2={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-          {% if details_page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.number }}&recette_id={{ selected_recette.pk }}&page2={{ details_page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% elif selected_recette %}
-    <div class="text-center py-4 text-muted">
-      <i class="bi bi-inbox fs-2 d-block mb-2 opacity-25"></i>
-      Cette recette n'a aucune ligne de composition.
-    </div>
-    {% else %}
-    <div class="text-center py-4 text-muted">
-      <i class="bi bi-hand-index fs-2 d-block mb-2 opacity-25"></i>
-      Sélectionnez une recette ci-dessus pour voir sa composition.
     </div>
     {% endif %}
   </div>
