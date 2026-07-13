@@ -1,11 +1,12 @@
 """Logique métier de production réutilisable, indépendante des vues.
 
 Contient la procédure « Mise à jour du stock matière première suite à une
-commande interne réalisée ».
+commande interne réalisée » ainsi que le calcul de rupture de stock par
+période pour les commandes internes non achevées.
 """
 from decimal import ROUND_HALF_UP, Decimal
 
-from .models import MatierePremiere, Produit, Recette, RecetteDetaille
+from .models import CommandeInterne, MatierePremiere, Produit, Recette, RecetteDetaille
 
 
 class MiseAJourStockError(Exception):
@@ -119,3 +120,190 @@ def appliquer_mise_a_jour_stock_commande_interne(
         'matiere_premiere_semi_finie': matiere_semi_finie,
         'consommation': consommation,
     }
+
+
+def calculer_besoins_matieres_premieres_periode(date_debut, date_fin):
+    """Calcule, pour les CommandeInterne non achevées (is_completed=False) de
+    PRODUITS FINIS (recette.produit.is_produit_semi_fini=False) dont
+    livraison_at est dans [date_debut, date_fin], le besoin en matières
+    premières d'après la Recette de chaque produit commandé. Les commandes
+    internes de produits semi-finis eux-mêmes ne sont pas prises en compte.
+
+    Pour chaque ligne de RecetteDetaille : si la matière première n'est pas
+    elle-même un produit semi-fini, son besoin alimente `besoins` (matières
+    premières « de base », celles à acheter). Si elle EST un produit
+    semi-fini, elle est exclue de `besoins` (jamais développée via sa propre
+    recette ici) et son besoin brut alimente `besoins_semi_finis` à la place
+    — utilisé par le contrôle de rupture des produits semi-finis eux-mêmes.
+
+    Ne modifie rien en base — lecture seule. Les erreurs (recette absente ou
+    invalide) sont collectées sans interrompre le calcul : la commande
+    concernée est simplement ignorée.
+
+    Retourne (besoins, besoins_semi_finis, erreurs) :
+      besoins = {matiere_premiere_id: Decimal quantité nécessaire} (matières
+                 premières « de base » uniquement)
+      besoins_semi_finis = {matiere_premiere_id: Decimal quantité nécessaire}
+                 — besoin brut pour chaque produit semi-fini utilisé comme
+                 ingrédient par une recette de produit fini de la période
+      erreurs = liste de messages (str)
+    """
+    besoins_directs = {}
+    besoins_semi_fini = {}
+    erreurs = []
+
+    commandes = (
+        CommandeInterne.objects
+        .filter(
+            is_completed=False, livraison_at__gte=date_debut, livraison_at__lte=date_fin,
+            recette__produit__is_produit_semi_fini=False,
+        )
+        .select_related('recette__produit')
+    )
+
+    for ci in commandes:
+        if not ci.recette_id:
+            erreurs.append(f"Commande interne #{ci.pk} : aucune recette associée, ignorée.")
+            continue
+        recette = ci.recette
+        if not recette.quantite or recette.quantite <= 0:
+            erreurs.append(
+                f"La recette « {recette.produit.nom} » a une quantité de référence "
+                "invalide (≤ 0) : commande ignorée."
+            )
+            continue
+        quantite_commander = ci.quantite_commander or Decimal('0')
+        if quantite_commander <= 0:
+            continue
+
+        for ligne in RecetteDetaille.objects.filter(recette=recette).select_related('matiere_premiere'):
+            if not ligne.quantite:
+                continue
+            quantite_utilisee = _quantite_utilisee(quantite_commander, ligne.quantite, recette.quantite)
+            mp = ligne.matiere_premiere
+            if mp.produit_id is None:
+                besoins_directs[mp.pk] = besoins_directs.get(mp.pk, Decimal('0')) + quantite_utilisee
+            else:
+                besoins_semi_fini[mp.pk] = besoins_semi_fini.get(mp.pk, Decimal('0')) + quantite_utilisee
+
+    return besoins_directs, besoins_semi_fini, erreurs
+
+
+def quantite_commandee_semi_finis_periode(date_debut, date_fin):
+    """{produit_id: Decimal quantite_commander} pour les CommandeInterne non
+    achevées de produits semi-finis (is_produit_semi_fini=True) dont
+    livraison_at est dans [date_debut, date_fin]."""
+    quantite_commandee = {}
+    commandes = (
+        CommandeInterne.objects
+        .filter(
+            is_completed=False, livraison_at__gte=date_debut, livraison_at__lte=date_fin,
+            recette__produit__is_produit_semi_fini=True,
+        )
+        .select_related('recette__produit')
+    )
+    for ci in commandes:
+        produit_id = ci.recette.produit_id
+        quantite_commandee[produit_id] = quantite_commandee.get(produit_id, Decimal('0')) + (ci.quantite_commander or Decimal('0'))
+    return quantite_commandee
+
+
+def calculer_besoins_matieres_premieres_pour_semi_finis_periode(date_debut, date_fin):
+    """Calcule les matières premières « de base » nécessaires pour produire
+    les produits semi-finis requis par la période : ceux utilisés comme
+    ingrédients des recettes de produits finis commandés (non achevés,
+    calculer_besoins_matieres_premieres_periode), auxquels s'ajoutent ceux
+    directement commandés (non achevés) dans la période.
+
+    Pour chaque semi-fini concerné, la quantité totale à produire = besoin en
+    tant qu'ingrédient + quantité commandée directement (sans tenir compte de
+    son propre stock disponible — voir la Partie 2 du contrôle de rupture
+    pour ce calcul-là). Cette quantité est développée RÉCURSIVEMENT via la
+    Recette du semi-fini : les ingrédients qui sont eux-mêmes des semi-finis
+    voient leur propre recette développée à leur tour (protection anti-cycle),
+    jusqu'à n'obtenir que des matières premières de base.
+
+    Ne modifie rien en base — lecture seule. Les erreurs (semi-fini sans
+    recette, recette invalide, cycle détecté) sont collectées sans
+    interrompre le calcul : l'ingrédient concerné est ignoré.
+
+    Retourne (besoins, erreurs) :
+      besoins = {matiere_premiere_id: Decimal quantité nécessaire}
+      erreurs = liste de messages (str)
+    """
+    _, besoins_semi_fini, erreurs = calculer_besoins_matieres_premieres_periode(date_debut, date_fin)
+    quantite_commandee_par_produit = quantite_commandee_semi_finis_periode(date_debut, date_fin)
+
+    mps_par_produit = {
+        mp.produit_id: mp
+        for mp in MatierePremiere.objects.filter(produit_id__in=quantite_commandee_par_produit.keys())
+    }
+
+    quantite_a_produire = dict(besoins_semi_fini)
+    for produit_id, quantite_commandee in quantite_commandee_par_produit.items():
+        mp = mps_par_produit.get(produit_id)
+        if mp is None:
+            erreurs.append(
+                f"Produit semi-fini #{produit_id} commandé mais sans enregistrement "
+                "MatierePremiere correspondant : ignoré."
+            )
+            continue
+        quantite_a_produire[mp.pk] = quantite_a_produire.get(mp.pk, Decimal('0')) + quantite_commandee
+
+    besoins_directs = {}
+
+    def _developper(mp_id, quantite, visites):
+        if mp_id in visites:
+            erreurs.append(
+                "Cycle détecté dans les recettes de produits semi-finis "
+                f"(matière première #{mp_id}) : ingrédient ignoré."
+            )
+            return
+        visites = visites | {mp_id}
+
+        mp = MatierePremiere.objects.filter(pk=mp_id).select_related('produit').first()
+        if mp is None:
+            return
+
+        sous_recette = Recette.objects.filter(produit_id=mp.produit_id).first()
+        if sous_recette is None:
+            erreurs.append(
+                f"Le produit semi-fini « {mp.nom} » n'a pas de recette : impossible de "
+                "calculer les matières premières nécessaires à sa production."
+            )
+            return
+        if not sous_recette.quantite or sous_recette.quantite <= 0:
+            erreurs.append(
+                f"La recette du produit semi-fini « {mp.nom} » a une quantité de référence "
+                "invalide (≤ 0) : ingrédient ignoré."
+            )
+            return
+
+        for ligne in RecetteDetaille.objects.filter(recette=sous_recette).select_related('matiere_premiere'):
+            if not ligne.quantite:
+                continue
+            quantite_utilisee = _quantite_utilisee(quantite, ligne.quantite, sous_recette.quantite)
+            ligne_mp = ligne.matiere_premiere
+            if ligne_mp.produit_id is None:
+                besoins_directs[ligne_mp.pk] = besoins_directs.get(ligne_mp.pk, Decimal('0')) + quantite_utilisee
+            else:
+                _developper(ligne_mp.pk, quantite_utilisee, visites)
+
+    for mp_id, quantite in quantite_a_produire.items():
+        if quantite <= 0:
+            continue
+        _developper(mp_id, quantite, set())
+
+    return besoins_directs, erreurs
+
+
+def recettes_produit_unite_map():
+    """Liste de {produit_id, recette_id, unite} pour tous les produits ayant
+    une recette — sert à peupler, côté JS, l'auto-remplissage (lecture seule)
+    du champ Unité lors du choix d'un Produit dans les formulaires de
+    commande interne (production/commandes-internes/ et le contrôle de
+    rupture de stock)."""
+    return [
+        {'produit_id': r.produit_id, 'recette_id': r.pk, 'unite': r.unite or ''}
+        for r in Recette.objects.all()
+    ]

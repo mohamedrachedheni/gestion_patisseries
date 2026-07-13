@@ -1,0 +1,329 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Rupture stock — Administration{% endblock %}
+{% block page_title %}Contrôle de rupture de stock par période{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Rupture stock</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="alert alert-info d-flex align-items-start gap-2 mb-4">
+  <i class="bi bi-info-circle-fill mt-1"></i>
+  <div>
+    Analyse les commandes internes <strong>non achevées</strong> dont l'échéance tombe dans la période
+    sélectionnée, calcule la matière première nécessaire à leur production (recettes des produits, y compris
+    les produits semi-finis) et la compare au stock disponible (stock actuel moins le stock minimum à conserver).
+  </div>
+</div>
+
+{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'administration:rupture-stock-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Commandes internes de la période ────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-clipboard-check me-2 text-primary"></i>Commandes internes de la période
+  </div>
+  <div class="card-body p-0">
+    {% if commandes_internes_periode %}
+    {% for ci in commandes_internes_periode %}
+    <form id="rs-ci-update-{{ ci.pk }}" method="post"
+          action="{% url 'production:commande-interne-update' ci.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ rupture_stock_url }}">
+    </form>
+    <form id="rs-ci-delete-{{ ci.pk }}" method="post"
+          action="{% url 'production:commande-interne-delete' ci.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ rupture_stock_url }}">
+    </form>
+    {% endfor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:180px">Échéance</th>
+            <th style="width:260px">Produit</th>
+            <th class="text-end" style="width:180px">Qté commandée</th>
+            <th style="width:110px">Unité</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ci in commandes_internes_periode %}
+          <tr>
+            <td class="ps-3">
+              <input type="date" name="livraison_at" value="{{ ci.livraison_at|date:'Y-m-d' }}"
+                     class="form-control form-control-sm" form="rs-ci-update-{{ ci.pk }}"
+                     {% if ci.is_stock_maj %}disabled{% endif %}>
+            </td>
+            <td>
+              <select name="produit_id" class="form-select form-select-sm rs-produit-select"
+                      form="rs-ci-update-{{ ci.pk }}" {% if ci.is_stock_maj %}disabled{% endif %}>
+                <option value="">— Choisir —</option>
+                {% for p in produits_list %}
+                <option value="{{ p.pk }}" {% if ci.recette.produit_id == p.pk %}selected{% endif %}>{{ p.nom }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-end">
+              <input type="number" step="{% if ci.recette.unite == 'Pièce' %}1{% else %}0.001{% endif %}" min="0.001"
+                     name="quantite_commander"
+                     value="{% if ci.recette.unite == 'Pièce' %}{{ ci.quantite_commander|default_if_none:'0'|floatformat:0 }}{% else %}{{ ci.quantite_commander|default_if_none:'0'|stringformat:'s' }}{% endif %}"
+                     class="form-control form-control-sm text-end no-spinner"
+                     form="rs-ci-update-{{ ci.pk }}" {% if ci.is_completed or ci.is_stock_maj %}disabled{% endif %}>
+            </td>
+            <td>
+              <select class="form-select form-select-sm rs-unite-auto" disabled>
+                <option value="">—</option>
+                {% for value, label in unite_choices %}
+                <option value="{{ value }}" {% if value == ci.recette.unite %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center pe-3">
+              <button type="submit" form="rs-ci-delete-{{ ci.pk }}"
+                      class="btn btn-sm btn-outline-danger" title="Supprimer"
+                      onclick="return confirm('Supprimer cette commande interne ?');">
+                <i class="bi bi-trash"></i>
+              </button>
+              <button type="submit" form="rs-ci-update-{{ ci.pk }}"
+                      class="btn btn-sm btn-outline-primary ms-1" title="Modifier"
+                      {% if ci.is_stock_maj %}disabled{% endif %}>
+                <i class="bi bi-pencil"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">
+      <i class="bi bi-clipboard-x fs-2 d-block mb-2 opacity-25"></i>
+      Aucune commande interne sur la période.
+    </div>
+    {% endif %}
+
+    {# ── Ligne d'ajout (unique) ────────────────────────────────────────── #}
+    <form method="post" action="{% url 'production:commande-interne-bulk-create' %}"
+          class="p-3 border-top" id="rs-ci-add-form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ rupture_stock_url }}">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Échéance</label>
+          <input type="date" name="livraison_at" class="form-control form-control-sm">
+        </div>
+        <div style="flex:1 1 220px;min-width:180px;">
+          <label class="form-label small mb-1">Produit</label>
+          <select name="produit_id" class="form-select form-select-sm rs-produit-select">
+            <option value="">— Choisir —</option>
+            {% for p in produits_list %}
+            <option value="{{ p.pk }}">{{ p.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:130px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Qté commandée</label>
+          <input type="number" step="0.001" min="0.001" name="quantite_commander" value="0"
+                 class="form-control form-control-sm no-spinner">
+        </div>
+        <div style="width:110px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Unité</label>
+          <select class="form-select form-select-sm rs-unite-auto" disabled>
+            <option value="">—</option>
+            {% for value, label in unite_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex:0 0 auto;">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter une commande
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Action : PDF récapitulatif des commandes à produire ─────────────────── #}
+<div class="d-flex justify-content-end mb-4">
+  <a href="{% url 'administration:rupture-stock-commandes-pdf' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}"
+     target="_blank" class="btn btn-outline-primary">
+    <i class="bi bi-file-earmark-pdf me-1"></i>État des commandes à produire
+  </a>
+</div>
+
+{# ── Tableau ──────────────────────────────────────────────────────────────── #}
+<div class="rs-toggle-wrapper">
+  {% include "administration/rupture_stock/_table_matieres.html" with ruptures=ruptures titre="Matières premières à acheter" texte_vide="Aucune rupture de stock prévue sur la période" masquable=True %}
+</div>
+
+{# ── Tableau : produits semi-finis en rupture ────────────────────────────── #}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-transparent fw-semibold py-3 d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-box2-heart me-2 text-danger"></i>Produits semi-finis à produire</span>
+    <span class="badge bg-danger-subtle text-danger-emphasis">
+      {{ total_count_semi_finis }} produit{{ total_count_semi_finis|pluralize }}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    {% if ruptures_semi_finis %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Produit semi-fini</th>
+            <th class="text-end">Besoin</th>
+            <th class="text-end">Stock disponible</th>
+            <th class="text-end">Stock minimum</th>
+            <th class="text-end">Quantité commandée</th>
+            <th class="text-end pe-3">Manque ou quantité en plus</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in ruptures_semi_finis %}
+          <tr>
+            <td class="ps-3 fw-medium">{{ r.produit.nom }}</td>
+            <td class="text-end font-monospace">{{ r.besoin|stringformat:'s' }} {{ r.unite }}</td>
+            <td class="text-end font-monospace">{{ r.stock_disponible|stringformat:'s' }}</td>
+            <td class="text-end font-monospace text-muted">{{ r.stock_minimum|stringformat:'s' }}</td>
+            <td class="text-end font-monospace">{{ r.quantite_commandee|stringformat:'s' }}</td>
+            <td class="text-end font-monospace fw-semibold pe-3 {% if r.manque > 0 %}text-danger{% else %}text-muted{% endif %}">
+              {{ r.manque_affiche|stringformat:'s' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
+      Aucun produit semi-fini concerné (commande directe ou ingrédient d'une recette) sur la période
+      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+      →
+      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Tableau : matières premières pour la production des semi-finis ─────── #}
+<div class="mt-4 rs-toggle-wrapper">
+  {% include "administration/rupture_stock/_table_matieres.html" with ruptures=ruptures_pour_semi_finis titre="Matière première à acheter pour la production des produits semi-finis" texte_vide="Aucune matière première nécessaire à la production de semi-finis sur la période" masquable=True %}
+</div>
+
+{# ── Tableau : synthèse pour toute la production ─────────────────────────── #}
+<div class="mt-4">
+  {% include "administration/rupture_stock/_table_matieres.html" with ruptures=ruptures_totaux titre="Matière première à acheter pour toute la production" texte_vide="Aucune rupture de stock prévue pour toute la production sur la période" %}
+</div>
+
+{# ── Actions : états PDF ─────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-end gap-2 mt-4">
+  <a href="{% url 'administration:rupture-stock-pdf' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}&prix=dernier"
+     target="_blank" class="btn btn-outline-primary">
+    <i class="bi bi-file-earmark-pdf me-1"></i>État avec dernier prix
+  </a>
+  <a href="{% url 'administration:rupture-stock-pdf' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}&prix=meilleur60j"
+     target="_blank" class="btn btn-outline-primary">
+    <i class="bi bi-file-earmark-pdf me-1"></i>État avec dernier meilleur prix (60j)
+  </a>
+  <a href="{% url 'administration:home' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-x-lg me-1"></i>Fermer
+  </a>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+
+// ── Commandes internes de la période : Produit → Unité (lecture seule) ─────
+(function () {
+  var RECETTES = {{ recettes_json|default:'[]'|safe }};
+  document.querySelectorAll('.rs-produit-select').forEach(function (select) {
+    var container = select.closest('tr') || select.closest('form');
+    var uniteSelect = container ? container.querySelector('.rs-unite-auto') : null;
+    var quantiteInput = container ? container.querySelector('[name="quantite_commander"]') : null;
+    if (!uniteSelect) { return; }
+    function sync() {
+      var match = RECETTES.find(function (r) { return String(r.produit_id) === String(select.value); });
+      var unite = match ? match.unite : '';
+      uniteSelect.value = unite;
+      if (quantiteInput) {
+        if (unite === 'Pièce') {
+          quantiteInput.step = '1';
+          quantiteInput.value = String(Math.round(parseFloat(quantiteInput.value) || 0));
+        } else {
+          quantiteInput.step = '0.001';
+        }
+      }
+    }
+    select.addEventListener('change', sync);
+  });
+})();
+
+// ── Parties masquables (Afficher / Cacher) ──────────────────────────────────
+document.querySelectorAll('.rs-toggle-wrapper').forEach(function (wrapper) {
+  var showBtn = wrapper.querySelector('.rs-toggle-show');
+  var hideBtn = wrapper.querySelector('.rs-toggle-hide');
+  var content = wrapper.querySelector('.rs-toggle-content');
+  if (!showBtn || !hideBtn || !content) { return; }
+  showBtn.addEventListener('click', function () {
+    content.style.display = '';
+    showBtn.style.display = 'none';
+    hideBtn.style.display = '';
+  });
+  hideBtn.addEventListener('click', function () {
+    content.style.display = 'none';
+    hideBtn.style.display = 'none';
+    showBtn.style.display = '';
+  });
+});
+</script>
+{% endblock %}

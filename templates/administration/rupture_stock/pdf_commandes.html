@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 2cm 1.5cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #222; }
+  h1 { font-size: 14pt; margin: 0 0 4px 0; }
+  h2 { font-size: 12pt; margin: 18px 0 8px 0; border-bottom: 1px solid #999; padding-bottom: 2px; }
+  .periode { font-size: 9pt; color: #555; margin-bottom: 16px; }
+  .commande-bloc { page-break-inside: avoid; margin-bottom: 16px; }
+  .commande-titre {
+    font-size: 10.5pt; font-weight: bold; background-color: #eee;
+    padding: 4px 6px; border: 1px solid #ccc; border-bottom: none;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 3px 6px; font-size: 9pt; }
+  th { background-color: #f5f5f5; text-align: left; }
+  .text-end { text-align: right; }
+</style>
+</head>
+<body>
+  <h1>Commandes internes à produire</h1>
+  <div class="periode">
+    Période : {{ date_debut|date:'d/m/Y' }} &rarr; {{ date_fin|date:'d/m/Y' }}
+    &nbsp;&middot;&nbsp; Généré le {{ genere_le|date:'d/m/Y H:i' }}
+  </div>
+
+  {% if groupes %}
+    {% for groupe in groupes %}
+    <h2>Échéance : {{ groupe.date|date:'d/m/Y' }}</h2>
+    {% for c in groupe.commandes %}
+    <div class="commande-bloc">
+      <div class="commande-titre">
+        {{ c.produit.nom|default:'—' }}
+        &mdash;
+        Quantité à produire :
+        {% if c.unite == 'Pièce' %}{{ c.quantite_a_produire|floatformat:0 }}{% else %}{{ c.quantite_a_produire|stringformat:'s' }}{% endif %}
+        {{ c.unite }}
+      </div>
+      {% if c.lignes_ingredients %}
+      <table>
+        <thead>
+          <tr>
+            <th>Matière première / Produit semi-fini</th>
+            <th class="text-end">Quantité</th>
+            <th>Unité</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in c.lignes_ingredients %}
+          <tr>
+            <td>{{ l.nom }}</td>
+            <td class="text-end">
+              {% if l.unite == 'Pièce' %}{{ l.quantite|floatformat:0 }}{% else %}{{ l.quantite|stringformat:'s' }}{% endif %}
+            </td>
+            <td>{{ l.unite }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <table>
+        <tbody>
+          <tr><td>Aucun ingrédient (recette introuvable ou invalide).</td></tr>
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+  {% else %}
+  <p>Aucune commande interne non achevée sur cette période.</p>
+  {% endif %}
+</body>
+</html>

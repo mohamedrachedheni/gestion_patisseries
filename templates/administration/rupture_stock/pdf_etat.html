@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4 landscape; margin: 2cm 1.5cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #222; }
+  h1 { font-size: 14pt; margin: 0 0 4px 0; }
+  .periode { font-size: 9pt; color: #555; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { border: 1px solid #ccc; padding: 4px 6px; font-size: 9pt; }
+  th { background-color: #eee; text-align: left; }
+  .text-end { text-align: right; }
+  tfoot td { font-weight: bold; background-color: #f5f5f5; }
+</style>
+</head>
+<body>
+  <h1>{{ titre }}</h1>
+  <div class="periode">
+    Période : {{ date_debut|date:'d/m/Y' }} &rarr; {{ date_fin|date:'d/m/Y' }}
+    &nbsp;&middot;&nbsp; Généré le {{ genere_le|date:'d/m/Y H:i' }}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Fournisseur (date)</th>
+        <th>Matière première</th>
+        <th class="text-end">Quantité (manque)</th>
+        <th>Unité</th>
+        <th class="text-end">Prix unitaire (TND)</th>
+        <th class="text-end">Total ligne (TND)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lignes %}
+      <tr>
+        <td>
+          {% if l.fournisseur %}{{ l.fournisseur.raison_sociale }} ({{ l.date_prix|date:'d/m/Y' }}){% else %}&mdash;{% endif %}
+        </td>
+        <td>{{ l.matiere_premiere.nom }}</td>
+        <td class="text-end">
+          {% if l.matiere_premiere.unite == 'Pièce' %}{{ l.manque|floatformat:0 }}{% else %}{{ l.manque|stringformat:'s' }}{% endif %}
+        </td>
+        <td>{{ l.matiere_premiere.unite }}</td>
+        <td class="text-end">{% if l.prix_unitaire is not None %}{{ l.prix_unitaire|stringformat:'s' }}{% else %}&mdash;{% endif %}</td>
+        <td class="text-end">{% if l.total_ligne is not None %}{{ l.total_ligne|stringformat:'s' }}{% else %}&mdash;{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5" class="text-end">Total</td>
+        <td class="text-end">{{ total_general|stringformat:'s' }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</body>
+</html>

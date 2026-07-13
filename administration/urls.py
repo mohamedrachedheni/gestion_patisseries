@@ -22,4 +22,9 @@ urlpatterns = [
     path('transferts/nouveau/',               views.TransfereCreateView.as_view(), name='transfere-create'),
     path('transferts/<hashid:pk>/modifier/',  views.TransfereUpdateView.as_view(), name='transfere-update'),
     path('transferts/<hashid:pk>/supprimer/', views.TransfereDeleteView.as_view(), name='transfere-delete'),
+
+    # Stock
+    path('rupture-stock/',                views.RuptureStockView.as_view(),            name='rupture-stock-list'),
+    path('rupture-stock/pdf/',             views.RuptureStockPdfView.as_view(),         name='rupture-stock-pdf'),
+    path('rupture-stock/pdf-commandes/',   views.RuptureStockCommandesPdfView.as_view(), name='rupture-stock-commandes-pdf'),
 ]

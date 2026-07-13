@@ -28,4 +28,10 @@
      class="nav-link {% if 'transfere' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-bank"></i> Transferts
   </a>
+
+  <div class="sidebar-section">Stock</div>
+  <a href="{% url 'administration:rupture-stock-list' %}"
+     class="nav-link {% if 'rupture-stock' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-exclamation-triangle"></i> Rupture stock
+  </a>
 {% endblock %}

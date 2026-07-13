@@ -9,6 +9,7 @@ from django.db.models import F, RestrictedError
 from django.forms.models import model_to_dict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import TemplateView, View
 
 from core.audit import AuditAction, log_audit
@@ -16,7 +17,11 @@ from core.mixins import GroupRequiredMixin
 
 from .forms import FamilleForm, MatierePremiereForm, ProduitForm, ProduitSemiFiniForm
 from .models import CommandeInterne, MatierePremiere, MatierePremiereFamille, Produit, Recette, RecetteDetaille
-from .services import MiseAJourStockError, appliquer_mise_a_jour_stock_commande_interne
+from .services import (
+    MiseAJourStockError,
+    appliquer_mise_a_jour_stock_commande_interne,
+    recettes_produit_unite_map,
+)
 
 
 def _form_errors_text(form):
@@ -1035,10 +1040,7 @@ def _resoudre_recette(produit_id):
 def _recettes_json():
     """Table produit_id → {recette_id, unite}, pour le JS (sélection d'un
     Produit ⇒ auto-remplissage de l'Unité, en lecture seule)."""
-    return json.dumps([
-        {'produit_id': r.produit_id, 'recette_id': r.pk, 'unite': r.unite or ''}
-        for r in Recette.objects.all()
-    ])
+    return json.dumps(recettes_produit_unite_map())
 
 
 def _commande_interne_list_context(request):
@@ -1112,7 +1114,24 @@ def _commande_interne_part2_context(**overrides):
     return context
 
 
+def _safe_next_url(request):
+    """URL de retour explicite (champ « next », POST ou GET) — permet de
+    réutiliser les vues CommandeInterne depuis une autre page (ex : le
+    contrôle de rupture de stock) en y revenant après l'action, au lieu du
+    retour par défaut vers production/commandes-internes/. Valide l'hôte pour
+    éviter une redirection ouverte."""
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return next_url
+    return None
+
+
 def _commande_interne_redirect(request):
+    next_url = _safe_next_url(request)
+    if next_url:
+        return redirect(next_url)
     qs = request.META.get('QUERY_STRING', '')
     url = reverse('production:commande-interne-list')
     return redirect(f'{url}?{qs}' if qs else url)
@@ -1268,6 +1287,9 @@ class CommandeInterneBulkCreateView(GroupRequiredMixin, View):
 
         if not a_enregistrer:
             messages.error(request, "Aucune ligne valide n'a été trouvée : rien n'a été enregistré.")
+            next_url = _safe_next_url(request)
+            if next_url:
+                return redirect(next_url)
             context = _commande_interne_list_context(request)
             context.update(_commande_interne_part2_context(part2_rows_json=json.dumps(raw_rows)))
             return render(request, self.template_name, context)
@@ -1290,7 +1312,8 @@ class CommandeInterneBulkCreateView(GroupRequiredMixin, View):
         if nb_ignorees:
             message += f' {nb_ignorees} ligne(s) ignorée(s) (champs manquants ou quantité invalide).'
         messages.success(request, message)
-        return redirect('production:commande-interne-list')
+        next_url = _safe_next_url(request)
+        return redirect(next_url) if next_url else redirect('production:commande-interne-list')
 
 
 class CommandeInterneStockUpdateView(GroupRequiredMixin, View):

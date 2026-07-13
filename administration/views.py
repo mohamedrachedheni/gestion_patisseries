@@ -1,17 +1,33 @@
 import datetime
+import json
 from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, RestrictedError, Sum
+from django.db.models import Max, Q, RestrictedError, Sum
 from django.forms.models import model_to_dict
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView, View
+from xhtml2pdf import pisa
 
+from commercial.models import Achat, AchatDetaille
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
+from production.models import CommandeInterne, MatierePremiere, Produit, Recette, RecetteDetaille
+from production.services import (
+    calculer_besoins_matieres_premieres_periode,
+    calculer_besoins_matieres_premieres_pour_semi_finis_periode,
+    quantite_commandee_semi_finis_periode,
+    recettes_produit_unite_map,
+)
 
 from .forms import EmployeForm, TransfereForm, UserCreateForm, UserUpdateForm
 from .models import Employe, LibelleTransaction, Transaction as TransactionModel, Transfere
@@ -500,3 +516,436 @@ class TransfereListView(GroupRequiredMixin, View):
             'users_list':      users_list,
             'total_count':     paginator.count,
         })
+
+
+# ─── Rupture de stock ───────────────────────────────────────────────────────
+
+def _construire_ruptures_matieres(besoins, derniers_achat_ids, date_limite_60j):
+    """Construit, pour chaque matière première de `besoins`, sa ligne avec
+    Manque = Besoin + Stock minimum − Stock disponible, son dernier
+    prix/fournisseur d'achat et le meilleur prix des 60 derniers jours (un
+    même AchatCode peut avoir plusieurs Achat — historique, voir
+    AchatUpdateView — on ne considère que le dernier de chacun, via
+    `derniers_achat_ids`). Toutes les matières premières de `besoins` sont
+    incluses, y compris celles sans manque réel (Manque ≤ 0). Retourne la
+    liste triée par nom de matière première."""
+    ruptures = []
+    if not besoins:
+        return ruptures
+
+    matieres = {mp.pk: mp for mp in MatierePremiere.objects.filter(pk__in=besoins.keys())}
+    for mp_id, besoin in besoins.items():
+        mp = matieres.get(mp_id)
+        if mp is None:
+            continue
+
+        stock_disponible = mp.quantite or Decimal('0')
+        stock_minimum = mp.stock_minimum or Decimal('0')
+        manque = besoin + stock_minimum - stock_disponible
+
+        dernier = (
+            AchatDetaille.objects
+            .filter(matiere_premiere_id=mp_id, achat_id__in=derniers_achat_ids)
+            .select_related('achat__achat_code__fournisseur')
+            .order_by('-achat__achat_code__achat_at', '-achat_id')
+            .first()
+        )
+        meilleur_60j = (
+            AchatDetaille.objects
+            .filter(
+                matiere_premiere_id=mp_id, achat_id__in=derniers_achat_ids,
+                achat__achat_code__achat_at__gte=date_limite_60j,
+            )
+            .select_related('achat__achat_code__fournisseur')
+            .order_by('prix_unitaire', '-achat__achat_code__achat_at')
+            .first()
+        )
+
+        ruptures.append({
+            'matiere_premiere':         mp,
+            'besoin':                   besoin,
+            'stock_disponible':         stock_disponible,
+            'stock_minimum':            stock_minimum,
+            'manque':                   manque,
+            'manque_affiche':           -manque,
+            'dernier_prix':             dernier.prix_unitaire if dernier else None,
+            'dernier_fournisseur':      dernier.achat.achat_code.fournisseur if dernier else None,
+            'dernier_date':             dernier.achat.achat_code.achat_at if dernier else None,
+            'meilleur_prix_60j':        meilleur_60j.prix_unitaire if meilleur_60j else None,
+            'meilleur_fournisseur_60j': meilleur_60j.achat.achat_code.fournisseur if meilleur_60j else None,
+            'meilleur_date_60j':        meilleur_60j.achat.achat_code.achat_at if meilleur_60j else None,
+        })
+
+    ruptures.sort(key=lambda r: r['matiere_premiere'].nom)
+    return ruptures
+
+
+class RuptureStockView(GroupRequiredMixin, View):
+    """« Contrôle de rupture de stock par période pour les commandes internes
+    non achevées » — Partie 1 : ne prend en compte que les commandes internes
+    non achevées de PRODUITS FINIS de la période (les commandes de produits
+    semi-finis eux-mêmes sont exclues), et uniquement les matières premières
+    « de base » de leurs recettes — les ingrédients qui sont eux-mêmes des
+    produits semi-finis sont exclus du tableau (voir
+    production.services.calculer_besoins_matieres_premieres_periode). Calcule,
+    pour chaque matière première, Manque = Besoin + Stock minimum − Stock
+    disponible (Stock disponible = MatierePremiere.quantite). Toutes les
+    matières premières concernées sont listées, y compris celles sans manque
+    réel (Manque ≤ 0 — pas de filtrage), avec leur dernier prix/fournisseur
+    d'achat et le meilleur prix des 60 derniers jours.
+
+    Partie 2 : produits semi-finis — combine le besoin brut en semi-finis
+    (ingrédients des recettes d'autres produits commandés,
+    calculer_besoins_matieres_premieres_periode) et les commandes internes
+    non achevées portant directement sur un produit semi-fini. Pour chacun,
+    Manque = Besoin + Stock minimum − Stock disponible − Quantité commandée.
+    Tous les produits concernés sont listés, y compris ceux dont le Manque
+    est ≤ 0.
+
+    Partie 3 : mêmes colonnes que la partie 1 (même absence de filtrage), mais
+    pour la PRODUCTION des produits semi-finis eux-mêmes — quantité à
+    produire = besoin en tant qu'ingrédient (partie 2) + quantité commandée
+    directement, développée RÉCURSIVEMENT via la Recette de chaque semi-fini
+    (voir production.services.calculer_besoins_matieres_premieres_pour_semi_finis_periode)
+    jusqu'à n'obtenir que des matières premières de base.
+
+    Partie 4 : synthèse — mêmes colonnes que les parties 1 et 3, mais
+    regroupe (somme) leurs besoins par matière première puis ne conserve que
+    celles présentant un manque réel (Manque > 0 — filtrage, contrairement
+    aux parties 1 et 3).
+
+    Lecture seule."""
+    group_required = 'Administration'
+    template_name = 'administration/rupture_stock/list.html'
+
+    def get(self, request):
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str   = request.GET.get('date_fin',   '').strip()
+
+        # Par défaut : les sept prochains jours, aujourd'hui inclus.
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today + timedelta(days=6)
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today
+            date_fin = today + timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        besoins, besoins_semi_fini, erreurs = calculer_besoins_matieres_premieres_periode(date_debut, date_fin)
+        for message in erreurs:
+            messages.warning(request, message)
+
+        # Achats : un même AchatCode peut avoir plusieurs Achat (historique,
+        # voir AchatUpdateView) — on ne considère que le dernier de chacun.
+        derniers_achat_ids = (
+            Achat.objects.values('achat_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+        )
+        date_limite_60j = today - timedelta(days=60)
+
+        ruptures = _construire_ruptures_matieres(besoins, derniers_achat_ids, date_limite_60j)
+
+        # ── Partie 2 : produits semi-finis en rupture ──────────────────────
+        # Quantité déjà commandée (non achevée) pour chaque produit semi-fini
+        # de la période — réduit d'autant le manque à produire/acheter.
+        quantite_commandee_par_produit = quantite_commandee_semi_finis_periode(date_debut, date_fin)
+
+        matieres_semi_finies = {
+            mp.produit_id: mp
+            for mp in MatierePremiere.objects.filter(pk__in=besoins_semi_fini.keys()).select_related('produit')
+        }
+        # Compléter avec les semi-finis commandés directement mais sans besoin
+        # en tant qu'ingrédient (sinon absents de matieres_semi_finies).
+        produits_ids_manquants = set(quantite_commandee_par_produit) - set(matieres_semi_finies)
+        if produits_ids_manquants:
+            for mp in MatierePremiere.objects.filter(produit_id__in=produits_ids_manquants).select_related('produit'):
+                matieres_semi_finies[mp.produit_id] = mp
+
+        ruptures_semi_finis = []
+        for produit_id, mp in matieres_semi_finies.items():
+            besoin = besoins_semi_fini.get(mp.pk, Decimal('0'))
+            stock_disponible = mp.quantite or Decimal('0')
+            stock_minimum = mp.stock_minimum or Decimal('0')
+            quantite_commandee = quantite_commandee_par_produit.get(produit_id, Decimal('0'))
+            manque = besoin + stock_minimum - stock_disponible - quantite_commandee
+            ruptures_semi_finis.append({
+                'produit':             mp.produit,
+                'unite':               mp.unite,
+                'besoin':              besoin,
+                'stock_disponible':    stock_disponible,
+                'stock_minimum':       stock_minimum,
+                'quantite_commandee':  quantite_commandee,
+                'manque':              manque,
+                'manque_affiche':      -manque,
+            })
+
+        ruptures_semi_finis.sort(key=lambda r: r['produit'].nom)
+
+        # ── Partie 3 : matières premières pour la production des semi-finis ─
+        besoins_pour_semi_finis, erreurs_semi_finis = calculer_besoins_matieres_premieres_pour_semi_finis_periode(
+            date_debut, date_fin,
+        )
+        for message in erreurs_semi_finis:
+            messages.warning(request, message)
+        ruptures_pour_semi_finis = _construire_ruptures_matieres(
+            besoins_pour_semi_finis, derniers_achat_ids, date_limite_60j,
+        )
+
+        # ── Partie 4 : synthèse — matières premières pour toute la production ─
+        # Regroupe (somme) les besoins des parties 1 et 3, puis ne conserve que
+        # les matières premières présentant un manque réel (Manque > 0).
+        besoins_totaux = {}
+        for mp_id, quantite in besoins.items():
+            besoins_totaux[mp_id] = besoins_totaux.get(mp_id, Decimal('0')) + quantite
+        for mp_id, quantite in besoins_pour_semi_finis.items():
+            besoins_totaux[mp_id] = besoins_totaux.get(mp_id, Decimal('0')) + quantite
+
+        ruptures_totaux = [
+            r for r in _construire_ruptures_matieres(besoins_totaux, derniers_achat_ids, date_limite_60j)
+            if r['manque'] > 0
+        ]
+
+        # ── Nouvelle partie : commandes internes de la période (avant la 1) ─
+        commandes_internes_periode = (
+            CommandeInterne.objects
+            .filter(livraison_at__gte=date_debut, livraison_at__lte=date_fin)
+            .select_related('recette__produit')
+            .order_by('livraison_at')
+        )
+        produits_avec_recette = Produit.objects.filter(recettes__isnull=False).order_by('nom')
+        rupture_stock_url = (
+            f"{reverse('administration:rupture-stock-list')}"
+            f"?date_debut={date_debut_str}&date_fin={date_fin_str}"
+        )
+
+        return render(request, self.template_name, {
+            'date_debut':                  date_debut_str,
+            'date_fin':                    date_fin_str,
+            'ruptures':                    ruptures,
+            'total_count':                 len(ruptures),
+            'ruptures_semi_finis':         ruptures_semi_finis,
+            'total_count_semi_finis':      len(ruptures_semi_finis),
+            'ruptures_pour_semi_finis':    ruptures_pour_semi_finis,
+            'total_count_pour_semi_finis': len(ruptures_pour_semi_finis),
+            'ruptures_totaux':             ruptures_totaux,
+            'total_count_totaux':          len(ruptures_totaux),
+            'commandes_internes_periode':  commandes_internes_periode,
+            'produits_list':               produits_avec_recette,
+            'unite_choices':               Recette.UNITE_CHOICES,
+            'recettes_json':               json.dumps(recettes_produit_unite_map()),
+            'rupture_stock_url':           rupture_stock_url,
+        })
+
+
+def _calculer_ruptures_totaux(date_debut, date_fin):
+    """Recalcule directement la synthèse de la Partie 4 (besoins combinés des
+    parties 1 et 3, ruptures réelles uniquement — Manque > 0 — avec prix
+    d'achat). Fonction autonome (recalcule tout depuis la base) réutilisée
+    par RuptureStockPdfView, qui répond à une requête HTTP séparée de la
+    page principale. Retourne (ruptures_totaux, erreurs)."""
+    besoins, _besoins_semi_fini, erreurs = calculer_besoins_matieres_premieres_periode(date_debut, date_fin)
+    besoins_pour_semi_finis, erreurs_semi_finis = calculer_besoins_matieres_premieres_pour_semi_finis_periode(
+        date_debut, date_fin,
+    )
+    erreurs = erreurs + erreurs_semi_finis
+
+    besoins_totaux = {}
+    for mp_id, quantite in besoins.items():
+        besoins_totaux[mp_id] = besoins_totaux.get(mp_id, Decimal('0')) + quantite
+    for mp_id, quantite in besoins_pour_semi_finis.items():
+        besoins_totaux[mp_id] = besoins_totaux.get(mp_id, Decimal('0')) + quantite
+
+    derniers_achat_ids = (
+        Achat.objects.values('achat_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+    )
+    date_limite_60j = date.today() - timedelta(days=60)
+
+    ruptures_totaux = [
+        r for r in _construire_ruptures_matieres(besoins_totaux, derniers_achat_ids, date_limite_60j)
+        if r['manque'] > 0
+    ]
+    return ruptures_totaux, erreurs
+
+
+class RuptureStockPdfView(GroupRequiredMixin, View):
+    """Génère le PDF « État avec dernier prix » ou « État avec meilleur prix
+    (60 jours) » (paramètre GET `prix` = 'dernier' ou 'meilleur60j') à partir
+    de la synthèse de la Partie 4 (_calculer_ruptures_totaux) : une ligne par
+    matière première en rupture (quantité = Manque, prix selon le type
+    choisi, Total ligne = quantité × prix), avec un total général en pied de
+    tableau. Renvoyé en « inline » : le lecteur PDF du navigateur fournit
+    nativement l'impression et le téléchargement."""
+    group_required = 'Administration'
+
+    def get(self, request):
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today + timedelta(days=6)
+        if date_debut > date_fin:
+            date_debut, date_fin = today, today + timedelta(days=6)
+
+        type_prix = request.GET.get('prix', 'dernier').strip()
+        if type_prix not in ('dernier', 'meilleur60j'):
+            type_prix = 'dernier'
+
+        ruptures_totaux, erreurs = _calculer_ruptures_totaux(date_debut, date_fin)
+
+        lignes = []
+        total_general = Decimal('0')
+        for r in ruptures_totaux:
+            if type_prix == 'dernier':
+                prix_unitaire = r['dernier_prix']
+                fournisseur = r['dernier_fournisseur']
+                date_prix = r['dernier_date']
+            else:
+                prix_unitaire = r['meilleur_prix_60j']
+                fournisseur = r['meilleur_fournisseur_60j']
+                date_prix = r['meilleur_date_60j']
+            total_ligne = None
+            if prix_unitaire is not None:
+                total_ligne = (r['manque'] * prix_unitaire).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+                total_general += total_ligne
+            lignes.append({
+                'matiere_premiere': r['matiere_premiere'],
+                'fournisseur':      fournisseur,
+                'date_prix':        date_prix,
+                'manque':           r['manque'],
+                'prix_unitaire':    prix_unitaire,
+                'total_ligne':      total_ligne,
+            })
+
+        titre = (
+            "État des matières premières à acheter — Dernier prix" if type_prix == 'dernier'
+            else "État des matières premières à acheter — Meilleur prix (60 derniers jours)"
+        )
+
+        html = render_to_string('administration/rupture_stock/pdf_etat.html', {
+            'titre':          titre,
+            'date_debut':     date_debut,
+            'date_fin':       date_fin,
+            'lignes':         lignes,
+            'total_general':  total_general,
+            'genere_le':      timezone.now(),
+        })
+
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(html, dest=pdf_buffer)
+        if pisa_status.err:
+            messages.error(request, "Échec de la génération du PDF.")
+            return redirect('administration:rupture-stock-list')
+
+        log_audit(
+            AuditAction.EXPORT_PDF, f'Export PDF rupture de stock ({type_prix})',
+            table='MatierePremiere',
+        )
+
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        filename = f'rupture_stock_{type_prix}_{date_debut.isoformat()}_{date_fin.isoformat()}.pdf'
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+
+
+class RuptureStockCommandesPdfView(GroupRequiredMixin, View):
+    """PDF « récapitulatif des commandes à produire » — commandes internes
+    non achevées de la période, groupées par échéance (tri croissant). Une
+    ligne par commande (produit + quantité à produire), suivie d'un tableau
+    des matières premières et produits semi-finis de la Recette du produit,
+    mis à l'échelle de la quantité à produire (un seul niveau — pas de
+    développement récursif des semi-finis, contrairement aux parties 3/4).
+    Portrait ; chaque bloc (ligne + tableau) évite d'être coupé entre deux
+    pages (page-break-inside: avoid)."""
+    group_required = 'Administration'
+
+    def get(self, request):
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today + timedelta(days=6)
+        if date_debut > date_fin:
+            date_debut, date_fin = today, today + timedelta(days=6)
+
+        commandes = (
+            CommandeInterne.objects
+            .filter(is_completed=False, livraison_at__gte=date_debut, livraison_at__lte=date_fin)
+            .select_related('recette__produit')
+            .order_by('livraison_at', 'recette__produit__nom')
+        )
+
+        groupes = []
+        groupe_courant = None
+        for ci in commandes:
+            if groupe_courant is None or groupe_courant['date'] != ci.livraison_at:
+                groupe_courant = {'date': ci.livraison_at, 'commandes': []}
+                groupes.append(groupe_courant)
+
+            recette = ci.recette
+            quantite_a_produire = ci.quantite_commander or Decimal('0')
+            lignes_ingredients = []
+            if recette is not None and recette.quantite and recette.quantite > 0 and quantite_a_produire > 0:
+                for ligne in RecetteDetaille.objects.filter(recette=recette).select_related('matiere_premiere'):
+                    if not ligne.quantite:
+                        continue
+                    quantite_utilisee = (
+                        quantite_a_produire * ligne.quantite / recette.quantite
+                    ).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+                    lignes_ingredients.append({
+                        'nom':      ligne.matiere_premiere.nom,
+                        'unite':    ligne.matiere_premiere.unite,
+                        'quantite': quantite_utilisee,
+                    })
+
+            groupe_courant['commandes'].append({
+                'produit':             recette.produit if recette else None,
+                'quantite_a_produire': quantite_a_produire,
+                'unite':               recette.unite if recette else '',
+                'lignes_ingredients':  lignes_ingredients,
+            })
+
+        html = render_to_string('administration/rupture_stock/pdf_commandes.html', {
+            'date_debut': date_debut,
+            'date_fin':   date_fin,
+            'groupes':    groupes,
+            'genere_le':  timezone.now(),
+        })
+
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(html, dest=pdf_buffer)
+        if pisa_status.err:
+            messages.error(request, "Échec de la génération du PDF.")
+            return redirect('administration:rupture-stock-list')
+
+        log_audit(AuditAction.EXPORT_PDF, 'Export PDF commandes à produire', table='CommandeInterne')
+
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        filename = f'commandes_a_produire_{date_debut.isoformat()}_{date_fin.isoformat()}.pdf'
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
