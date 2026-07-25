@@ -46,4 +46,7 @@ urlpatterns = [
     path('rupture-stock/',                views.RuptureStockView.as_view(),            name='rupture-stock-list'),
     path('rupture-stock/pdf/',             views.RuptureStockPdfView.as_view(),         name='rupture-stock-pdf'),
     path('rupture-stock/pdf-commandes/',   views.RuptureStockCommandesPdfView.as_view(), name='rupture-stock-commandes-pdf'),
+
+    # Production
+    path('cout-production/', views.CoutProductionListView.as_view(), name='cout-production-list'),
 ]

@@ -297,6 +297,64 @@ def calculer_besoins_matieres_premieres_pour_semi_finis_periode(date_debut, date
     return besoins_directs, erreurs
 
 
+def resoudre_ingredients_recette(recette):
+    """Développe récursivement la Recette d'un produit (fini ou semi-fini) en
+    une liste plate de matières premières « de base » (non semi-finies) et
+    des quantités nécessaires pour produire `recette.quantite` unités de ce
+    produit — les ingrédients qui sont eux-mêmes des produits semi-finis
+    voient leur propre recette développée à leur tour (protection anti-cycle),
+    jusqu'à n'obtenir que des matières premières de base.
+
+    Ne modifie rien en base — lecture seule. Les erreurs (semi-fini sans
+    recette, recette invalide, cycle détecté) sont collectées sans
+    interrompre le calcul : l'ingrédient concerné est ignoré.
+
+    Retourne (ingredients, erreurs) :
+      ingredients = {matiere_premiere_id: Decimal quantité nécessaire pour
+                     produire recette.quantite unités du produit de `recette`}
+      erreurs = liste de messages (str)
+    """
+    erreurs = []
+    ingredients = {}
+
+    def _developper(recette_courante, facteur, visites):
+        produit_id = recette_courante.produit_id
+        if produit_id in visites:
+            erreurs.append(
+                f'Cycle détecté dans les recettes (produit #{produit_id}) : ingrédient ignoré.'
+            )
+            return
+        visites = visites | {produit_id}
+
+        lignes = RecetteDetaille.objects.filter(recette=recette_courante).select_related('matiere_premiere')
+        for ligne in lignes:
+            if not ligne.quantite:
+                continue
+            quantite_necessaire = facteur * ligne.quantite
+            mp = ligne.matiere_premiere
+            if mp.produit_id is None:
+                ingredients[mp.pk] = ingredients.get(mp.pk, Decimal('0')) + quantite_necessaire
+                continue
+
+            sous_recette = Recette.objects.filter(produit_id=mp.produit_id).first()
+            if sous_recette is None:
+                erreurs.append(
+                    f'Le produit semi-fini « {mp.nom} » n\'a pas de recette : ingrédient ignoré.'
+                )
+                continue
+            if not sous_recette.quantite or sous_recette.quantite <= 0:
+                erreurs.append(
+                    f'La recette du produit semi-fini « {mp.nom} » a une quantité de référence '
+                    'invalide (≤ 0) : ingrédient ignoré.'
+                )
+                continue
+            nouveau_facteur = quantite_necessaire / sous_recette.quantite
+            _developper(sous_recette, nouveau_facteur, visites)
+
+    _developper(recette, Decimal('1'), set())
+    return ingredients, erreurs
+
+
 def recettes_produit_unite_map():
     """Liste de {produit_id, recette_id, unite} pour tous les produits ayant
     une recette — sert à peupler, côté JS, l'auto-remplissage (lecture seule)

@@ -35,6 +35,12 @@
     <i class="bi bi-exclamation-triangle"></i> Rupture stock
   </a>
 
+  <div class="sidebar-section">Production</div>
+  <a href="{% url 'administration:cout-production-list' %}"
+     class="nav-link {% if 'cout-production' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-calculator"></i> Coût de production
+  </a>
+
   <div class="sidebar-section">Localisation</div>
   <div class="sidebar-group {% if 'gouvernorat' in request.resolver_match.url_name or 'delegation' in request.resolver_match.url_name or 'zone' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
     <button type="button" class="nav-link sidebar-group-toggle">

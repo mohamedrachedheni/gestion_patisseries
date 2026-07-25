@@ -30,6 +30,7 @@ from production.services import (
     calculer_besoins_matieres_premieres_pour_semi_finis_periode,
     quantite_commandee_semi_finis_periode,
     recettes_produit_unite_map,
+    resoudre_ingredients_recette,
 )
 
 from .forms import (
@@ -1323,3 +1324,91 @@ class RuptureStockCommandesPdfView(GroupRequiredMixin, View):
         filename = f'commandes_a_produire_{date_debut.isoformat()}_{date_fin.isoformat()}.pdf'
         response['Content-Disposition'] = f'inline; filename="{filename}"'
         return response
+
+
+# ─── Coût de production ─────────────────────────────────────────────────────
+
+def _dernier_prix_matiere_premiere(mp_id, derniers_achat_ids):
+    """Dernier prix unitaire d'achat pour une matière première — le plus
+    récent achat_code.achat_at parmi les Achat non supersédés (voir
+    derniers_achat_ids, même principe que _construire_ruptures_matieres) —
+    ou None si cette matière première n'a jamais été achetée."""
+    dernier = (
+        AchatDetaille.objects
+        .filter(matiere_premiere_id=mp_id, achat_id__in=derniers_achat_ids)
+        .order_by('-achat__achat_code__achat_at', '-achat_id')
+        .first()
+    )
+    return dernier.prix_unitaire if dernier else None
+
+
+class CoutProductionListView(GroupRequiredMixin, View):
+    """« Coût unitaire de production des produits actualisés en fonction des
+    prix d'achats récents des matières premières, basé sur la recette
+    standard » : pour chaque Recette de produit FINI (is_produit_semi_fini=
+    False), développe récursivement sa recette jusqu'aux matières premières
+    de base (voir production.services.resoudre_ingredients_recette — gère
+    aussi le cas où un ingrédient est lui-même un produit semi-fini, avec
+    protection anti-cycle) et calcule le coût de production unitaire à
+    partir du dernier prix d'achat de chaque matière première de base.
+
+    Coût de production unitaire = (Σ dernier_prix_mp × quantité_mp nécessaire
+    selon la recette développée) / quantité de référence de la recette du
+    produit fini. Les recettes sans quantité de référence valide (≤ 0) sont
+    exclues du rapport (calcul impossible)."""
+    group_required = 'Administration'
+    template_name = 'administration/production/cout_production_list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        derniers_achat_ids = (
+            Achat.objects.values('achat_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+        )
+
+        recettes = (
+            Recette.objects
+            .filter(produit__is_produit_semi_fini=False)
+            .select_related('produit')
+            .order_by('produit__nom')
+        )
+
+        prix_cache = {}
+
+        def _prix(mp_id):
+            if mp_id not in prix_cache:
+                prix_cache[mp_id] = _dernier_prix_matiere_premiere(mp_id, derniers_achat_ids)
+            return prix_cache[mp_id]
+
+        lignes = []
+        for recette in recettes:
+            if not recette.quantite or recette.quantite <= 0:
+                continue
+
+            ingredients, _erreurs = resoudre_ingredients_recette(recette)
+
+            cout_total = Decimal('0')
+            for mp_id, quantite in ingredients.items():
+                prix = _prix(mp_id)
+                if prix is not None:
+                    cout_total += prix * quantite
+
+            cout_unitaire = (cout_total / recette.quantite).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+            prix_unitaire = recette.produit.prix_unitaire or Decimal('0')
+            benefice_unitaire = prix_unitaire - cout_unitaire
+
+            lignes.append({
+                'produit':           recette.produit,
+                'prix_unitaire':     prix_unitaire,
+                'cout_unitaire':     cout_unitaire,
+                'benefice_unitaire': benefice_unitaire,
+            })
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':     page_obj,
+            'is_paginated': page_obj.has_other_pages(),
+            'lignes':       page_obj.object_list,
+            'total_count':  paginator.count,
+        })
