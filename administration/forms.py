@@ -5,6 +5,8 @@ from django.contrib.auth.models import Group
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Column, Layout, Row
 
+from commercial.models import Delegation, Gouvernorat, Zone
+
 from .models import Employe, Transfere
 
 User = get_user_model()
@@ -214,3 +216,21 @@ class TransfereForm(forms.ModelForm):
             ),
             'montant',
         )
+
+
+class GouvernoratForm(forms.ModelForm):
+    class Meta:
+        model = Gouvernorat
+        fields = ['nom']
+
+
+class DelegationForm(forms.ModelForm):
+    class Meta:
+        model = Delegation
+        fields = ['gouvernorat', 'nom_delegation']
+
+
+class ZoneForm(forms.ModelForm):
+    class Meta:
+        model = Zone
+        fields = ['delegation', 'nom']

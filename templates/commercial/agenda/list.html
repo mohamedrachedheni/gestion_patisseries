@@ -1,0 +1,386 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Agenda — Commercial{% endblock %}
+{% block page_title %}Agenda{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Agenda</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-4 fw-bold">Suivi des actions commerciales planifiées</h4>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        {% if is_administration %}
+        <div style="width:190px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Client</label>
+          <select name="client_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les clients —</option>
+            {% for c in clients_filtre_list %}
+            <option value="{{ c.pk }}" {% if client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Statut</label>
+          <select name="statut" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les statuts —</option>
+            {% for value, label in statut_choices %}
+            <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:agenda-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : liste des actions planifiées ────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-0">
+    {% if agendas %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            {% if is_administration %}
+            <th class="ps-3">Commercial</th>
+            {% endif %}
+            <th {% if not is_administration %}class="ps-3"{% endif %}>Client</th>
+            <th>Action planifiée</th>
+            <th>Échéance</th>
+            <th>Statut</th>
+            <th class="text-center pe-3" style="width:110px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in agendas %}
+          <tr>
+            {% if is_administration %}
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ a.user.get_full_name|default:a.user.username|default:'' }}" disabled>
+            </td>
+            {% endif %}
+            <td {% if not is_administration %}class="ps-3"{% endif %}>
+              <input type="text" class="form-control form-control-sm" value="{{ a.client|default:'' }}" disabled>
+            </td>
+            <td>
+              <input type="text" form="agenda-modifier-{{ a.pk }}" name="detaille_action_planifier"
+                     value="{{ a.detaille_action_planifier|default:'' }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <input type="date" form="agenda-modifier-{{ a.pk }}" name="echeance_at"
+                     value="{{ a.echeance_at|date:'Y-m-d' }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <select form="agenda-modifier-{{ a.pk }}" name="status" class="form-select form-select-sm">
+                {% for value, label in statut_choices %}
+                <option value="{{ value }}" {% if value == a.status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center pe-3">
+              <form id="agenda-modifier-{{ a.pk }}" method="post"
+                    action="{% url 'commercial:agenda-update' a.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-primary" title="Modifier">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              <form method="post" action="{% url 'commercial:agenda-delete' a.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
+                        onclick="return confirm('Supprimer cette action planifiée ?');">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination (Section 2 uniquement) ─────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} action{{ total_count|pluralize }} planifiée{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&statut={{ statut }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&statut={{ statut }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&statut={{ statut }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-calendar-event fs-1 d-block mb-2 opacity-25"></i>
+      Aucune action planifiée sur la période
+      {% if client_id or statut or commercial_id %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Section 3 : ajout d'autres actions ──────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-plus-circle me-2 text-primary"></i>Ajouter d'autres actions
+  </div>
+  <div class="card-body">
+    <form method="post" id="agenda-add-form" action="{% url 'commercial:agenda-create' %}">
+      {% csrf_token %}
+
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        {% if is_administration %}
+        <div style="width:190px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Commercial</span></div>
+        {% endif %}
+        <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Zone</span></div>
+        <div style="width:220px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Client</span></div>
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Action planifiée</span></div>
+        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Échéance</span></div>
+        <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Statut</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="agenda-rows"></div>
+
+      <div class="d-flex justify-content-end gap-2 mt-2">
+        <button type="button" id="add-agenda-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
+        </button>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-lg me-1"></i>Enregistrer
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+
+(function () {
+  var IS_ADMIN = {{ is_administration|yesno:"true,false" }};
+  var OWN_COMMERCIAL_ID = "{{ request.user.pk }}";
+  var COMMERCIAUX = {{ row_commerciaux_json|safe }};
+  var CLIENTS = {{ row_clients_json|safe }};
+  var ZONES = {{ row_zones_json|safe }};
+  var CLIENT_USERS = {{ client_users_json|safe }};
+
+  var rowsContainer = document.getElementById('agenda-rows');
+
+  function buildCommercialOptions(selectedId) {
+    var html = '<option value="">— Choisir —</option>';
+    COMMERCIAUX.forEach(function (u) {
+      var sel = (selectedId && String(u.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + u.id + '"' + sel + '>' + u.label + '</option>';
+    });
+    return html;
+  }
+
+  // ── Cascade Commercial → Zone → Client ────────────────────────────────────
+  function clientIdsForCommercial(commercialId) {
+    if (!commercialId) { return null; }
+    var ids = new Set();
+    CLIENT_USERS.forEach(function (cu) {
+      if (String(cu.user_id) === String(commercialId)) { ids.add(String(cu.client_id)); }
+    });
+    return ids;
+  }
+
+  function buildZoneOptions(commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var zoneIdsAllowed = new Set();
+    CLIENTS.forEach(function (c) {
+      if (allowed && !allowed.has(String(c.id))) { return; }
+      if (c.zone_id) { zoneIdsAllowed.add(String(c.zone_id)); }
+    });
+    var html = '<option value="">— Toutes les zones —</option>';
+    ZONES.forEach(function (z) {
+      if (allowed && !zoneIdsAllowed.has(String(z.id))) { return; }
+      var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildClientOptions(zoneId, commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var html = '<option value="">— Choisir —</option>';
+    CLIENTS.forEach(function (c) {
+      if (zoneId) {
+        if (String(c.zone_id) !== String(zoneId)) { return; }
+      } else if (allowed) {
+        if (!allowed.has(String(c.id))) { return; }
+      }
+      var sel = (selectedId && String(c.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + c.id + '"' + sel + '>' + c.label + '</option>';
+    });
+    return html;
+  }
+
+  function addAgendaRow() {
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+
+    var commercialHtml;
+    if (IS_ADMIN) {
+      commercialHtml =
+        '<div style="width:190px;flex:0 0 auto;">' +
+          '<select name="row_commercial_id" class="form-select form-select-sm commercial-select">' + buildCommercialOptions(null) + '</select>' +
+        '</div>';
+    } else {
+      commercialHtml = '<input type="hidden" name="row_commercial_id" value="' + OWN_COMMERCIAL_ID + '">';
+    }
+
+    row.innerHTML =
+      commercialHtml +
+      '<div style="width:170px;flex:0 0 auto;">' +
+        '<select class="form-select form-select-sm zone-select">' + buildZoneOptions(IS_ADMIN ? null : OWN_COMMERCIAL_ID, null) + '</select>' +
+      '</div>' +
+      '<div style="width:220px;flex:0 0 auto;">' +
+        '<select name="row_client_id" class="form-select form-select-sm client-select">' + buildClientOptions(null, IS_ADMIN ? null : OWN_COMMERCIAL_ID, null) + '</select>' +
+      '</div>' +
+      '<div style="flex:1 1 220px;min-width:180px;">' +
+        '<input type="text" name="row_detaille_action_planifier" class="form-control form-control-sm" value="">' +
+      '</div>' +
+      '<div style="width:150px;flex:0 0 auto;">' +
+        '<input type="date" name="row_echeance_at" class="form-control form-control-sm" value="{{ today_iso }}">' +
+      '</div>' +
+      '<div style="width:170px;flex:0 0 auto;">' +
+        '<select name="row_status" class="form-select form-select-sm">' +
+          '{% for value, label in statut_choices %}<option value="{{ value }}" {% if value == "En attente" %}selected{% endif %}>{{ label }}</option>{% endfor %}' +
+        '</select>' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var commercialSelect = row.querySelector('.commercial-select');
+    var zoneSelect = row.querySelector('.zone-select');
+    var clientSelect = row.querySelector('.client-select');
+
+    function currentCommercialId() {
+      return commercialSelect ? commercialSelect.value : OWN_COMMERCIAL_ID;
+    }
+
+    if (commercialSelect) {
+      commercialSelect.addEventListener('change', function () {
+        zoneSelect.innerHTML = buildZoneOptions(commercialSelect.value, null);
+        clientSelect.innerHTML = buildClientOptions(null, commercialSelect.value, null);
+      });
+    }
+
+    zoneSelect.addEventListener('change', function () {
+      clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
+    });
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+    });
+
+    rowsContainer.appendChild(row);
+  }
+
+  document.getElementById('add-agenda-row-btn').addEventListener('click', function () { addAgendaRow(); });
+
+  addAgendaRow();
+})();
+</script>
+{% endblock %}

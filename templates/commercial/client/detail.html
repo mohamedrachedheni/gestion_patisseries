@@ -1,0 +1,116 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}{{ client }} — Clients{% endblock %}
+{% block page_title %}Détail client{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:client-list' %}">Clients</a></li>
+    <li class="breadcrumb-item active">{{ client }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-person-vcard me-2 text-primary"></i>Fiche client
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+
+      <div class="col-md-6">
+        <label class="form-label small mb-1">Raison sociale</label>
+        <input type="text" value="{{ client.raison_sociale|default:'' }}" class="form-control" disabled>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small mb-1">Nom client</label>
+        <input type="text" value="{{ client.nom_client|default:'' }}" class="form-control" disabled>
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label small mb-1">Adresse</label>
+        <input type="text" value="{{ client.adresse|default:'' }}" class="form-control" disabled>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Zone</label>
+        <input type="text" value="{{ client.zone|default:'' }}" class="form-control" disabled>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Téléphone</label>
+        <input type="text" value="{{ client.telephone|default:'' }}" class="form-control" disabled>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">À visiter après (jours)</label>
+        <input type="number" value="{{ client.a_visiter_apres|default_if_none:'' }}" class="form-control no-spinner" disabled>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Date de création</label>
+        <input type="date" value="{{ client.created_at|date:'Y-m-d' }}" class="form-control" disabled>
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label small mb-1">Lien Google Maps</label>
+        <input type="text" value="{{ client.google_mape|default:'' }}" class="form-control" readonly
+               title="Double-cliquer pour ouvrir le lien"
+               ondblclick="if (this.value) { window.open(this.value, '_blank'); }">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Actif</label>
+        <div class="form-check mt-2">
+          <input type="checkbox" class="form-check-input" {% if client.is_active %}checked{% endif %} disabled>
+          <label class="form-check-label">{{ client.is_active|yesno:"Oui,Non" }}</label>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Photo</label>
+        {% if client.photo %}
+        <div>
+          <img src="{{ client.photo.url }}" alt="{{ client }}"
+               style="width:96px;height:96px;border-radius:50%;object-fit:cover;cursor:pointer;"
+               title="Double-cliquer pour ouvrir le fichier"
+               ondblclick="window.open(this.src, '_blank');">
+        </div>
+        {% else %}
+        <input type="text" value="—" class="form-control" disabled>
+        {% endif %}
+      </div>
+      <div class="col-md-8">
+        <label class="form-label small mb-1">Observation</label>
+        <textarea class="form-control" rows="3" disabled>{{ client.observation|default:'' }}</textarea>
+      </div>
+
+    </div>
+  </div>
+  <div class="card-footer bg-transparent d-flex justify-content-end py-3">
+    <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
+    </a>
+  </div>
+</div>
+
+{# ── Section Liste des commerciaux ────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-person-lines-fill me-2 text-primary"></i>Liste des commerciaux
+  </div>
+  <div class="card-body">
+    {% if commerciaux %}
+    {% for cu in commerciaux %}
+    <div class="d-flex flex-nowrap align-items-center gap-2 mb-2">
+      <div style="flex:1 1 auto;">
+        <input type="text" value="{{ cu.user.get_full_name|default:cu.user.username }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted small mb-0">Aucun commercial rattaché à ce client.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

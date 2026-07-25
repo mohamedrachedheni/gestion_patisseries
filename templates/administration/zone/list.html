@@ -1,0 +1,252 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Zones — Administration{% endblock %}
+{% block page_title %}Zones{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Zones</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ── Partie 1 : filtres ───────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="row g-2 align-items-end">
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <label class="form-label small mb-1">Gouvernorat</label>
+          <select name="gouvernorat" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les gouvernorats —</option>
+            {% for g in gouvernorats_list %}
+            <option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <label class="form-label small mb-1">Délégation</label>
+          <select name="delegation" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Toutes les délégations —</option>
+            {% for d in delegations_list %}
+            <option value="{{ d.pk }}" {% if delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-auto">
+          <a href="{% url 'administration:zone-list' %}"
+             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Partie 2 : liste des zones enregistrées ─────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-pin-map me-2 text-primary"></i>Zones enregistrées
+  </div>
+  <div class="card-body p-0">
+    {% if zones %}
+    {% comment %}
+      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
+      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
+      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
+    {% endcomment %}
+    {% for z in zones %}
+    <form id="zone-update-{{ z.pk }}" method="post" action="{% url 'administration:zone-update' z.pk %}"></form>
+    <form id="zone-delete-{{ z.pk }}" method="post" action="{% url 'administration:zone-delete' z.pk %}"></form>
+    {% endfor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Gouvernorat</th>
+            <th>Délégation</th>
+            <th>Zone</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for z in zones %}
+          <tr class="zone-gouv-deleg-group">
+            <td class="ps-3">
+              <select class="form-select form-select-sm zone-gouvernorat-select">
+                {% for g in gouvernorats_list %}
+                <option value="{{ g.pk }}" {% if g.pk == z.delegation.gouvernorat_id %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="zone-update-{{ z.pk }}">
+              <select name="delegation" class="form-select form-select-sm zone-delegation-select" form="zone-update-{{ z.pk }}">
+                {% for d in delegations_list %}
+                {% if d.gouvernorat_id == z.delegation.gouvernorat_id %}
+                <option value="{{ d.pk }}" {% if d.pk == z.delegation_id %}selected{% endif %}>{{ d.nom_delegation }}</option>
+                {% endif %}
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="text" name="nom" value="{{ z.nom }}"
+                     class="form-control form-control-sm" form="zone-update-{{ z.pk }}">
+            </td>
+            <td class="text-center pe-3">
+              <button type="submit" form="zone-update-{{ z.pk }}"
+                      class="btn btn-sm btn-outline-primary" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="zone-delete-{{ z.pk }}">
+              <button type="submit" form="zone-delete-{{ z.pk }}"
+                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
+                      onclick="return confirm('Supprimer la zone « {{ z.nom|escapejs }} » ?');">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} zone{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-pin-map fs-1 d-block mb-2 opacity-25"></i>
+      Aucune zone enregistrée.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Partie 3 : ajout d'une nouvelle zone ─────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter une zone
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'administration:zone-create' %}">
+      {% csrf_token %}
+      <div class="row g-2 align-items-end zone-gouv-deleg-group">
+        <div class="col-sm-4">
+          <label class="form-label small mb-1">Gouvernorat</label>
+          <select name="gouvernorat" class="form-select zone-gouvernorat-select">
+            <option value="" selected>— Choisir —</option>
+            {% for g in gouvernorats_list %}
+            <option value="{{ g.pk }}">{{ g.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small mb-1">Délégation</label>
+          <select name="delegation" class="form-select zone-delegation-select">
+            <option value="" selected>— Choisir —</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Zone</label>
+          <input type="text" name="nom" value="" class="form-control">
+        </div>
+        <div class="col-sm-1">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DELEGATIONS = {{ delegations_json|safe }};
+
+  function buildDelegationOptions(gouvernoratId, selectedId) {
+    var html = '<option value="">— Choisir —</option>';
+    DELEGATIONS.forEach(function (d) {
+      if (!gouvernoratId || String(d.gouvernorat_id) !== String(gouvernoratId)) { return; }
+      var sel = (selectedId && String(d.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + d.id + '"' + sel + '>' + d.nom + '</option>';
+    });
+    return html;
+  }
+
+  document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
+    var gouvSelect = group.querySelector('.zone-gouvernorat-select');
+    var delegSelect = group.querySelector('.zone-delegation-select');
+    if (!gouvSelect || !delegSelect) { return; }
+
+    gouvSelect.addEventListener('change', function () {
+      delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
+    });
+
+    delegSelect.addEventListener('change', function () {
+      var match = DELEGATIONS.find(function (d) { return String(d.id) === String(delegSelect.value); });
+      if (match) { gouvSelect.value = String(match.gouvernorat_id); }
+    });
+  });
+})();
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+</script>
+{% endblock %}

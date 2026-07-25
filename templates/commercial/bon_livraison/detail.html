@@ -1,0 +1,138 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}{{ bon_livraison_code }} — Bons de livraison{% endblock %}
+{% block page_title %}Détail bon de livraison{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:bon-livraison-list' %}">Bons de livraison</a></li>
+    <li class="breadcrumb-item active">{{ bon_livraison_code }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ── Informations générales ───────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-truck me-2 text-primary"></i>Informations du bon de livraison
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Date bon de livraison</label>
+        <input type="date" value="{{ bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Numéro</label>
+        <input type="text" value="{{ bon_livraison_code.bon_livraison_numero }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Client</label>
+        <input type="text" value="{{ bon_livraison_code.client|default:'' }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Zone</label>
+        <input type="text" value="{{ bon_livraison_code.client.zone|default:'' }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Commercial</label>
+        <input type="text" value="{{ bon_livraison.user.get_full_name|default:bon_livraison.user.username }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Mode paiement</label>
+        <input type="text" value="{{ bon_livraison.mode_paiement }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Statut</label>
+        <input type="text" value="{{ bon_livraison.statut }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Observation</label>
+        <input type="text" value="{{ bon_livraison.observation|default:'' }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total</label>
+        <input type="number" step="0.001" value="{{ bon_livraison.total_montant|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total payé</label>
+        <input type="number" step="0.001" value="{{ bon_livraison.total_acompte|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Reste à payer</label>
+        <input type="number" step="0.001" value="{{ bon_livraison.reste_a_payer|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner text-end font-monospace {% if bon_livraison.reste_a_payer < 0 %}text-danger{% endif %}"
+               disabled>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ── Détails produits ─────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-box-seam me-2 text-primary"></i>Détails produits
+  </div>
+  <div class="card-body p-0">
+    {% if details %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Produit</th>
+            <th>Quantité</th>
+            <th>Prix unitaire</th>
+            <th class="pe-3">Total ligne</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in details %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm" value="{{ d.produit|default:'' }}" disabled>
+            </td>
+            <td style="width:120px;">
+              <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
+            </td>
+            <td style="width:140px;">
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
+            </td>
+            <td class="pe-3" style="width:140px;">
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">Aucun détail produit pour ce bon de livraison.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="d-flex justify-content-end">
+  <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
+  </a>
+</div>
+
+{% endblock %}

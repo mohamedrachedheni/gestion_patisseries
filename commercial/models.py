@@ -18,7 +18,7 @@ STATUT_PAIEMENT_CHOICES = [
 
 
 class Gouvernorat(models.Model):
-    nom = models.CharField(max_length=100)
+    nom = models.CharField(max_length=100, unique=True)
 
     class Meta:
         verbose_name = 'Gouvernorat'
@@ -35,7 +35,7 @@ class Delegation(models.Model):
         on_delete=models.RESTRICT,
         related_name='delegations',
     )
-    nom_delegation = models.CharField(max_length=100)
+    nom_delegation = models.CharField(max_length=100, unique=True)
 
     class Meta:
         verbose_name = 'Délégation'
@@ -52,7 +52,7 @@ class Zone(models.Model):
         on_delete=models.RESTRICT,
         related_name='zones',
     )
-    nom = models.CharField(max_length=100)
+    nom = models.CharField(max_length=100, unique=True)
 
     class Meta:
         verbose_name = 'Zone'
@@ -72,7 +72,7 @@ class Fournisseur(models.Model):
         ('Divers', 'Divers'),
     ]
 
-    raison_sociale = models.CharField(max_length=200)
+    raison_sociale = models.CharField(max_length=200, unique=True)
     nom_contact = models.CharField(max_length=150, null=True, blank=True)
     type_fournisseur = models.CharField(
         max_length=50,

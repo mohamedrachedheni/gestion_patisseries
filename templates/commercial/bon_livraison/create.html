@@ -1,0 +1,613 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Nouveau bon de livraison — Commercial{% endblock %}
+{% block page_title %}Nouveau bon de livraison{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:bon-livraison-list' %}">Bons de livraison</a></li>
+    <li class="breadcrumb-item active">Nouveau bon de livraison</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Nouveau bon de livraison</h4>
+</div>
+
+{% if is_locked %}
+{% comment %}
+   État verrouillé : affiché juste après un enregistrement réussi. Plus aucun
+   champ n'est modifiable ; seuls Fermer et Etat PDF restent actifs.
+{% endcomment %}
+<div class="alert alert-success d-flex align-items-center gap-2">
+  <i class="bi bi-check-circle-fill"></i>
+  Bon de livraison {{ saved_bon_livraison.bon_livraison_code }} enregistré avec succès.
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-truck me-2 text-primary"></i>Informations du bon de livraison
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Commercial</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.user.get_full_name|default:saved_bon_livraison.user.username }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Zone</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.bon_livraison_code.client.zone|default:'' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Client</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.bon_livraison_code.client|default:'' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Date bon de livraison</label>
+        <input type="date" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Numéro bon de livraison</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.bon_livraison_code.bon_livraison_numero }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant payé</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner" disabled
+               value="{{ saved_bon_livraison.nouveau_acompte|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Mode de paiement</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.mode_paiement }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ saved_bon_livraison.total_montant|stringformat:'s' }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Reste à payer</label>
+        <input type="number" step="0.001"
+               class="form-control form-control-sm no-spinner text-end font-monospace {% if saved_bon_livraison.reste_a_payer < 0 %}text-danger{% endif %}"
+               disabled value="{{ saved_bon_livraison.reste_a_payer|stringformat:'s' }}">
+      </div>
+      <div class="col-md-9">
+        <label class="form-label small mb-1">Observation</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ saved_bon_livraison.observation|default:'' }}">
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-box-seam me-2 text-primary"></i>Détails produits
+  </div>
+  <div class="card-body p-0">
+    {% if saved_details %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Produit</th>
+            <th>Quantité</th>
+            <th>Prix unitaire</th>
+            <th class="pe-3">Total ligne</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in saved_details %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm" value="{{ d.produit|default:'' }}" disabled>
+            </td>
+            <td style="width:120px;">
+              <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
+            </td>
+            <td style="width:140px;">
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
+            </td>
+            <td class="pe-3" style="width:140px;">
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">Aucun détail produit pour ce bon de livraison.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="d-flex gap-2 justify-content-end">
+  <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-x-lg me-1"></i>Fermer
+  </a>
+  <a href="{% url 'commercial:bon-livraison-pdf' saved_bon_livraison.pk %}" target="_blank" class="btn btn-outline-primary">
+    <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
+  </a>
+  <button type="button" class="btn btn-primary" disabled>
+    <i class="bi bi-check-lg me-1"></i>Enregistrer
+  </button>
+</div>
+
+{% else %}
+{% comment %}
+   État éditable : formulaire habituel de saisie.
+{% endcomment %}
+<form method="post" id="bl-create-form" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-funnel me-2 text-primary"></i>Filtres
+    </div>
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select id="bl-commercial-select" name="commercial_id" class="form-select form-select-sm">
+            <option value="">— Choisir —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="bl-commercial-select" name="commercial_id" value="{{ request.user.pk }}">
+        {% endif %}
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Zone</label>
+          <select id="bl-zone-select" class="form-select form-select-sm">
+            <option value="">— Toutes les zones —</option>
+          </select>
+        </div>
+
+        <div style="width:260px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Client</label>
+          <select id="bl-client-select" name="client_id" class="form-select form-select-sm">
+            <option value="">— Choisir —</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : Date et numéro ───────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2">
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date bon de livraison</label>
+          <input type="date" id="bl-date-input" name="bon_livraison_at" value="{{ bon_livraison_at_value }}"
+                 class="form-control form-control-sm">
+        </div>
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Numéro bon de livraison</label>
+          <input type="text" id="bl-numero-input" value="{{ numero_initial }}"
+                 class="form-control form-control-sm" disabled>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 3 : détail par défaut ────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4" id="bl-section3-card" style="display:none;">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-clock-history me-2 text-primary"></i>Détail bon de livraison par défaut
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="bl-default-rows"></div>
+    </div>
+  </div>
+
+  {# ── Section 4 : ajouter d'autres produits ────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4" id="bl-section4-card" style="display:none;">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="bl-extra-rows"></div>
+      <div class="d-flex justify-content-end mt-2">
+        <button type="button" id="bl-add-extra-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 5 : paiement ─────────────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4" id="bl-section5-card" style="display:none;">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-cash-coin me-2 text-primary"></i>Paiement
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Montant payé</label>
+          <input type="number" step="0.001" min="0" id="bl-nouveau-acompte" name="nouveau_acompte"
+                 value="{{ nouveau_acompte_value }}" class="form-control form-control-sm no-spinner">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Mode de paiement</label>
+          <select id="bl-mode-paiement" name="mode_paiement" class="form-select form-select-sm">
+            {% for value, label in mode_paiement_choices %}
+            <option value="{{ value }}" {% if value == mode_paiement_value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Montant total</label>
+          <input type="number" step="0.001" id="bl-total-montant" value="0.000"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Reste à payer</label>
+          <input type="number" step="0.001" id="bl-reste" value="0.000"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <input type="hidden" id="bl-total-acompte" name="total_acompte" value="0">
+        <input type="hidden" id="bl-statut" name="statut" value="">
+
+        <div class="col-12">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" name="observation" value="{{ observation_value }}" class="form-control form-control-sm">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Actions ───────────────────────────────────────────────────────────────── #}
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
+    <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
+    </a>
+    <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not is_locked %}
+<script>
+(function () {
+  var CLIENTS = {{ clients_json|safe }};
+  var ZONES = {{ zones_json|safe }};
+  var CLIENT_USERS = {{ client_users_json|safe }};
+  var PRODUITS = {{ produits_json|safe }};
+  var SELECTED_CLIENT_ID = "{{ selected_client_id }}";
+  var PRESERVED_LIGNES = {{ preserved_lignes_json|safe }};
+  var NUMERO_URL = "{% url 'commercial:bon-livraison-numero-suivant' %}";
+  var DEFAULTS_URL = "{% url 'commercial:bon-livraison-defaults' %}";
+
+  var commercialEl   = document.getElementById('bl-commercial-select');
+  var zoneSelect     = document.getElementById('bl-zone-select');
+  var clientSelect   = document.getElementById('bl-client-select');
+  var dateInput      = document.getElementById('bl-date-input');
+  var numeroInput    = document.getElementById('bl-numero-input');
+  var section3Card   = document.getElementById('bl-section3-card');
+  var section4Card    = document.getElementById('bl-section4-card');
+  var section5Card    = document.getElementById('bl-section5-card');
+  var saveBtn         = document.getElementById('bl-save-btn');
+  var defaultRowsContainer = document.getElementById('bl-default-rows');
+  var extraRowsContainer   = document.getElementById('bl-extra-rows');
+  var nouveauAcompteInput  = document.getElementById('bl-nouveau-acompte');
+  var totalMontantInput    = document.getElementById('bl-total-montant');
+  var totalAcompteInput    = document.getElementById('bl-total-acompte');
+  var resteInput           = document.getElementById('bl-reste');
+  var statutInput          = document.getElementById('bl-statut');
+
+  // ── Sections 4/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
+  // sélectionné dans la section 1 ────────────────────────────────────────────
+  function updateClientDependentVisibility() {
+    var visible = !!clientSelect.value;
+    section4Card.style.display = visible ? '' : 'none';
+    section5Card.style.display = visible ? '' : 'none';
+    saveBtn.style.display = visible ? '' : 'none';
+  }
+
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function round3(v) {
+    return Math.round(v * 1000) / 1000;
+  }
+
+  // ── Cascade Commercial → Zone → Client ────────────────────────────────────
+  function clientIdsForCommercial(commercialId) {
+    if (!commercialId) { return null; }
+    var ids = new Set();
+    CLIENT_USERS.forEach(function (cu) {
+      if (String(cu.user_id) === String(commercialId)) { ids.add(String(cu.client_id)); }
+    });
+    return ids;
+  }
+
+  function buildZoneOptions(commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var zoneIdsAllowed = new Set();
+    CLIENTS.forEach(function (c) {
+      if (allowed && !allowed.has(String(c.id))) { return; }
+      if (c.zone_id) { zoneIdsAllowed.add(String(c.zone_id)); }
+    });
+    var html = '<option value="">— Toutes les zones —</option>';
+    ZONES.forEach(function (z) {
+      if (allowed && !zoneIdsAllowed.has(String(z.id))) { return; }
+      var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildClientOptions(zoneId, commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var html = '<option value="">— Choisir —</option>';
+    CLIENTS.forEach(function (c) {
+      if (zoneId) {
+        if (String(c.zone_id) !== String(zoneId)) { return; }
+      } else if (allowed) {
+        if (!allowed.has(String(c.id))) { return; }
+      }
+      var sel = (selectedId && String(c.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + c.id + '"' + sel + '>' + c.label + '</option>';
+    });
+    return html;
+  }
+
+  function currentCommercialId() {
+    return commercialEl ? commercialEl.value : '';
+  }
+
+  if (commercialEl && commercialEl.tagName === 'SELECT') {
+    commercialEl.addEventListener('change', function () {
+      zoneSelect.innerHTML = buildZoneOptions(commercialEl.value, null);
+      clientSelect.innerHTML = buildClientOptions(null, commercialEl.value, null);
+      updateClientDependentVisibility();
+      refreshDefaults();
+    });
+  }
+
+  zoneSelect.addEventListener('change', function () {
+    clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
+    updateClientDependentVisibility();
+    refreshDefaults();
+  });
+
+  clientSelect.addEventListener('change', function () {
+    updateClientDependentVisibility();
+    refreshDefaults();
+  });
+
+  // Initialisation des listes déroulantes Zone / Client — si un client a été
+  // préservé (ré-affichage après échec de validation), on retrouve sa zone
+  // pour garder les listes Gouvernorat → Zone → Client cohérentes.
+  var initialZoneId = null;
+  if (SELECTED_CLIENT_ID) {
+    var preservedClient = CLIENTS.find(function (c) { return String(c.id) === String(SELECTED_CLIENT_ID); });
+    if (preservedClient && preservedClient.zone_id) { initialZoneId = String(preservedClient.zone_id); }
+  }
+  zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), initialZoneId);
+  clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
+  updateClientDependentVisibility();
+
+  // ── Numéro bon de livraison (recalculé côté serveur à chaque changement de date) ──
+  dateInput.addEventListener('change', function () {
+    var url = NUMERO_URL + '?bon_livraison_at=' + encodeURIComponent(dateInput.value);
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      numeroInput.value = data.bon_livraison_numero;
+    });
+    refreshDefaults();
+  });
+
+  // ── Section 3 : détail par défaut (préremplie via AJAX) ───────────────────
+  // Table { produit_id: dernier prix_unitaire pratiqué pour le client
+  // sélectionné }, rafraîchie à chaque appel de refreshDefaults() — utilisée
+  // pour préremplir automatiquement le prix unitaire dès qu'un produit est
+  // choisi dans la section 4 (et, côté serveur, pour recalculer les prix des
+  // lignes par défaut de la section 3).
+  var DERNIERS_PRIX = {};
+
+  // Prix de base de chaque produit (table production_produit), utilisé en
+  // repli lorsque le produit n'a aucun historique de bon de livraison pour
+  // le client sélectionné.
+  var PRIX_BASE_PRODUIT = {};
+  PRODUITS.forEach(function (p) { PRIX_BASE_PRODUIT[p.id] = p.prix_unitaire; });
+
+  function buildProduitOptions() {
+    var html = '<option value="">— Choisir —</option>';
+    PRODUITS.forEach(function (p) {
+      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+    });
+    return html;
+  }
+
+  function addProduitRow(container, prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.innerHTML =
+      '<div style="flex:1 1 220px;min-width:180px;">' +
+        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="number" step="1" min="0" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="0">' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" step="0.001" min="0" name="detail_prix_unitaire" class="form-control form-control-sm no-spinner prix-input" value="0">' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var produitSelect = row.querySelector('.produit-select');
+    var qteInput       = row.querySelector('.qte-input');
+    var prixInput      = row.querySelector('.prix-input');
+    var totalInput     = row.querySelector('.total-ligne-input');
+
+    function syncTotal() {
+      var produitId = produitSelect.value;
+      var qte = num(qteInput);
+      var prix = num(prixInput);
+      if (!produitId || qte <= 0 || prix <= 0) {
+        totalInput.value = '0.000';
+      } else {
+        totalInput.value = round3(qte * prix).toFixed(3);
+      }
+      recalcMontantTotal();
+    }
+
+    function autoPrixSurChoixProduit() {
+      var produitId = produitSelect.value;
+      if (!produitId) { syncTotal(); return; }
+      if (Object.prototype.hasOwnProperty.call(DERNIERS_PRIX, produitId)) {
+        prixInput.value = DERNIERS_PRIX[produitId];
+      } else if (Object.prototype.hasOwnProperty.call(PRIX_BASE_PRODUIT, produitId)) {
+        prixInput.value = PRIX_BASE_PRODUIT[produitId];
+      }
+      syncTotal();
+    }
+
+    produitSelect.addEventListener('change', autoPrixSurChoixProduit);
+    qteInput.addEventListener('input', syncTotal);
+    prixInput.addEventListener('input', syncTotal);
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+      recalcMontantTotal();
+    });
+
+    if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
+    if (prefill.quantite !== undefined) { qteInput.value = prefill.quantite; }
+    if (prefill.prix_unitaire !== undefined) { prixInput.value = prefill.prix_unitaire; }
+    syncTotal();
+
+    container.appendChild(row);
+  }
+
+  function refreshDefaults() {
+    var clientId = clientSelect.value;
+    if (!clientId) {
+      DERNIERS_PRIX = {};
+      defaultRowsContainer.innerHTML = '';
+      section3Card.style.display = 'none';
+      recalcMontantTotal();
+      return;
+    }
+    var url = DEFAULTS_URL + '?client_id=' + encodeURIComponent(clientId) +
+      '&bon_livraison_at=' + encodeURIComponent(dateInput.value);
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      DERNIERS_PRIX = data.derniers_prix || {};
+      defaultRowsContainer.innerHTML = '';
+      var lignes = data.lignes || [];
+      if (!lignes.length) {
+        section3Card.style.display = 'none';
+      } else {
+        section3Card.style.display = '';
+        lignes.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
+      }
+      recalcMontantTotal();
+    });
+  }
+
+  // ── Section 4 : ajouter d'autres produits ─────────────────────────────────
+  // Après un échec de validation, toutes les lignes précédemment saisies
+  // (issues des sections 3 et 4 réunies) sont restituées ici, pour ne rien
+  // perdre — la section 3 reprendra son préremplissage automatique dès que
+  // le client ou la date sera de nouveau modifié.
+  document.getElementById('bl-add-extra-row-btn').addEventListener('click', function () {
+    addProduitRow(extraRowsContainer, null);
+  });
+  if (PRESERVED_LIGNES.length) {
+    PRESERVED_LIGNES.forEach(function (ligne) { addProduitRow(extraRowsContainer, ligne); });
+  } else {
+    addProduitRow(extraRowsContainer, null);
+  }
+
+  // ── Section 5 : récapitulatif paiement ────────────────────────────────────
+  function recalcResteEtStatut() {
+    var total = num(totalMontantInput);
+    var paye  = num(nouveauAcompteInput);
+    var reste = round3(total - paye);
+
+    totalAcompteInput.value = paye.toFixed(3);
+    resteInput.value = reste.toFixed(3);
+    resteInput.style.color = reste < 0 ? 'red' : '';
+
+    var statut = '';
+    if (reste === 0) {
+      statut = 'Payé';
+    } else if (reste > 0 && reste < total) {
+      statut = 'Partiellement payé';
+    } else if (reste === total) {
+      statut = 'Non payé';
+    }
+    statutInput.value = statut;
+  }
+
+  function recalcMontantTotal() {
+    var total = 0;
+    document.querySelectorAll('.total-ligne-input').forEach(function (el) {
+      total += num(el);
+    });
+    totalMontantInput.value = round3(total).toFixed(3);
+    recalcResteEtStatut();
+  }
+
+  nouveauAcompteInput.addEventListener('input', recalcResteEtStatut);
+
+  recalcMontantTotal();
+})();
+</script>
+{% endif %}
+{% endblock %}

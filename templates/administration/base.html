@@ -34,4 +34,54 @@
      class="nav-link {% if 'rupture-stock' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-exclamation-triangle"></i> Rupture stock
   </a>
+
+  <div class="sidebar-section">Localisation</div>
+  <div class="sidebar-group {% if 'gouvernorat' in request.resolver_match.url_name or 'delegation' in request.resolver_match.url_name or 'zone' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-map"></i> Localisation
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'administration:gouvernorat-list' %}"
+         class="nav-link {% if 'gouvernorat' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-geo-alt"></i> Gouvernorat
+      </a>
+      <a href="{% url 'administration:delegation-list' %}"
+         class="nav-link {% if 'delegation' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-signpost-2"></i> Délégations
+      </a>
+      <a href="{% url 'administration:zone-list' %}"
+         class="nav-link {% if 'zone' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-pin-map"></i> Zones
+      </a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_css %}
+.sidebar-group { position: relative; }
+.sidebar-group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sidebar-group-chevron { transition: transform .2s ease; font-size: .75rem; }
+.sidebar-submenu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease;
+}
+.sidebar-submenu .nav-link {
+  padding-left: 2.75rem;
+  font-size: .82rem;
+}
+.sidebar-group:focus-within .sidebar-submenu,
+.sidebar-group.sidebar-group-active .sidebar-submenu {
+  max-height: 12rem;
+}
+.sidebar-group:focus-within .sidebar-group-chevron,
+.sidebar-group.sidebar-group-active .sidebar-group-chevron {
+  transform: rotate(180deg);
+}
 {% endblock %}

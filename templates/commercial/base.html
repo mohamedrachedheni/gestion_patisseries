@@ -10,18 +10,37 @@
   </a>
 
   <div class="sidebar-section">Clients & Secteur</div>
-  <a href="#" class="nav-link"><i class="bi bi-people"></i> Clients</a>
-  <a href="#" class="nav-link"><i class="bi bi-calendar-event"></i> Agenda</a>
+  <a href="{% url 'commercial:client-list' %}"
+     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-people"></i> Clients
+  </a>
+  <a href="{% url 'commercial:client-sans-bl-list' %}"
+     class="nav-link {% if 'sans-bl' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-person-x"></i> Clients sans BL
+  </a>
+  <a href="{% url 'commercial:agenda-list' %}"
+     class="nav-link {% if 'agenda' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-calendar-event"></i> Agenda
+  </a>
 
   <div class="sidebar-section">Ventes</div>
   <a href="#" class="nav-link"><i class="bi bi-receipt"></i> Ventes</a>
-  <a href="#" class="nav-link"><i class="bi bi-truck"></i> Bons de livraison</a>
+  <a href="{% url 'commercial:bon-livraison-list' %}"
+     class="nav-link {% if 'bon-livraison' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-truck"></i> Bons de livraison
+  </a>
 
   <div class="sidebar-section">Achats & Dépenses</div>
   <a href="{% url 'commercial:achat-list' %}"
      class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-cart3"></i> Achats
   </a>
-  <a href="#" class="nav-link"><i class="bi bi-cash-stack"></i> Dépenses</a>
-  <a href="#" class="nav-link"><i class="bi bi-building"></i> Fournisseurs</a>
+  <a href="{% url 'commercial:depense-list' %}"
+     class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cash-stack"></i> Dépenses
+  </a>
+  <a href="{% url 'commercial:fournisseur-list' %}"
+     class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-building"></i> Fournisseurs
+  </a>
 {% endblock %}

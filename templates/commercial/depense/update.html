@@ -1,0 +1,260 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Modifier {{ depense_code }} — Commercial{% endblock %}
+{% block page_title %}Modification de la dépense{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:depense-list' %}">Dépenses</a></li>
+    <li class="breadcrumb-item active">Modifier {{ depense_code }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="depense-update-form" novalidate>
+  {% csrf_token %}
+
+  {# ══ Section 1 : informations de la dépense à modifier ═══════════════════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-cash-stack me-2 text-primary"></i>Information de la dépense à modifier
+    </div>
+    <div class="card-body">
+
+      {# ── Ligne 1 : champs modifiables ──────────────────────────────── #}
+      <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
+        {% if is_administration %}
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Employé</label>
+          <select name="employe_id" id="id_employe_id" class="form-select form-select-sm">
+            {% for u in employes_list %}
+            <option value="{{ u.pk }}" {% if employe_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="employe_id" id="id_employe_id" value="{{ employe_id }}">
+        {% endif %}
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date dépense</label>
+          <input type="date" value="{{ depense_at }}" class="form-control form-control-sm" disabled>
+        </div>
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Fournisseur</label>
+          <select name="fournisseur_id" id="id_fournisseur_id" class="form-select form-select-sm">
+            {% for f in fournisseurs_list %}
+            <option value="{{ f.pk }}" {% if fournisseur_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:140px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant payé</label>
+          <input type="number" step="0.001" min="0" name="nouveau_acompte" id="id_nouveau_acompte"
+                 value="{{ nouveau_acompte }}" class="form-control form-control-sm no-spinner">
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Mode paiement</label>
+          <select name="mode_paiement" id="id_mode_paiement" class="form-select form-select-sm">
+            {% for value, label in mode_paiement_choices %}
+            <option value="{{ value }}" {% if value == mode_paiement %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:1 1 auto;min-width:200px;">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" name="observation" value="{{ observation }}" class="form-control form-control-sm">
+        </div>
+      </div>
+
+      {# ── Ligne 2 : champs auto-définis, non modifiables ────────────── #}
+      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Numéro dépense</label>
+          <input type="text" value="{{ depense_numero }}" class="form-control form-control-sm" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant total</label>
+          <input type="number" step="0.001" id="id_total_montant" value="0.000"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total acompte</label>
+          <input type="number" step="0.001" id="id_total_acompte" value="{{ ancien_total_acompte }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Reste à payer</label>
+          <input type="number" step="0.001" id="id_reste_a_payer" value="0.000"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Statut paiement</label>
+          <input type="text" id="id_statut" value="" class="form-control form-control-sm" disabled>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ══ Section 2 : détails de la dépense ═══════════════════════════════════ #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-list-ul me-2 text-primary"></i>Détails de la dépense
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 260px;min-width:200px;"><span class="form-label small text-muted mb-0">Libellé</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Valeur unitaire</span></div>
+        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="detail-rows"></div>
+      <div class="d-flex justify-content-end mt-2">
+        <button type="button" id="add-detail-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var DETAIL_ROWS = {{ detail_rows_json|safe }};
+  var ANCIEN_TOTAL_ACOMPTE = parseFloat("{{ ancien_total_acompte }}") || 0;
+
+  var detailRowsContainer = document.getElementById('detail-rows');
+
+  var montantPayeInput   = document.getElementById('id_nouveau_acompte');
+  var totalMontantInput  = document.getElementById('id_total_montant');
+  var totalAcompteInput  = document.getElementById('id_total_acompte');
+  var resteInput         = document.getElementById('id_reste_a_payer');
+  var statutInput        = document.getElementById('id_statut');
+
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function round3(v) {
+    return Math.round(v * 1000) / 1000;
+  }
+
+  // ── Récapitulatif (Montant total / Total acompte / Reste à payer / Statut) ──
+  function recalcResteEtStatut() {
+    var total = num(totalMontantInput);
+    var totalAcompte = round3(ANCIEN_TOTAL_ACOMPTE + num(montantPayeInput));
+    totalAcompteInput.value = totalAcompte.toFixed(3);
+
+    var reste = round3(total - totalAcompte);
+    resteInput.value = reste.toFixed(3);
+    resteInput.style.color = reste < 0 ? 'red' : '';
+
+    var statut = '';
+    if (reste === 0) {
+      statut = 'Payé';
+    } else if (reste > 0 && reste < total) {
+      statut = 'Partiellement payé';
+    } else if (reste === total) {
+      statut = 'Non payé';
+    }
+    statutInput.value = statut;
+  }
+
+  function recalcMontantTotal() {
+    var total = 0;
+    document.querySelectorAll('.total-ligne-input').forEach(function (el) {
+      total += num(el);
+    });
+    totalMontantInput.value = round3(total).toFixed(3);
+    recalcResteEtStatut();
+  }
+
+  montantPayeInput.addEventListener('input', recalcResteEtStatut);
+
+  // ── Section 2 : lignes de détail ────────────────────────────────────────────
+  function addDetailRow(prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.innerHTML =
+      '<div style="flex:1 1 260px;min-width:200px;">' +
+        '<input type="text" name="detail_libelle" class="form-control form-control-sm libelle-input" value="">' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="number" step="1" min="0" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="1">' +
+      '</div>' +
+      '<div style="width:140px;flex:0 0 auto;">' +
+        '<input type="number" step="0.001" min="0" name="detail_valeur_unitaire" class="form-control form-control-sm no-spinner prix-input" value="0">' +
+      '</div>' +
+      '<div style="width:140px;flex:0 0 auto;">' +
+        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var libelleInput = row.querySelector('.libelle-input');
+    var qteInput   = row.querySelector('.qte-input');
+    var prixInput  = row.querySelector('.prix-input');
+    var totalInput = row.querySelector('.total-ligne-input');
+
+    function syncTotal() {
+      totalInput.value = round3(num(qteInput) * num(prixInput)).toFixed(3);
+      recalcMontantTotal();
+    }
+
+    qteInput.addEventListener('input', syncTotal);
+    prixInput.addEventListener('input', syncTotal);
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+      recalcMontantTotal();
+    });
+
+    if (prefill.libelle !== undefined) { libelleInput.value = prefill.libelle; }
+    if (prefill.quantite !== undefined) { qteInput.value = prefill.quantite; }
+    if (prefill.valeur_unitaire !== undefined) { prixInput.value = prefill.valeur_unitaire; }
+    syncTotal();
+
+    detailRowsContainer.appendChild(row);
+  }
+
+  document.getElementById('add-detail-row-btn').addEventListener('click', function () { addDetailRow(); });
+
+  // ── Initialisation : lignes existantes (ou reçues du serveur après échec), ─
+  // sinon une ligne vide, puis premier calcul.
+  if (DETAIL_ROWS.length > 0) {
+    DETAIL_ROWS.forEach(function (r) { addDetailRow(r); });
+  } else {
+    addDetailRow();
+  }
+  recalcMontantTotal();
+})();
+</script>
+{% endblock %}

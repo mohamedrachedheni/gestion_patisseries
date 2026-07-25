@@ -7,6 +7,24 @@ app_name = 'administration'
 urlpatterns = [
     path('', views.HomeView.as_view(), name='home'),
 
+    # Gouvernorats
+    path('gouvernorats/',                       views.GouvernoratListView.as_view(),   name='gouvernorat-list'),
+    path('gouvernorats/nouveau/',               views.GouvernoratCreateView.as_view(), name='gouvernorat-create'),
+    path('gouvernorats/<hashid:pk>/modifier/',  views.GouvernoratUpdateView.as_view(), name='gouvernorat-update'),
+    path('gouvernorats/<hashid:pk>/supprimer/', views.GouvernoratDeleteView.as_view(), name='gouvernorat-delete'),
+
+    # Délégations
+    path('delegations/',                       views.DelegationListView.as_view(),   name='delegation-list'),
+    path('delegations/nouveau/',               views.DelegationCreateView.as_view(), name='delegation-create'),
+    path('delegations/<hashid:pk>/modifier/',  views.DelegationUpdateView.as_view(), name='delegation-update'),
+    path('delegations/<hashid:pk>/supprimer/', views.DelegationDeleteView.as_view(), name='delegation-delete'),
+
+    # Zones
+    path('zones/',                       views.ZoneListView.as_view(),   name='zone-list'),
+    path('zones/nouveau/',               views.ZoneCreateView.as_view(), name='zone-create'),
+    path('zones/<hashid:pk>/modifier/',  views.ZoneUpdateView.as_view(), name='zone-update'),
+    path('zones/<hashid:pk>/supprimer/', views.ZoneDeleteView.as_view(), name='zone-delete'),
+
     # Employés
     path('employes/',                         views.EmployeListView.as_view(),   name='employe-list'),
     path('employes/nouveau/',                 views.EmployeCreateView.as_view(), name='employe-create'),
@@ -15,7 +33,8 @@ urlpatterns = [
     path('employes/<hashid:pk>/supprimer/',   views.EmployeDeleteView.as_view(), name='employe-delete'),
 
     # Transactions (lecture seule)
-    path('transactions/', views.TransactionListView.as_view(), name='transaction-list'),
+    path('transactions/',                            views.TransactionListView.as_view(),        name='transaction-list'),
+    path('transactions/<hashid:pk>/detail-popup/',   views.TransactionDetailPopupView.as_view(), name='transaction-detail-popup'),
 
     # Transferts
     path('transferts/',                       views.TransfereListView.as_view(),   name='transfere-list'),

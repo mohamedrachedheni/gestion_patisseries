@@ -1,0 +1,307 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Modifier {{ bon_livraison_code }} — Bons de livraison{% endblock %}
+{% block page_title %}Modifier bon de livraison{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:bon-livraison-list' %}">Bons de livraison</a></li>
+    <li class="breadcrumb-item active">Modifier {{ bon_livraison_code }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="blu-form" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : informations du bon de livraison ────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-truck me-2 text-primary"></i>Informations du bon de livraison
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Date bon de livraison</label>
+          <input type="date" value="{{ bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}"
+                 class="form-control form-control-sm" disabled>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Numéro</label>
+          <input type="text" value="{{ bon_livraison_code.bon_livraison_numero }}"
+                 class="form-control form-control-sm" disabled>
+        </div>
+        {% if is_administration %}
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" id="blu-commercial-select" class="form-select form-select-sm">
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if u.pk|stringformat:"s" == selected_commercial_id %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="blu-commercial-select" name="commercial_id" value="{{ selected_commercial_id }}">
+        {% endif %}
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Zone</label>
+          <select id="blu-zone-select" class="form-select form-select-sm"></select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Client</label>
+          <select name="client_id" id="blu-client-select" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Montant total</label>
+          <input type="number" step="0.001" id="blu-total-montant"
+                 value="{{ bon_livraison.total_montant|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Nouveau montant payé</label>
+          <input type="number" step="0.001" min="0" name="nouveau_acompte" id="blu-nouveau-acompte"
+                 value="{{ nouveau_acompte_value }}" class="form-control form-control-sm no-spinner">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Mode de paiement</label>
+          <select name="mode_paiement" id="blu-mode-paiement" class="form-select form-select-sm">
+            {% for value, label in mode_paiement_choices %}
+            <option value="{{ value }}" {% if value == mode_paiement_value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Montant total payé</label>
+          <input type="number" step="0.001" id="blu-total-acompte"
+                 value="{{ bon_livraison.total_acompte|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Reste à payer</label>
+          <input type="number" step="0.001" id="blu-reste"
+                 value="{{ bon_livraison.reste_a_payer|stringformat:'s' }}"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Status paiement</label>
+          <input type="text" id="blu-statut-paiement" value="{{ bon_livraison.statut }}"
+                 class="form-control form-control-sm" disabled>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" name="observation" value="{{ observation_value }}"
+                 class="form-control form-control-sm">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : détails produits ─────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-box-seam me-2 text-primary"></i>Détails produits
+    </div>
+    <div class="card-body p-0">
+      {% if detail_rows %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Produit</th>
+              <th>Quantité</th>
+              <th>Prix unitaire</th>
+              <th class="pe-3">Total ligne</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in detail_rows %}
+            <tr>
+              <td class="ps-3">
+                <input type="hidden" name="detail_id" value="{{ d.pk }}">
+                <input type="text" class="form-control form-control-sm" value="{{ d.produit|default:'' }}" disabled>
+              </td>
+              <td style="width:120px;">
+                <input type="number" step="1" class="form-control form-control-sm no-spinner"
+                       value="{{ d.quantite|stringformat:'s' }}" disabled>
+              </td>
+              <td style="width:140px;">
+                <input type="number" step="0.001" min="0" name="detail_prix_unitaire"
+                       class="form-control form-control-sm no-spinner blu-prix-input"
+                       data-quantite="{{ d.quantite|stringformat:'s' }}"
+                       value="{{ d.prix_unitaire|stringformat:'s' }}">
+              </td>
+              <td class="pe-3" style="width:140px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner blu-total-ligne-input"
+                       value="{{ d.total_ligne|default:'0.000'|stringformat:'s' }}" disabled>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-4 text-muted">Aucun détail produit pour ce bon de livraison.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Actions ───────────────────────────────────────────────────────────────── #}
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var CLIENTS = {{ clients_json|safe }};
+  var ZONES = {{ zones_json|safe }};
+  var CLIENT_USERS = {{ client_users_json|safe }};
+  var CURRENT_CLIENT_ID = "{{ selected_client_id }}";
+  var CURRENT_ZONE_ID = "{{ selected_zone_id }}";
+  var ANCIEN_TOTAL_ACOMPTE = {{ bon_livraison.total_acompte|stringformat:"s" }};
+
+  var commercialEl      = document.getElementById('blu-commercial-select');
+  var zoneSelect        = document.getElementById('blu-zone-select');
+  var clientSelect      = document.getElementById('blu-client-select');
+  var totalMontantInput = document.getElementById('blu-total-montant');
+  var nouveauAcompteInput = document.getElementById('blu-nouveau-acompte');
+  var totalAcompteInput = document.getElementById('blu-total-acompte');
+  var resteInput        = document.getElementById('blu-reste');
+  var statutPaiementInput = document.getElementById('blu-statut-paiement');
+
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function round3(v) {
+    return Math.round(v * 1000) / 1000;
+  }
+
+  // ── Cascade Commercial → Zone → Client ────────────────────────────────────
+  // La sélection courante (zone/client du bon de livraison existant) reste
+  // toujours proposée même si elle échappe au filtre lié au commercial —
+  // pour ne jamais perdre silencieusement une donnée déjà enregistrée.
+  function clientIdsForCommercial(commercialId) {
+    if (!commercialId) { return null; }
+    var ids = new Set();
+    CLIENT_USERS.forEach(function (cu) {
+      if (String(cu.user_id) === String(commercialId)) { ids.add(String(cu.client_id)); }
+    });
+    return ids;
+  }
+
+  function buildZoneOptions(commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var zoneIdsAllowed = new Set();
+    CLIENTS.forEach(function (c) {
+      if (allowed && !allowed.has(String(c.id))) { return; }
+      if (c.zone_id) { zoneIdsAllowed.add(String(c.zone_id)); }
+    });
+    var html = '<option value="">— Toutes les zones —</option>';
+    ZONES.forEach(function (z) {
+      var isSelected = selectedId && String(z.id) === String(selectedId);
+      if (allowed && !zoneIdsAllowed.has(String(z.id)) && !isSelected) { return; }
+      html += '<option value="' + z.id + '"' + (isSelected ? ' selected' : '') + '>' + z.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildClientOptions(zoneId, commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var html = '<option value="">— Choisir —</option>';
+    CLIENTS.forEach(function (c) {
+      var isSelected = selectedId && String(c.id) === String(selectedId);
+      if (!isSelected) {
+        if (zoneId) {
+          if (String(c.zone_id) !== String(zoneId)) { return; }
+        } else if (allowed) {
+          if (!allowed.has(String(c.id))) { return; }
+        }
+      }
+      html += '<option value="' + c.id + '"' + (isSelected ? ' selected' : '') + '>' + c.label + '</option>';
+    });
+    return html;
+  }
+
+  function currentCommercialId() {
+    return commercialEl ? commercialEl.value : '';
+  }
+
+  if (commercialEl && commercialEl.tagName === 'SELECT') {
+    commercialEl.addEventListener('change', function () {
+      zoneSelect.innerHTML = buildZoneOptions(commercialEl.value, null);
+      clientSelect.innerHTML = buildClientOptions(null, commercialEl.value, null);
+    });
+  }
+
+  zoneSelect.addEventListener('change', function () {
+    clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
+  });
+
+  // Initialisation : la zone et le client actuels du bon de livraison restent présélectionnés.
+  zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), CURRENT_ZONE_ID);
+  clientSelect.innerHTML = buildClientOptions(CURRENT_ZONE_ID, currentCommercialId(), CURRENT_CLIENT_ID);
+
+  // ── Section 2 : recalcul du Total ligne à chaque changement de Prix unitaire ──
+  function recalcMontantTotal() {
+    var total = 0;
+    document.querySelectorAll('.blu-prix-input').forEach(function (prixInput) {
+      var qte = parseFloat(prixInput.getAttribute('data-quantite')) || 0;
+      var prix = num(prixInput);
+      var totalLigneInput = prixInput.closest('tr').querySelector('.blu-total-ligne-input');
+      var totalLigne = round3(qte * prix);
+      totalLigneInput.value = totalLigne.toFixed(3);
+      total += totalLigne;
+    });
+    totalMontantInput.value = round3(total).toFixed(3);
+    recalcResteAPayer();
+  }
+
+  document.querySelectorAll('.blu-prix-input').forEach(function (prixInput) {
+    prixInput.addEventListener('input', recalcMontantTotal);
+  });
+
+  // ── Section 1 : Montant total payé, Reste à payer et Status paiement ──────
+  function recalcResteAPayer() {
+    var totalMontant = num(totalMontantInput);
+    var montantTotalPaye = round3(ANCIEN_TOTAL_ACOMPTE + num(nouveauAcompteInput));
+    totalAcompteInput.value = montantTotalPaye.toFixed(3);
+
+    var reste = round3(totalMontant - montantTotalPaye);
+    resteInput.value = reste.toFixed(3);
+    resteInput.style.color = reste < 0 ? 'red' : '';
+
+    var statutPaiement = '';
+    if (reste === 0) {
+      statutPaiement = 'Payé';
+    } else if (reste > 0 && reste < totalMontant) {
+      statutPaiement = 'Partiellement payé';
+    } else if (reste === totalMontant) {
+      statutPaiement = 'Non payé';
+    }
+    statutPaiementInput.value = statutPaiement;
+  }
+  nouveauAcompteInput.addEventListener('input', recalcResteAPayer);
+
+  recalcMontantTotal();
+})();
+</script>
+{% endblock %}

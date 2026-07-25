@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin-top: 1.6cm;
+    margin-bottom: 3cm;
+    margin-left: 1.8cm;
+    margin-right: 1.8cm;
+
+    @frame footer_frame {
+      -pdf-frame-content: footer_content;
+      left: 1.8cm;
+      right: 1.8cm;
+      bottom: 1cm;
+      height: 2.2cm;
+    }
+  }
+
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #2b2b2b;
+    background-color: #fff;
+  }
+
+  .bold { font-weight: bold; }
+
+  /* ── Bandeau d'accent en tête de page ─────────────────────────────────── */
+  .accent-bar {
+    background-color: #0f6b72;
+    height: 5px;
+    width: 100%;
+    margin: 0 0 16px 0;
+  }
+
+  table.header-table { width: 100%; border-collapse: collapse; }
+  .header-table td { border: none; padding: 0; vertical-align: top; }
+
+  .company-name {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #0f6b72;
+    margin: 0;
+    line-height: 1.25;
+  }
+  .company-name-sub { margin: 0 0 12px 0; }
+  .company-line { margin: 0; color: #555; font-size: 9pt; }
+
+  .doc-title {
+    font-size: 20pt;
+    font-weight: bold;
+    color: #0f6b72;
+    text-align: right;
+    margin: 0 0 6px 0;
+  }
+  .doc-meta-table { width: 100%; border-collapse: collapse; }
+  .doc-meta-table td {
+    border: none;
+    padding: 2px 0;
+    text-align: right;
+    font-size: 9.5pt;
+    color: #555;
+  }
+  .doc-meta-table td.doc-meta-label { color: #888; }
+  .doc-meta-table td.doc-meta-value { font-weight: bold; color: #2b2b2b; padding-left: 8px; }
+
+  .section-divider {
+    border-top: 1px solid #d8d8d8;
+    width: 100%;
+    margin: 24px 0 0 0;
+  }
+
+  /* ── Bloc client ───────────────────────────────────────────────────────── */
+  .client-block {
+    margin-top: 26px;
+    padding-left: 10px;
+    border-left: 3px solid #0f6b72;
+  }
+  .client-label {
+    text-transform: uppercase;
+    font-size: 8pt;
+    color: #888;
+    margin: 0 0 3px 0;
+  }
+  .client-block .client-name { font-size: 11pt; font-weight: bold; margin: 0 0 3px 0; }
+  .client-block .client-line { margin: 0; color: #444; font-size: 9.5pt; }
+
+  /* ── Tableau des articles ─────────────────────────────────────────────── */
+  table.details { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  table.details th {
+    background-color: #0f6b72;
+    color: #fff;
+    text-align: left;
+    padding: 7px 8px;
+    font-size: 9pt;
+    text-transform: uppercase;
+  }
+  table.details td {
+    padding: 7px 8px;
+    font-size: 9.5pt;
+    border-bottom: 1px solid #e2e2e2;
+  }
+  .text-end { text-align: right; }
+
+  /* ── Montant ───────────────────────────────────────────────────────────── */
+  table.montant-row { width: 100%; margin-top: 16px; }
+  .montant-row td { border: none; padding: 0; vertical-align: middle; }
+  .montant-lettres { color: #444; font-size: 9.5pt; }
+  .montant-ttc-box {
+    border: 1.5px solid #0f6b72;
+    padding: 9px 12px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .montant-ttc-label {
+    text-transform: uppercase;
+    font-size: 9pt;
+    font-weight: bold;
+    color: #0f6b72;
+    margin: 0;
+  }
+  .montant-ttc-value {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #0f6b72;
+    margin: 0;
+  }
+
+  /* ── Signatures ────────────────────────────────────────────────────────── */
+  table.signature-row { width: 100%; margin-top: 46px; }
+  .signature-row td { border: none; padding: 0; }
+  .signature-box { border-top: 1px solid #999; padding-top: 6px; font-weight: bold; color: #2b2b2b; }
+
+  /* ── Pied de page ──────────────────────────────────────────────────────── */
+  #footer_content { text-align: center; }
+  table.footer-line-table { width: 100%; border-collapse: collapse; margin: 0 0 10px 0; }
+  .footer-line-cell {
+    border: none;
+    border-top: 3px solid #0f6b72;
+    padding: 0;
+    font-size: 1px;
+    line-height: 1px;
+  }
+  .footer-text { text-align: center; margin: 0 0 2px 0; font-size: 9pt; color: #555; }
+  .footer-text .bold { color: #0f6b72; }
+</style>
+</head>
+<body>
+
+  <div class="accent-bar"></div>
+
+  <table class="header-table">
+    <tr>
+      <td style="width:56%;">
+        <p class="company-name">PÂTISSERIE &amp; GLACE</p>
+        <p class="company-name company-name-sub">TAREK CHETIOUI</p>
+        <p class="company-line">001 Rue des 11068 IBNOU CINA</p>
+        <p class="company-line">EL KABBARIA 2066</p>
+        <p class="company-line">Tél: 20 809 634</p>
+        <p class="company-line">RNE: 1663950/H</p>
+      </td>
+      <td style="width:44%;">
+        <p class="doc-title">BON DE LIVRAISON</p>
+        <table class="doc-meta-table">
+          <tr>
+            <td class="doc-meta-label">date:</td>
+            <td class="doc-meta-value">{{ bon_livraison_code.bon_livraison_at|date:'d/m/Y' }}</td>
+          </tr>
+          <tr>
+            <td class="doc-meta-label">Numéro:</td>
+            <td class="doc-meta-value">{{ bon_livraison_code.bon_livraison_numero }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <div class="section-divider"></div>
+
+  <div class="client-block">
+    <p class="client-label">Client</p>
+    <p class="client-name">{{ client.raison_sociale|default:'' }}</p>
+    <p class="client-line">Adresse: {{ client.adresse|default:'' }}</p>
+    <p class="client-line">Téléphone: {{ client.telephone|default:'' }}</p>
+  </div>
+
+  <table class="details">
+    <thead>
+      <tr>
+        <th>Produit</th>
+        <th class="text-end">Quantité</th>
+        <th class="text-end">Prix unitaire</th>
+        <th class="text-end">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in details %}
+      <tr>
+        <td>{{ d.produit|default:'' }}</td>
+        <td class="text-end">{{ d.quantite|stringformat:'s' }}</td>
+        <td class="text-end">{{ d.prix_unitaire|stringformat:'s' }}</td>
+        <td class="text-end">{{ d.total_ligne|stringformat:'s' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="montant-row">
+    <tr>
+      <td style="width:60%;" class="montant-lettres">
+        Arrêter le présent bon de commande: {{ montant_lettres }}
+      </td>
+      <td style="width:40%;">
+        <div class="montant-ttc-box">
+          <span class="montant-ttc-label">Total TTC</span>&nbsp;&nbsp;<span class="montant-ttc-value">{{ montant_chiffres }}</span>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="signature-row">
+    <tr>
+      <td style="width:45%;"><div class="signature-box">Décharge Client</div></td>
+      <td style="width:10%;">&nbsp;</td>
+      <td style="width:45%;"><div class="signature-box">Service commercial</div></td>
+    </tr>
+  </table>
+
+  <div id="footer_content">
+    <table class="footer-line-table">
+      <tr><td class="footer-line-cell">&nbsp;</td></tr>
+    </table>
+    <p class="footer-text"><span class="bold">PÂTISSERIE &amp; GLACE</span>&nbsp;&nbsp;.&nbsp;&nbsp;<span class="bold">TAREK CHETIOUI</span></p>
+    <p class="footer-text">Merci de votre confiance ! &nbsp;·&nbsp; SAV: 20 809 634</p>
+  </div>
+
+</body>
+</html>

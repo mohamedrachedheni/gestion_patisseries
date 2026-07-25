@@ -1,5 +1,6 @@
 import datetime
 import json
+import re
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
@@ -18,7 +19,9 @@ from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView, View
 from xhtml2pdf import pisa
 
-from commercial.models import Achat, AchatDetaille
+from commercial.models import (
+    Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Delegation, Gouvernorat, Zone,
+)
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
 from production.models import CommandeInterne, MatierePremiere, Produit, Recette, RecetteDetaille
@@ -29,15 +32,319 @@ from production.services import (
     recettes_produit_unite_map,
 )
 
-from .forms import EmployeForm, TransfereForm, UserCreateForm, UserUpdateForm
+from .forms import (
+    DelegationForm,
+    EmployeForm,
+    GouvernoratForm,
+    TransfereForm,
+    UserCreateForm,
+    UserUpdateForm,
+    ZoneForm,
+)
 from .models import Employe, LibelleTransaction, Transaction as TransactionModel, Transfere
 
 User = get_user_model()
 
 
+def _form_errors_text(form):
+    return ' '.join(e for errors in form.errors.values() for e in errors) or 'Données invalides.'
+
+
 class HomeView(GroupRequiredMixin, TemplateView):
     group_required = 'Administration'
     template_name = 'administration/home.html'
+
+
+# ─── Gouvernorats ───────────────────────────────────────────────────────────
+
+class GouvernoratListView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+    template_name = 'administration/gouvernorat/list.html'
+    PAGINATE_BY = 5
+
+    def get(self, request):
+        qs = Gouvernorat.objects.order_by('nom')
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':      page_obj,
+            'is_paginated':  page_obj.has_other_pages(),
+            'gouvernorats':  page_obj.object_list,
+            'add_form':      GouvernoratForm(),
+        })
+
+
+class GouvernoratCreateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request):
+        form = GouvernoratForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:gouvernorat-list')
+
+        gouvernorat = form.save()
+        log_audit(
+            AuditAction.CREATE, f'Création gouvernorat « {gouvernorat.nom} »',
+            table='Gouvernorat', record_id=gouvernorat.pk, new_value=model_to_dict(gouvernorat),
+        )
+        messages.success(request, f'Gouvernorat « {gouvernorat.nom} » ajouté avec succès.')
+        return redirect('administration:gouvernorat-list')
+
+
+class GouvernoratUpdateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(Gouvernorat, pk=pk)
+        avant = model_to_dict(instance)
+        form = GouvernoratForm(request.POST, instance=instance)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:gouvernorat-list')
+
+        gouvernorat = form.save()
+        log_audit(
+            AuditAction.UPDATE, f'Modification gouvernorat « {gouvernorat.nom} »',
+            table='Gouvernorat', record_id=gouvernorat.pk, old_value=avant, new_value=model_to_dict(gouvernorat),
+        )
+        messages.success(request, f'Gouvernorat « {gouvernorat.nom} » modifié avec succès.')
+        return redirect('administration:gouvernorat-list')
+
+
+class GouvernoratDeleteView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(Gouvernorat, pk=pk)
+        nom = instance.nom
+        avant = model_to_dict(instance)
+        try:
+            instance.delete()
+        except RestrictedError:
+            messages.error(
+                request,
+                f"Impossible de supprimer « {nom} » : des délégations sont encore "
+                "rattachées à ce gouvernorat.",
+            )
+        else:
+            log_audit(
+                AuditAction.DELETE, f'Suppression gouvernorat « {nom} »',
+                table='Gouvernorat', record_id=pk, old_value=avant,
+            )
+            messages.success(request, f'Gouvernorat « {nom} » supprimé avec succès.')
+        return redirect('administration:gouvernorat-list')
+
+
+# ─── Délégations ────────────────────────────────────────────────────────────
+
+class DelegationListView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+    template_name = 'administration/delegation/list.html'
+    PAGINATE_BY = 5
+
+    def get(self, request):
+        qs = Delegation.objects.select_related('gouvernorat').order_by('gouvernorat__nom', 'nom_delegation')
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':       page_obj,
+            'is_paginated':   page_obj.has_other_pages(),
+            'delegations':    page_obj.object_list,
+            'gouvernorats_list': Gouvernorat.objects.order_by('nom'),
+            'add_form':       DelegationForm(),
+        })
+
+
+class DelegationCreateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request):
+        form = DelegationForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:delegation-list')
+
+        delegation = form.save()
+        log_audit(
+            AuditAction.CREATE, f'Création délégation « {delegation.nom_delegation} »',
+            table='Delegation', record_id=delegation.pk, new_value=model_to_dict(delegation),
+        )
+        messages.success(request, f'Délégation « {delegation.nom_delegation} » ajoutée avec succès.')
+        return redirect('administration:delegation-list')
+
+
+class DelegationUpdateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(Delegation, pk=pk)
+        avant = model_to_dict(instance)
+        form = DelegationForm(request.POST, instance=instance)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:delegation-list')
+
+        delegation = form.save()
+        log_audit(
+            AuditAction.UPDATE, f'Modification délégation « {delegation.nom_delegation} »',
+            table='Delegation', record_id=delegation.pk, old_value=avant, new_value=model_to_dict(delegation),
+        )
+        messages.success(request, f'Délégation « {delegation.nom_delegation} » modifiée avec succès.')
+        return redirect('administration:delegation-list')
+
+
+class DelegationDeleteView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(Delegation, pk=pk)
+        nom = instance.nom_delegation
+        avant = model_to_dict(instance)
+        try:
+            instance.delete()
+        except RestrictedError:
+            messages.error(
+                request,
+                f"Impossible de supprimer « {nom} » : des zones sont encore "
+                "rattachées à cette délégation.",
+            )
+        else:
+            log_audit(
+                AuditAction.DELETE, f'Suppression délégation « {nom} »',
+                table='Delegation', record_id=pk, old_value=avant,
+            )
+            messages.success(request, f'Délégation « {nom} » supprimée avec succès.')
+        return redirect('administration:delegation-list')
+
+
+# ─── Zones ──────────────────────────────────────────────────────────────────
+
+class ZoneListView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+    template_name = 'administration/zone/list.html'
+    PAGINATE_BY = 5
+
+    def get(self, request):
+        gouvernorat_id = request.GET.get('gouvernorat', '').strip()
+        delegation_id = request.GET.get('delegation', '').strip()
+
+        qs = Zone.objects.select_related('delegation__gouvernorat').order_by(
+            'delegation__gouvernorat__nom', 'delegation__nom_delegation', 'nom',
+        )
+        if gouvernorat_id:
+            qs = qs.filter(delegation__gouvernorat_id=gouvernorat_id)
+        if delegation_id:
+            qs = qs.filter(delegation_id=delegation_id)
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        delegations_list = Delegation.objects.select_related('gouvernorat').order_by(
+            'gouvernorat__nom', 'nom_delegation',
+        )
+
+        return render(request, self.template_name, {
+            'page_obj':          page_obj,
+            'is_paginated':      page_obj.has_other_pages(),
+            'zones':             page_obj.object_list,
+            'gouvernorat_id':    gouvernorat_id,
+            'delegation_id':     delegation_id,
+            'gouvernorats_list': Gouvernorat.objects.order_by('nom'),
+            'delegations_list':  delegations_list,
+            'delegations_json':  json.dumps([
+                {'id': d.pk, 'nom': d.nom_delegation, 'gouvernorat_id': d.gouvernorat_id}
+                for d in delegations_list
+            ]),
+        })
+
+
+class ZoneCreateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request):
+        gouvernorat_id = request.POST.get('gouvernorat', '').strip()
+        delegation_id = request.POST.get('delegation', '').strip()
+        nom = request.POST.get('nom', '').strip()
+
+        if not gouvernorat_id:
+            messages.error(request, 'Le champ gouvernorat est obligatoire.')
+            return redirect('administration:zone-list')
+        if not delegation_id:
+            messages.error(request, 'Le champ délégation est obligatoire.')
+            return redirect('administration:zone-list')
+        if not nom:
+            messages.error(request, 'Le champ zone est obligatoire.')
+            return redirect('administration:zone-list')
+
+        delegation = Delegation.objects.filter(pk=delegation_id).first()
+        if delegation is None:
+            messages.error(request, 'Délégation introuvable.')
+            return redirect('administration:zone-list')
+        if str(delegation.gouvernorat_id) != gouvernorat_id:
+            messages.error(
+                request,
+                "La délégation sélectionnée n'appartient pas au gouvernorat choisi.",
+            )
+            return redirect('administration:zone-list')
+
+        if Zone.objects.filter(nom=nom).exists():
+            messages.error(request, f"Une zone nommée « {nom} » existe déjà.")
+            return redirect('administration:zone-list')
+
+        zone = Zone.objects.create(delegation=delegation, nom=nom)
+        log_audit(
+            AuditAction.CREATE, f'Création zone « {zone.nom} »',
+            table='Zone', record_id=zone.pk, new_value=model_to_dict(zone),
+        )
+        messages.success(request, f'Zone « {zone.nom} » ajoutée avec succès.')
+        return redirect('administration:zone-list')
+
+
+class ZoneUpdateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(Zone, pk=pk)
+        avant = model_to_dict(instance)
+        form = ZoneForm(request.POST, instance=instance)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:zone-list')
+
+        zone = form.save()
+        log_audit(
+            AuditAction.UPDATE, f'Modification zone « {zone.nom} »',
+            table='Zone', record_id=zone.pk, old_value=avant, new_value=model_to_dict(zone),
+        )
+        messages.success(request, f'Zone « {zone.nom} » modifiée avec succès.')
+        return redirect('administration:zone-list')
+
+
+class ZoneDeleteView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(Zone, pk=pk)
+        nom = instance.nom
+        avant = model_to_dict(instance)
+        try:
+            instance.delete()
+        except RestrictedError:
+            messages.error(
+                request,
+                f"Impossible de supprimer « {nom} » : des clients sont encore "
+                "rattachés à cette zone.",
+            )
+        else:
+            log_audit(
+                AuditAction.DELETE, f'Suppression zone « {nom} »',
+                table='Zone', record_id=pk, old_value=avant,
+            )
+            messages.success(request, f'Zone « {nom} » supprimée avec succès.')
+        return redirect('administration:zone-list')
 
 
 # ─── Employés ───────────────────────────────────────────────────────────────
@@ -268,6 +575,73 @@ class TransactionListView(GroupRequiredMixin, View):
             'libelles_list':  libelles_list,
             'totaux':         totaux,
             'total_count':    paginator.count,
+        })
+
+
+_BON_LIVRAISON_TABLE_ID_RE = re.compile(r'^BonLivraison_id_(\d+)$')
+
+
+class TransactionDetailPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Détail ») de la
+    page Transactions. Pour l'instant, seules les transactions liées à un
+    commercial_bonlivraison (table_id="BonLivraison_id_<id>") affichent
+    quelque chose — les autres tables restent à suivre.
+
+    Section 1 : BonLivraisonCode (bon_livraison_at, bon_livraison_numero,
+    client), sur une seule ligne.
+    Section 1-1 : sous-formulaire — les BonLivraison liés dynamiquement à ce
+    même bon_livraison_code_id, paginés un enregistrement à la fois (page par
+    défaut = celui référencé par la transaction elle-même).
+    Section 1-1-1 : sous-formulaire de la 1-1 — les BonLivraisonDetaille du
+    BonLivraison actuellement affiché, sans paginateur."""
+    group_required = 'Administration'
+    template_name = 'administration/transaction/detail_popup.html'
+
+    def get(self, request, pk):
+        transaction_obj = get_object_or_404(TransactionModel, pk=pk)
+        match = _BON_LIVRAISON_TABLE_ID_RE.match(transaction_obj.table_id or '')
+
+        if not match:
+            return render(request, self.template_name, {
+                'supported':   False,
+                'transaction': transaction_obj,
+            })
+
+        bon_livraison_id = int(match.group(1))
+        bon_livraison_ref = get_object_or_404(BonLivraison, pk=bon_livraison_id)
+        code = bon_livraison_ref.bon_livraison_code
+
+        historique_qs = BonLivraison.objects.filter(
+            bon_livraison_code_id=code.pk,
+        ).select_related('user').order_by('id')
+
+        historique_ids = list(historique_qs.values_list('id', flat=True))
+        try:
+            page_par_defaut = historique_ids.index(bon_livraison_id) + 1
+        except ValueError:
+            page_par_defaut = 1
+
+        paginator = Paginator(historique_qs, 1)
+        page_obj = paginator.get_page(request.GET.get('page') or page_par_defaut)
+        bon_livraison = page_obj.object_list[0] if page_obj.object_list else None
+        details = (
+            bon_livraison.details.select_related('produit').order_by('pk')
+            if bon_livraison else BonLivraisonDetaille.objects.none()
+        )
+
+        return render(request, self.template_name, {
+            'supported':          True,
+            'transaction':        transaction_obj,
+            'bon_livraison_code': code,
+            'page_obj':           page_obj,
+            'bon_livraison':      bon_livraison,
+            'details':            details,
+            # Page.previous_page_number()/next_page_number() lèvent EmptyPage
+            # (non silencieuse) quand la page n'existe pas — jamais les
+            # appeler côté template sans garde ; on précalcule ici des
+            # valeurs toujours sûres (repliées sur la page courante).
+            'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
         })
 
 

@@ -161,11 +161,10 @@
                      title="{% if t.hist_solde_compte_id %}Soldée{% else %}Non soldée{% endif %}">
             </td>
             <td class="text-center pe-3">
-              {# Bouton placeholder — fonctionnel après conception des formulaires des tables liées #}
               <button type="button"
-                      class="btn btn-sm btn-outline-secondary"
-                      disabled
-                      title="Formulaire {{ t.table_id }} — à venir">
+                      class="btn btn-sm btn-outline-secondary transaction-detail-btn"
+                      data-url="{% url 'administration:transaction-detail-popup' t.pk %}"
+                      title="Détail">
                 <i class="bi bi-box-arrow-up-right"></i>
               </button>
             </td>
@@ -234,6 +233,26 @@
   </div>
 </div>
 
+{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
+<div class="modal fade" id="transaction-detail-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail bon de livraison</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="transaction-detail-modal-body">
+        <div class="text-center py-4 text-muted">
+          <div class="spinner-border spinner-border-sm"></div> Chargement…
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -247,5 +266,38 @@ document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
     form.submit();
   });
 });
+
+// ── Pop-up « Détail » ───────────────────────────────────────────────────────
+(function () {
+  var modalEl = document.getElementById('transaction-detail-modal');
+  var modalBody = document.getElementById('transaction-detail-modal-body');
+  if (!modalEl || !modalBody) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+
+  function loadDetail(url) {
+    modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
+      '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
+    modal.show();
+    fetch(url).then(function (r) { return r.text(); }).then(function (html) {
+      modalBody.innerHTML = html;
+    });
+  }
+
+  document.querySelectorAll('.transaction-detail-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      loadDetail(btn.getAttribute('data-url'));
+    });
+  });
+
+  // Délégation d'événement : le contenu de la pop-up est entièrement
+  // remplacé à chaque navigation (page précédente/suivante), les boutons du
+  // pager n'existent donc pas encore au moment de l'attache des listeners.
+  modalBody.addEventListener('click', function (e) {
+    var link = e.target.closest('.bl-pager-btn');
+    if (!link || link.classList.contains('disabled')) { return; }
+    e.preventDefault();
+    loadDetail(link.getAttribute('data-url'));
+  });
+})();
 </script>
 {% endblock %}

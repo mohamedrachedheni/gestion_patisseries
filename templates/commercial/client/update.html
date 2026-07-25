@@ -1,0 +1,266 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Modifier {{ client }} — Clients{% endblock %}
+{% block page_title %}Modifier client{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:client-list' %}">Clients</a></li>
+    <li class="breadcrumb-item active">Modifier {{ client }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+
+  {# ── Section Zone (Gouvernorat → Délégation → Zone, une seule ligne) ─────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-pin-map me-2 text-primary"></i>Zone du client
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Gouvernorat</th>
+              <th>Délégation</th>
+              <th class="pe-3">Zone</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="zone-gouv-deleg-group">
+              <td class="ps-3">
+                <select class="form-select zone-gouvernorat-select">
+                  <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
+                  {% for g in gouvernorats_list %}
+                  <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="delegation" class="form-select zone-delegation-select">
+                  <option value="" {% if not selected_delegation_id %}selected{% endif %}>— Choisir —</option>
+                  {% for d in delegations_list %}
+                  {% if selected_gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
+                  <option value="{{ d.pk }}" {% if selected_delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
+                  {% endif %}
+                  {% endfor %}
+                </select>
+              </td>
+              <td class="pe-3">
+                <input type="text" name="zone_nom" list="zone-datalist" autocomplete="off"
+                       value="{{ zone_nom_value|default:'' }}"
+                       class="form-control combobox-input"
+                       placeholder="Sélectionner ou saisir une nouvelle zone…">
+                <datalist id="zone-datalist"></datalist>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-person-vcard me-2 text-primary"></i>Modifier client
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <label class="form-label small mb-1">Raison sociale</label>
+          {{ form.raison_sociale }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small mb-1">Nom client</label>
+          {{ form.nom_client }}
+        </div>
+
+        <div class="col-md-8">
+          <label class="form-label small mb-1">Adresse</label>
+          {{ form.adresse }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Téléphone</label>
+          {{ form.telephone }}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label small mb-1">À visiter après (jours)</label>
+          {{ form.a_visiter_apres }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Date de création</label>
+          {{ form.created_at }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Actif</label>
+          <div class="form-check mt-2">
+            {{ form.is_active }}
+            <label class="form-check-label">Client actif</label>
+          </div>
+        </div>
+
+        <div class="col-md-8">
+          <label class="form-label small mb-1">Lien Google Maps</label>
+          {{ form.google_mape }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Photo</label>
+          {% if client.photo %}
+          <div class="mb-2">
+            <img src="{{ client.photo.url }}" alt="{{ client }}"
+                 style="width:72px;height:72px;border-radius:50%;object-fit:cover;cursor:pointer;"
+                 title="Double-cliquer pour ouvrir le fichier"
+                 ondblclick="window.open(this.src, '_blank');">
+          </div>
+          {% endif %}
+          {{ form.photo }}
+        </div>
+
+        <div class="col-12">
+          <label class="form-label small mb-1">Observation</label>
+          {{ form.observation }}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Section Liste des commerciaux (Administration uniquement) ───────────── #}
+  {% if is_administration %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-person-lines-fill me-2 text-primary"></i>Liste des commerciaux
+    </div>
+    <div class="card-body">
+      <div id="commerciaux-rows"></div>
+      <div class="d-flex justify-content-end mt-2">
+        <button type="button" id="add-commercial-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter un autre commercial
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="d-flex justify-content-end gap-2">
+    <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Modifier
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var DELEGATIONS = {{ delegations_json|safe }};
+  var ZONES = {{ zones_json|safe }};
+  var COMMERCIAUX = {{ commerciaux_json|safe }};
+  var SELECTED_COMMERCIAL_IDS = {{ selected_commercial_ids_json|default:"[]"|safe }};
+
+  function buildDelegationOptions(gouvernoratId, selectedId) {
+    var html = '<option value="">— Choisir —</option>';
+    DELEGATIONS.forEach(function (d) {
+      if (!gouvernoratId || String(d.gouvernorat_id) !== String(gouvernoratId)) { return; }
+      var sel = (selectedId && String(d.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + d.id + '"' + sel + '>' + d.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildZoneOptions(delegationId) {
+    var html = '';
+    ZONES.forEach(function (z) {
+      if (!delegationId || String(z.delegation_id) !== String(delegationId)) { return; }
+      html += '<option value="' + z.nom + '">';
+    });
+    return html;
+  }
+
+  document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
+    var gouvSelect = group.querySelector('.zone-gouvernorat-select');
+    var delegSelect = group.querySelector('.zone-delegation-select');
+    var zoneDatalist = document.getElementById('zone-datalist');
+    if (!gouvSelect || !delegSelect) { return; }
+
+    gouvSelect.addEventListener('change', function () {
+      delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
+      if (zoneDatalist) { zoneDatalist.innerHTML = ''; }
+    });
+
+    delegSelect.addEventListener('change', function () {
+      if (zoneDatalist) { zoneDatalist.innerHTML = buildZoneOptions(delegSelect.value); }
+    });
+
+    // Pré-remplissage de la datalist selon la délégation déjà sélectionnée
+    // (zone actuelle du client, ou ré-affichage après échec de validation).
+    if (delegSelect.value && zoneDatalist) {
+      zoneDatalist.innerHTML = buildZoneOptions(delegSelect.value);
+    }
+  });
+
+  // ── Double-clic sur le lien Google Maps : ouvre l'adresse dans un nouvel onglet ──
+  var googleMapeField = document.querySelector('[name="google_mape"]');
+  if (googleMapeField) {
+    googleMapeField.title = 'Double-cliquer pour ouvrir le lien';
+    googleMapeField.addEventListener('dblclick', function () {
+      if (this.value) { window.open(this.value, '_blank'); }
+    });
+  }
+
+  // ── Section Liste des commerciaux ───────────────────────────────────────────
+  var commerciauxRowsContainer = document.getElementById('commerciaux-rows');
+
+  function buildCommercialOptions(selectedId) {
+    var html = '<option value="">— Choisir —</option>';
+    COMMERCIAUX.forEach(function (u) {
+      var sel = (selectedId && String(u.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + u.id + '"' + sel + '>' + u.label + '</option>';
+    });
+    return html;
+  }
+
+  function addCommercialRow(selectedId) {
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.innerHTML =
+      '<div style="flex:1 1 auto;">' +
+        '<select name="commercial_id" class="form-select form-select-sm">' + buildCommercialOptions(selectedId) + '</select>' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+    });
+
+    commerciauxRowsContainer.appendChild(row);
+  }
+
+  var addBtn = document.getElementById('add-commercial-row-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () { addCommercialRow(null); });
+  }
+
+  if (commerciauxRowsContainer) {
+    if (SELECTED_COMMERCIAL_IDS.length) {
+      SELECTED_COMMERCIAL_IDS.forEach(function (id) { addCommercialRow(id); });
+    } else {
+      addCommercialRow(null);
+    }
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Gouvernorats — Administration{% endblock %}
+{% block page_title %}Gouvernorats{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Gouvernorats</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ── Partie 1 : liste des gouvernorats enregistrés ───────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-geo-alt me-2 text-primary"></i>Gouvernorats enregistrés
+  </div>
+  <div class="card-body p-0">
+    {% if gouvernorats %}
+    {% comment %}
+      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
+      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
+      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
+    {% endcomment %}
+    {% for g in gouvernorats %}
+    <form id="gouvernorat-update-{{ g.pk }}" method="post" action="{% url 'administration:gouvernorat-update' g.pk %}"></form>
+    <form id="gouvernorat-delete-{{ g.pk }}" method="post" action="{% url 'administration:gouvernorat-delete' g.pk %}"></form>
+    {% endfor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nom</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in gouvernorats %}
+          <tr>
+            <td class="ps-3">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="gouvernorat-update-{{ g.pk }}">
+              <input type="text" name="nom" value="{{ g.nom }}"
+                     class="form-control form-control-sm" form="gouvernorat-update-{{ g.pk }}">
+            </td>
+            <td class="text-center pe-3">
+              <button type="submit" form="gouvernorat-update-{{ g.pk }}"
+                      class="btn btn-sm btn-outline-primary" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="gouvernorat-delete-{{ g.pk }}">
+              <button type="submit" form="gouvernorat-delete-{{ g.pk }}"
+                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
+                      onclick="return confirm('Supprimer le gouvernorat « {{ g.nom|escapejs }} » ?');">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} gouvernorat{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-geo-alt fs-1 d-block mb-2 opacity-25"></i>
+      Aucun gouvernorat enregistré.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Partie 2 : ajout d'un nouveau gouvernorat ────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter un gouvernorat
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'administration:gouvernorat-create' %}">
+      {% csrf_token %}
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-10">
+          <label class="form-label small mb-1">Nouveau gouvernorat</label>
+          <input type="text" name="nom" value="{{ add_form.nom.value|default:'' }}" class="form-control">
+        </div>
+        <div class="col-sm-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

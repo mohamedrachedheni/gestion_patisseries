@@ -1,0 +1,193 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Fournisseurs — Commercial{% endblock %}
+{% block page_title %}Fournisseurs{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Fournisseurs</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Liste des fournisseurs</h4>
+  <a href="{% url 'commercial:fournisseur-create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i> Nouveau fournisseur
+  </a>
+</div>
+
+{# ── Filtres ───────────────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Raison sociale</label>
+          <select name="raison_sociale" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les fournisseurs —</option>
+            {% for f in fournisseurs_list %}
+            <option value="{{ f.pk }}" {% if raison_sociale_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Type fournisseur</label>
+          <select name="type_fournisseur" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les types —</option>
+            {% for value, label in type_choices %}
+            <option value="{{ value }}" {% if type_fournisseur == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Nom contact</label>
+          <input type="text" name="nom_contact" value="{{ nom_contact }}"
+                 class="form-control form-control-sm" placeholder="Rechercher…" data-autosubmit>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:fournisseur-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Liste des enregistrements ────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Raison sociale</th>
+            <th>Type fournisseur</th>
+            <th>Nom contact</th>
+            <th>Téléphone</th>
+            <th class="text-center pe-3" style="width:140px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in page_obj.object_list %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm" value="{{ f.raison_sociale }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm" value="{{ f.type_fournisseur|default:'' }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm" value="{{ f.nom_contact|default:'' }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm" value="{{ f.telephone|default:'' }}" disabled>
+            </td>
+            <td class="text-center pe-3">
+              <div class="d-flex justify-content-center gap-1">
+                <a href="{% url 'commercial:fournisseur-detail' f.pk %}"
+                   class="btn btn-sm btn-outline-secondary" title="Voir détail">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{% url 'commercial:fournisseur-update' f.pk %}"
+                   class="btn btn-sm btn-outline-primary" title="Modifier">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form id="fournisseur-delete-{{ f.pk }}" method="post"
+                      action="{% url 'commercial:fournisseur-delete' f.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
+                          onclick="return confirm('Supprimer le fournisseur « {{ f.raison_sociale|escapejs }} » ?');">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} fournisseur{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?raison_sociale={{ raison_sociale_id }}&type_fournisseur={{ type_fournisseur }}&nom_contact={{ nom_contact }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?raison_sociale={{ raison_sociale_id }}&type_fournisseur={{ type_fournisseur }}&nom_contact={{ nom_contact }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?raison_sociale={{ raison_sociale_id }}&type_fournisseur={{ type_fournisseur }}&nom_contact={{ nom_contact }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-building fs-1 d-block mb-2 opacity-25"></i>
+      Aucun fournisseur
+      {% if raison_sociale_id or type_fournisseur or nom_contact %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
+{% endblock %}
