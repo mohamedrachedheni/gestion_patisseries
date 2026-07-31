@@ -36,6 +36,9 @@ urlpatterns = [
     path('transactions/',                            views.TransactionListView.as_view(),        name='transaction-list'),
     path('transactions/<hashid:pk>/detail-popup/',   views.TransactionDetailPopupView.as_view(), name='transaction-detail-popup'),
 
+    # Solde compte caisse
+    path('solde-caisse/', views.SoldeCaisseView.as_view(), name='solde-caisse'),
+
     # Transferts
     path('transferts/',                       views.TransfereListView.as_view(),   name='transfere-list'),
     path('transferts/nouveau/',               views.TransfereCreateView.as_view(), name='transfere-create'),
@@ -48,5 +51,21 @@ urlpatterns = [
     path('rupture-stock/pdf-commandes/',   views.RuptureStockCommandesPdfView.as_view(), name='rupture-stock-commandes-pdf'),
 
     # Production
-    path('cout-production/', views.CoutProductionListView.as_view(), name='cout-production-list'),
+    path('cout-production/',           views.CoutProductionListView.as_view(),         name='cout-production-list'),
+    path('chiffre-affaire-produit/',   views.ChiffreAffaireParProduitView.as_view(),   name='chiffre-affaire-produit-list'),
+    path(
+        'chiffre-affaire-produit/graphique/<slug:champ>/pdf/',
+        views.ChiffreAffaireProduitGraphiquePdfView.as_view(),
+        name='chiffre-affaire-produit-graphique-pdf',
+    ),
+    path(
+        'chiffre-affaire-commercial/',
+        views.ChiffreAffaireParCommercialView.as_view(),
+        name='chiffre-affaire-commercial-list',
+    ),
+    path(
+        'chiffre-affaire-zone/',
+        views.ChiffreAffaireParZoneView.as_view(),
+        name='chiffre-affaire-zone-list',
+    ),
 ]

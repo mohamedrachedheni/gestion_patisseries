@@ -1,0 +1,171 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Nouveau bon de sortie — Commercial{% endblock %}
+{% block page_title %}Nouveau bon de sortie{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:bon-sortie-list' %}">Bons de sortie</a></li>
+    <li class="breadcrumb-item active">Nouveau bon de sortie</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Nouveau bon de sortie</h4>
+</div>
+<p class="text-muted mb-4">
+  Cette page permet d'enregistrer les quantités des produits nouvellement livrés au commercial par la société.
+  Elle ne prend en compte que les nouvelles livraisons et n'intègre pas les quantités de produits déjà en stock
+  chez le commercial.
+</p>
+
+<form id="bs-create-form" method="post" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : Commercial + Date ─────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        {% if not is_commercial %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select id="bs-commercial-select" name="commercial_id" class="form-select form-select-sm">
+            <option value="">-Choisir-</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="bs-commercial-select" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <input type="date" id="bs-date-input" name="sortie_at" value="{{ sortie_at }}" max="{{ today }}"
+                 class="form-control form-control-sm">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : produits à sortir ─────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-box-arrow-right me-2 text-primary"></i>Liste par défaut les produits nouvellement sorties
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="bs-sortie-rows"></div>
+
+      <div class="d-flex justify-content-end gap-2 mt-2">
+        <button type="button" id="bs-add-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
+        </button>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-check-lg me-1"></i>Enregistrer tous
+        </button>
+      </div>
+    </div>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var PRODUITS = {{ produits_json|safe }};
+  var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
+  var DEFAULTS_URL = "{% url 'commercial:bon-sortie-defaults' %}";
+
+  var commercialEl        = document.getElementById('bs-commercial-select');
+  var dateInput            = document.getElementById('bs-date-input');
+  var sortieRowsContainer  = document.getElementById('bs-sortie-rows');
+
+  function buildProduitOptions() {
+    var html = '<option value="">-Choisir-</option>';
+    PRODUITS.forEach(function (p) {
+      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+    });
+    return html;
+  }
+
+  function addSortieRow(prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.innerHTML =
+      '<div style="flex:1 1 220px;min-width:180px;">' +
+        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="number" step="1" min="0" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="">' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var produitSelect = row.querySelector('.produit-select');
+    var qteInput = row.querySelector('.qte-input');
+
+    if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
+    if (prefill.quantite !== undefined) { qteInput.value = prefill.quantite; }
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+    });
+
+    sortieRowsContainer.appendChild(row);
+  }
+
+  document.getElementById('bs-add-row-btn').addEventListener('click', function () {
+    addSortieRow();
+  });
+
+  function refreshDefaults(usePreserved) {
+    sortieRowsContainer.innerHTML = '';
+    var commercialId = commercialEl.value;
+
+    function remplirSortieRows(lignesParDefaut) {
+      if (usePreserved && PRESERVED_LIGNES.length) {
+        PRESERVED_LIGNES.forEach(function (l) { addSortieRow(l); });
+      } else {
+        lignesParDefaut.forEach(function (l) { addSortieRow(l); });
+      }
+      addSortieRow(); // ligne vide toujours présente à la fin de la liste
+    }
+
+    if (!commercialId) {
+      remplirSortieRows([]);
+      return;
+    }
+
+    var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
+      '&sortie_at=' + encodeURIComponent(dateInput.value);
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      remplirSortieRows(data.sortie_lignes || []);
+    });
+  }
+
+  if (commercialEl.tagName === 'SELECT') {
+    commercialEl.addEventListener('change', function () { refreshDefaults(false); });
+  }
+  dateInput.addEventListener('change', function () { refreshDefaults(false); });
+
+  refreshDefaults(true);
+})();
+</script>
+{% endblock %}

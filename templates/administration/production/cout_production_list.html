@@ -29,7 +29,12 @@
             <th class="ps-3">Produit</th>
             <th class="text-end">Prix unitaire (TND)</th>
             <th class="text-end">Coût de production unitaire (TND)</th>
-            <th class="text-end pe-3">Bénéfice brut unitaire (TND)</th>
+            <th class="text-end col-benefice">Bénéfice brut unitaire (TND)</th>
+            <th class="text-end">Qté commandée maximisée</th>
+            <th class="text-end">Quantité produite maximisée</th>
+            <th class="text-end">Indice de maximisation de la production</th>
+            <th class="text-end">Coût unitaire de la production maximisée (TND)</th>
+            <th class="text-end pe-3 col-benefice-max">Bénéfice brut unitaire maximisé (TND)</th>
           </tr>
         </thead>
         <tbody>
@@ -48,10 +53,55 @@
                      class="form-control form-control-sm text-end font-monospace no-spinner"
                      value="{{ l.cout_unitaire|stringformat:'.3f' }}" disabled>
             </td>
-            <td class="text-end pe-3">
+            <td class="text-end col-benefice">
               <input type="number" step="0.001"
                      class="form-control form-control-sm text-end font-monospace no-spinner {% if l.benefice_unitaire < 0 %}text-danger{% endif %}"
                      value="{{ l.benefice_unitaire|stringformat:'.3f' }}" disabled>
+            </td>
+            <td class="text-end">
+              {% if l.qte_commandee_max is not None %}
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ l.qte_commandee_max|stringformat:'.3f' }}" disabled>
+              {% else %}
+              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if l.qte_produite_max is not None %}
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ l.qte_produite_max|stringformat:'.3f' }}" disabled>
+              {% else %}
+              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if l.indice_max is not None %}
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ l.indice_max|stringformat:'.3f' }}" disabled>
+              {% else %}
+              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if l.cout_unitaire_max is not None %}
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ l.cout_unitaire_max|stringformat:'.3f' }}" disabled>
+              {% else %}
+              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
+              {% endif %}
+            </td>
+            <td class="text-end pe-3 col-benefice-max">
+              {% if l.benefice_max is not None %}
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner {% if l.benefice_max < 0 %}text-danger{% endif %}"
+                     value="{{ l.benefice_max|stringformat:'.3f' }}" disabled>
+              {% else %}
+              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -109,4 +159,17 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_css %}
+td.col-benefice, th.col-benefice {
+  background-color: #eaf2fb;
+}
+td.col-benefice-max, th.col-benefice-max {
+  background-color: #eaf8f0;
+}
+td.col-benefice .form-control,
+td.col-benefice-max .form-control {
+  background-color: transparent;
+}
 {% endblock %}

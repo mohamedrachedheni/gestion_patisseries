@@ -1,12 +1,20 @@
+import base64
 import datetime
 import json
 import re
 from datetime import date, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from io import BytesIO
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Max, Q, RestrictedError, Sum
@@ -42,7 +50,7 @@ from .forms import (
     UserUpdateForm,
     ZoneForm,
 )
-from .models import Employe, LibelleTransaction, Transaction as TransactionModel, Transfere
+from .models import Employe, HistoriqueSoldeCompte, LibelleTransaction, Transaction as TransactionModel, Transfere
 
 User = get_user_model()
 
@@ -1342,6 +1350,28 @@ def _dernier_prix_matiere_premiere(mp_id, derniers_achat_ids):
     return dernier.prix_unitaire if dernier else None
 
 
+def _calculer_cout_unitaire(recette, prix_cache, derniers_achat_ids):
+    """Coût de production unitaire d'une Recette : développe la recette en
+    matières premières de base (resoudre_ingredients_recette) et valorise
+    chacune à son dernier prix d'achat connu (prix_cache mémoïse ces prix
+    entre appels, voir _dernier_prix_matiere_premiere). None si `recette` est
+    absente ou sans quantité de référence valide (calcul impossible)."""
+    if recette is None or not recette.quantite or recette.quantite <= 0:
+        return None
+
+    ingredients, _erreurs = resoudre_ingredients_recette(recette)
+
+    cout_total = Decimal('0')
+    for mp_id, quantite in ingredients.items():
+        if mp_id not in prix_cache:
+            prix_cache[mp_id] = _dernier_prix_matiere_premiere(mp_id, derniers_achat_ids)
+        prix = prix_cache[mp_id]
+        if prix is not None:
+            cout_total += prix * quantite
+
+    return (cout_total / recette.quantite).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+
+
 class CoutProductionListView(GroupRequiredMixin, View):
     """« Coût unitaire de production des produits actualisés en fonction des
     prix d'achats récents des matières premières, basé sur la recette
@@ -1355,7 +1385,15 @@ class CoutProductionListView(GroupRequiredMixin, View):
     Coût de production unitaire = (Σ dernier_prix_mp × quantité_mp nécessaire
     selon la recette développée) / quantité de référence de la recette du
     produit fini. Les recettes sans quantité de référence valide (≤ 0) sont
-    exclues du rapport (calcul impossible)."""
+    exclues du rapport (calcul impossible).
+
+    Colonnes « maximisées » : parmi les CommandeInterne de la recette, on
+    retient celle dont l'indice de maximisation (quantite_commander /
+    quantite_produite) est LE PLUS FAIBLE — c'est la commande interne qui, si
+    elle était reproduite, minimiserait le coût de production du produit fini
+    (Coût unitaire maximisé = Coût de production unitaire × cet indice).
+    CommandeInterne sans quantite_commander/quantite_produite exploitable
+    ignorées ; si aucune n'est exploitable, les 5 colonnes restent vides."""
     group_required = 'Administration'
     template_name = 'administration/production/cout_production_list.html'
     PAGINATE_BY = 10
@@ -1369,38 +1407,54 @@ class CoutProductionListView(GroupRequiredMixin, View):
             Recette.objects
             .filter(produit__is_produit_semi_fini=False)
             .select_related('produit')
+            .prefetch_related('commandes_internes')
             .order_by('produit__nom')
         )
 
         prix_cache = {}
 
-        def _prix(mp_id):
-            if mp_id not in prix_cache:
-                prix_cache[mp_id] = _dernier_prix_matiere_premiere(mp_id, derniers_achat_ids)
-            return prix_cache[mp_id]
-
         lignes = []
         for recette in recettes:
-            if not recette.quantite or recette.quantite <= 0:
+            cout_unitaire = _calculer_cout_unitaire(recette, prix_cache, derniers_achat_ids)
+            if cout_unitaire is None:
                 continue
 
-            ingredients, _erreurs = resoudre_ingredients_recette(recette)
-
-            cout_total = Decimal('0')
-            for mp_id, quantite in ingredients.items():
-                prix = _prix(mp_id)
-                if prix is not None:
-                    cout_total += prix * quantite
-
-            cout_unitaire = (cout_total / recette.quantite).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
             prix_unitaire = recette.produit.prix_unitaire or Decimal('0')
             benefice_unitaire = prix_unitaire - cout_unitaire
 
+            # ── Commande interne minimisant l'indice de maximisation ────────
+            commande_optimale = None
+            indice_min = None
+            for ci in recette.commandes_internes.all():
+                if not ci.quantite_commander or not ci.quantite_produite:
+                    continue
+                indice = ci.quantite_commander / ci.quantite_produite
+                if indice_min is None or indice < indice_min:
+                    indice_min = indice
+                    commande_optimale = ci
+
+            if commande_optimale is not None:
+                qte_commandee_max = commande_optimale.quantite_commander
+                qte_produite_max = commande_optimale.quantite_produite
+                cout_unitaire_max = (cout_unitaire * indice_min).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+                benefice_max = prix_unitaire - cout_unitaire_max
+            else:
+                qte_commandee_max = None
+                qte_produite_max = None
+                indice_min = None
+                cout_unitaire_max = None
+                benefice_max = None
+
             lignes.append({
-                'produit':           recette.produit,
-                'prix_unitaire':     prix_unitaire,
-                'cout_unitaire':     cout_unitaire,
-                'benefice_unitaire': benefice_unitaire,
+                'produit':            recette.produit,
+                'prix_unitaire':      prix_unitaire,
+                'cout_unitaire':      cout_unitaire,
+                'benefice_unitaire':  benefice_unitaire,
+                'qte_commandee_max':  qte_commandee_max,
+                'qte_produite_max':   qte_produite_max,
+                'indice_max':         indice_min,
+                'cout_unitaire_max':  cout_unitaire_max,
+                'benefice_max':       benefice_max,
             })
 
         paginator = Paginator(lignes, self.PAGINATE_BY)
@@ -1412,3 +1466,891 @@ class CoutProductionListView(GroupRequiredMixin, View):
             'lignes':       page_obj.object_list,
             'total_count':  paginator.count,
         })
+
+
+# ─── Chiffre d'affaire par produit ───────────────────────────────────────────
+
+def _construire_lignes_chiffre_affaire_produit(date_debut, date_fin):
+    """Construit les lignes de chiffre d'affaires par produit sur
+    [date_debut, date_fin] et les totaux de la période — logique partagée par
+    ChiffreAffaireParProduitView et ChiffreAffaireProduitGraphiquePdfView.
+
+    Pour chaque Produit vendu (BonLivraisonDetaille.produit) entre
+    `date_debut` et `date_fin` (BonLivraisonCode.bon_livraison_at), en ne
+    retenant que le DERNIER BonLivraison de chaque BonLivraisonCode
+    (dernier_bl_id_par_code — même principe que
+    commercial.views.BonLivraisonListView : un BonLivraisonCode révisé
+    plusieurs fois ne doit être compté qu'une seule fois, via son
+    BonLivraison le plus récent) :
+
+      Total quantité   = Σ quantite
+      Total montant    = Σ total_ligne
+      Part du CA       = Total montant / Total chiffre d'affaire (période)
+      Coût unitaire    = coût de production du produit, calculé indépendamment
+                         de la période (recette standard actualisée avec les
+                         derniers prix d'achat — voir _calculer_cout_unitaire /
+                         production.services.resoudre_ingredients_recette)
+      Bénéfice         = Total montant − (Total quantité × Coût unitaire)
+      Total bénéfice brut = Σ Bénéfice de tous les produits de la période
+      Part du bénéfice = Bénéfice / Total bénéfice brut (période)
+
+    Coût unitaire, Bénéfice et Part du bénéfice sont vides (None) pour un
+    produit sans recette exploitable (calcul de coût impossible) ; ce produit
+    ne contribue alors pas au Total bénéfice brut.
+
+    Retourne (lignes, total_chiffre_affaire, total_benefice_brut)."""
+    dernier_bl_id_par_code = (
+        BonLivraison.objects
+        .filter(
+            bon_livraison_code__bon_livraison_at__gte=date_debut,
+            bon_livraison_code__bon_livraison_at__lte=date_fin,
+        )
+        .values('bon_livraison_code_id')
+        .annotate(dernier_id=Max('id'))
+        .values_list('dernier_id', flat=True)
+    )
+
+    groupes = list(
+        BonLivraisonDetaille.objects
+        .filter(bon_livraison_id__in=dernier_bl_id_par_code, produit__isnull=False)
+        .values('produit_id', 'produit__nom')
+        .annotate(total_qte=Sum('quantite'), total_montant=Sum('total_ligne'))
+        .order_by('-total_montant')
+    )
+
+    total_chiffre_affaire = Decimal('0')
+    for g in groupes:
+        total_chiffre_affaire += g['total_montant'] or Decimal('0')
+
+    derniers_achat_ids = (
+        Achat.objects.values('achat_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+    )
+    recette_par_produit = {
+        r.produit_id: r
+        for r in Recette.objects.filter(produit_id__in=[g['produit_id'] for g in groupes])
+    }
+    prix_cache = {}
+
+    lignes = []
+    total_benefice_brut = Decimal('0')
+    for g in groupes:
+        total_qte = g['total_qte'] or Decimal('0')
+        total_montant = g['total_montant'] or Decimal('0')
+        cout_unitaire = _calculer_cout_unitaire(
+            recette_par_produit.get(g['produit_id']), prix_cache, derniers_achat_ids,
+        )
+        if cout_unitaire is not None:
+            benefice = total_montant - (total_qte * cout_unitaire)
+            total_benefice_brut += benefice
+        else:
+            benefice = None
+
+        lignes.append({
+            'produit_nom':   g['produit__nom'],
+            'total_qte':     total_qte,
+            'total_montant': total_montant,
+            'cout_unitaire': cout_unitaire,
+            'benefice':      benefice,
+        })
+
+    for l in lignes:
+        l['part_ca'] = (
+            (l['total_montant'] / total_chiffre_affaire * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if total_chiffre_affaire else None
+        )
+        l['part_benefice'] = (
+            (l['benefice'] / total_benefice_brut * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if l['benefice'] is not None and total_benefice_brut else None
+        )
+
+    return lignes, total_chiffre_affaire, total_benefice_brut
+
+
+def _generer_graphique_barres(labels, valeurs, titre, couleur, suffixe):
+    """Génère un graphique en barres horizontal (une barre par élément de
+    `labels`/`valeurs`) via matplotlib et retourne le PNG encodé en base64,
+    prêt à être intégré dans un template PDF via
+    <img src="data:image/png;base64,...">. `suffixe` est ajouté après chaque
+    valeur affichée au bout de sa barre (ex. ' %')."""
+    fig, ax = plt.subplots(figsize=(11, max(3, 0.4 * len(labels) + 1)))
+    positions = range(len(labels))
+    ax.barh(list(positions), valeurs, color=couleur)
+    ax.set_yticks(list(positions))
+    ax.set_yticklabels(labels, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel(titre, fontsize=9)
+    ax.set_title(titre, fontsize=11, fontweight='bold')
+
+    for i, v in enumerate(valeurs):
+        ax.text(v, i, f' {v:,.2f}{suffixe}'.replace(',', ' '), va='center', fontsize=7)
+
+    fig.tight_layout()
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=150)
+    plt.close(fig)
+    buffer.seek(0)
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+_GRAPHIQUES_CHIFFRE_AFFAIRE_PRODUIT = {
+    'montant-total': {
+        'champ':   'total_montant',
+        'titre':   "Montant total par produit (TND)",
+        'couleur': '#4e79a7',
+        'suffixe': '',
+    },
+    'part-ca': {
+        'champ':   'part_ca',
+        'titre':   "Part du chiffre d'affaire par produit (%)",
+        'couleur': '#59a14f',
+        'suffixe': ' %',
+    },
+    'benefice': {
+        'champ':   'benefice',
+        'titre':   "Bénéfice par produit (TND)",
+        'couleur': '#f28e2b',
+        'suffixe': '',
+    },
+    'part-benefice': {
+        'champ':   'part_benefice',
+        'titre':   "Part du bénéfice par produit (%)",
+        'couleur': '#e15759',
+        'suffixe': ' %',
+    },
+}
+
+
+class ChiffreAffaireParProduitView(GroupRequiredMixin, View):
+    """Chiffre d'affaires par produit sur une période — voir
+    _construire_lignes_chiffre_affaire_produit pour le détail du calcul de
+    chaque colonne. Vue paginée (10 produits par page)."""
+    group_required = 'Administration'
+    template_name = 'administration/production/chiffre_affaire_produit_list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        lignes, total_chiffre_affaire, total_benefice_brut = _construire_lignes_chiffre_affaire_produit(
+            date_debut, date_fin,
+        )
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':              page_obj,
+            'is_paginated':          page_obj.has_other_pages(),
+            'lignes':                page_obj.object_list,
+            'total_count':           paginator.count,
+            'date_debut':            date_debut_str,
+            'date_fin':              date_fin_str,
+            'total_chiffre_affaire': total_chiffre_affaire,
+            'total_benefice_brut':   total_benefice_brut,
+        })
+
+
+class ChiffreAffaireProduitGraphiquePdfView(GroupRequiredMixin, View):
+    """Export PDF d'un graphique en barres horizontal représentant une
+    colonne du rapport « Chiffre d'affaires par produit » (voir
+    _construire_lignes_chiffre_affaire_produit) sur la période choisie — sans
+    pagination : le graphique couvre tous les produits de la période. Le
+    kwarg d'URL `champ` sélectionne la colonne parmi
+    _GRAPHIQUES_CHIFFRE_AFFAIRE_PRODUIT (montant-total, part-ca, benefice,
+    part-benefice). Les produits pour lesquels cette colonne est vide (« — »,
+    calcul de coût impossible) sont omis du graphique."""
+    group_required = 'Administration'
+    template_name = 'administration/production/pdf_graphique_chiffre_affaire.html'
+
+    def get(self, request, champ):
+        config = _GRAPHIQUES_CHIFFRE_AFFAIRE_PRODUIT.get(champ)
+        if config is None:
+            messages.error(request, "Graphique demandé inconnu.")
+            return redirect('administration:chiffre-affaire-produit-list')
+
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+
+        lignes, _total_ca, _total_benefice = _construire_lignes_chiffre_affaire_produit(date_debut, date_fin)
+        donnees = [(l['produit_nom'], l[config['champ']]) for l in lignes if l[config['champ']] is not None]
+
+        if not donnees:
+            messages.error(request, "Aucune donnée à représenter sur cette période.")
+            return redirect(
+                f"{reverse('administration:chiffre-affaire-produit-list')}"
+                f"?date_debut={date_debut.isoformat()}&date_fin={date_fin.isoformat()}"
+            )
+
+        labels = [nom for nom, _valeur in donnees]
+        valeurs = [float(valeur) for _nom, valeur in donnees]
+        chart_b64 = _generer_graphique_barres(labels, valeurs, config['titre'], config['couleur'], config['suffixe'])
+
+        html = render_to_string(self.template_name, {
+            'titre':      config['titre'],
+            'date_debut': date_debut,
+            'date_fin':   date_fin,
+            'chart_b64':  chart_b64,
+            'genere_le':  timezone.now(),
+        })
+
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(html, dest=pdf_buffer)
+        if pisa_status.err:
+            messages.error(request, "Échec de la génération du PDF.")
+            return redirect('administration:chiffre-affaire-produit-list')
+
+        log_audit(
+            AuditAction.EXPORT_PDF, f"Export PDF graphique « {config['titre']} »",
+            table='BonLivraisonDetaille',
+        )
+
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        filename = f'graphique_{champ}_{date_debut.isoformat()}_{date_fin.isoformat()}.pdf'
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+
+
+# ─── Chiffre d'affaire par commercial ────────────────────────────────────────
+
+def _generer_graphique_barres_3d(labels, valeurs, titre):
+    """Génère un graphique en barres 3D (une barre par élément de
+    `labels`/`valeurs`) via matplotlib (mpl_toolkits.mplot3d) et retourne le
+    PNG encodé en base64, prêt à être intégré directement dans une page HTML
+    via <img src="data:image/png;base64,...">."""
+    fig = plt.figure(figsize=(9, 6))
+    ax = fig.add_subplot(111, projection='3d')
+
+    couleurs = plt.get_cmap('tab10').colors
+    positions = list(range(len(labels)))
+    bar_colors = [couleurs[i % len(couleurs)] for i in positions]
+
+    ax.bar3d(
+        positions, [0] * len(labels), [0] * len(labels),
+        [0.6] * len(labels), [0.6] * len(labels), valeurs,
+        color=bar_colors, shade=True,
+    )
+    ax.set_xticks([p + 0.3 for p in positions])
+    ax.set_xticklabels(labels, rotation=20, ha='right', fontsize=7)
+    ax.set_yticks([])
+    ax.set_zlabel('TND', fontsize=8)
+    ax.set_title(titre, fontsize=11, fontweight='bold')
+    fig.tight_layout()
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=150)
+    plt.close(fig)
+    buffer.seek(0)
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+def _generer_graphique_camembert(labels, valeurs, titre):
+    """Génère un graphique circulaire 2D (camembert) via matplotlib et
+    retourne le PNG encodé en base64, prêt à être intégré directement dans
+    une page HTML via <img src="data:image/png;base64,...">."""
+    fig, ax = plt.subplots(figsize=(7, 6))
+    couleurs = plt.get_cmap('tab10').colors
+
+    ax.pie(
+        valeurs, labels=labels, autopct='%1.1f%%', startangle=90,
+        colors=[couleurs[i % len(couleurs)] for i in range(len(labels))],
+        textprops={'fontsize': 8},
+    )
+    ax.axis('equal')
+    ax.set_title(titre, fontsize=11, fontweight='bold')
+    fig.tight_layout()
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=150)
+    plt.close(fig)
+    buffer.seek(0)
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+class ChiffreAffaireParCommercialView(GroupRequiredMixin, View):
+    """Chiffre d'affaires par commercial sur une période : pour chaque
+    utilisateur (BonLivraison.user) ayant émis un BonLivraison entre
+    `date_debut` et `date_fin` (BonLivraisonCode.bon_livraison_at), en ne
+    retenant que le DERNIER BonLivraison de chaque BonLivraisonCode (même
+    principe que ChiffreAffaireParProduitView / commercial.views.
+    BonLivraisonListView : un BonLivraisonCode révisé plusieurs fois ne doit
+    être compté qu'une seule fois, via son BonLivraison le plus récent) :
+
+      Total montant = Σ total_montant (BonLivraison)
+      Part du CA    = Total montant / Total chiffre d'affaire (période)
+
+    Total chiffre d'affaire = Σ total_montant de tous les BonLivraison
+    retenus (derniers de chaque BonLivraisonCode) de la période.
+
+    Sous le tableau (paginé, 4 lignes/page) : un graphique en barres 3D du
+    Total montant par commercial, et un graphique circulaire (camembert) 2D
+    de la Part du chiffre d'affaire — tous deux calculés sur l'ensemble des
+    commerciaux de la période, indépendamment de la pagination."""
+    group_required = 'Administration'
+    template_name = 'administration/production/chiffre_affaire_commercial_list.html'
+    PAGINATE_BY = 4
+
+    def get(self, request):
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        dernier_bl_id_par_code = (
+            BonLivraison.objects
+            .filter(
+                bon_livraison_code__bon_livraison_at__gte=date_debut,
+                bon_livraison_code__bon_livraison_at__lte=date_fin,
+            )
+            .values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+
+        groupes = list(
+            BonLivraison.objects
+            .filter(pk__in=dernier_bl_id_par_code)
+            .values('user_id')
+            .annotate(total_montant=Sum('total_montant'))
+            .order_by('-total_montant')
+        )
+
+        total_chiffre_affaire = Decimal('0')
+        for g in groupes:
+            total_chiffre_affaire += g['total_montant'] or Decimal('0')
+
+        users_par_id = {u.pk: u for u in User.objects.filter(pk__in=[g['user_id'] for g in groupes])}
+
+        lignes = []
+        for g in groupes:
+            total_montant = g['total_montant'] or Decimal('0')
+            lignes.append({
+                'commercial':    users_par_id.get(g['user_id']),
+                'total_montant': total_montant,
+                'part_ca': (
+                    (total_montant / total_chiffre_affaire * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    if total_chiffre_affaire else None
+                ),
+            })
+
+        chart_montant_b64 = None
+        chart_part_b64 = None
+        if lignes:
+            labels = [
+                (l['commercial'].get_full_name() or l['commercial'].username) if l['commercial'] else '—'
+                for l in lignes
+            ]
+            chart_montant_b64 = _generer_graphique_barres_3d(
+                labels, [float(l['total_montant']) for l in lignes],
+                "Chiffre d'affaire par commercial (TND)",
+            )
+            if total_chiffre_affaire:
+                chart_part_b64 = _generer_graphique_camembert(
+                    labels, [float(l['part_ca']) for l in lignes],
+                    "Part du chiffre d'affaire par commercial (%)",
+                )
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':              page_obj,
+            'is_paginated':          page_obj.has_other_pages(),
+            'lignes':                page_obj.object_list,
+            'total_count':           paginator.count,
+            'date_debut':            date_debut_str,
+            'date_fin':              date_fin_str,
+            'total_chiffre_affaire': total_chiffre_affaire,
+            'chart_montant_b64':     chart_montant_b64,
+            'chart_part_b64':        chart_part_b64,
+        })
+
+
+# ─── Chiffre d'affaire par zone ──────────────────────────────────────────────
+
+def _generer_graphique_camembert_3d(labels, valeurs, titre):
+    """Génère un graphique circulaire en 3D (camembert « épais », extrudé le
+    long de l'axe z via des parois Poly3DCollection) via matplotlib et
+    retourne le PNG encodé en base64, prêt à être intégré dans une pop-up via
+    <img src="data:image/png;base64,...">."""
+    total = sum(valeurs)
+    couleurs = plt.get_cmap('tab10').colors
+    hauteur = 0.35
+    n_segments = 24
+
+    fig = plt.figure(figsize=(8, 7))
+    ax = fig.add_subplot(111, projection='3d')
+
+    angle_courant = 0.0
+    for i, valeur in enumerate(valeurs):
+        angle_part = (valeur / total) * 2 * np.pi if total else 0
+        theta = np.linspace(angle_courant, angle_courant + angle_part, n_segments)
+        couleur = couleurs[i % len(couleurs)]
+
+        x = np.concatenate(([0], np.cos(theta)))
+        y = np.concatenate(([0], np.sin(theta)))
+        ax.add_collection3d(Poly3DCollection(
+            [list(zip(x, y, [hauteur] * len(x)))], facecolor=couleur, edgecolor='white', linewidths=0.3,
+        ))
+        ax.add_collection3d(Poly3DCollection(
+            [list(zip(x, y, [0] * len(x)))], facecolor=couleur, edgecolor='white', linewidths=0.3,
+        ))
+
+        for j in range(len(theta) - 1):
+            x0, y0 = np.cos(theta[j]), np.sin(theta[j])
+            x1, y1 = np.cos(theta[j + 1]), np.sin(theta[j + 1])
+            paroi = [[(x0, y0, 0), (x1, y1, 0), (x1, y1, hauteur), (x0, y0, hauteur)]]
+            ax.add_collection3d(Poly3DCollection(paroi, facecolor=couleur, edgecolor='white', linewidths=0.1))
+
+        angle_courant += angle_part
+
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(0, hauteur * 2)
+    ax.set_axis_off()
+    ax.view_init(elev=35, azim=-60)
+    ax.set_title(titre, fontsize=11, fontweight='bold')
+
+    handles = [plt.Rectangle((0, 0), 1, 1, color=couleurs[i % len(couleurs)]) for i in range(len(labels))]
+    legendes = [
+        f'{label} — {(valeur / total * 100):.1f} %' if total else label
+        for label, valeur in zip(labels, valeurs)
+    ]
+    ax.legend(handles, legendes, loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize=8)
+
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    buffer.seek(0)
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+class ChiffreAffaireParZoneView(GroupRequiredMixin, View):
+    """Chiffre d'affaires par zone sur une période : pour chaque Zone
+    (Client.zone, via BonLivraisonCode.client) ayant reçu un BonLivraison
+    entre `date_debut` et `date_fin` (BonLivraisonCode.bon_livraison_at), en
+    ne retenant que le DERNIER BonLivraison de chaque BonLivraisonCode (même
+    principe que ChiffreAffaireParProduitView / commercial.views.
+    BonLivraisonListView : un BonLivraisonCode révisé plusieurs fois ne doit
+    être compté qu'une seule fois, via son BonLivraison le plus récent) :
+
+      Total montant = Σ total_montant (BonLivraison)
+      Part du CA    = Total montant / Total chiffre d'affaire (période)
+
+    Total chiffre d'affaire = Σ total_montant de tous les BonLivraison
+    retenus (derniers de chaque BonLivraisonCode) de la période. Les clients
+    sans zone assignée (Client.zone nullable) sont regroupés sous « Sans
+    zone ».
+
+    Sous le tableau (paginé, 4 lignes/page) : deux boutons ouvrent chacun une
+    pop-up avec un graphique en 3D — barres pour le Total montant, camembert
+    pour la Part du chiffre d'affaire — calculés sur l'ensemble des zones de
+    la période, indépendamment de la pagination."""
+    group_required = 'Administration'
+    template_name = 'administration/production/chiffre_affaire_zone_list.html'
+    PAGINATE_BY = 4
+
+    def get(self, request):
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        dernier_bl_id_par_code = (
+            BonLivraison.objects
+            .filter(
+                bon_livraison_code__bon_livraison_at__gte=date_debut,
+                bon_livraison_code__bon_livraison_at__lte=date_fin,
+            )
+            .values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+
+        groupes = list(
+            BonLivraison.objects
+            .filter(pk__in=dernier_bl_id_par_code)
+            .values('bon_livraison_code__client__zone_id', 'bon_livraison_code__client__zone__nom')
+            .annotate(total_montant=Sum('total_montant'))
+            .order_by('-total_montant')
+        )
+
+        total_chiffre_affaire = Decimal('0')
+        for g in groupes:
+            total_chiffre_affaire += g['total_montant'] or Decimal('0')
+
+        lignes = []
+        for g in groupes:
+            total_montant = g['total_montant'] or Decimal('0')
+            lignes.append({
+                'zone_nom':      g['bon_livraison_code__client__zone__nom'] or 'Sans zone',
+                'total_montant': total_montant,
+                'part_ca': (
+                    (total_montant / total_chiffre_affaire * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    if total_chiffre_affaire else None
+                ),
+            })
+
+        chart_montant_b64 = None
+        chart_part_b64 = None
+        if lignes:
+            labels = [l['zone_nom'] for l in lignes]
+            chart_montant_b64 = _generer_graphique_barres_3d(
+                labels, [float(l['total_montant']) for l in lignes],
+                "Chiffre d'affaire par zone (TND)",
+            )
+            if total_chiffre_affaire:
+                chart_part_b64 = _generer_graphique_camembert_3d(
+                    labels, [float(l['total_montant']) for l in lignes],
+                    "Part du chiffre d'affaire par zone (%)",
+                )
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':              page_obj,
+            'is_paginated':          page_obj.has_other_pages(),
+            'lignes':                page_obj.object_list,
+            'total_count':           paginator.count,
+            'date_debut':            date_debut_str,
+            'date_fin':              date_fin_str,
+            'total_chiffre_affaire': total_chiffre_affaire,
+            'chart_montant_b64':     chart_montant_b64,
+            'chart_part_b64':        chart_part_b64,
+        })
+
+
+# ─── Solde compte caisse ─────────────────────────────────────────────────────
+
+LIBELLE_MISE_A_JOUR_SOLDE = 'Mise à jour solde compte'
+
+
+class SoldeCaisseView(GroupRequiredMixin, View):
+    """« Mise à jour du solde compte caisse » : pour l'employé sélectionné en
+    Section 1 (tous les utilisateurs actifs sauf l'utilisateur connecté),
+    liste en Section 2 (paginée, 10 lignes) les Transaction non encore
+    soldées (hist_solde_compte IS NULL) dont created_at &lt;= solde_at
+    (aujourd'hui, verrouillé), par ordre croissant. La Section 3 en calcule
+    la somme (calcul_solde, sur l'ensemble filtré, indépendamment de la
+    pagination) et propose une correction manuelle (correction_solde) et une
+    observation.
+
+    Le bouton « Enregistrer » (voir _post_enregistrer_solde) valide, dans
+    l'ordre : Date de la Section 1 = aujourd'hui ; Employé défini ; la
+    Section 2 contient au moins un enregistrement dont le libellé n'est pas
+    « Mise à jour solde compte » (c.-à-d. au moins une transaction réellement
+    nouvelle, pas seulement le solde de report précédent) ; Solde réel >= 0.
+    Si tout est valide, dans une transaction.atomic() :
+    1) création d'un HistoriqueSoldeCompte (solde_at, calcul_solde —
+       recalculé côté serveur, jamais depuis une valeur postée —,
+       correction_solde, observation, admin=utilisateur connecté,
+       user=Employé) ; 2) création d'une nouvelle Transaction « table_id =
+       transaction_id_&lt;id du HistoriqueSoldeCompte&gt; », montant =
+       Solde réel, libellé « Mise à jour solde compte » (get_or_create),
+       hist_solde_compte=Null (nouveau point de départ non soldé) ; 3) les
+       enregistrements de la Section 2 capturés AVANT l'étape 2 (pour ne
+       jamais y inclure la transaction tout juste créée) sont marqués
+       soldés (hist_solde_compte = ce nouvel HistoriqueSoldeCompte). En cas
+       d'échec de validation, la page est régénérée avec les valeurs
+       saisies (correction_solde, observation) préservées.
+
+    La Section 4 ajoute un Transfere dont le compte source et le compte
+    destinataire sont choisis parmi tous les utilisateurs actifs, tous
+    groupes confondus, avec deux contraintes :
+    - le compte destinataire exclut l'utilisateur déjà choisi comme compte
+      source (et vice versa), pour qu'ils soient toujours différents ;
+    - l'un des deux (compte source OU compte destinataire) doit
+      obligatoirement être l'employé sélectionné en Section 1 — dès que
+      l'un des deux champs est fixé sur un utilisateur différent de cet
+      employé, l'autre est automatiquement forcé sur cet employé (JS pour
+      l'ergonomie, revalidé côté serveur en dernier recours). La Section 4
+      n'est donc utilisable que si un employé est sélectionné en Section 1.
+
+    Le bouton « + Ajouter » applique par ailleurs la même logique
+    d'enregistrement que TransfereCreateView (administration/transferts/
+    nouveau/) — validation via Transfere.clean() (montant strictement
+    positif, comptes différents), sauvegarde atomique puis
+    creer_transactions(), même audit — avec une validation supplémentaire
+    propre à cette page : la date du transfert ne peut pas être postérieure
+    à aujourd'hui. En cas de succès, la page est rechargée (GET) avec le
+    même employé sélectionné en Section 1."""
+    group_required = 'Administration'
+    template_name = 'administration/solde_caisse/form.html'
+    PAGINATE_BY = 10
+
+    def _employes_list(self, request):
+        return User.objects.filter(is_active=True).exclude(pk=request.user.pk).order_by('last_name', 'first_name')
+
+    def _comptes_users_list(self):
+        return User.objects.filter(is_active=True).order_by('last_name', 'first_name')
+
+    def _transactions_non_soldees(self, compte_employe, solde_at):
+        return (
+            TransactionModel.objects
+            .filter(user=compte_employe, hist_solde_compte__isnull=True, created_at__date__lte=solde_at)
+            .select_related('libelle')
+            .order_by('created_at')
+        )
+
+    def _build_context(self, request, *, user_id, page, transfere_overrides=None, solde_overrides=None):
+        solde_at = date.today()
+
+        compte_employe = None
+        if user_id and user_id.isdigit():
+            compte_employe = User.objects.filter(pk=user_id, is_active=True).exclude(pk=request.user.pk).first()
+
+        if compte_employe is not None:
+            transactions_qs = self._transactions_non_soldees(compte_employe, solde_at)
+            calcul_solde = transactions_qs.aggregate(total=Sum('montant'))['total'] or Decimal('0')
+        else:
+            transactions_qs = TransactionModel.objects.none()
+            calcul_solde = Decimal('0')
+
+        paginator = Paginator(transactions_qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(page)
+
+        transfere_defaults = {
+            'transfere_at':          solde_at.isoformat(),
+            'compte_source_id':      '',
+            'libelle':               '',
+            'compte_destination_id': '',
+            'montant':               '0.000',
+        }
+        if transfere_overrides:
+            transfere_defaults.update(transfere_overrides)
+
+        solde_defaults = {
+            'correction_solde': '',
+            'observation':      '',
+        }
+        if solde_overrides:
+            solde_defaults.update(solde_overrides)
+
+        return {
+            'solde_at':           solde_at,
+            'employes_list':      self._employes_list(request),
+            'user_id':            user_id or '',
+            'comptes_users_list': self._comptes_users_list(),
+            'page_obj':           page_obj,
+            'is_paginated':       page_obj.has_other_pages(),
+            'lignes':             page_obj.object_list,
+            'total_count':        paginator.count,
+            'calcul_solde':       calcul_solde,
+            **transfere_defaults,
+            **solde_defaults,
+        }
+
+    def get(self, request):
+        user_id = request.GET.get('user_id', '').strip()
+        page = request.GET.get('page', 1)
+        return render(request, self.template_name, self._build_context(request, user_id=user_id, page=page))
+
+    def post(self, request):
+        if request.POST.get('action') == 'enregistrer_solde':
+            return self._post_enregistrer_solde(request)
+        return self._post_ajouter_transfert(request)
+
+    def _post_enregistrer_solde(self, request):
+        user_id           = request.POST.get('user_id', '').strip()
+        solde_at_str       = request.POST.get('solde_at', '').strip()
+        correction_solde_s = request.POST.get('correction_solde', '').strip()
+        observation        = request.POST.get('observation', '').strip()
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._build_context(
+                request, user_id=user_id, page=1,
+                solde_overrides={
+                    'correction_solde': correction_solde_s,
+                    'observation':      observation,
+                },
+            )
+            return render(request, self.template_name, context)
+
+        try:
+            solde_at = date.fromisoformat(solde_at_str)
+        except ValueError:
+            return _echec('Le champ Date doit être la date du jour.')
+        if solde_at != date.today():
+            return _echec('Le champ Date doit être la date du jour.')
+
+        if not user_id or not user_id.isdigit():
+            return _echec('Le champ Employé doit être défini.')
+
+        compte_employe = User.objects.filter(pk=user_id, is_active=True).exclude(pk=request.user.pk).first()
+        if compte_employe is None:
+            return _echec('Le champ Employé doit être défini.')
+
+        transactions_qs = self._transactions_non_soldees(compte_employe, solde_at)
+        if not transactions_qs.exclude(libelle__libelle=LIBELLE_MISE_A_JOUR_SOLDE).exists():
+            return _echec("Il n'y a pas de nouvelles transactions à solder pour l'employé.")
+
+        try:
+            correction_solde = Decimal(correction_solde_s) if correction_solde_s else Decimal('0')
+        except InvalidOperation:
+            return _echec('Le solde caisse doit être un nombre valide.')
+        if correction_solde < 0:
+            return _echec('Le solde caisse doit être supérieur ou égal à zéro.')
+
+        calcul_solde = transactions_qs.aggregate(total=Sum('montant'))['total'] or Decimal('0')
+
+        try:
+            with transaction.atomic():
+                hist = HistoriqueSoldeCompte.objects.create(
+                    solde_at=solde_at,
+                    calcul_solde=calcul_solde,
+                    correction_solde=correction_solde,
+                    observation=observation or None,
+                    admin=request.user,
+                    user=compte_employe,
+                )
+
+                # Capturées avant la création de la nouvelle transaction ci-dessous,
+                # pour ne jamais l'y inclure elle-même (elle doit rester non soldée).
+                a_solder_ids = list(transactions_qs.values_list('pk', flat=True))
+
+                libelle_obj = LibelleTransaction.objects.get_or_create(libelle=LIBELLE_MISE_A_JOUR_SOLDE)[0]
+                TransactionModel.objects.create(
+                    user=compte_employe,
+                    created_at=solde_at,
+                    libelle=libelle_obj,
+                    table_id=f'transaction_id_{hist.pk}',
+                    montant=correction_solde,
+                    hist_solde_compte=None,
+                )
+
+                TransactionModel.objects.filter(pk__in=a_solder_ids).update(hist_solde_compte=hist)
+        except Exception:
+            return _echec("Échec de l'enregistrement du solde : aucune donnée n'a été modifiée.")
+
+        log_audit(
+            AuditAction.CREATE, f'Mise à jour solde compte caisse {compte_employe} — {correction_solde} TND',
+            table='HistoriqueSoldeCompte', record_id=hist.pk, new_value=model_to_dict(hist),
+        )
+        messages.success(request, f'Solde de {compte_employe} enregistré avec succès.')
+        return redirect(f"{reverse('administration:solde-caisse')}?user_id={user_id}")
+
+    def _post_ajouter_transfert(self, request):
+        user_id                = request.POST.get('user_id', '').strip()
+        transfere_at_str        = request.POST.get('transfere_at', '').strip()
+        compte_source_id        = request.POST.get('compte_source_id', '').strip()
+        libelle                 = request.POST.get('libelle', '').strip()
+        compte_destination_id   = request.POST.get('compte_destination_id', '').strip()
+        montant_s               = request.POST.get('montant', '').strip()
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._build_context(
+                request, user_id=user_id, page=1,
+                transfere_overrides={
+                    'transfere_at':          transfere_at_str,
+                    'compte_source_id':      compte_source_id,
+                    'libelle':               libelle,
+                    'compte_destination_id': compte_destination_id,
+                    'montant':               montant_s or '0.000',
+                },
+            )
+            return render(request, self.template_name, context)
+
+        if not user_id or not user_id.isdigit():
+            return _echec('Aucun employé sélectionné.')
+
+        try:
+            transfere_at = date.fromisoformat(transfere_at_str)
+        except ValueError:
+            return _echec('La date du transfert doit être une date valide.')
+        if transfere_at > date.today():
+            return _echec("La date du transfert ne peut pas être postérieure à la date du jour.")
+
+        if not compte_source_id or not compte_source_id.isdigit():
+            return _echec('Le compte source doit être défini.')
+
+        if not libelle:
+            return _echec('Le libellé doit être défini.')
+
+        try:
+            montant = Decimal(montant_s) if montant_s else Decimal('0')
+        except InvalidOperation:
+            return _echec('Le montant doit être un nombre valide.')
+        if montant < 0:
+            return _echec('Le montant ne doit pas être négatif.')
+
+        if not compte_destination_id or not compte_destination_id.isdigit():
+            return _echec('Le compte destinataire doit être défini.')
+
+        if compte_source_id != user_id and compte_destination_id != user_id:
+            return _echec(
+                "Le compte source ou le compte destinataire doit être l'employé sélectionné en Section 1.",
+            )
+
+        transfere = Transfere(
+            transfere_at=transfere_at,
+            compte_source_id=compte_source_id,
+            libelle=libelle,
+            compte_destination_id=compte_destination_id,
+            montant=montant,
+        )
+        try:
+            transfere.full_clean()
+        except ValidationError as exc:
+            return _echec(' '.join(m for msgs in exc.message_dict.values() for m in msgs))
+
+        try:
+            with transaction.atomic():
+                transfere.save()
+                transfere.creer_transactions()
+        except Exception:
+            return _echec("Échec de l'enregistrement du transfert : aucune donnée n'a été modifiée.")
+
+        log_audit(
+            AuditAction.CREATE,
+            f'Création transfert {transfere.compte_source} → {transfere.compte_destination} '
+            f'({transfere.montant} TND)',
+            table='Transfere', record_id=transfere.pk, new_value=model_to_dict(transfere),
+        )
+        messages.success(request, f'Transfert de {transfere.montant} TND enregistré avec succès.')
+        return redirect(f"{reverse('administration:solde-caisse')}?user_id={user_id}")

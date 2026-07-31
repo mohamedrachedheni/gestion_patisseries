@@ -1,0 +1,351 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Mise à jour des stocks — Commercial{% endblock %}
+{% block page_title %}Mise à jour des stocks{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:historique-stock-initial-list' %}">Mises à jour des stocks commerciaux</a></li>
+    <li class="breadcrumb-item active">Mise à jour des stocks</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Mise à jour des stocks de produits chez le commercial</h4>
+</div>
+<p class="text-muted mb-4">
+  Cette page calcule les quantités des produits en stock chez le commercial, sur la base de l'ancien stock corrigé
+  s'il existe, des bons de sortie non soldés, des bons de livraison non soldés et des bons de restitution non
+  soldés dont la date est antérieure ou égale à la date de mise à jour choisie. Le stock réel peut ensuite être
+  librement corrigé, avec une observation éventuelle.
+</p>
+
+<form id="hsi-create-form" method="post" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : Commercial + Date de mise à jour ──────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        {% if not is_commercial %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select id="hsi-commercial-select" name="commercial_id" class="form-select form-select-sm">
+            <option value="">-Choisir-</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="hsi-commercial-select" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date de mise à jour</label>
+          <input type="date" id="hsi-date-input" name="stock_initial_at" value="{{ stock_initial_at }}" max="{{ today }}"
+                 class="form-control form-control-sm">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : produits calculés ─────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-boxes me-2 text-primary"></i>Stocks à mettre à jour
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 180px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté init. stockée</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock calculé</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock réel</span></div>
+        <div style="flex:1 1 160px;min-width:140px;"><span class="form-label small text-muted mb-0">Observation</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="hsi-section2-rows">
+        <div class="text-muted small py-2">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div>
+      </div>
+
+      <nav class="d-flex justify-content-end mt-2" id="hsi-section2-pagination" style="display:none;">
+        <ul class="pagination pagination-sm mb-0"></ul>
+      </nav>
+    </div>
+  </div>
+
+  {# ── Section 3 : ajouter d'autres produits ─────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 180px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock calculé</span></div>
+        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock réel</span></div>
+        <div style="flex:1 1 160px;min-width:140px;"><span class="form-label small text-muted mb-0">Observation</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="hsi-section3-rows"></div>
+
+      <div class="d-flex justify-content-end gap-2 mt-2">
+        <button type="button" id="hsi-add-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
+        </button>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-check-lg me-1"></i>Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var PRODUITS = {{ produits_json|safe }};
+  var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
+  var DEFAULTS_URL = "{% url 'commercial:historique-stock-initial-defaults' %}";
+  var PAGE_SIZE = 8;
+
+  var commercialEl      = document.getElementById('hsi-commercial-select');
+  var dateInput          = document.getElementById('hsi-date-input');
+  var section2Rows       = document.getElementById('hsi-section2-rows');
+  var section2Pager      = document.getElementById('hsi-section2-pagination');
+  var section3Rows       = document.getElementById('hsi-section3-rows');
+  var section2Page       = 1;
+
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function buildProduitOptions() {
+    var html = '<option value="">- choisir</option>';
+    PRODUITS.forEach(function (p) {
+      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+    });
+    return html;
+  }
+
+  // ── Section 2 : lignes calculées, verrouillées sauf Stock réel / Observation ──
+  function addSection2Row(l) {
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 hsi-section2-row';
+    var calculStock = parseFloat(l.calcul_stock) || 0;
+    var valeurParDefaut = calculStock >= 0 ? calculStock : '';
+
+    row.innerHTML =
+      '<div style="flex:1 1 180px;min-width:160px;">' +
+        '<input type="hidden" name="detail_produit_id" value="' + l.produit_id + '">' +
+        '<input type="text" class="form-control form-control-sm" value="" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_initiale) || 0) + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_sortie) || 0) + '" disabled>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_livree) || 0) + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_deja_restituee) || 0) + '" disabled>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="hidden" name="detail_calcul_stock" value="' + calculStock + '">' +
+        '<input type="number" class="form-control form-control-sm no-spinner calcul-stock-input' + (calculStock < 0 ? ' text-danger' : '') + '" value="' + calculStock + '" disabled>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="number" step="1" min="0" name="detail_reel_stock" ' +
+          'class="form-control form-control-sm no-spinner reel-stock-input" value="' + valeurParDefaut + '">' +
+        '<div class="invalid-feedback">Le stock réel ne doit pas être négatif.</div>' +
+      '</div>' +
+      '<div style="flex:1 1 160px;min-width:140px;">' +
+        '<input type="text" name="detail_observation" class="form-control form-control-sm">' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var nomInput = row.children[0].querySelector('input[type="text"]');
+    nomInput.value = l.produit_nom;
+
+    var reelInput = row.querySelector('.reel-stock-input');
+
+    function syncReel() {
+      var valeur = reelInput.value;
+      var estNegatif = valeur !== '' && num(reelInput) < 0;
+      var estDifferent = valeur !== '' && num(reelInput) !== calculStock;
+      reelInput.classList.toggle('is-invalid', estNegatif);
+      reelInput.classList.toggle('text-danger', !estNegatif && estDifferent);
+    }
+    reelInput.addEventListener('input', syncReel);
+    syncReel();
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+      renderSection2Pagination();
+    });
+
+    section2Rows.appendChild(row);
+  }
+
+  function renderSection2Pagination() {
+    var rows = Array.prototype.slice.call(section2Rows.querySelectorAll('.hsi-section2-row'));
+    var totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    if (section2Page > totalPages) { section2Page = totalPages; }
+
+    rows.forEach(function (row, idx) {
+      var page = Math.floor(idx / PAGE_SIZE) + 1;
+      row.style.display = (page === section2Page) ? '' : 'none';
+    });
+
+    var ul = section2Pager.querySelector('ul');
+    ul.innerHTML = '';
+    if (!rows.length || totalPages <= 1) {
+      section2Pager.style.display = 'none';
+      return;
+    }
+    section2Pager.style.display = '';
+
+    function addPageItem(label, page, disabled, active) {
+      var li = document.createElement('li');
+      li.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
+      var a = document.createElement('a');
+      a.className = 'page-link';
+      a.href = '#';
+      a.innerHTML = label;
+      if (!disabled && !active) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          section2Page = page;
+          renderSection2Pagination();
+        });
+      }
+      li.appendChild(a);
+      ul.appendChild(li);
+    }
+
+    addPageItem('<i class="bi bi-chevron-left"></i>', section2Page - 1, section2Page <= 1, false);
+    for (var p = 1; p <= totalPages; p++) {
+      if (p === section2Page || (p > section2Page - 3 && p < section2Page + 3)) {
+        addPageItem(String(p), p, false, p === section2Page);
+      }
+    }
+    addPageItem('<i class="bi bi-chevron-right"></i>', section2Page + 1, section2Page >= totalPages, false);
+  }
+
+  function refreshSection2() {
+    section2Rows.innerHTML = '';
+    section2Page = 1;
+    var commercialId = commercialEl.value;
+
+    if (!commercialId) {
+      section2Rows.innerHTML =
+        '<div class="text-muted small py-2">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div>';
+      renderSection2Pagination();
+      return;
+    }
+
+    var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
+      '&stock_initial_at=' + encodeURIComponent(dateInput.value);
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      var lignes = data.lignes || [];
+      if (!lignes.length) {
+        section2Rows.innerHTML =
+          '<div class="text-muted small py-2">Aucun produit à mettre à jour pour ce commercial.</div>';
+      } else {
+        lignes.forEach(function (l) { addSection2Row(l); });
+      }
+      renderSection2Pagination();
+    });
+  }
+
+  if (commercialEl.tagName === 'SELECT') {
+    commercialEl.addEventListener('change', refreshSection2);
+  }
+  dateInput.addEventListener('change', refreshSection2);
+
+  // ── Section 3 : ajout libre de produits ─────────────────────────────────
+  function addSection3Row(prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    var calculStock = prefill.calcul_stock !== undefined ? prefill.calcul_stock : '0';
+    row.innerHTML =
+      '<div style="flex:1 1 180px;min-width:160px;">' +
+        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="hidden" name="detail_calcul_stock" value="' + calculStock + '">' +
+        '<input type="number" class="form-control form-control-sm no-spinner" value="' + calculStock + '" disabled>' +
+      '</div>' +
+      '<div style="width:110px;flex:0 0 auto;">' +
+        '<input type="number" step="1" min="0" name="detail_reel_stock" ' +
+          'class="form-control form-control-sm no-spinner qte-input" value="">' +
+        '<div class="invalid-feedback">Le stock réel ne doit pas être négatif.</div>' +
+      '</div>' +
+      '<div style="flex:1 1 160px;min-width:140px;">' +
+        '<input type="text" name="detail_observation" class="form-control form-control-sm">' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var produitSelect = row.querySelector('.produit-select');
+    var qteInput = row.querySelector('.qte-input');
+    var observationInput = row.querySelector('input[name="detail_observation"]');
+
+    if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
+    if (prefill.reel_stock !== undefined) { qteInput.value = prefill.reel_stock; }
+    if (prefill.observation !== undefined) { observationInput.value = prefill.observation; }
+
+    qteInput.addEventListener('input', function () {
+      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) < 0);
+    });
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+    });
+
+    section3Rows.appendChild(row);
+  }
+
+  document.getElementById('hsi-add-row-btn').addEventListener('click', function () {
+    addSection3Row();
+  });
+
+  // ── Initialisation ───────────────────────────────────────────────────────
+  // En cas de réaffichage après échec de validation, toutes les lignes
+  // précédemment saisies (Section 2 et Section 3 confondues) sont restaurées
+  // telles quelles dans la Section 3 — la Section 2 n'est PAS recalculée via
+  // AJAX au chargement dans ce cas, pour ne jamais perdre ni compter deux
+  // fois une quantité déjà saisie (un changement ultérieur de commercial ou
+  // de date relance normalement le calcul de la Section 2).
+  if (PRESERVED_LIGNES.length) {
+    section2Rows.innerHTML =
+      '<div class="text-muted small py-2">' +
+      'Les produits calculés seront réaffichés en changeant de commercial ou de date.</div>';
+    PRESERVED_LIGNES.forEach(function (l) { addSection3Row(l); });
+  } else {
+    refreshSection2();
+    addSection3Row();
+  }
+})();
+</script>
+{% endblock %}

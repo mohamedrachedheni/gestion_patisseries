@@ -25,6 +25,27 @@ urlpatterns = [
     path('bons-livraison/<hashid:pk>/supprimer/', views.BonLivraisonDeleteView.as_view(),     name='bon-livraison-delete'),
     path('bons-livraison/<hashid:pk>/etat-pdf/', views.BonLivraisonPdfView.as_view(),         name='bon-livraison-pdf'),
 
+    # Bons de sortie
+    path('bons-sortie/',                          views.BonSortieListView.as_view(),        name='bon-sortie-list'),
+    path('bons-sortie/nouveau/',                  views.BonSortieCreateView.as_view(),      name='bon-sortie-create'),
+    path('bons-sortie/valeurs-defaut/',           views.BonSortieDefaultsView.as_view(),    name='bon-sortie-defaults'),
+    path('bons-sortie/<hashid:pk>/detail-popup/', views.BonSortieDetailPopupView.as_view(), name='bon-sortie-detail-popup'),
+    path('bons-sortie/<hashid:pk>/modifier/',     views.BonSortieUpdateView.as_view(),      name='bon-sortie-update'),
+    path('bons-sortie/<hashid:pk>/supprimer/',    views.BonSortieDeleteView.as_view(),      name='bon-sortie-delete'),
+
+    # Bons de restitution
+    path('bons-restitution/',                          views.BonRestitutionListView.as_view(),        name='bon-restitution-list'),
+    path('bons-restitution/nouveau/',                  views.BonRestitutionCreateView.as_view(),       name='bon-restitution-create'),
+    path('bons-restitution/valeurs-defaut/',           views.BonRestitutionDefaultsView.as_view(),      name='bon-restitution-defaults'),
+    path('bons-restitution/<hashid:pk>/detail-popup/', views.BonRestitutionDetailPopupView.as_view(),  name='bon-restitution-detail-popup'),
+    path('bons-restitution/<hashid:pk>/modifier/',     views.BonRestitutionUpdateView.as_view(),       name='bon-restitution-update'),
+    path('bons-restitution/<hashid:pk>/supprimer/',    views.BonRestitutionDeleteView.as_view(),       name='bon-restitution-delete'),
+
+    # Historique stock initial (mises à jour des stocks commerciaux)
+    path('mises-a-jour-stock/',                views.HistoriqueStockInitialListView.as_view(),     name='historique-stock-initial-list'),
+    path('mises-a-jour-stock/nouveau/',        views.HistoriqueStockInitialCreateView.as_view(),   name='historique-stock-initial-create'),
+    path('mises-a-jour-stock/valeurs-defaut/', views.HistoriqueStockInitialDefaultsView.as_view(), name='historique-stock-initial-defaults'),
+
     # Fournisseurs
     path('fournisseurs/',                       views.FournisseurListView.as_view(),   name='fournisseur-list'),
     path('fournisseurs/nouveau/',               views.FournisseurCreateView.as_view(), name='fournisseur-create'),

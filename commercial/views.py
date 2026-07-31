@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Max, Q, RestrictedError
+from django.db.models import Count, Max, Q, RestrictedError, Sum
 from django.forms.models import model_to_dict
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,12 +18,15 @@ from xhtml2pdf import pisa
 from administration.models import LibelleTransaction, Transaction
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
-from production.models import MatierePremiere, Produit
+from production.models import (
+    BonRestitution, BonRestitutionDetaille, BonSortie, BonSortieDetaille, MatierePremiere, Produit,
+)
 
 from .forms import ClientForm, FournisseurForm
 from .models import (
     Achat, AchatCode, AchatDetaille, Agenda, BonLivraison, BonLivraisonCode, BonLivraisonDetaille,
-    Client, ClientUser, Delegation, Depense, DepenseCode, DepenseDetaille, Fournisseur, Gouvernorat, Zone,
+    Client, ClientUser, Delegation, Depense, DepenseCode, DepenseDetaille, Fournisseur, Gouvernorat,
+    HistoriqueStockInitial, HistoriqueStockInitialDetaille, Zone,
     MODE_PAIEMENT_CHOICES, STATUT_PAIEMENT_CHOICES,
 )
 
@@ -45,6 +48,10 @@ def _form_errors_text(form):
 
 def _is_administration(user):
     return user.is_superuser or user.groups.filter(name='Administration').exists()
+
+
+def _is_commercial(user):
+    return user.groups.filter(name='Commercial').exists()
 
 
 def _client_queryset_for_user(user):
@@ -1058,7 +1065,19 @@ class BonLivraisonUpdateView(GroupRequiredMixin, View):
 class BonLivraisonCreateView(GroupRequiredMixin, View):
     """Formulaire « Nouveau bon de livraison » : filtres en cascade
     Commercial → Zone → Client, section « Détail par défaut » préremplie via
-    AJAX, calculs de paiement côté client, et enregistrement (voir post())."""
+    AJAX, calculs de paiement côté client, et enregistrement (voir post()).
+
+    post() — dans une transaction.atomic() : création de BonLivraisonCode
+    (numéro recalculé côté serveur) et BonLivraison (total_acompte =
+    nouveau_acompte), regroupement des lignes valides par (produit,
+    prix_unitaire) puis bulk_create des BonLivraisonDetaille, mise à jour de
+    BonLivraison (total_montant, reste_a_payer, statut), décrément du stock
+    de chaque Produit livré (production_produit.stock -= quantité livrée,
+    jamais négatif — remis à 0 si le résultat le serait), puis création de la
+    Transaction caisse (montant = nouveau_acompte). En cas d'échec de
+    validation, la page est régénérée avec toutes les valeurs saisies et les
+    lignes de détail préservées (préremplissage JSON, comme pour
+    achats/nouveau)."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/bon_livraison/create.html'
 
@@ -1257,6 +1276,12 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
                 bon_livraison.statut = statut
                 bon_livraison.save(update_fields=['total_montant', 'reste_a_payer', 'statut'])
 
+                # ── Mise à jour du stock des produits livrés (jamais négatif) ──
+                for (pid, _prix), qte in groupes.items():
+                    produit = produits_par_id[pid]
+                    produit.stock = max(produit.stock - int(qte), 0)
+                    produit.save(update_fields=['stock'])
+
                 libelle = LibelleTransaction.objects.get_or_create(
                     libelle='Paiement nouveau bon de livraison',
                 )[0]
@@ -1448,6 +1473,1412 @@ class BonLivraisonDefaultsView(GroupRequiredMixin, View):
             if d.produit_id is not None
         ]
         return JsonResponse({'lignes': lignes, 'derniers_prix': derniers_prix_json})
+
+
+# ─── Bons de sortie ───────────────────────────────────────────────────────────
+
+def _erreur_suppression_bon_sortie(bs):
+    """Retourne le message d'erreur bloquant la suppression (ou la
+    modification) de ce BonSortie, ou '' si autorisé. Utilisée à la fois
+    pour l'affichage (griser/expliquer le bouton dans la liste) et pour la
+    validation serveur réelle au moment de l'action — ne jamais faire
+    confiance au seul calcul côté liste."""
+    if bs.historique_stock_initial_id is not None:
+        return 'Un bon de sortie soldé ne peut être supprimé.'
+    return ''
+
+
+class BonSortieListView(GroupRequiredMixin, View):
+    """Liste des BonSortie (production.models) sur une période — filtrée par
+    commercial : verrouillée sur l'utilisateur connecté (champ masqué) s'il
+    appartient au groupe Commercial, sinon un filtre déroulant (par défaut
+    « tous les commerciaux ») est proposé. Triée par Commercial croissant puis
+    sortie_at décroissant, paginée à 10 lignes. « Soldé » = historique_stock_
+    initial non null. « Visualiser » ouvre une pop-up (voir
+    BonSortieDetailPopupView) ; « Modifier »/« Supprimer » sont actifs
+    uniquement si non soldé (voir BonSortieUpdateView / BonSortieDeleteView)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_sortie/list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+        commercial_id = request.GET.get('commercial_id', '').strip() if not is_commercial else ''
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=6)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        qs = BonSortie.objects.select_related('user').filter(
+            sortie_at__gte=date_debut, sortie_at__lte=date_fin,
+        )
+
+        if is_commercial:
+            qs = qs.filter(user=request.user)
+        elif commercial_id:
+            qs = qs.filter(user_id=commercial_id)
+
+        qs = qs.order_by('user__last_name', 'user__first_name', '-sortie_at')
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+        )
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        rows = list(page_obj.object_list)
+        for bs in rows:
+            bs.erreur_suppression = _erreur_suppression_bon_sortie(bs)
+
+        return render(request, self.template_name, {
+            'page_obj':         page_obj,
+            'is_paginated':     page_obj.has_other_pages(),
+            'bons_sortie':      rows,
+            'is_commercial':    is_commercial,
+            'date_debut':       date_debut_str,
+            'date_fin':         date_fin_str,
+            'commercial_id':    commercial_id,
+            'commerciaux_list': commerciaux_list,
+        })
+
+
+def _erreur_suppression_bon_restitution(br):
+    """Retourne le message d'erreur bloquant la suppression (ou la
+    modification) de ce BonRestitution, ou '' si autorisé. Utilisée à la
+    fois pour l'affichage (griser/expliquer le bouton dans la liste) et pour
+    la validation serveur réelle au moment de l'action — ne jamais faire
+    confiance au seul calcul côté liste."""
+    if br.historique_stock_initial_id is not None:
+        return 'Un bon de restitution soldé ne peut être supprimé.'
+    return ''
+
+
+class BonRestitutionListView(GroupRequiredMixin, View):
+    """Liste des BonRestitution (production.models) sur une période —
+    filtrée par commercial : verrouillée sur l'utilisateur connecté (champ
+    masqué) s'il appartient au groupe Commercial, sinon un filtre déroulant
+    (par défaut « tous les commerciaux ») est proposé. Triée par Commercial
+    croissant puis restitution_at décroissant, paginée à 10 lignes.
+    « Soldé » = historique_stock_initial non null. « Visualiser » ouvre une
+    pop-up (voir BonRestitutionDetailPopupView) ; « Modifier »/« Supprimer »
+    sont actifs uniquement si non soldé (voir BonRestitutionUpdateView /
+    BonRestitutionDeleteView)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_restitution/list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+        commercial_id = request.GET.get('commercial_id', '').strip() if not is_commercial else ''
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=6)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        qs = BonRestitution.objects.select_related('user').filter(
+            restitution_at__gte=date_debut, restitution_at__lte=date_fin,
+        )
+
+        if is_commercial:
+            qs = qs.filter(user=request.user)
+        elif commercial_id:
+            qs = qs.filter(user_id=commercial_id)
+
+        qs = qs.order_by('user__last_name', 'user__first_name', '-restitution_at')
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+        )
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        rows = list(page_obj.object_list)
+        for br in rows:
+            br.erreur_suppression = _erreur_suppression_bon_restitution(br)
+
+        return render(request, self.template_name, {
+            'page_obj':             page_obj,
+            'is_paginated':         page_obj.has_other_pages(),
+            'bons_restitution':     rows,
+            'is_commercial':        is_commercial,
+            'date_debut':           date_debut_str,
+            'date_fin':             date_fin_str,
+            'commercial_id':        commercial_id,
+            'commerciaux_list':     commerciaux_list,
+        })
+
+
+def _quantite_bons_sortie_non_soldes(commercial_id, ref_date):
+    """Somme de quantite, groupée par produit, des BonSortieDetaille dont le
+    BonSortie appartient à ce commercial, n'est pas encore soldé
+    (historique_stock_initial IS NULL) et sortie_at <= ref_date."""
+    return {
+        row['produit_id']: row['total'] or 0
+        for row in (
+            BonSortieDetaille.objects
+            .filter(
+                bon_sortie__user_id=commercial_id,
+                bon_sortie__historique_stock_initial__isnull=True,
+                bon_sortie__sortie_at__lte=ref_date,
+            )
+            .values('produit_id').annotate(total=Sum('quantite'))
+        )
+    }
+
+
+def _quantite_livree_non_soldee(commercial_id, ref_date):
+    """Somme de quantite, groupée par produit, des BonLivraisonDetaille dont
+    le BonLivraison appartient à ce commercial et dont le BonLivraisonCode
+    n'est pas encore soldé (hist_stock_initial IS NULL) et bon_livraison_at
+    <= ref_date — en ne retenant, pour chaque BonLivraisonCode, que son
+    DERNIER BonLivraison (historique le plus récent), même principe que
+    partout ailleurs dans l'application pour cette relation
+    (BonLivraisonListView, etc.) — nécessaire pour ne pas compter deux fois
+    un bon révisé."""
+    dernier_bl_id_par_code = (
+        BonLivraison.objects
+        .filter(
+            user_id=commercial_id,
+            bon_livraison_code__bon_livraison_at__lte=ref_date,
+            bon_livraison_code__hist_stock_initial__isnull=True,
+        )
+        .values('bon_livraison_code_id')
+        .annotate(dernier_id=Max('id'))
+        .values_list('dernier_id', flat=True)
+    )
+    return {
+        row['produit_id']: row['total'] or 0
+        for row in (
+            BonLivraisonDetaille.objects
+            .filter(bon_livraison_id__in=dernier_bl_id_par_code, produit__isnull=False)
+            .values('produit_id').annotate(total=Sum('quantite'))
+        )
+    }
+
+
+def _quantite_restituee_non_soldee(commercial_id, ref_date):
+    """Somme de quantite, groupée par produit, des BonRestitutionDetaille
+    dont le BonRestitution appartient à ce commercial, n'est pas encore
+    soldé (historique_stock_initial IS NULL) et restitution_at <=
+    ref_date."""
+    return {
+        row['produit_id']: row['total'] or 0
+        for row in (
+            BonRestitutionDetaille.objects
+            .filter(
+                bon_restitution__user_id=commercial_id,
+                bon_restitution__historique_stock_initial__isnull=True,
+                bon_restitution__restitution_at__lte=ref_date,
+            )
+            .values('produit_id').annotate(total=Sum('quantite'))
+        )
+    }
+
+
+class BonRestitutionDefaultsView(GroupRequiredMixin, View):
+    """Point d'entrée AJAX utilisé par le template Nouveau bon de
+    restitution : étant donné un commercial (commercial_id) et une date de
+    référence (restitution_at), calcule pour chaque produit concerné le
+    « Reste calculé » = Requête 1 + Requête 2 − Requête 3 − Requête 4 :
+
+    - Requête 1 (quantité initialement stockée) : somme de reel_stock,
+      groupée par produit, des HistoriqueStockInitialDetaille du DERNIER
+      HistoriqueStockInitial de ce commercial (indépendant de restitution_at) ;
+    - Requête 2 (quantité des bons de sortie) : voir
+      _quantite_bons_sortie_non_soldes ;
+    - Requête 3 (quantité livrée) : voir _quantite_livree_non_soldee ;
+    - Requête 4 (quantité déjà restituée) : voir
+      _quantite_restituee_non_soldee.
+
+    Le produit d'une ligne est retenu dès qu'il apparaît dans au moins une
+    des quatre requêtes (union) ; une quantité absente d'une requête vaut 0
+    pour ce produit."""
+    group_required = ['Administration', 'Commercial']
+
+    def get(self, request):
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        restitution_at_str = request.GET.get('restitution_at', '').strip()
+
+        if not commercial_id or not commercial_id.isdigit():
+            return JsonResponse({'lignes': []})
+
+        try:
+            ref_date = date.fromisoformat(restitution_at_str)
+        except ValueError:
+            ref_date = date.today()
+
+        # ── Requête 1 : dernier stock initial du commercial ─────────────────
+        hist = (
+            HistoriqueStockInitial.objects
+            .filter(user_id=commercial_id)
+            .order_by('-stock_initial_at')
+            .first()
+        )
+        quantite_initiale = {}
+        if hist is not None:
+            quantite_initiale = {
+                row['produit_id']: row['total'] or 0
+                for row in (
+                    hist.details.exclude(produit__isnull=True)
+                    .values('produit_id').annotate(total=Sum('reel_stock'))
+                )
+            }
+
+        quantite_sortie = _quantite_bons_sortie_non_soldes(commercial_id, ref_date)
+        quantite_livree = _quantite_livree_non_soldee(commercial_id, ref_date)
+        quantite_deja_restituee = _quantite_restituee_non_soldee(commercial_id, ref_date)
+
+        produit_ids = (
+            set(quantite_initiale) | set(quantite_sortie)
+            | set(quantite_livree) | set(quantite_deja_restituee)
+        )
+        produits_par_id = {p.pk: p.nom for p in Produit.objects.filter(pk__in=produit_ids)}
+
+        lignes = []
+        for pid in produit_ids:
+            qi = Decimal(quantite_initiale.get(pid, 0))
+            qs = Decimal(quantite_sortie.get(pid, 0))
+            ql = Decimal(quantite_livree.get(pid, 0))
+            qr = Decimal(quantite_deja_restituee.get(pid, 0))
+            lignes.append({
+                'produit_id':              pid,
+                'produit_nom':             produits_par_id.get(pid, '—'),
+                'quantite_initiale':       str(qi),
+                'quantite_sortie':         str(qs),
+                'quantite_livree':         str(ql),
+                'quantite_deja_restituee': str(qr),
+                'reste_calcule':           str(qi + qs - ql - qr),
+            })
+        lignes.sort(key=lambda l: l['produit_nom'])
+
+        return JsonResponse({'lignes': lignes})
+
+
+class BonRestitutionCreateView(GroupRequiredMixin, View):
+    """Formulaire « Nouveau bon de restitution » : Section 1 (Commercial
+    verrouillé sur l'utilisateur connecté — champ masqué — s'il appartient
+    au groupe Commercial, sinon liste déroulante des commerciaux actifs,
+    « -Choisir- » ; Date, par défaut aujourd'hui, jamais postérieure à
+    aujourd'hui). Section 2 est entièrement peuplée côté client via
+    BonRestitutionDefaultsView (AJAX), déclenché au chargement (si le
+    commercial est déjà connu) et à chaque changement de Commercial ou de
+    Date — voir cette vue pour le détail du calcul du « Reste calculé » —
+    et paginée côté client (8 lignes/page) pour ne jamais perdre les
+    quantités déjà saisies en changeant de page. Section 3 permet d'ajouter
+    librement d'autres produits (parmi les produits non semi-finis).
+
+    Le bouton « Enregistrer tous » (voir post()) valide, dans l'ordre :
+    Commercial défini (uniquement si le champ est visible) ; Date définie et
+    <= aujourd'hui ; au moins une ligne valide (Produit et Quantité définis,
+    Quantité > 0) entre la Section 2 et la Section 3. En cas de succès, dans
+    une transaction.atomic() : création d'un BonRestitution
+    (historique_stock_initial=Null) puis, pour les lignes valides des deux
+    sections regroupées par produit_id (quantités sommées), création des
+    BonRestitutionDetaille correspondants. En cas d'échec, la page est
+    régénérée avec Commercial, Date et toutes les lignes de détail
+    préservées (préremplissage JSON, comme pour achats/nouveau) — voir le
+    template : les lignes préservées sont réaffichées telles quelles dans la
+    Section 3, sans relancer le calcul AJAX de la Section 2, pour ne jamais
+    perdre ni dupliquer une quantité saisie."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_restitution/create.html'
+
+    def _context(self, request, *, commercial_id=None, restitution_at=None, detail_rows_json=None):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
+        )
+        produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
+
+        if commercial_id is None:
+            commercial_id = str(request.user.pk) if is_commercial else ''
+
+        return {
+            'is_commercial':    is_commercial,
+            'commercial_id':    commercial_id,
+            'commerciaux_list': commerciaux_list,
+            'restitution_at':   restitution_at or today.isoformat(),
+            'today':            today.isoformat(),
+            'produits_json':    json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_list]),
+            'detail_rows_json': detail_rows_json or '[]',
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(request))
+
+    def post(self, request):
+        is_commercial = _is_commercial(request.user)
+        commercial_id = str(request.user.pk) if is_commercial else request.POST.get('commercial_id', '').strip()
+        restitution_at_str = request.POST.get('restitution_at', '').strip()
+
+        produit_ids = request.POST.getlist('detail_produit_id')
+        quantite_strs = request.POST.getlist('detail_quantite_restituee')
+        raw_detail_rows = [
+            {'produit_id': p, 'quantite': q}
+            for p, q in zip(produit_ids, quantite_strs)
+        ]
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._context(
+                request,
+                commercial_id=commercial_id,
+                restitution_at=restitution_at_str,
+                detail_rows_json=json.dumps(raw_detail_rows),
+            )
+            return render(request, self.template_name, context)
+
+        if not is_commercial and (not commercial_id or not commercial_id.isdigit()):
+            return _echec('Le commercial doit être défini.')
+
+        if not restitution_at_str:
+            return _echec('La date du bon de restitution doit être définie.')
+        try:
+            restitution_at = date.fromisoformat(restitution_at_str)
+        except ValueError:
+            return _echec('La date du bon de restitution doit être définie.')
+        if restitution_at > date.today():
+            return _echec('La date du bon de restitution ne peut pas être postérieure à la date du jour.')
+
+        quantite_par_produit = {}
+        for produit_id_s, quantite_s in zip(produit_ids, quantite_strs):
+            produit_id_s = (produit_id_s or '').strip()
+            quantite_s = (quantite_s or '').strip()
+            if not produit_id_s or not produit_id_s.isdigit() or not quantite_s:
+                continue
+            try:
+                quantite = Decimal(quantite_s)
+            except InvalidOperation:
+                continue
+            if quantite <= 0:
+                continue
+            pid = int(produit_id_s)
+            quantite_par_produit[pid] = quantite_par_produit.get(pid, Decimal('0')) + quantite
+
+        if not quantite_par_produit:
+            return _echec(
+                'Il faut avoir au moins un enregistrement valide entre les sections '
+                '« Produits à restituer » et « Ajouter d\'autres produits restitués ».'
+            )
+
+        try:
+            with transaction.atomic():
+                bon_restitution = BonRestitution.objects.create(
+                    user_id=commercial_id,
+                    restitution_at=restitution_at,
+                    historique_stock_initial=None,
+                )
+                BonRestitutionDetaille.objects.bulk_create([
+                    BonRestitutionDetaille(bon_restitution=bon_restitution, produit_id=pid, quantite=qte)
+                    for pid, qte in quantite_par_produit.items()
+                ])
+        except Exception:
+            return _echec("Échec de l'enregistrement du bon de restitution : aucune donnée n'a été modifiée.")
+
+        log_audit(
+            AuditAction.CREATE, f'Création bon de restitution {bon_restitution} — {len(quantite_par_produit)} produit(s)',
+            table='BonRestitution', record_id=bon_restitution.pk, new_value=model_to_dict(bon_restitution),
+        )
+        messages.success(request, 'Bon de restitution enregistré avec succès.')
+        return redirect('commercial:bon-restitution-list')
+
+
+class BonRestitutionDetailPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Détail bon de
+    restitution ») déclenché par le bouton Visualiser de la liste des bons
+    de restitution — Section 1 (Commercial, si l'utilisateur connecté n'est
+    pas du groupe Commercial ; Date ; Soldé) et Section 2 (BonRestitutionDetaille
+    du bon, Produit/Quantité, lecture seule)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_restitution/detail_popup.html'
+
+    def get(self, request, pk):
+        bon_restitution = get_object_or_404(BonRestitution.objects.select_related('user'), pk=pk)
+        return render(request, self.template_name, {
+            'is_commercial':   _is_commercial(request.user),
+            'bon_restitution': bon_restitution,
+            'details':         bon_restitution.details.select_related('produit').order_by('pk'),
+        })
+
+
+class BonRestitutionDeleteView(GroupRequiredMixin, View):
+    """Suppression d'un bon de restitution (voir
+    _erreur_suppression_bon_restitution pour la condition bloquante — un bon
+    déjà soldé ne peut être supprimé). Ordre de suppression : BonRestitutionDetaille
+    puis BonRestitution, dans une transaction atomique. En cas d'échec (de
+    validation ou d'écriture), rien n'est supprimé."""
+    group_required = ['Administration', 'Commercial']
+
+    def post(self, request, pk):
+        bon_restitution = get_object_or_404(BonRestitution, pk=pk)
+        reference = str(bon_restitution)
+
+        erreur = _erreur_suppression_bon_restitution(bon_restitution)
+        if erreur:
+            messages.error(request, erreur)
+            return redirect('commercial:bon-restitution-list')
+
+        avant = {
+            'bon_restitution': model_to_dict(bon_restitution),
+            'details': [model_to_dict(d) for d in bon_restitution.details.all()],
+        }
+
+        try:
+            with transaction.atomic():
+                bon_restitution.details.all().delete()
+                bon_restitution.delete()
+        except Exception:
+            messages.error(
+                request,
+                f"Échec de la suppression du bon de restitution {reference} : aucune donnée n'a été modifiée.",
+            )
+            return redirect('commercial:bon-restitution-list')
+
+        log_audit(
+            AuditAction.DELETE, f'Suppression bon de restitution {reference}',
+            table='BonRestitution', record_id=pk, old_value=avant,
+        )
+        messages.success(request, f'Bon de restitution {reference} supprimé avec succès.')
+        return redirect('commercial:bon-restitution-list')
+
+
+class BonRestitutionUpdateView(GroupRequiredMixin, View):
+    """Formulaire « Modification d'un bon de restitution » : Section 1
+    (Commercial — visible et modifiable si l'utilisateur connecté n'est pas
+    du groupe Commercial, choisi parmi les utilisateurs actifs dont l'Employe
+    lié a service="Commercial" ; masqué et verrouillé sur soi-même sinon ;
+    Date, modifiable, jamais postérieure à aujourd'hui). Section 2 : lignes
+    de détail existantes (Produit modifiable parmi les produits non
+    semi-finis, Quantité modifiable, bouton Supprimer) préremplies depuis la
+    base. Section 3 : ajout libre d'autres produits, identique à Section 2
+    (mêmes noms de champs — les deux sections sont fusionnées à
+    l'enregistrement).
+
+    Le bouton « Enregistrer les modifications » (voir post()) valide, dans
+    l'ordre : le bon ne doit pas déjà être soldé (historique_stock_initial
+    IS NULL, voir _erreur_suppression_bon_restitution) ; Commercial défini,
+    actif, et lié à un Employe de service Commercial ; Date définie et <=
+    aujourd'hui ; au moins une ligne valide (Produit et Quantité définis,
+    Quantité > 0) entre la Section 2 et la Section 3. En cas de succès, dans
+    une transaction.atomic() : mise à jour de BonRestitution (user,
+    restitution_at), suppression de tous ses BonRestitutionDetaille puis
+    recréation à partir des lignes valides des deux sections regroupées par
+    produit_id (quantités sommées). En cas d'échec, la page est régénérée
+    avec Commercial, Date et toutes les lignes de détail préservées
+    (préremplissage JSON, comme pour achats/nouveau) — la Section 2 n'est
+    alors pas rechargée depuis la base : toutes les lignes précédemment
+    saisies sont réaffichées dans la Section 3, pour ne jamais en perdre ni
+    en compter une en double."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_restitution/update.html'
+
+    def _comptes_commerciaux_actifs(self):
+        return (
+            User.objects
+            .filter(is_active=True, employes__service='Commercial')
+            .distinct()
+            .order_by('last_name', 'first_name')
+        )
+
+    def _context(
+        self, request, bon_restitution, *,
+        commercial_id=None, restitution_at=None, existing_rows_json=None, detail_rows_json=None,
+    ):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        if commercial_id is None:
+            commercial_id = str(request.user.pk) if is_commercial else str(bon_restitution.user_id)
+
+        if existing_rows_json is None and not detail_rows_json:
+            existing_rows_json = json.dumps([
+                {'produit_id': d.produit_id, 'quantite': str(d.quantite)}
+                for d in bon_restitution.details.all().order_by('pk')
+            ])
+
+        produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
+
+        return {
+            'bon_restitution':    bon_restitution,
+            'is_commercial':      is_commercial,
+            'commercial_id':      commercial_id,
+            'commerciaux_list':   None if is_commercial else self._comptes_commerciaux_actifs(),
+            'restitution_at':     restitution_at or bon_restitution.restitution_at.isoformat(),
+            'today':              today.isoformat(),
+            'produits_json':      json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_list]),
+            'existing_rows_json': existing_rows_json or '[]',
+            'detail_rows_json':   detail_rows_json or '[]',
+        }
+
+    def get(self, request, pk):
+        bon_restitution = get_object_or_404(BonRestitution, pk=pk)
+        return render(request, self.template_name, self._context(request, bon_restitution))
+
+    def post(self, request, pk):
+        bon_restitution = get_object_or_404(BonRestitution, pk=pk)
+        is_commercial = _is_commercial(request.user)
+        commercial_id = str(request.user.pk) if is_commercial else request.POST.get('commercial_id', '').strip()
+        restitution_at_str = request.POST.get('restitution_at', '').strip()
+
+        produit_ids = request.POST.getlist('detail_produit_id')
+        quantite_strs = request.POST.getlist('detail_quantite')
+        raw_detail_rows = [
+            {'produit_id': p, 'quantite': q}
+            for p, q in zip(produit_ids, quantite_strs)
+        ]
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._context(
+                request, bon_restitution,
+                commercial_id=commercial_id,
+                restitution_at=restitution_at_str,
+                existing_rows_json='[]',
+                detail_rows_json=json.dumps(raw_detail_rows),
+            )
+            return render(request, self.template_name, context)
+
+        if bon_restitution.historique_stock_initial_id is not None:
+            return _echec('Un bon de restitution soldé ne peut être modifié.')
+
+        if (
+            not commercial_id or not commercial_id.isdigit()
+            or not User.objects.filter(
+                pk=commercial_id, is_active=True, employes__service='Commercial',
+            ).exists()
+        ):
+            return _echec('Le bon de restitution doit être lié à un commercial actif.')
+
+        try:
+            restitution_at = date.fromisoformat(restitution_at_str)
+        except ValueError:
+            return _echec('Donner une date <= date du jour.')
+        if restitution_at > date.today():
+            return _echec('Donner une date <= date du jour.')
+
+        quantite_par_produit = {}
+        for produit_id_s, quantite_s in zip(produit_ids, quantite_strs):
+            produit_id_s = (produit_id_s or '').strip()
+            quantite_s = (quantite_s or '').strip()
+            if not produit_id_s or not produit_id_s.isdigit() or not quantite_s:
+                continue
+            try:
+                quantite = Decimal(quantite_s)
+            except InvalidOperation:
+                continue
+            if quantite <= 0:
+                continue
+            pid = int(produit_id_s)
+            quantite_par_produit[pid] = quantite_par_produit.get(pid, Decimal('0')) + quantite
+
+        if not quantite_par_produit:
+            return _echec('Il faut avoir au moins un enregistrement valide.')
+
+        reference = str(bon_restitution)
+        avant = {
+            'bon_restitution': model_to_dict(bon_restitution),
+            'details': [model_to_dict(d) for d in bon_restitution.details.all()],
+        }
+
+        try:
+            with transaction.atomic():
+                bon_restitution.user_id = commercial_id
+                bon_restitution.restitution_at = restitution_at
+                bon_restitution.save(update_fields=['user', 'restitution_at'])
+
+                bon_restitution.details.all().delete()
+                BonRestitutionDetaille.objects.bulk_create([
+                    BonRestitutionDetaille(bon_restitution=bon_restitution, produit_id=pid, quantite=qte)
+                    for pid, qte in quantite_par_produit.items()
+                ])
+        except Exception:
+            return _echec(
+                f"Échec de la modification du bon de restitution {reference} : aucune donnée n'a été modifiée.",
+            )
+
+        log_audit(
+            AuditAction.UPDATE, f'Modification bon de restitution {reference} — {len(quantite_par_produit)} produit(s)',
+            table='BonRestitution', record_id=bon_restitution.pk, old_value=avant,
+            new_value=model_to_dict(bon_restitution),
+        )
+        messages.success(request, f'Bon de restitution {reference} modifié avec succès.')
+        return redirect('commercial:bon-restitution-list')
+
+
+class BonSortieDefaultsView(GroupRequiredMixin, View):
+    """Point d'entrée AJAX utilisé par le template Nouveau bon de sortie :
+    étant donné un commercial (commercial_id) et une date de référence
+    (sortie_at), retourne les lignes du dernier BonSortie de ce commercial
+    dont sortie_at tombe le même jour de la semaine que la date de
+    référence — à défaut celles du dernier BonSortie de ce commercial tout
+    court, à défaut aucune — pour préremplir la Section 2."""
+    group_required = ['Administration', 'Commercial']
+
+    def get(self, request):
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        sortie_at_str = request.GET.get('sortie_at', '').strip()
+
+        if not commercial_id or not commercial_id.isdigit():
+            return JsonResponse({'sortie_lignes': []})
+
+        try:
+            ref_date = date.fromisoformat(sortie_at_str)
+        except ValueError:
+            ref_date = date.today()
+
+        bons = list(
+            BonSortie.objects.filter(user_id=commercial_id, sortie_at__isnull=False).only('id', 'sortie_at')
+        )
+        sortie_lignes = []
+        if bons:
+            meme_jour_semaine = [b for b in bons if b.sortie_at.weekday() == ref_date.weekday()]
+            candidats = meme_jour_semaine or bons
+            dernier = max(candidats, key=lambda b: (b.sortie_at, b.pk))
+            sortie_lignes = [
+                {'produit_id': d.produit_id, 'quantite': str(d.quantite)}
+                for d in dernier.details.all().order_by('pk')
+            ]
+
+        return JsonResponse({'sortie_lignes': sortie_lignes})
+
+
+class BonSortieCreateView(GroupRequiredMixin, View):
+    """Formulaire « Nouveau bon de sortie » : Section 1 (Commercial verrouillé
+    sur l'utilisateur connecté — champ masqué — s'il appartient au groupe
+    Commercial, sinon liste déroulante « -Choisir- » ; Date, par défaut
+    aujourd'hui, jamais postérieure à aujourd'hui). Sections 2 et 3 sont
+    entièrement peuplées côté client via BonSortieDefaultsView (AJAX),
+    déclenché au chargement (si le commercial est déjà connu) et à chaque
+    changement de Commercial ou de Date — voir cette vue pour le détail des
+    règles de préremplissage. La modification du stock initial (bouton
+    « Modifier le stock initial du commercial ») sera développée
+    ultérieurement — ce bouton est pour l'instant inerte.
+
+    Le bouton « Enregistrer tous » (voir post()) valide, dans l'ordre :
+    Commercial défini ; Date définie et <= aujourd'hui ; au moins une ligne
+    valide en Section 3 (Produit et Quantité définis, Quantité > 0). En cas
+    de succès, dans une transaction.atomic() : création d'un BonSortie
+    (historique_stock_initial=Null) puis, pour les lignes valides regroupées
+    par produit_id (quantités sommées), création des BonSortieDetaille
+    correspondants. En cas d'échec, la page est régénérée avec Commercial,
+    Date et les lignes de détail préservés (préremplissage JSON, comme pour
+    achats/nouveau)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_sortie/create.html'
+
+    def _context(self, request, *, commercial_id=None, sortie_at=None, detail_rows_json=None):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+        )
+        produits_list = Produit.objects.order_by('nom')
+
+        if commercial_id is None:
+            commercial_id = str(request.user.pk) if is_commercial else ''
+
+        return {
+            'is_commercial':    is_commercial,
+            'commercial_id':    commercial_id,
+            'commerciaux_list': commerciaux_list,
+            'sortie_at':        sortie_at or today.isoformat(),
+            'today':            today.isoformat(),
+            'produits_json':    json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_list]),
+            'detail_rows_json': detail_rows_json or '[]',
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(request))
+
+    def post(self, request):
+        is_commercial = _is_commercial(request.user)
+        commercial_id = str(request.user.pk) if is_commercial else request.POST.get('commercial_id', '').strip()
+        sortie_at_str = request.POST.get('sortie_at', '').strip()
+
+        produit_ids = request.POST.getlist('detail_produit_id')
+        quantite_strs = request.POST.getlist('detail_quantite')
+        raw_detail_rows = [
+            {'produit_id': p, 'quantite': q}
+            for p, q in zip(produit_ids, quantite_strs)
+        ]
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._context(
+                request,
+                commercial_id=commercial_id,
+                sortie_at=sortie_at_str,
+                detail_rows_json=json.dumps(raw_detail_rows),
+            )
+            return render(request, self.template_name, context)
+
+        if not commercial_id or not commercial_id.isdigit():
+            return _echec('il faut définir le commercial')
+
+        try:
+            sortie_at = date.fromisoformat(sortie_at_str)
+        except ValueError:
+            return _echec('il faut définir la date du bon de sortie')
+        if sortie_at > date.today():
+            return _echec('il faut définir la date du bon de sortie')
+
+        quantite_par_produit = {}
+        for produit_id_s, quantite_s in zip(produit_ids, quantite_strs):
+            produit_id_s = (produit_id_s or '').strip()
+            quantite_s = (quantite_s or '').strip()
+            if not produit_id_s or not produit_id_s.isdigit() or not quantite_s:
+                continue
+            try:
+                quantite = Decimal(quantite_s)
+            except InvalidOperation:
+                continue
+            if quantite <= 0:
+                continue
+            pid = int(produit_id_s)
+            quantite_par_produit[pid] = quantite_par_produit.get(pid, Decimal('0')) + quantite
+
+        if not quantite_par_produit:
+            return _echec(
+                'il faut avoir au moins un enregistrement valide dans la section '
+                '"Liste par défaut des produits nouvellement sorties"'
+            )
+
+        try:
+            with transaction.atomic():
+                bon_sortie = BonSortie.objects.create(
+                    user_id=commercial_id,
+                    sortie_at=sortie_at,
+                    historique_stock_initial=None,
+                )
+                BonSortieDetaille.objects.bulk_create([
+                    BonSortieDetaille(bon_sortie=bon_sortie, produit_id=pid, quantite=qte)
+                    for pid, qte in quantite_par_produit.items()
+                ])
+        except Exception:
+            return _echec("Échec de l'enregistrement du bon de sortie : aucune donnée n'a été modifiée.")
+
+        log_audit(
+            AuditAction.CREATE, f'Création bon de sortie {bon_sortie} — {len(quantite_par_produit)} produit(s)',
+            table='BonSortie', record_id=bon_sortie.pk, new_value=model_to_dict(bon_sortie),
+        )
+        messages.success(request, 'Bon de sortie enregistré avec succès.')
+        return redirect('commercial:bon-sortie-list')
+
+
+class BonSortieDetailPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Détail bon de
+    sortie ») déclenché par le bouton Visualiser de la liste des bons de
+    sortie — Section 1 (Commercial, si l'utilisateur connecté n'est pas du
+    groupe Commercial ; Date ; Soldé) et Section 2 (BonSortieDetaille du bon,
+    Produit/Quantité, lecture seule)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_sortie/detail_popup.html'
+
+    def get(self, request, pk):
+        bon_sortie = get_object_or_404(BonSortie.objects.select_related('user'), pk=pk)
+        return render(request, self.template_name, {
+            'is_commercial': _is_commercial(request.user),
+            'bon_sortie':    bon_sortie,
+            'details':       bon_sortie.details.select_related('produit').order_by('pk'),
+        })
+
+
+class BonSortieDeleteView(GroupRequiredMixin, View):
+    """Suppression d'un bon de sortie (voir _erreur_suppression_bon_sortie
+    pour la condition bloquante — un bon déjà soldé ne peut être supprimé).
+    Ordre de suppression : BonSortieDetaille puis BonSortie, dans une
+    transaction atomique. En cas d'échec (de validation ou d'écriture),
+    rien n'est supprimé."""
+    group_required = ['Administration', 'Commercial']
+
+    def post(self, request, pk):
+        bon_sortie = get_object_or_404(BonSortie, pk=pk)
+        reference = str(bon_sortie)
+
+        erreur = _erreur_suppression_bon_sortie(bon_sortie)
+        if erreur:
+            messages.error(request, erreur)
+            return redirect('commercial:bon-sortie-list')
+
+        avant = {
+            'bon_sortie': model_to_dict(bon_sortie),
+            'details': [model_to_dict(d) for d in bon_sortie.details.all()],
+        }
+
+        try:
+            with transaction.atomic():
+                bon_sortie.details.all().delete()
+                bon_sortie.delete()
+        except Exception:
+            messages.error(
+                request,
+                f"Échec de la suppression du bon de sortie {reference} : aucune donnée n'a été modifiée.",
+            )
+            return redirect('commercial:bon-sortie-list')
+
+        log_audit(
+            AuditAction.DELETE, f'Suppression bon de sortie {reference}',
+            table='BonSortie', record_id=pk, old_value=avant,
+        )
+        messages.success(request, f'Bon de sortie {reference} supprimé avec succès.')
+        return redirect('commercial:bon-sortie-list')
+
+
+class BonSortieUpdateView(GroupRequiredMixin, View):
+    """Formulaire « Modification d'un bon de sortie » : Section 1
+    (Commercial — visible et modifiable si l'utilisateur connecté n'est pas
+    du groupe Commercial, choisi parmi les utilisateurs actifs dont l'Employe
+    lié a service="Commercial" ; masqué et verrouillé sur soi-même sinon ;
+    Date, modifiable, jamais postérieure à aujourd'hui). Section 2 : lignes
+    de détail existantes (Produit modifiable parmi les produits non
+    semi-finis, Quantité modifiable, bouton Supprimer) préremplies depuis la
+    base. Section 3 : ajout libre d'autres produits, identique à Section 2
+    (mêmes noms de champs — les deux sections sont fusionnées à
+    l'enregistrement).
+
+    Le bouton « Enregistrer les modifications » (voir post()) valide, dans
+    l'ordre : le bon ne doit pas déjà être soldé (historique_stock_initial
+    IS NULL, voir _erreur_suppression_bon_sortie) ; Commercial défini, actif,
+    et lié à un Employe de service Commercial ; Date définie et <=
+    aujourd'hui ; au moins une ligne valide (Produit et Quantité définis,
+    Quantité > 0) entre la Section 2 et la Section 3. En cas de succès, dans
+    une transaction.atomic() : mise à jour de BonSortie (user, sortie_at),
+    suppression de tous ses BonSortieDetaille puis recréation à partir des
+    lignes valides des deux sections regroupées par produit_id (quantités
+    sommées). En cas d'échec, la page est régénérée avec Commercial, Date
+    et toutes les lignes de détail préservées (préremplissage JSON, comme
+    pour achats/nouveau) — la Section 2 n'est alors pas rechargée depuis la
+    base : toutes les lignes précédemment saisies sont réaffichées dans la
+    Section 3, pour ne jamais en perdre ni en compter une en double."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/bon_sortie/update.html'
+
+    def _comptes_commerciaux_actifs(self):
+        return (
+            User.objects
+            .filter(is_active=True, employes__service='Commercial')
+            .distinct()
+            .order_by('last_name', 'first_name')
+        )
+
+    def _context(
+        self, request, bon_sortie, *,
+        commercial_id=None, sortie_at=None, existing_rows_json=None, detail_rows_json=None,
+    ):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        if commercial_id is None:
+            commercial_id = str(request.user.pk) if is_commercial else str(bon_sortie.user_id)
+
+        if existing_rows_json is None and not detail_rows_json:
+            existing_rows_json = json.dumps([
+                {'produit_id': d.produit_id, 'quantite': str(d.quantite)}
+                for d in bon_sortie.details.all().order_by('pk')
+            ])
+
+        produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
+
+        return {
+            'bon_sortie':         bon_sortie,
+            'is_commercial':      is_commercial,
+            'commercial_id':      commercial_id,
+            'commerciaux_list':   None if is_commercial else self._comptes_commerciaux_actifs(),
+            'sortie_at':          sortie_at or bon_sortie.sortie_at.isoformat(),
+            'today':              today.isoformat(),
+            'produits_json':      json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_list]),
+            'existing_rows_json': existing_rows_json or '[]',
+            'detail_rows_json':   detail_rows_json or '[]',
+        }
+
+    def get(self, request, pk):
+        bon_sortie = get_object_or_404(BonSortie, pk=pk)
+        return render(request, self.template_name, self._context(request, bon_sortie))
+
+    def post(self, request, pk):
+        bon_sortie = get_object_or_404(BonSortie, pk=pk)
+        is_commercial = _is_commercial(request.user)
+        commercial_id = str(request.user.pk) if is_commercial else request.POST.get('commercial_id', '').strip()
+        sortie_at_str = request.POST.get('sortie_at', '').strip()
+
+        produit_ids = request.POST.getlist('detail_produit_id')
+        quantite_strs = request.POST.getlist('detail_quantite')
+        raw_detail_rows = [
+            {'produit_id': p, 'quantite': q}
+            for p, q in zip(produit_ids, quantite_strs)
+        ]
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._context(
+                request, bon_sortie,
+                commercial_id=commercial_id,
+                sortie_at=sortie_at_str,
+                existing_rows_json='[]',
+                detail_rows_json=json.dumps(raw_detail_rows),
+            )
+            return render(request, self.template_name, context)
+
+        if bon_sortie.historique_stock_initial_id is not None:
+            return _echec('Un bon de sortie soldé ne peut être modifié.')
+
+        if (
+            not commercial_id or not commercial_id.isdigit()
+            or not User.objects.filter(
+                pk=commercial_id, is_active=True, employes__service='Commercial',
+            ).exists()
+        ):
+            return _echec('Le bon de sortie doit être lié à un commercial actif.')
+
+        try:
+            sortie_at = date.fromisoformat(sortie_at_str)
+        except ValueError:
+            return _echec('Donner une date <= date du jour.')
+        if sortie_at > date.today():
+            return _echec('Donner une date <= date du jour.')
+
+        quantite_par_produit = {}
+        for produit_id_s, quantite_s in zip(produit_ids, quantite_strs):
+            produit_id_s = (produit_id_s or '').strip()
+            quantite_s = (quantite_s or '').strip()
+            if not produit_id_s or not produit_id_s.isdigit() or not quantite_s:
+                continue
+            try:
+                quantite = Decimal(quantite_s)
+            except InvalidOperation:
+                continue
+            if quantite <= 0:
+                continue
+            pid = int(produit_id_s)
+            quantite_par_produit[pid] = quantite_par_produit.get(pid, Decimal('0')) + quantite
+
+        if not quantite_par_produit:
+            return _echec('Il faut avoir au moins un enregistrement valide.')
+
+        reference = str(bon_sortie)
+        avant = {
+            'bon_sortie': model_to_dict(bon_sortie),
+            'details': [model_to_dict(d) for d in bon_sortie.details.all()],
+        }
+
+        try:
+            with transaction.atomic():
+                bon_sortie.user_id = commercial_id
+                bon_sortie.sortie_at = sortie_at
+                bon_sortie.save(update_fields=['user', 'sortie_at'])
+
+                bon_sortie.details.all().delete()
+                BonSortieDetaille.objects.bulk_create([
+                    BonSortieDetaille(bon_sortie=bon_sortie, produit_id=pid, quantite=qte)
+                    for pid, qte in quantite_par_produit.items()
+                ])
+        except Exception:
+            return _echec(
+                f"Échec de la modification du bon de sortie {reference} : aucune donnée n'a été modifiée.",
+            )
+
+        log_audit(
+            AuditAction.UPDATE, f'Modification bon de sortie {reference} — {len(quantite_par_produit)} produit(s)',
+            table='BonSortie', record_id=bon_sortie.pk, old_value=avant,
+            new_value=model_to_dict(bon_sortie),
+        )
+        messages.success(request, f'Bon de sortie {reference} modifié avec succès.')
+        return redirect('commercial:bon-sortie-list')
+
+
+# ─── Historique stock initial (mises à jour des stocks commerciaux) ──────────
+
+class HistoriqueStockInitialListView(GroupRequiredMixin, View):
+    """Liste des HistoriqueStockInitial (commercial.models) sur une période —
+    filtrée par commercial : verrouillée sur l'utilisateur connecté (champ
+    masqué) s'il appartient au groupe Commercial, sinon un filtre déroulant
+    (par défaut « tous les commerciaux », limité aux utilisateurs actifs
+    dont l'Employe lié a service="Commercial") est proposé. Triée par date
+    de mise à jour décroissante, paginée à 10 lignes. « Visualiser » et
+    « + Nouvelle mise à jour » sont des actions à développer ultérieurement
+    (placeholders)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/historique_stock_initial/list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+        commercial_id = request.GET.get('commercial_id', '').strip() if not is_commercial else ''
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=6)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        qs = HistoriqueStockInitial.objects.select_related('user').filter(
+            stock_initial_at__gte=date_debut, stock_initial_at__lte=date_fin,
+        )
+
+        if is_commercial:
+            qs = qs.filter(user=request.user)
+        elif commercial_id:
+            qs = qs.filter(user_id=commercial_id)
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(
+                is_active=True, employes__service='Commercial',
+            ).distinct().order_by('last_name', 'first_name')
+        )
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':         page_obj,
+            'is_paginated':     page_obj.has_other_pages(),
+            'historiques':      page_obj.object_list,
+            'is_commercial':    is_commercial,
+            'date_debut':       date_debut_str,
+            'date_fin':         date_fin_str,
+            'commercial_id':    commercial_id,
+            'commerciaux_list': commerciaux_list,
+        })
+
+
+class HistoriqueStockInitialDefaultsView(GroupRequiredMixin, View):
+    """Point d'entrée AJAX utilisé par le template Mise à jour des stocks de
+    produits chez le commercial : étant donné un commercial (commercial_id)
+    et une date de référence (stock_initial_at), calcule pour chaque produit
+    concerné le « Stock calculé » = Requête 1 + Requête 2 − Requête 3 −
+    Requête 4 :
+
+    - Requête 1 (quantité initialement stockée) : somme de reel_stock,
+      groupée par produit, du DERNIER HistoriqueStockInitial de ce
+      commercial dont stock_initial_at <= la date de référence (à la
+      différence de BonRestitutionDefaultsView, ici la date de référence
+      borne aussi la Requête 1 — on ne doit jamais tenir compte d'un stock
+      initial postérieur à la date de mise à jour en cours) ;
+    - Requête 2 (quantité des bons de sortie) : voir
+      _quantite_bons_sortie_non_soldes ;
+    - Requête 3 (quantité livrée) : voir _quantite_livree_non_soldee ;
+    - Requête 4 (quantité déjà restituée) : voir
+      _quantite_restituee_non_soldee.
+
+    Le produit d'une ligne est retenu dès qu'il apparaît dans au moins une
+    des quatre requêtes (union) ; une quantité absente d'une requête vaut 0
+    pour ce produit."""
+    group_required = ['Administration', 'Commercial']
+
+    def get(self, request):
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        stock_initial_at_str = request.GET.get('stock_initial_at', '').strip()
+
+        if not commercial_id or not commercial_id.isdigit():
+            return JsonResponse({'lignes': []})
+
+        try:
+            ref_date = date.fromisoformat(stock_initial_at_str)
+        except ValueError:
+            ref_date = date.today()
+
+        # ── Requête 1 : dernier stock initial du commercial <= la date ──────
+        hist = (
+            HistoriqueStockInitial.objects
+            .filter(user_id=commercial_id, stock_initial_at__lte=ref_date)
+            .order_by('-stock_initial_at')
+            .first()
+        )
+        quantite_initiale = {}
+        if hist is not None:
+            quantite_initiale = {
+                row['produit_id']: row['total'] or 0
+                for row in (
+                    hist.details.exclude(produit__isnull=True)
+                    .values('produit_id').annotate(total=Sum('reel_stock'))
+                )
+            }
+
+        quantite_sortie = _quantite_bons_sortie_non_soldes(commercial_id, ref_date)
+        quantite_livree = _quantite_livree_non_soldee(commercial_id, ref_date)
+        quantite_deja_restituee = _quantite_restituee_non_soldee(commercial_id, ref_date)
+
+        produit_ids = (
+            set(quantite_initiale) | set(quantite_sortie)
+            | set(quantite_livree) | set(quantite_deja_restituee)
+        )
+        produits_par_id = {p.pk: p.nom for p in Produit.objects.filter(pk__in=produit_ids)}
+
+        lignes = []
+        for pid in produit_ids:
+            qi = Decimal(quantite_initiale.get(pid, 0))
+            qs = Decimal(quantite_sortie.get(pid, 0))
+            ql = Decimal(quantite_livree.get(pid, 0))
+            qr = Decimal(quantite_deja_restituee.get(pid, 0))
+            lignes.append({
+                'produit_id':              pid,
+                'produit_nom':             produits_par_id.get(pid, '—'),
+                'quantite_initiale':       str(qi),
+                'quantite_sortie':         str(qs),
+                'quantite_livree':         str(ql),
+                'quantite_deja_restituee': str(qr),
+                'calcul_stock':            str(qi + qs - ql - qr),
+            })
+        lignes.sort(key=lambda l: l['produit_nom'])
+
+        return JsonResponse({'lignes': lignes})
+
+
+class HistoriqueStockInitialCreateView(GroupRequiredMixin, View):
+    """Formulaire « Mise à jour des stocks de produits chez le commercial » :
+    Section 1 (Commercial — verrouillé sur l'utilisateur connecté, champ
+    masqué, s'il appartient au groupe Commercial, sinon liste déroulante des
+    commerciaux actifs dont l'Employe lié a service="Commercial",
+    « -Choisir- » ; Date de mise à jour, par défaut aujourd'hui, jamais
+    postérieure à aujourd'hui). Section 2 entièrement peuplée côté client
+    via HistoriqueStockInitialDefaultsView (AJAX), déclenché au chargement
+    (si le commercial est déjà connu) et à chaque changement de Commercial
+    ou de Date — voir cette vue pour le détail du calcul du « Stock
+    calculé » — et paginée côté client (8 lignes/page) pour ne jamais
+    perdre les valeurs déjà saisies en changeant de page. Section 3 permet
+    d'ajouter librement d'autres produits (parmi les produits non
+    semi-finis), avec un « Stock calculé » toujours à 0 (verrouillé,
+    puisqu'un produit ajouté manuellement n'est par définition sujet
+    d'aucune des quatre requêtes).
+
+    Le bouton « Enregistrer » (voir post()) valide, dans l'ordre :
+    Commercial défini (et existant) ; Date de mise à jour définie, <=
+    aujourd'hui et >= la stock_initial_at du dernier HistoriqueStockInitial
+    de ce commercial s'il existe ; au moins une ligne valide (Produit et
+    Stock réel définis, Stock réel > 0) entre la Section 2 et la Section 3.
+    En cas de succès, dans une transaction.atomic() : création d'un
+    HistoriqueStockInitial, puis, pour CHAQUE ligne valide des deux sections
+    (sans regroupement — contrairement aux bons de sortie/restitution,
+    calcul_stock/reel_stock/observation ne sont pas des quantités
+    sommables), création du HistoriqueStockInitialDetaille correspondant.
+    Les BonSortie, BonLivraisonCode et BonRestitution de ce commercial non
+    encore soldés et dont la date <= la date de mise à jour sont ensuite
+    marqués soldés (leur FK vers HistoriqueStockInitial pointe vers ce
+    nouvel enregistrement). En cas d'échec, la page est régénérée avec
+    Commercial, Date et toutes les lignes de détail préservées
+    (préremplissage JSON, comme pour achats/nouveau) — la Section 2 n'est
+    alors pas rechargée depuis les requêtes : toutes les lignes précédemment
+    saisies sont réaffichées dans la Section 3, pour ne jamais en perdre ni
+    en compter une en double."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/historique_stock_initial/create.html'
+
+    def _context(
+        self, request, *,
+        commercial_id=None, stock_initial_at=None, detail_rows_json=None,
+    ):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(
+                is_active=True, employes__service='Commercial',
+            ).distinct().order_by('last_name', 'first_name')
+        )
+        produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
+
+        if commercial_id is None:
+            commercial_id = str(request.user.pk) if is_commercial else ''
+
+        return {
+            'is_commercial':     is_commercial,
+            'commercial_id':     commercial_id,
+            'commerciaux_list':  commerciaux_list,
+            'stock_initial_at':  stock_initial_at or today.isoformat(),
+            'today':             today.isoformat(),
+            'produits_json':     json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_list]),
+            'detail_rows_json':  detail_rows_json or '[]',
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(request))
+
+    def post(self, request):
+        is_commercial = _is_commercial(request.user)
+        commercial_id = str(request.user.pk) if is_commercial else request.POST.get('commercial_id', '').strip()
+        stock_initial_at_str = request.POST.get('stock_initial_at', '').strip()
+
+        produit_ids = request.POST.getlist('detail_produit_id')
+        reel_stock_strs = request.POST.getlist('detail_reel_stock')
+        calcul_stock_strs = request.POST.getlist('detail_calcul_stock')
+        observations = request.POST.getlist('detail_observation')
+
+        raw_detail_rows = [
+            {'produit_id': p, 'reel_stock': r, 'calcul_stock': c, 'observation': o}
+            for p, r, c, o in zip(produit_ids, reel_stock_strs, calcul_stock_strs, observations)
+        ]
+
+        def _echec(message):
+            messages.error(request, message)
+            context = self._context(
+                request,
+                commercial_id=commercial_id,
+                stock_initial_at=stock_initial_at_str,
+                detail_rows_json=json.dumps(raw_detail_rows),
+            )
+            return render(request, self.template_name, context)
+
+        if not commercial_id or not commercial_id.isdigit() or not User.objects.filter(pk=commercial_id).exists():
+            return _echec('Le commercial doit être défini.')
+
+        try:
+            stock_initial_at = date.fromisoformat(stock_initial_at_str)
+        except ValueError:
+            return _echec('La date de mise à jour doit être définie.')
+        if stock_initial_at > date.today():
+            return _echec('La date de mise à jour ne peut pas être postérieure à la date du jour.')
+
+        dernier_hist = (
+            HistoriqueStockInitial.objects.filter(user_id=commercial_id).order_by('-stock_initial_at').first()
+        )
+        if dernier_hist is not None and stock_initial_at < dernier_hist.stock_initial_at:
+            return _echec(
+                'La date de mise à jour ne peut pas être antérieure à la dernière mise à jour de stock de ce '
+                f'commercial ({dernier_hist.stock_initial_at.strftime("%d/%m/%Y")}).'
+            )
+
+        lignes_valides = []
+        for produit_id_s, reel_stock_s, calcul_stock_s, observation in zip(
+            produit_ids, reel_stock_strs, calcul_stock_strs, observations,
+        ):
+            produit_id_s = (produit_id_s or '').strip()
+            reel_stock_s = (reel_stock_s or '').strip()
+            if not produit_id_s or not produit_id_s.isdigit() or not reel_stock_s:
+                continue
+            try:
+                reel_stock = Decimal(reel_stock_s)
+            except InvalidOperation:
+                continue
+            if reel_stock <= 0:
+                continue
+            try:
+                calcul_stock = Decimal(calcul_stock_s) if calcul_stock_s else Decimal('0')
+            except InvalidOperation:
+                calcul_stock = Decimal('0')
+            lignes_valides.append({
+                'produit_id':   int(produit_id_s),
+                'reel_stock':   int(reel_stock),
+                'calcul_stock': int(calcul_stock),
+                'observation':  (observation or '').strip() or None,
+            })
+
+        if not lignes_valides:
+            return _echec(
+                'Il faut avoir au moins un enregistrement valide entre les sections '
+                '« Stocks à mettre à jour » et « Ajouter d\'autres produits ».'
+            )
+
+        try:
+            with transaction.atomic():
+                nouveau_hist = HistoriqueStockInitial.objects.create(
+                    user_id=commercial_id, stock_initial_at=stock_initial_at,
+                )
+                HistoriqueStockInitialDetaille.objects.bulk_create([
+                    HistoriqueStockInitialDetaille(
+                        historique_stock_initial=nouveau_hist,
+                        produit_id=l['produit_id'],
+                        calcul_stock=l['calcul_stock'],
+                        reel_stock=l['reel_stock'],
+                        observation=l['observation'],
+                    )
+                    for l in lignes_valides
+                ])
+
+                BonSortie.objects.filter(
+                    user_id=commercial_id, sortie_at__lte=stock_initial_at,
+                    historique_stock_initial__isnull=True,
+                ).update(historique_stock_initial=nouveau_hist)
+
+                code_ids = list(
+                    BonLivraisonCode.objects.filter(
+                        bons_livraison__user_id=commercial_id,
+                        bon_livraison_at__lte=stock_initial_at,
+                        hist_stock_initial__isnull=True,
+                    ).values_list('pk', flat=True).distinct()
+                )
+                BonLivraisonCode.objects.filter(pk__in=code_ids).update(hist_stock_initial=nouveau_hist)
+
+                BonRestitution.objects.filter(
+                    user_id=commercial_id, restitution_at__lte=stock_initial_at,
+                    historique_stock_initial__isnull=True,
+                ).update(historique_stock_initial=nouveau_hist)
+        except Exception:
+            return _echec(
+                "Échec de l'enregistrement de la mise à jour du stock : aucune donnée n'a été modifiée.",
+            )
+
+        log_audit(
+            AuditAction.CREATE, f'Création mise à jour stock {nouveau_hist} — {len(lignes_valides)} produit(s)',
+            table='HistoriqueStockInitial', record_id=nouveau_hist.pk, new_value=model_to_dict(nouveau_hist),
+        )
+        messages.success(request, 'Mise à jour du stock enregistrée avec succès.')
+        return redirect('commercial:historique-stock-initial-list')
 
 
 # ─── Fournisseurs ─────────────────────────────────────────────────────────────
@@ -1926,7 +3357,7 @@ class AchatCreateView(GroupRequiredMixin, View):
                     created_at=date.today(),
                     libelle=libelle,
                     table_id=f'Achat_id_{achat.pk}',
-                    montant=nouveau_acompte,
+                    montant=-nouveau_acompte,
                 )
         except Exception:
             messages.error(
@@ -2373,7 +3804,7 @@ class AchatUpdateView(GroupRequiredMixin, View):
                     created_at=date.today(),
                     libelle=libelle,
                     table_id=f'Achat_id_{nouvel_achat.pk}',
-                    montant=nouveau_acompte,
+                    montant=-nouveau_acompte,
                 )
         except Exception:
             messages.error(
@@ -2754,7 +4185,7 @@ class DepenseCreateView(GroupRequiredMixin, View):
                     created_at=date.today(),
                     libelle=libelle_obj,
                     table_id=f'Depense_id_{depense.pk}',
-                    montant=nouveau_acompte,
+                    montant=-nouveau_acompte,
                     hist_solde_compte=None,
                 )
         except Exception:
@@ -2969,7 +4400,7 @@ class DepenseUpdateView(GroupRequiredMixin, View):
                     created_at=date.today(),
                     libelle=libelle_obj,
                     table_id=f'Depense_id_{nouvelle_depense.pk}',
-                    montant=nouveau_acompte,
+                    montant=-nouveau_acompte,
                     hist_solde_compte=None,
                 )
         except Exception:

@@ -1,0 +1,174 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Modification d'un bon de restitution — Commercial{% endblock %}
+{% block page_title %}Modification d'un bon de restitution{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:bon-restitution-list' %}">Bons de restitution</a></li>
+    <li class="breadcrumb-item active">Modification d'un bon de restitution</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Modification d'un bon de restitution</h4>
+</div>
+
+<form id="br-update-form" method="post" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : Commercial + Date ─────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        {% if not is_commercial %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select id="br-commercial-select" name="commercial_id" class="form-select form-select-sm">
+            <option value="">-Choisir-</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="br-commercial-select" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <input type="date" id="br-date-input" name="restitution_at" value="{{ restitution_at }}" max="{{ today }}"
+                 class="form-control form-control-sm">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : lignes existantes ─────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-arrow-return-left me-2 text-primary"></i>Produits restitués
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="br-section2-rows"></div>
+    </div>
+  </div>
+
+  {# ── Section 3 : ajouter d'autres produits restitués ───────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits restitués
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="br-section3-rows"></div>
+
+      <div class="d-flex justify-content-end gap-2 mt-2">
+        <button type="button" id="br-add-row-btn" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
+        </button>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-check-lg me-1"></i>Enregistrer les modifications
+        </button>
+      </div>
+    </div>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var PRODUITS = {{ produits_json|safe }};
+  var EXISTING_ROWS = {{ existing_rows_json|safe }};
+  var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
+
+  var section2Rows = document.getElementById('br-section2-rows');
+  var section3Rows = document.getElementById('br-section3-rows');
+
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function buildProduitOptions() {
+    var html = '<option value="">-Choisir-</option>';
+    PRODUITS.forEach(function (p) {
+      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+    });
+    return html;
+  }
+
+  function addRow(container, prefill) {
+    prefill = prefill || {};
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.innerHTML =
+      '<div style="flex:1 1 220px;min-width:180px;">' +
+        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '</div>' +
+      '<div style="width:150px;flex:0 0 auto;">' +
+        '<input type="number" step="1" min="0" name="detail_quantite" ' +
+          'class="form-control form-control-sm no-spinner qte-input" value="">' +
+        '<div class="invalid-feedback">La quantité ne doit pas être négative.</div>' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+      '</div>';
+
+    var produitSelect = row.querySelector('.produit-select');
+    var qteInput = row.querySelector('.qte-input');
+
+    if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
+    if (prefill.quantite !== undefined) { qteInput.value = prefill.quantite; }
+
+    qteInput.addEventListener('input', function () {
+      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) < 0);
+    });
+
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+    });
+
+    container.appendChild(row);
+  }
+
+  document.getElementById('br-add-row-btn').addEventListener('click', function () {
+    addRow(section3Rows);
+  });
+
+  // En cas de réaffichage après échec de validation, toutes les lignes
+  // précédemment saisies (Section 2 et Section 3 confondues) sont restaurées
+  // telles quelles dans la Section 3 — la Section 2 reste vide dans ce cas,
+  // pour ne jamais perdre ni compter deux fois une quantité déjà saisie.
+  if (PRESERVED_LIGNES.length) {
+    section2Rows.innerHTML =
+      '<div class="text-muted small py-2">Les produits sont affichés ci-dessous, dans la section suivante.</div>';
+    PRESERVED_LIGNES.forEach(function (l) { addRow(section3Rows, l); });
+  } else {
+    EXISTING_ROWS.forEach(function (l) { addRow(section2Rows, l); });
+    addRow(section3Rows);
+  }
+})();
+</script>
+{% endblock %}

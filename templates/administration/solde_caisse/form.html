@@ -1,0 +1,318 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Mise à jour du solde compte caisse — Administration{% endblock %}
+{% block page_title %}Mise à jour du solde compte caisse{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Mise à jour du solde compte caisse</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ── Section 1 : Date + Employé ────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-person-badge me-2 text-primary"></i>Compte
+  </div>
+  <div class="card-body">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-3">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <input type="text" class="form-control form-control-sm" value="{{ solde_at|date:'d/m/Y' }}" disabled>
+        </div>
+        <div style="width:260px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Employé</label>
+          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="" {% if not user_id %}selected{% endif %}>— Sélectionner un employé —</option>
+            {% for u in employes_list %}
+            <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : Transactions non soldées ──────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-list-check me-2 text-primary"></i>Transactions non soldées
+  </div>
+  <div class="card-body p-0">
+    {% if not user_id %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-person-x fs-1 d-block mb-2 opacity-25"></i>
+      Sélectionnez un employé pour afficher ses transactions non soldées.
+    </div>
+    {% elif lignes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Date</th>
+            <th>Libellé</th>
+            <th class="text-end pe-3">Montant (TND)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in lignes %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ t.created_at|date:'d/m/Y H:i' }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm" value="{{ t.libelle }}" disabled>
+            </td>
+            <td class="text-end pe-3">
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner {% if t.montant < 0 %}text-danger{% endif %}"
+                     value="{{ t.montant|stringformat:'.3f' }}" disabled>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} transaction{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?user_id={{ user_id }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?user_id={{ user_id }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?user_id={{ user_id }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
+      Aucune transaction non soldée pour cet employé.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Section 3 : Solde ─────────────────────────────────────────────────────── #}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="enregistrer_solde">
+  <input type="hidden" name="user_id" value="{{ user_id }}">
+  <input type="hidden" name="solde_at" value="{{ solde_at|date:'Y-m-d' }}">
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-calculator me-2 text-primary"></i>Solde
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap align-items-end gap-3">
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Solde calculé (TND)</label>
+          <input type="number" step="0.001"
+                 class="form-control form-control-sm text-end font-monospace no-spinner {% if calcul_solde < 0 %}text-danger{% endif %}"
+                 value="{{ calcul_solde|stringformat:'.3f' }}" disabled>
+        </div>
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Solde réel (TND)</label>
+          <input type="number" step="0.001" min="0" name="correction_solde" value="{{ correction_solde }}"
+                 id="id_correction_solde" class="form-control form-control-sm text-end font-monospace no-spinner">
+          <div class="invalid-feedback">Le solde réel ne doit pas être négatif.</div>
+        </div>
+        <div style="flex:1 1 auto;min-width:200px;">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" name="observation" value="{{ observation }}" class="form-control form-control-sm">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Actions ──────────────────────────────────────────────────────────────── #}
+  <div class="d-flex justify-content-end gap-2 mb-4">
+    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+      <i class="bi bi-arrow-left me-1"></i>Page précédente
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+
+{# ── Section 4 : Ajouter un nouveau transfert ──────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-bank me-2 text-primary"></i>Ajouter un nouveau transfert
+  </div>
+  <div class="card-body">
+    {% if not user_id %}
+    <div class="text-muted small">Sélectionnez un employé (Section 1) pour ajouter un transfert.</div>
+    {% else %}
+    <div class="small text-muted mb-2">
+      Le compte source ou le compte destinataire doit obligatoirement être l'employé sélectionné en Section 1.
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="ajouter_transfert">
+      <input type="hidden" name="user_id" value="{{ user_id }}">
+      <div class="d-flex flex-nowrap align-items-end gap-3 overflow-auto">
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <input type="date" name="transfere_at" value="{{ transfere_at }}" class="form-control form-control-sm">
+        </div>
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Compte source</label>
+          <select name="compte_source_id" id="id_compte_source" class="form-select form-select-sm">
+            <option value="">— Sélectionner —</option>
+            {% for u in comptes_users_list %}
+            <option value="{{ u.pk }}" {% if compte_source_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:1 1 auto;min-width:180px;">
+          <label class="form-label small mb-1">Libellé</label>
+          <input type="text" name="libelle" value="{{ libelle }}" required class="form-control form-control-sm">
+        </div>
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Compte destinataire</label>
+          <select name="compte_destination_id" id="id_compte_destination" class="form-select form-select-sm">
+            <option value="">— Sélectionner —</option>
+            {% for u in comptes_users_list %}
+            <option value="{{ u.pk }}" {% if compte_destination_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant (TND)</label>
+          <input type="number" step="0.001" min="0" name="montant" value="{{ montant }}" id="id_transfert_montant"
+                 class="form-control form-control-sm text-end font-monospace no-spinner">
+          <div class="invalid-feedback">Le montant ne doit pas être négatif.</div>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter
+          </button>
+        </div>
+
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+
+// ── Solde réel / Montant du transfert : ne doivent pas être négatifs ───────
+['id_correction_solde', 'id_transfert_montant'].forEach(function (id) {
+  var input = document.getElementById(id);
+  if (!input) { return; }
+  input.addEventListener('input', function () {
+    input.classList.toggle('is-invalid', input.value !== '' && parseFloat(input.value) < 0);
+  });
+});
+
+// ── Transfert : compte source ≠ compte destinataire, et l'un des deux doit
+// obligatoirement être l'employé sélectionné en Section 1 ──────────────────
+(function () {
+  var source = document.getElementById('id_compte_source');
+  var destination = document.getElementById('id_compte_destination');
+  var employeId = '{{ user_id }}';
+  if (!source || !destination || !employeId) { return; }
+
+  function neConserverQue(select, valeurAutorisee) {
+    Array.prototype.forEach.call(select.options, function (option) {
+      option.disabled = option.value !== '' && option.value !== valeurAutorisee;
+    });
+    select.value = valeurAutorisee;
+  }
+
+  function exclure(select, valeurExclue) {
+    Array.prototype.forEach.call(select.options, function (option) {
+      if (option.value === '') { return; }
+      option.disabled = option.value === valeurExclue;
+    });
+  }
+
+  function surSource() {
+    if (source.value && source.value !== employeId) {
+      neConserverQue(destination, employeId);
+    } else {
+      exclure(destination, source.value);
+    }
+  }
+
+  function surDestination() {
+    if (destination.value && destination.value !== employeId) {
+      neConserverQue(source, employeId);
+    } else {
+      exclure(source, destination.value);
+    }
+  }
+
+  source.addEventListener('change', surSource);
+  destination.addEventListener('change', surDestination);
+  surSource();
+  surDestination();
+})();
+</script>
+{% endblock %}

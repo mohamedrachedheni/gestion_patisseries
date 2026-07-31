@@ -169,17 +169,7 @@ class BonRestitution(models.Model):
         related_name='bons_restitution',
     )
     restitution_at = models.DateField()
-    produit = models.ForeignKey(
-        Produit,
-        on_delete=models.RESTRICT,
-        related_name='bons_restitution',
-    )
-    quantite = models.DecimalField(
-        max_digits=8, decimal_places=0,
-        default=0,
-        validators=[MinValueValidator(0)],
-    )
-    hist_stock_initial = models.ForeignKey(
+    historique_stock_initial = models.ForeignKey(
         'commercial.HistoriqueStockInitial',
         on_delete=models.RESTRICT,
         null=True, blank=True,
@@ -192,7 +182,32 @@ class BonRestitution(models.Model):
         ordering = ['-restitution_at']
 
     def __str__(self):
-        return f'BR#{self.id} — {self.produit} ({self.restitution_at})'
+        return f'BR#{self.id} ({self.restitution_at})'
+
+
+class BonRestitutionDetaille(models.Model):
+    bon_restitution = models.ForeignKey(
+        BonRestitution,
+        on_delete=models.CASCADE,
+        related_name='details',
+    )
+    produit = models.ForeignKey(
+        Produit,
+        on_delete=models.RESTRICT,
+        related_name='bon_restitution_details',
+    )
+    quantite = models.DecimalField(
+        max_digits=8, decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+
+    class Meta:
+        verbose_name = 'Détail de bon de restitution'
+        verbose_name_plural = 'Détails de bons de restitution'
+
+    def __str__(self):
+        return f'{self.bon_restitution} — {self.produit} (×{self.quantite})'
 
 
 class BonSortie(models.Model):
@@ -203,17 +218,7 @@ class BonSortie(models.Model):
         related_name='bons_sortie',
     )
     sortie_at = models.DateField(null=True, blank=True)
-    produit = models.ForeignKey(
-        Produit,
-        on_delete=models.RESTRICT,
-        related_name='bons_sortie',
-    )
-    quantite = models.DecimalField(
-        max_digits=8, decimal_places=0,
-        default=0,
-        validators=[MinValueValidator(0)],
-    )
-    hist_stock_initial = models.ForeignKey(
+    historique_stock_initial = models.ForeignKey(
         'commercial.HistoriqueStockInitial',
         on_delete=models.RESTRICT,
         null=True, blank=True,
@@ -226,6 +231,29 @@ class BonSortie(models.Model):
         ordering = ['-sortie_at']
 
     def __str__(self):
-        return f'BS#{self.id} — {self.produit} ({self.sortie_at})'
-    
-    # fin 30/06/2026
+        return f'BS#{self.id} ({self.sortie_at})'
+
+
+class BonSortieDetaille(models.Model):
+    bon_sortie = models.ForeignKey(
+        BonSortie,
+        on_delete=models.CASCADE,
+        related_name='details',
+    )
+    produit = models.ForeignKey(
+        Produit,
+        on_delete=models.RESTRICT,
+        related_name='bon_sortie_details',
+    )
+    quantite = models.DecimalField(
+        max_digits=8, decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+
+    class Meta:
+        verbose_name = 'Détail de bon de sortie'
+        verbose_name_plural = 'Détails de bons de sortie'
+
+    def __str__(self):
+        return f'{self.bon_sortie} — {self.produit} (×{self.quantite})'

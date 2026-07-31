@@ -1,0 +1,255 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Bons de restitution — Commercial{% endblock %}
+{% block page_title %}Bons de restitution{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Bons de restitution</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Liste des bons de restitution</h4>
+  <a href="{% url 'commercial:bon-restitution-create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i> Nouveau bon de restitution
+  </a>
+</div>
+
+{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        {% if not is_commercial %}
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:bon-restitution-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            {% if not is_commercial %}
+            <th class="ps-3">Commercial</th>
+            {% endif %}
+            <th {% if is_commercial %}class="ps-3"{% endif %}>Date</th>
+            <th class="text-center">Soldé</th>
+            <th class="text-center pe-3" style="width:150px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for br in page_obj.object_list %}
+          <tr>
+            {% if not is_commercial %}
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ br.user.get_full_name|default:br.user.username }}" disabled>
+            </td>
+            {% endif %}
+            <td {% if is_commercial %}class="ps-3"{% endif %}>
+              <input type="date" class="form-control form-control-sm"
+                     value="{{ br.restitution_at|date:'Y-m-d' }}" disabled>
+            </td>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input" disabled
+                     {% if br.historique_stock_initial_id %}checked{% endif %}
+                     title="{% if br.historique_stock_initial_id %}Soldé{% else %}Non soldé{% endif %}">
+            </td>
+            <td class="text-center pe-3">
+              <div class="d-flex justify-content-center gap-1">
+                <button type="button" class="btn btn-sm btn-outline-secondary br-detail-btn"
+                        data-url="{% url 'commercial:bon-restitution-detail-popup' br.pk %}" title="Visualiser">
+                  <i class="bi bi-eye"></i>
+                </button>
+                {% if br.historique_stock_initial_id %}
+                <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Modifier">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                {% else %}
+                <a href="{% url 'commercial:bon-restitution-update' br.pk %}"
+                   class="btn btn-sm btn-outline-primary" title="Modifier">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+                <form id="br-delete-{{ br.pk }}" method="post"
+                      action="{% url 'commercial:bon-restitution-delete' br.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
+                          data-can-delete="{% if br.erreur_suppression %}0{% else %}1{% endif %}"
+                          data-refus-message="{{ br.erreur_suppression|escapejs }}"
+                          onclick="return brConfirmDelete(this);">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }} de restitution
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-arrow-return-left fs-1 d-block mb-2 opacity-25"></i>
+      Aucun bon de restitution sur la période
+      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+      →
+      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
+      {% if commercial_id %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
+<div class="modal fade" id="bon-restitution-detail-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail bon de restitution</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="bon-restitution-detail-modal-body">
+        <div class="text-center py-4 text-muted">
+          <div class="spinner-border spinner-border-sm"></div> Chargement…
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+
+function brConfirmDelete(btn) {
+  if (btn.getAttribute('data-can-delete') !== '1') {
+    alert(btn.getAttribute('data-refus-message'));
+    return false;
+  }
+  return confirm('Voulez-vous vraiment supprimer ce bon de restitution ?');
+}
+
+// ── Pop-up « Détail » ───────────────────────────────────────────────────────
+(function () {
+  var modalEl = document.getElementById('bon-restitution-detail-modal');
+  var modalBody = document.getElementById('bon-restitution-detail-modal-body');
+  if (!modalEl || !modalBody) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+
+  document.querySelectorAll('.br-detail-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
+        '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
+      modal.show();
+      fetch(btn.getAttribute('data-url')).then(function (r) { return r.text(); }).then(function (html) {
+        modalBody.innerHTML = html;
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

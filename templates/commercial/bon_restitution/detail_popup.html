@@ -1,0 +1,47 @@
+{# ── Section 1 : Commercial (si non commercial) / Date / Soldé ─────────────── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  {% if not is_commercial %}
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Commercial</label>
+    <input type="text" class="form-control form-control-sm" disabled
+           value="{{ bon_restitution.user.get_full_name|default:bon_restitution.user.username }}">
+  </div>
+  {% endif %}
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Date</label>
+    <input type="date" class="form-control form-control-sm" disabled
+           value="{{ bon_restitution.restitution_at|date:'Y-m-d' }}">
+  </div>
+  <div style="flex:0 0 auto;">
+    <label class="form-label small mb-1 d-block">Soldé</label>
+    <input type="checkbox" class="form-check-input" disabled
+           {% if bon_restitution.historique_stock_initial_id %}checked{% endif %}>
+  </div>
+</div>
+
+{# ── Section 2 : détails produits ──────────────────────────────────────────── #}
+<div>
+  <h6 class="fw-semibold mb-2">Détails produits</h6>
+  {% if details %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Produit</th>
+          <th class="pe-3">Quantité</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in details %}
+        <tr>
+          <td class="ps-3">{{ d.produit|default:'' }}</td>
+          <td class="pe-3">{{ d.quantite|stringformat:'s' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-3 text-muted">Aucun détail produit.</div>
+  {% endif %}
+</div>

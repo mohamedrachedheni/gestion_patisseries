@@ -276,8 +276,8 @@ class HistoriqueStockInitialDetaille(models.Model):
         null=True, blank=True,
         related_name='historiques_stock',
     )
-    calcul_stock = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Stock calculé système')
-    reel_stock = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Stock réel constaté')
+    calcul_stock = models.SmallIntegerField(null=True, blank=True, help_text='Stock calculé système')
+    reel_stock = models.SmallIntegerField(null=True, blank=True, help_text='Stock réel constaté')
     observation = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:

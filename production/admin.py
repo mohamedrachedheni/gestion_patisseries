@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from .models import (
     Produit, MatierePremiereFamille, MatierePremiere,
     Recette, RecetteDetaille, CommandeInterne,
-    BonRestitution, BonSortie,
+    BonRestitution, BonRestitutionDetaille, BonSortie, BonSortieDetaille,
 )
 
 
@@ -33,6 +33,24 @@ class RecetteDetailleInline(admin.TabularInline):
     fields = ['matiere_premiere', 'quantite']
     verbose_name = 'Ingrédient'
     verbose_name_plural = 'Ingrédients'
+
+
+class BonSortieDetailleInline(admin.TabularInline):
+    model = BonSortieDetaille
+    extra = 1
+    autocomplete_fields = ['produit']
+    fields = ['produit', 'quantite']
+    verbose_name = 'Ligne'
+    verbose_name_plural = 'Lignes'
+
+
+class BonRestitutionDetailleInline(admin.TabularInline):
+    model = BonRestitutionDetaille
+    extra = 1
+    autocomplete_fields = ['produit']
+    fields = ['produit', 'quantite']
+    verbose_name = 'Ligne'
+    verbose_name_plural = 'Lignes'
 
 
 class MatierePremiereInline(admin.TabularInline):
@@ -198,39 +216,47 @@ class CommandeInterneAdmin(admin.ModelAdmin):
 
 @admin.register(BonRestitution)
 class BonRestitutionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'restitution_at', 'user', 'produit', 'quantite', 'hist_stock_initial']
-    search_fields = ['produit__nom', 'user__username', 'user__last_name']
+    list_display = ['id', 'restitution_at', 'user', 'nb_lignes', 'historique_stock_initial']
+    search_fields = ['user__username', 'user__last_name']
     list_filter = ['restitution_at']
     ordering = ['-restitution_at']
-    autocomplete_fields = ['produit']
     list_per_page = 25
+    inlines = [BonRestitutionDetailleInline]
     fieldsets = (
         (None, {
-            'fields': ('user', 'restitution_at', 'produit', 'quantite'),
+            'fields': ('user', 'restitution_at'),
         }),
         ('Lien stock', {
-            'fields': ('hist_stock_initial',),
+            'fields': ('historique_stock_initial',),
             'classes': ('collapse',),
         }),
     )
+
+    @admin.display(description='Nb lignes')
+    def nb_lignes(self, obj):
+        return obj.details.count()
 
 
 # ─── Bon de sortie ────────────────────────────────────────────────────────────
 
 @admin.register(BonSortie)
 class BonSortieAdmin(admin.ModelAdmin):
-    list_display = ['id', 'sortie_at', 'user', 'produit', 'quantite', 'hist_stock_initial']
-    search_fields = ['produit__nom', 'user__username', 'user__last_name']
+    list_display = ['id', 'sortie_at', 'user', 'nb_lignes', 'historique_stock_initial']
+    search_fields = ['user__username', 'user__last_name']
     list_filter = ['sortie_at']
     ordering = ['-sortie_at']
-    autocomplete_fields = ['produit']
     list_per_page = 25
+    inlines = [BonSortieDetailleInline]
     fieldsets = (
         (None, {
-            'fields': ('user', 'sortie_at', 'produit', 'quantite'),
+            'fields': ('user', 'sortie_at'),
         }),
         ('Lien stock', {
-            'fields': ('hist_stock_initial',),
+            'fields': ('historique_stock_initial',),
             'classes': ('collapse',),
         }),
     )
+
+    @admin.display(description='Nb lignes')
+    def nb_lignes(self, obj):
+        return obj.details.count()

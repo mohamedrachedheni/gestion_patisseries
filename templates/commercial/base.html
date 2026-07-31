@@ -29,6 +29,18 @@
      class="nav-link {% if 'bon-livraison' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-truck"></i> Bons de livraison
   </a>
+  <a href="{% url 'commercial:bon-sortie-list' %}"
+     class="nav-link {% if 'bon-sortie' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-box-seam"></i> Bons de sortie
+  </a>
+  <a href="{% url 'commercial:bon-restitution-list' %}"
+     class="nav-link {% if 'bon-restitution' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-arrow-return-left"></i> Bons de restitution
+  </a>
+  <a href="{% url 'commercial:historique-stock-initial-list' %}"
+     class="nav-link {% if 'historique-stock-initial' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-boxes"></i> Stocks commerciaux
+  </a>
 
   <div class="sidebar-section">Achats & Dépenses</div>
   <a href="{% url 'commercial:achat-list' %}"

@@ -17,7 +17,8 @@
   </a>
 
   <div class="sidebar-section">Finance</div>
-  <a href="#" class="nav-link">
+  <a href="{% url 'administration:solde-caisse' %}"
+     class="nav-link {% if 'solde-caisse' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-wallet2"></i> Soldes comptes
   </a>
   <a href="{% url 'administration:transaction-list' %}"
@@ -39,6 +40,18 @@
   <a href="{% url 'administration:cout-production-list' %}"
      class="nav-link {% if 'cout-production' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-calculator"></i> Coût de production
+  </a>
+  <a href="{% url 'administration:chiffre-affaire-produit-list' %}"
+     class="nav-link {% if 'chiffre-affaire-produit' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-graph-up-arrow"></i> Chiffre d'affaires par produit
+  </a>
+  <a href="{% url 'administration:chiffre-affaire-commercial-list' %}"
+     class="nav-link {% if 'chiffre-affaire-commercial' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-person-lines-fill"></i> Chiffre d'affaires par commercial
+  </a>
+  <a href="{% url 'administration:chiffre-affaire-zone-list' %}"
+     class="nav-link {% if 'chiffre-affaire-zone' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-pin-map"></i> Chiffre d'affaires par zone
   </a>
 
   <div class="sidebar-section">Localisation</div>
