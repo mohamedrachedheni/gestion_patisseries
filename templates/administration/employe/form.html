@@ -65,3 +65,25 @@
 </form>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+(function () {
+  var groupeSelect = document.getElementById('id_groupe');
+  var isStaffCheckbox = document.getElementById('id_is_staff');
+  if (!groupeSelect || !isStaffCheckbox) { return; }
+
+  function syncIsStaff() {
+    var option = groupeSelect.options[groupeSelect.selectedIndex];
+    var estAdministration = !!option && option.text.trim() === 'Administration';
+    isStaffCheckbox.disabled = !estAdministration;
+    if (!estAdministration) {
+      isStaffCheckbox.checked = false;
+    }
+  }
+
+  groupeSelect.addEventListener('change', syncIsStaff);
+  syncIsStaff();
+})();
+</script>
+{% endblock %}
+

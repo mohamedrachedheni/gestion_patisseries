@@ -17,7 +17,7 @@
   </a>
 
   <div class="sidebar-section">Finance</div>
-  <a href="{% url 'administration:solde-caisse' %}"
+  <a href="{% url 'administration:solde-caisse-list' %}"
      class="nav-link {% if 'solde-caisse' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-wallet2"></i> Soldes comptes
   </a>
@@ -28,6 +28,10 @@
   <a href="{% url 'administration:transfere-list' %}"
      class="nav-link {% if 'transfere' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-bank"></i> Transferts
+  </a>
+  <a href="{% url 'commercial:achat-list' %}"
+     class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cart3"></i> Achats
   </a>
 
   <div class="sidebar-section">Stock</div>

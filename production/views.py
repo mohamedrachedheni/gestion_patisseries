@@ -29,14 +29,14 @@ def _form_errors_text(form):
 
 
 class HomeView(GroupRequiredMixin, TemplateView):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/home.html'
 
 
 # ─── Produits ───────────────────────────────────────────────────────────────
 
 class ProduitListView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/produit/list.html'
     PAGINATE_BY = 25
 
@@ -73,7 +73,7 @@ class ProduitListView(GroupRequiredMixin, View):
 
 
 class ProduitDetailView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/produit/detail.html'
 
     def get(self, request, pk):
@@ -82,7 +82,7 @@ class ProduitDetailView(GroupRequiredMixin, View):
 
 
 class ProduitCreateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/produit/form.html'
 
     def get(self, request):
@@ -112,7 +112,7 @@ class ProduitCreateView(GroupRequiredMixin, View):
 
 
 class ProduitUpdateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/produit/form.html'
 
     def _get(self, pk):
@@ -152,17 +152,24 @@ class ProduitUpdateView(GroupRequiredMixin, View):
 
 
 class ProduitDeleteView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/produit/confirm_delete.html'
 
     def _get(self, pk):
-        return get_object_or_404(Produit, pk=pk)
+        return Produit.objects.filter(pk=pk).first()
 
     def get(self, request, pk):
-        return render(request, self.template_name, {'produit': self._get(pk)})
+        produit = self._get(pk)
+        if produit is None:
+            messages.info(request, 'Ce produit a déjà été supprimé.')
+            return redirect('production:produit-list')
+        return render(request, self.template_name, {'produit': produit})
 
     def post(self, request, pk):
         produit = self._get(pk)
+        if produit is None:
+            messages.info(request, 'Ce produit a déjà été supprimé.')
+            return redirect('production:produit-list')
         nom = produit.nom
         avant = model_to_dict(produit)
         try:
@@ -187,7 +194,7 @@ class ProduitDeleteView(GroupRequiredMixin, View):
 # ─── Familles de matière première ────────────────────────────────────────────
 
 class FamilleListView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/famille/list.html'
     PAGINATE_BY = 4
 
@@ -205,7 +212,7 @@ class FamilleListView(GroupRequiredMixin, View):
 
 
 class FamilleCreateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request):
         form = FamilleForm(request.POST)
@@ -223,7 +230,7 @@ class FamilleCreateView(GroupRequiredMixin, View):
 
 
 class FamilleUpdateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
         instance = get_object_or_404(MatierePremiereFamille, pk=pk)
@@ -243,10 +250,13 @@ class FamilleUpdateView(GroupRequiredMixin, View):
 
 
 class FamilleDeleteView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
-        instance = get_object_or_404(MatierePremiereFamille, pk=pk)
+        instance = MatierePremiereFamille.objects.filter(pk=pk).first()
+        if instance is None:
+            messages.info(request, 'Cette famille de matière première a déjà été supprimée.')
+            return redirect('production:famille-list')
         nom = instance.famille
         avant = model_to_dict(instance)
         try:
@@ -269,7 +279,7 @@ class FamilleDeleteView(GroupRequiredMixin, View):
 # ─── Matières premières ───────────────────────────────────────────────────────
 
 class MatierePremiereListView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/matiere_premiere/list.html'
     PAGINATE_BY = 25
 
@@ -304,7 +314,7 @@ class MatierePremiereListView(GroupRequiredMixin, View):
 
 
 class MatierePremiereDetailView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/matiere_premiere/detail.html'
 
     def get(self, request, pk):
@@ -313,7 +323,7 @@ class MatierePremiereDetailView(GroupRequiredMixin, View):
 
 
 class MatierePremiereCreateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/matiere_premiere/form.html'
 
     def get(self, request):
@@ -343,7 +353,7 @@ class MatierePremiereCreateView(GroupRequiredMixin, View):
 
 
 class MatierePremiereUpdateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/matiere_premiere/form.html'
 
     def _get(self, pk):
@@ -383,17 +393,24 @@ class MatierePremiereUpdateView(GroupRequiredMixin, View):
 
 
 class MatierePremiereDeleteView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/matiere_premiere/confirm_delete.html'
 
     def _get(self, pk):
-        return get_object_or_404(MatierePremiere, pk=pk)
+        return MatierePremiere.objects.filter(pk=pk).first()
 
     def get(self, request, pk):
-        return render(request, self.template_name, {'matiere_premiere': self._get(pk)})
+        mp = self._get(pk)
+        if mp is None:
+            messages.info(request, 'Cette matière première a déjà été supprimée.')
+            return redirect('production:matiere-premiere-list')
+        return render(request, self.template_name, {'matiere_premiere': mp})
 
     def post(self, request, pk):
         mp = self._get(pk)
+        if mp is None:
+            messages.info(request, 'Cette matière première a déjà été supprimée.')
+            return redirect('production:matiere-premiere-list')
         nom = mp.nom
         avant = model_to_dict(mp)
         try:
@@ -485,7 +502,7 @@ def _produit_semi_fini_context(request):
 
 
 class ProduitSemiFiniListView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/produit_semi_fini/list.html'
 
     def get(self, request):
@@ -493,7 +510,7 @@ class ProduitSemiFiniListView(GroupRequiredMixin, View):
 
 
 class ProduitSemiFiniCreateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request):
         list_url = reverse('production:produit-semi-fini-list')
@@ -530,7 +547,7 @@ class ProduitSemiFiniCreateView(GroupRequiredMixin, View):
 
 
 class ProduitSemiFiniUpdateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
         list_url = reverse('production:produit-semi-fini-list')
@@ -574,10 +591,13 @@ class ProduitSemiFiniUpdateView(GroupRequiredMixin, View):
 
 
 class ProduitSemiFiniDeleteView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
-        mp = get_object_or_404(MatierePremiere.objects.select_related('produit'), pk=pk)
+        mp = MatierePremiere.objects.select_related('produit').filter(pk=pk).first()
+        if mp is None:
+            messages.info(request, 'Ce produit semi-fini a déjà été supprimé.')
+            return redirect('production:produit-semi-fini-list')
         produit = mp.produit
         nom = mp.nom
         avant = {
@@ -630,7 +650,7 @@ def _recette_list_context(request):
 
 
 class RecetteListView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/recette/list.html'
 
     def get(self, request):
@@ -653,7 +673,7 @@ class RecetteDetailView(GroupRequiredMixin, View):
     """Détail en lecture seule d'une recette — bouton « Visualiser » de la
     liste. Tous les champs sont verrouillés ; pas d'ajout/suppression de
     ligne ni d'enregistrement (voir RecetteUpdateView pour la modification)."""
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/recette/detail.html'
 
     def get(self, request, pk):
@@ -662,10 +682,13 @@ class RecetteDetailView(GroupRequiredMixin, View):
 
 
 class RecetteDeleteView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
-        recette = get_object_or_404(Recette.objects.select_related('produit'), pk=pk)
+        recette = Recette.objects.select_related('produit').filter(pk=pk).first()
+        if recette is None:
+            messages.info(request, 'Cette recette a déjà été supprimée.')
+            return redirect('production:recette-list')
         nom_produit = recette.produit.nom
         nb_details = recette.details.count()
         avant = {'recette': model_to_dict(recette), 'nb_details': nb_details}
@@ -713,7 +736,7 @@ def _recette_create_context(request, **overrides):
 
 
 class RecetteCreateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/recette/create.html'
 
     def get(self, request):
@@ -881,7 +904,7 @@ def _recette_update_context(request, recette, **overrides):
 
 
 class RecetteUpdateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/recette/update.html'
 
     def _get(self, pk):
@@ -1138,7 +1161,7 @@ def _commande_interne_redirect(request):
 
 
 class CommandeInterneListView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/commande_interne/list.html'
 
     def get(self, request):
@@ -1148,7 +1171,7 @@ class CommandeInterneListView(GroupRequiredMixin, View):
 
 
 class CommandeInterneUpdateView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
         ci = get_object_or_404(CommandeInterne.objects.select_related('recette__produit'), pk=pk)
@@ -1222,10 +1245,13 @@ class CommandeInterneUpdateView(GroupRequiredMixin, View):
 
 
 class CommandeInterneDeleteView(GroupRequiredMixin, View):
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
-        ci = get_object_or_404(CommandeInterne.objects.select_related('recette__produit'), pk=pk)
+        ci = CommandeInterne.objects.select_related('recette__produit').filter(pk=pk).first()
+        if ci is None:
+            messages.info(request, 'Cette commande interne a déjà été supprimée.')
+            return _commande_interne_redirect(request)
         nom = ci.recette.produit.nom if ci.recette_id else '—'
         avant = model_to_dict(ci)
         try:
@@ -1249,7 +1275,7 @@ class CommandeInterneDeleteView(GroupRequiredMixin, View):
 class CommandeInterneBulkCreateView(GroupRequiredMixin, View):
     """Bouton « Ajout toutes les commandes » — les lignes invalides sont
     ignorées silencieusement, un décompte est affiché à la fin."""
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
     template_name = 'production/commande_interne/list.html'
 
     def post(self, request):
@@ -1325,7 +1351,7 @@ class CommandeInterneStockUpdateView(GroupRequiredMixin, View):
     Tout échec annule l'ensemble (transaction.atomic()) ; is_stock_maj reste
     False pour permettre de réessayer après correction des données.
     """
-    group_required = 'Production'
+    group_required = ['Administration', 'Production']
 
     def post(self, request, pk):
         ci = get_object_or_404(CommandeInterne.objects.select_related('recette__produit'), pk=pk)

@@ -1,0 +1,48 @@
+{# ── Section 1 : Commercial (si non commercial) / Date de mise à jour ──────── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  {% if not is_commercial %}
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Commercial</label>
+    <input type="text" class="form-control form-control-sm" disabled
+           value="{{ hist.user.get_full_name|default:hist.user.username }}">
+  </div>
+  {% endif %}
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Date de mise à jour</label>
+    <input type="date" class="form-control form-control-sm" disabled
+           value="{{ hist.stock_initial_at|date:'Y-m-d' }}">
+  </div>
+</div>
+
+{# ── Section 2 : liste des produits ─────────────────────────────────────────── #}
+<div>
+  <h6 class="fw-semibold mb-2">Liste des produits</h6>
+  {% if details %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Produit</th>
+          <th>Stock calculé</th>
+          <th>Stock réel</th>
+          <th class="pe-3">Observation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in details %}
+        <tr>
+          <td class="ps-3">{{ d.produit|default:'' }}</td>
+          <td>{{ d.calcul_stock|stringformat:'s' }}</td>
+          <td{% if d.calcul_stock != d.reel_stock %} class="text-danger fw-semibold"{% endif %}>
+            {{ d.reel_stock|stringformat:'s' }}
+          </td>
+          <td class="pe-3">{{ d.observation|default:'' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-3 text-muted">Aucun détail produit.</div>
+  {% endif %}
+</div>

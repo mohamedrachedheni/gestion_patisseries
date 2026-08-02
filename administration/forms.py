@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import Group
 from crispy_forms.helper import FormHelper
@@ -25,7 +25,7 @@ class UserCreateForm(UserCreationForm):
     is_staff = forms.BooleanField(
         required=False,
         label='Accès interface Django admin',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'disabled': True}),
     )
     groupe = forms.ModelChoiceField(
         queryset=Group.objects.all(),
@@ -65,10 +65,12 @@ class UserCreateForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.is_staff = self.cleaned_data.get('is_staff', False)
+        groupe = self.cleaned_data.get('groupe')
+        # L'accès à l'interface Django admin n'est autorisé que pour le groupe Administration,
+        # quelle que soit la case cochée côté client (la case est verrouillée par JS sinon).
+        user.is_staff = bool(self.cleaned_data.get('is_staff', False)) and bool(groupe) and groupe.name == 'Administration'
         if commit:
             user.save()
-            groupe = self.cleaned_data.get('groupe')
             user.groups.set([groupe] if groupe else [])
         return user
 
@@ -77,13 +79,23 @@ class UserUpdateForm(forms.ModelForm):
     is_staff = forms.BooleanField(
         required=False,
         label='Accès interface Django admin',
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'disabled': True}),
     )
     groupe = forms.ModelChoiceField(
         queryset=Group.objects.all(),
         required=False,
         empty_label='— Aucun groupe —',
         label='Groupe de permissions',
+    )
+    new_password1 = forms.CharField(
+        required=False,
+        label='Nouveau mot de passe',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
+    )
+    new_password2 = forms.CharField(
+        required=False,
+        label='Confirmer le nouveau mot de passe',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
     )
 
     class Meta:
@@ -110,17 +122,40 @@ class UserUpdateForm(forms.ModelForm):
                 Column('email',    css_class='col-md-6'),
             ),
             Row(
+                Column('new_password1', css_class='col-md-6'),
+                Column('new_password2', css_class='col-md-6'),
+            ),
+            Row(
                 Column('is_staff', css_class='col-md-4 d-flex align-items-center pt-2'),
                 Column('groupe',   css_class='col-md-8'),
             ),
         )
 
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get('new_password1')
+        password2 = cleaned_data.get('new_password2')
+        if password1 or password2:
+            if password1 != password2:
+                self.add_error('new_password2', 'Les deux mots de passe ne correspondent pas.')
+            else:
+                try:
+                    password_validation.validate_password(password1, self.instance)
+                except forms.ValidationError as error:
+                    self.add_error('new_password1', error)
+        return cleaned_data
+
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.is_staff = self.cleaned_data.get('is_staff', False)
+        groupe = self.cleaned_data.get('groupe')
+        # L'accès à l'interface Django admin n'est autorisé que pour le groupe Administration,
+        # quelle que soit la case cochée côté client (la case est verrouillée par JS sinon).
+        user.is_staff = bool(self.cleaned_data.get('is_staff', False)) and bool(groupe) and groupe.name == 'Administration'
+        new_password = self.cleaned_data.get('new_password1')
+        if new_password:
+            user.set_password(new_password)
         if commit:
             user.save()
-            groupe = self.cleaned_data.get('groupe')
             user.groups.set([groupe] if groupe else [])
         return user
 
@@ -142,29 +177,49 @@ class EmployeForm(forms.ModelForm):
             'observation': forms.Textarea(attrs={'rows': 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, hide_matricule_service=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['type_contrat'].widget = forms.Select(choices=TYPE_CONTRAT_CHOICES)
         self.helper = FormHelper()
         self.helper.form_tag = False
-        self.helper.layout = Layout(
-            Row(
-                Column('matricule',    css_class='col-md-4'),
-                Column('service',      css_class='col-md-4'),
-                Column('type_contrat', css_class='col-md-4'),
-            ),
-            Row(
-                Column('telephone',    css_class='col-md-4'),
-                Column('naissance_at', css_class='col-md-4'),
-                Column('embauche_at',  css_class='col-md-4'),
-            ),
-            Row(
-                Column('salaire', css_class='col-md-4'),
-                Column('adresse', css_class='col-md-8'),
-            ),
-            'photo',
-            'observation',
-        )
+        if hide_matricule_service:
+            self.fields['matricule'].widget = forms.HiddenInput()
+            self.fields['service'].widget = forms.HiddenInput()
+            self.helper.layout = Layout(
+                'matricule',
+                'service',
+                Row(
+                    Column('type_contrat', css_class='col-md-4'),
+                    Column('telephone',    css_class='col-md-4'),
+                    Column('naissance_at', css_class='col-md-4'),
+                ),
+                Row(
+                    Column('embauche_at', css_class='col-md-6'),
+                    Column('salaire',     css_class='col-md-6'),
+                ),
+                'adresse',
+                'photo',
+                'observation',
+            )
+        else:
+            self.helper.layout = Layout(
+                Row(
+                    Column('matricule',    css_class='col-md-4'),
+                    Column('service',      css_class='col-md-4'),
+                    Column('type_contrat', css_class='col-md-4'),
+                ),
+                Row(
+                    Column('telephone',    css_class='col-md-4'),
+                    Column('naissance_at', css_class='col-md-4'),
+                    Column('embauche_at',  css_class='col-md-4'),
+                ),
+                Row(
+                    Column('salaire', css_class='col-md-4'),
+                    Column('adresse', css_class='col-md-8'),
+                ),
+                'photo',
+                'observation',
+            )
 
 
 class UserChoiceField(forms.ModelChoiceField):

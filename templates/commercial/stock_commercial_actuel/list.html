@@ -1,0 +1,187 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Stock commercial actuel — Commercial{% endblock %}
+{% block page_title %}Stock commercial actuel{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Stock commercial actuel</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Les quantités de produits actuellement conservées en stock chez le commercial</h4>
+</div>
+
+{# ── Section 1 : filtre ───────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        {% if not is_commercial %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">- choisir un commercial</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <input type="date" value="{{ today }}" class="form-control form-control-sm" disabled>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : produits en stock ────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-boxes me-2 text-primary"></i>Produits en stock
+  </div>
+  <div class="card-body">
+    {% if commercial_id %}
+    <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+      <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+      <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
+      <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté initialement stockée</span></div>
+      <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
+      <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
+      <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
+    </div>
+    {% if lignes %}
+    {% for l in lignes %}
+    <div class="d-flex flex-nowrap align-items-center gap-2 mb-2">
+      <div style="flex:1 1 200px;min-width:160px;">
+        <input type="text" class="form-control form-control-sm" value="{{ l.produit_nom }}" disabled>
+      </div>
+      <div style="width:120px;flex:0 0 auto;">
+        <input type="number" class="form-control form-control-sm no-spinner{% if l.reste_calcule < 0 %} text-danger{% endif %}"
+               value="{{ l.reste_calcule|stringformat:'s' }}" disabled>
+      </div>
+      <div style="width:140px;flex:0 0 auto;">
+        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_initiale|stringformat:'s' }}" disabled>
+      </div>
+      <div style="width:140px;flex:0 0 auto;">
+        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_sortie|stringformat:'s' }}" disabled>
+      </div>
+      <div style="width:120px;flex:0 0 auto;">
+        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_livree|stringformat:'s' }}" disabled>
+      </div>
+      <div style="width:140px;flex:0 0 auto;">
+        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_deja_restituee|stringformat:'s' }}" disabled>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="text-muted small py-2">Aucun produit en stock pour ce commercial.</div>
+    {% endif %}
+    {% else %}
+    <div class="text-muted small py-2">Sélectionnez un commercial pour afficher les produits en stock.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Section 3 : actions ──────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="d-flex flex-nowrap gap-2">
+      <button type="button" class="btn btn-outline-primary btn-sm sca-detail-btn" {% if not commercial_id %}disabled{% endif %}
+              data-title="Les bons de sortie non soldés"
+              data-url="{% url 'commercial:stock-actuel-bon-sortie-popup' %}?commercial_id={{ commercial_id }}&date_ref={{ today }}">
+        <i class="bi bi-box-seam me-1"></i>Bons de sortie
+      </button>
+      <button type="button" class="btn btn-outline-primary btn-sm sca-detail-btn" {% if not commercial_id %}disabled{% endif %}
+              data-title="Les bons de livraison non soldés"
+              data-url="{% url 'commercial:stock-actuel-bon-livraison-popup' %}?commercial_id={{ commercial_id }}&date_ref={{ today }}">
+        <i class="bi bi-truck me-1"></i>Bons de livraison
+      </button>
+      <button type="button" class="btn btn-outline-primary btn-sm sca-detail-btn" {% if not commercial_id %}disabled{% endif %}
+              data-title="Les bons de restitution non soldés"
+              data-url="{% url 'commercial:stock-actuel-bon-restitution-popup' %}?commercial_id={{ commercial_id }}&date_ref={{ today }}">
+        <i class="bi bi-arrow-return-left me-1"></i>Bons de restitution
+      </button>
+    </div>
+  </div>
+</div>
+
+{# ── Pop-up « Détail » (contenu chargé en AJAX, partagée par les 3 boutons) ── #}
+<div class="modal fade" id="sca-detail-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sca-detail-modal-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="sca-detail-modal-body">
+        <div class="text-center py-4 text-muted">
+          <div class="spinner-border spinner-border-sm"></div> Chargement…
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+
+// ── Pop-up « Détail » (Bons de sortie / de livraison / de restitution) ────
+(function () {
+  var modalEl = document.getElementById('sca-detail-modal');
+  var modalTitleEl = document.getElementById('sca-detail-modal-title');
+  var modalBody = document.getElementById('sca-detail-modal-body');
+  if (!modalEl || !modalBody) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+
+  function loadDetail(url, title) {
+    if (title) { modalTitleEl.textContent = title; }
+    modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
+      '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
+    modal.show();
+    fetch(url).then(function (r) { return r.text(); }).then(function (html) {
+      modalBody.innerHTML = html;
+    });
+  }
+
+  document.querySelectorAll('.sca-detail-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      loadDetail(btn.getAttribute('data-url'), btn.getAttribute('data-title'));
+    });
+  });
+
+  // Délégation d'événement : le contenu de la pop-up est entièrement
+  // remplacé à chaque navigation (page précédente/suivante), les boutons du
+  // pager n'existent donc pas encore au moment de l'attache des listeners.
+  modalBody.addEventListener('click', function (e) {
+    var link = e.target.closest('.sca-pager-btn');
+    if (!link || link.classList.contains('disabled')) { return; }
+    e.preventDefault();
+    loadDetail(link.getAttribute('data-url'));
+  });
+})();
+</script>
+{% endblock %}

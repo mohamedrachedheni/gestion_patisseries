@@ -41,12 +41,12 @@
      class="nav-link {% if 'historique-stock-initial' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-boxes"></i> Stocks commerciaux
   </a>
-
-  <div class="sidebar-section">Achats & Dépenses</div>
-  <a href="{% url 'commercial:achat-list' %}"
-     class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cart3"></i> Achats
+  <a href="{% url 'commercial:stock-commercial-actuel' %}"
+     class="nav-link {% if 'stock-commercial-actuel' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-clipboard-data"></i> Stock commercial actuel
   </a>
+
+  <div class="sidebar-section">Dépenses</div>
   <a href="{% url 'commercial:depense-list' %}"
      class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-cash-stack"></i> Dépenses

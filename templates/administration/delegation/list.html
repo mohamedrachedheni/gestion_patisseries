@@ -14,6 +14,36 @@
 
 {% block content %}
 
+{# ── Section de filtres ───────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Gouvernorat</label>
+          <select name="gouvernorat_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les gouvernorats —</option>
+            {% for g in gouvernorats_list %}
+            <option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>
+              {{ g.nom }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'administration:delegation-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
 {# ── Partie 1 : liste des délégations enregistrées ───────────────────────── #}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-transparent fw-semibold py-3">
@@ -84,7 +114,7 @@
 
           {% if page_obj.has_previous %}
           <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+            <a class="page-link" href="?gouvernorat_id={{ gouvernorat_id }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -95,14 +125,14 @@
             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+              <a class="page-link" href="?gouvernorat_id={{ gouvernorat_id }}&page={{ num }}">{{ num }}</a>
             </li>
             {% endif %}
           {% endfor %}
 
           {% if page_obj.has_next %}
           <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+            <a class="page-link" href="?gouvernorat_id={{ gouvernorat_id }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -154,4 +184,17 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
 {% endblock %}

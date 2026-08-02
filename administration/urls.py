@@ -37,7 +37,8 @@ urlpatterns = [
     path('transactions/<hashid:pk>/detail-popup/',   views.TransactionDetailPopupView.as_view(), name='transaction-detail-popup'),
 
     # Solde compte caisse
-    path('solde-caisse/', views.SoldeCaisseView.as_view(), name='solde-caisse'),
+    path('soldes-caisse/', views.HistoriqueSoldeCompteListView.as_view(), name='solde-caisse-list'),
+    path('solde-caisse/',  views.SoldeCaisseView.as_view(),                name='solde-caisse'),
 
     # Transferts
     path('transferts/',                       views.TransfereListView.as_view(),   name='transfere-list'),

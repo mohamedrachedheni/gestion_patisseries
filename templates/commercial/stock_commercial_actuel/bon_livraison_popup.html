@@ -1,0 +1,99 @@
+{# ── Section 1 : BonLivraisonCode non soldés, un enregistrement à la fois ──── #}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h6 class="mb-0 fw-semibold">Bon de livraison</h6>
+  <div class="d-flex align-items-center gap-2">
+    <small class="text-muted">Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</small>
+    <div class="btn-group btn-group-sm">
+      <a href="#"
+         class="btn btn-outline-secondary sca-pager-btn {% if not page_obj.has_previous %}disabled{% endif %}"
+         data-url="{% url 'commercial:stock-actuel-bon-livraison-popup' %}?commercial_id={{ commercial_id }}&date_ref={{ date_ref }}&page={{ prev_page }}">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+      <a href="#"
+         class="btn btn-outline-secondary sca-pager-btn {% if not page_obj.has_next %}disabled{% endif %}"
+         data-url="{% url 'commercial:stock-actuel-bon-livraison-popup' %}?commercial_id={{ commercial_id }}&date_ref={{ date_ref }}&page={{ next_page }}">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+{% if code %}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Client</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ code.client|default:'' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Date</label>
+    <input type="date" class="form-control form-control-sm" disabled value="{{ code.bon_livraison_at|date:'Y-m-d' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Numéro</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ code.bon_livraison_numero }}">
+  </div>
+</div>
+
+{# ── Section 1-1 : dernier BonLivraison lié à ce code ───────────────────── #}
+<div class="card border-0 bg-light mb-3">
+  <div class="card-body">
+    {% if dernier_bl %}
+    <div class="row g-2">
+      {% if not is_commercial %}
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Commercial</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ dernier_bl.user.get_full_name|default:dernier_bl.user.username }}">
+      </div>
+      {% endif %}
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Montant total</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ dernier_bl.total_montant|stringformat:'s' }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small mb-1">Reste à payer</label>
+        <input type="number" step="0.001"
+               class="form-control form-control-sm no-spinner text-end font-monospace{% if dernier_bl.reste_a_payer > 0 %} text-danger{% endif %}"
+               disabled value="{{ dernier_bl.reste_a_payer|stringformat:'s' }}">
+      </div>
+    </div>
+
+    {# ── Section 1-1-1 : détails produits ─────────────────────────────────── #}
+    <div class="mt-3">
+      <h6 class="fw-semibold mb-2">Détails produits</h6>
+      {% if details %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Produit</th>
+              <th>Qté</th>
+              <th>Prix</th>
+              <th class="pe-3">Total ligne</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in details %}
+            <tr>
+              <td class="ps-3">{{ d.produit|default:'' }}</td>
+              <td>{{ d.quantite|stringformat:'s' }}</td>
+              <td>{{ d.prix_unitaire|stringformat:'s' }}</td>
+              <td class="pe-3">{{ d.total_ligne|stringformat:'s' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-3 text-muted">Aucun détail produit.</div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="text-center py-3 text-muted">Aucun enregistrement.</div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="text-center py-3 text-muted">Aucun bon de livraison non soldé pour ce commercial.</div>
+{% endif %}

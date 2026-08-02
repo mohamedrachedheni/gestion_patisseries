@@ -42,9 +42,16 @@ urlpatterns = [
     path('bons-restitution/<hashid:pk>/supprimer/',    views.BonRestitutionDeleteView.as_view(),       name='bon-restitution-delete'),
 
     # Historique stock initial (mises à jour des stocks commerciaux)
-    path('mises-a-jour-stock/',                views.HistoriqueStockInitialListView.as_view(),     name='historique-stock-initial-list'),
-    path('mises-a-jour-stock/nouveau/',        views.HistoriqueStockInitialCreateView.as_view(),   name='historique-stock-initial-create'),
-    path('mises-a-jour-stock/valeurs-defaut/', views.HistoriqueStockInitialDefaultsView.as_view(), name='historique-stock-initial-defaults'),
+    path('mises-a-jour-stock/',                        views.HistoriqueStockInitialListView.as_view(),        name='historique-stock-initial-list'),
+    path('mises-a-jour-stock/nouveau/',                views.HistoriqueStockInitialCreateView.as_view(),      name='historique-stock-initial-create'),
+    path('mises-a-jour-stock/valeurs-defaut/',         views.HistoriqueStockInitialDefaultsView.as_view(),    name='historique-stock-initial-defaults'),
+    path('mises-a-jour-stock/<hashid:pk>/detail-popup/', views.HistoriqueStockInitialDetailPopupView.as_view(), name='historique-stock-initial-detail-popup'),
+
+    # Stock commercial actuel
+    path('stock-actuel/',                        views.StockCommercialActuelView.as_view(),        name='stock-commercial-actuel'),
+    path('stock-actuel/bons-sortie-popup/',      views.BonSortieNonSoldesPopupView.as_view(),      name='stock-actuel-bon-sortie-popup'),
+    path('stock-actuel/bons-restitution-popup/', views.BonRestitutionNonSoldesPopupView.as_view(), name='stock-actuel-bon-restitution-popup'),
+    path('stock-actuel/bons-livraison-popup/',   views.BonLivraisonNonSoldesPopupView.as_view(),   name='stock-actuel-bon-livraison-popup'),
 
     # Fournisseurs
     path('fournisseurs/',                       views.FournisseurListView.as_view(),   name='fournisseur-list'),

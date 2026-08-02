@@ -13,7 +13,7 @@ import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from django.contrib import messages
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -126,7 +126,10 @@ class GouvernoratDeleteView(GroupRequiredMixin, View):
     group_required = 'Administration'
 
     def post(self, request, pk):
-        instance = get_object_or_404(Gouvernorat, pk=pk)
+        instance = Gouvernorat.objects.filter(pk=pk).first()
+        if instance is None:
+            messages.info(request, 'Ce gouvernorat a déjà été supprimé.')
+            return redirect('administration:gouvernorat-list')
         nom = instance.nom
         avant = model_to_dict(instance)
         try:
@@ -151,19 +154,25 @@ class GouvernoratDeleteView(GroupRequiredMixin, View):
 class DelegationListView(GroupRequiredMixin, View):
     group_required = 'Administration'
     template_name = 'administration/delegation/list.html'
-    PAGINATE_BY = 5
+    PAGINATE_BY = 20
 
     def get(self, request):
+        gouvernorat_id = request.GET.get('gouvernorat_id', '').strip()
+
         qs = Delegation.objects.select_related('gouvernorat').order_by('gouvernorat__nom', 'nom_delegation')
+        if gouvernorat_id:
+            qs = qs.filter(gouvernorat_id=gouvernorat_id)
+
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
 
         return render(request, self.template_name, {
-            'page_obj':       page_obj,
-            'is_paginated':   page_obj.has_other_pages(),
-            'delegations':    page_obj.object_list,
+            'page_obj':          page_obj,
+            'is_paginated':      page_obj.has_other_pages(),
+            'delegations':       page_obj.object_list,
+            'gouvernorat_id':    gouvernorat_id,
             'gouvernorats_list': Gouvernorat.objects.order_by('nom'),
-            'add_form':       DelegationForm(),
+            'add_form':          DelegationForm(),
         })
 
 
@@ -209,7 +218,10 @@ class DelegationDeleteView(GroupRequiredMixin, View):
     group_required = 'Administration'
 
     def post(self, request, pk):
-        instance = get_object_or_404(Delegation, pk=pk)
+        instance = Delegation.objects.filter(pk=pk).first()
+        if instance is None:
+            messages.info(request, 'Cette délégation a déjà été supprimée.')
+            return redirect('administration:delegation-list')
         nom = instance.nom_delegation
         avant = model_to_dict(instance)
         try:
@@ -234,7 +246,7 @@ class DelegationDeleteView(GroupRequiredMixin, View):
 class ZoneListView(GroupRequiredMixin, View):
     group_required = 'Administration'
     template_name = 'administration/zone/list.html'
-    PAGINATE_BY = 5
+    PAGINATE_BY = 20
 
     def get(self, request):
         gouvernorat_id = request.GET.get('gouvernorat', '').strip()
@@ -336,7 +348,10 @@ class ZoneDeleteView(GroupRequiredMixin, View):
     group_required = 'Administration'
 
     def post(self, request, pk):
-        instance = get_object_or_404(Zone, pk=pk)
+        instance = Zone.objects.filter(pk=pk).first()
+        if instance is None:
+            messages.info(request, 'Cette zone a déjà été supprimée.')
+            return redirect('administration:zone-list')
         nom = instance.nom
         avant = model_to_dict(instance)
         try:
@@ -394,7 +409,7 @@ class EmployeCreateView(GroupRequiredMixin, View):
     template_name = 'administration/employe/form.html'
 
     def _forms(self, data=None, files=None):
-        return UserCreateForm(data), EmployeForm(data, files)
+        return UserCreateForm(data), EmployeForm(data, files, hide_matricule_service=True)
 
     def get(self, request):
         user_form, employe_form = self._forms()
@@ -436,7 +451,7 @@ class EmployeUpdateView(GroupRequiredMixin, View):
         employe = self._get(pk)
         return render(request, self.template_name, {
             'user_form': UserUpdateForm(instance=employe.user),
-            'employe_form': EmployeForm(instance=employe),
+            'employe_form': EmployeForm(instance=employe, hide_matricule_service=True),
             'employe': employe,
             'title': f'Modifier — {employe.user.get_full_name()}',
             'is_update': True,
@@ -446,11 +461,13 @@ class EmployeUpdateView(GroupRequiredMixin, View):
         employe = self._get(pk)
         avant = model_to_dict(employe)
         user_form = UserUpdateForm(request.POST, instance=employe.user)
-        employe_form = EmployeForm(request.POST, request.FILES, instance=employe)
+        employe_form = EmployeForm(request.POST, request.FILES, instance=employe, hide_matricule_service=True)
         if user_form.is_valid() and employe_form.is_valid():
             with transaction.atomic():
-                user_form.save()
+                user = user_form.save()
                 employe_form.save()
+            if user.pk == request.user.pk:
+                update_session_auth_hash(request, user)
             log_audit(
                 AuditAction.UPDATE, f'Modification employé {employe.user.get_full_name()}',
                 table='Employe', record_id=employe.pk, old_value=avant, new_value=model_to_dict(employe),
@@ -471,13 +488,20 @@ class EmployeDeleteView(GroupRequiredMixin, View):
     template_name = 'administration/employe/confirm_delete.html'
 
     def _get(self, pk):
-        return get_object_or_404(Employe.objects.select_related('user'), pk=pk)
+        return Employe.objects.select_related('user').filter(pk=pk).first()
 
     def get(self, request, pk):
-        return render(request, self.template_name, {'employe': self._get(pk)})
+        employe = self._get(pk)
+        if employe is None:
+            messages.info(request, 'Cet employé a déjà été supprimé.')
+            return redirect('administration:employe-list')
+        return render(request, self.template_name, {'employe': employe})
 
     def post(self, request, pk):
         employe = self._get(pk)
+        if employe is None:
+            messages.info(request, 'Cet employé a déjà été supprimé.')
+            return redirect('administration:employe-list')
         user = employe.user
         nom = user.get_full_name()
         avant = model_to_dict(employe)
@@ -562,7 +586,7 @@ class TransactionListView(GroupRequiredMixin, View):
         # ── Données pour les listes déroulantes ───────────────────
         users_list = (
             User.objects
-            .filter(transactions__isnull=False)
+            .filter(groups__name__in=['Administration', 'Commercial', 'Production'])
             .distinct()
             .order_by('last_name', 'first_name')
         )
@@ -797,12 +821,13 @@ class TransfereDeleteView(GroupRequiredMixin, View):
     template_name = 'administration/transfere/confirm_delete.html'
 
     def _get(self, pk):
-        return get_object_or_404(
-            Transfere.objects.select_related('compte_source', 'compte_destination'), pk=pk,
-        )
+        return Transfere.objects.select_related('compte_source', 'compte_destination').filter(pk=pk).first()
 
     def get(self, request, pk):
         transfere = self._get(pk)
+        if transfere is None:
+            messages.info(request, 'Ce transfert a déjà été supprimé.')
+            return redirect('administration:transfere-list')
         if transfere.a_transactions_soldees():
             messages.error(
                 request,
@@ -814,6 +839,9 @@ class TransfereDeleteView(GroupRequiredMixin, View):
 
     def post(self, request, pk):
         transfere = self._get(pk)
+        if transfere is None:
+            messages.info(request, 'Ce transfert a déjà été supprimé.')
+            return redirect('administration:transfere-list')
         if transfere.a_transactions_soldees():
             messages.error(
                 request,
@@ -875,13 +903,18 @@ class TransfereListView(GroupRequiredMixin, View):
         # ── Données pour les listes déroulantes ───────────────────
         operateurs_list = (
             User.objects
-            .filter(transferts_emis__isnull=False)
+            .filter(groups__name__in=['Administration', 'Commercial', 'Production'])
             .distinct()
             .order_by('last_name', 'first_name')
         )
         libelles_list = _libelles_transfere_distincts()
-        # Comptes proposés dans les selects Opérateur/Receveur de chaque ligne
-        users_list = User.objects.filter(is_active=True).order_by('last_name', 'first_name')
+        # Comptes proposés dans les selects Compte source/Compte destination de chaque ligne
+        users_list = (
+            User.objects
+            .filter(groups__name__in=['Administration', 'Commercial', 'Production'])
+            .distinct()
+            .order_by('last_name', 'first_name')
+        )
 
         # ── Pagination ────────────────────────────────────────────
         paginator = Paginator(qs, self.PAGINATE_BY)
@@ -1100,10 +1133,13 @@ class RuptureStockView(GroupRequiredMixin, View):
             if r['manque'] > 0
         ]
 
-        # ── Nouvelle partie : commandes internes de la période (avant la 1) ─
+        # ── Nouvelle partie : commandes internes de la période non encore produites ─
         commandes_internes_periode = (
             CommandeInterne.objects
-            .filter(livraison_at__gte=date_debut, livraison_at__lte=date_fin)
+            .filter(
+                livraison_at__gte=date_debut, livraison_at__lte=date_fin,
+                is_stock_maj=False, is_completed=False,
+            )
             .select_related('recette__produit')
             .order_by('livraison_at')
         )
@@ -2069,6 +2105,66 @@ class ChiffreAffaireParZoneView(GroupRequiredMixin, View):
 LIBELLE_MISE_A_JOUR_SOLDE = 'Mise à jour solde compte'
 
 
+class HistoriqueSoldeCompteListView(GroupRequiredMixin, View):
+    """Page « Liste des soldes comptes caisses des Employés » : Section 1
+    (filtres — Date début par défaut aujourd'hui - 6 jours, Date fin par
+    défaut aujourd'hui, Employé : liste déroulante de tous les utilisateurs
+    actifs tous groupes confondus, « — Tous les users — » par défaut).
+    Section 2 : tableau des HistoriqueSoldeCompte filtrés sur solde_at dans
+    [Date début, Date fin] et, si renseigné, sur Employé, trié par date de
+    solde décroissante, paginé (10 lignes), tous les champs verrouillés
+    (Date, Employé, Solde caisse calculé, Solde caisse réel — en rouge si
+    différent du calculé —, Observation) ; le champ Administration (admin)
+    n'est pas affiché dans le tableau. Le bouton « + Ajout d'une mise à jour
+    du solde compte caisse » ouvre administration/solde-caisse/.
+    « Visualiser » est une action à développer ultérieurement."""
+    group_required = 'Administration'
+    template_name = 'administration/historique_solde_compte/list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str   = request.GET.get('date_fin', '').strip()
+        user_id        = request.GET.get('user_id', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        qs = HistoriqueSoldeCompte.objects.select_related('user').filter(
+            solde_at__gte=date_debut, solde_at__lte=date_fin,
+        )
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        qs = qs.order_by('-solde_at', '-pk')
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        users_list = User.objects.filter(is_active=True).order_by('last_name', 'first_name')
+
+        return render(request, self.template_name, {
+            'page_obj':     page_obj,
+            'is_paginated': page_obj.has_other_pages(),
+            'lignes':       page_obj.object_list,
+            'total_count':  paginator.count,
+            'date_debut':   date_debut_str,
+            'date_fin':     date_fin_str,
+            'user_id':      user_id,
+            'users_list':   users_list,
+        })
+
+
 class SoldeCaisseView(GroupRequiredMixin, View):
     """« Mise à jour du solde compte caisse » : pour l'employé sélectionné en
     Section 1 (tous les utilisateurs actifs sauf l'utilisateur connecté),
@@ -2099,8 +2195,8 @@ class SoldeCaisseView(GroupRequiredMixin, View):
        saisies (correction_solde, observation) préservées.
 
     La Section 4 ajoute un Transfere dont le compte source et le compte
-    destinataire sont choisis parmi tous les utilisateurs actifs, tous
-    groupes confondus, avec deux contraintes :
+    destinataire sont choisis parmi les utilisateurs actifs des groupes
+    Administration, Commercial et Production, avec deux contraintes :
     - le compte destinataire exclut l'utilisateur déjà choisi comme compte
       source (et vice versa), pour qu'ils soient toujours différents ;
     - l'un des deux (compte source OU compte destinataire) doit
@@ -2126,7 +2222,12 @@ class SoldeCaisseView(GroupRequiredMixin, View):
         return User.objects.filter(is_active=True).exclude(pk=request.user.pk).order_by('last_name', 'first_name')
 
     def _comptes_users_list(self):
-        return User.objects.filter(is_active=True).order_by('last_name', 'first_name')
+        return (
+            User.objects
+            .filter(is_active=True, groups__name__in=['Administration', 'Commercial', 'Production'])
+            .distinct()
+            .order_by('last_name', 'first_name')
+        )
 
     def _transactions_non_soldees(self, compte_employe, solde_at):
         return (

@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends "administration/base.html" %}
 
 {% block title %}Modifier achat — Commercial{% endblock %}
 {% block page_title %}Modification de l'enregistrement Achat des matières premières{% endblock %}
@@ -6,7 +6,7 @@
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:achat-list' %}">Achats</a></li>
     <li class="breadcrumb-item active">Modifier</li>
   </ol>

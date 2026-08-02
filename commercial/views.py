@@ -38,7 +38,7 @@ LIBELLE_PAIEMENT_ANCIEN_ACHAT = 'Paiement ancien achat matière première'
 
 
 class HomeView(GroupRequiredMixin, TemplateView):
-    group_required = 'Commercial'
+    group_required = ['Administration', 'Commercial']
     template_name = 'commercial/home.html'
 
 
@@ -412,7 +412,10 @@ class ClientDeleteView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
-        client = get_object_or_404(_client_queryset_for_user(request.user), pk=pk)
+        client = _client_queryset_for_user(request.user).filter(pk=pk).first()
+        if client is None:
+            messages.info(request, 'Ce client a déjà été supprimé.')
+            return redirect('commercial:client-list')
         nom = str(client)
 
         if not _is_administration(request.user):
@@ -722,7 +725,7 @@ class BonLivraisonListView(GroupRequiredMixin, View):
             zones_list = Zone.objects.filter(clients__in=clients_scope).distinct().order_by('nom')
 
         commerciaux_list = (
-            User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+            User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
             if is_admin else None
         )
 
@@ -798,9 +801,10 @@ class BonLivraisonDeleteView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
-        bl = get_object_or_404(
-            BonLivraison.objects.select_related('bon_livraison_code'), pk=pk,
-        )
+        bl = BonLivraison.objects.select_related('bon_livraison_code').filter(pk=pk).first()
+        if bl is None:
+            messages.info(request, 'Ce bon de livraison a déjà été supprimé.')
+            return redirect('commercial:bon-livraison-list')
         code = bl.bon_livraison_code
         numero = str(code)
 
@@ -867,7 +871,7 @@ class BonLivraisonUpdateView(GroupRequiredMixin, View):
             clients_qs = Client.objects.select_related('zone').order_by('raison_sociale')
             zones_qs = Zone.objects.order_by('nom')
             client_users_qs = ClientUser.objects.all()
-            commerciaux_list = User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+            commerciaux_list = User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
         else:
             clients_scope = _client_queryset_for_user(request.user)
             clients_qs = clients_scope.select_related('zone').order_by('raison_sociale')
@@ -1086,7 +1090,7 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
         today = date.today()
 
         if is_admin:
-            commerciaux_list = User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+            commerciaux_list = User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
             clients_qs = Client.objects.order_by('raison_sociale')
             zones_qs = Zone.objects.order_by('nom')
             client_users_qs = ClientUser.objects.all()
@@ -1097,7 +1101,7 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
             zones_qs = Zone.objects.filter(clients__in=clients_scope).distinct().order_by('nom')
             client_users_qs = ClientUser.objects.filter(user=request.user)
 
-        produits_list = Produit.objects.order_by('nom')
+        produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
 
         context = {
             'is_administration':     is_admin,
@@ -1541,7 +1545,7 @@ class BonSortieListView(GroupRequiredMixin, View):
 
         commerciaux_list = (
             None if is_commercial
-            else User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+            else User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
         )
 
         paginator = Paginator(qs, self.PAGINATE_BY)
@@ -1628,7 +1632,7 @@ class BonRestitutionListView(GroupRequiredMixin, View):
 
         commerciaux_list = (
             None if is_commercial
-            else User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+            else User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
         )
 
         paginator = Paginator(qs, self.PAGINATE_BY)
@@ -1951,11 +1955,17 @@ class BonRestitutionDeleteView(GroupRequiredMixin, View):
     _erreur_suppression_bon_restitution pour la condition bloquante — un bon
     déjà soldé ne peut être supprimé). Ordre de suppression : BonRestitutionDetaille
     puis BonRestitution, dans une transaction atomique. En cas d'échec (de
-    validation ou d'écriture), rien n'est supprimé."""
+    validation ou d'écriture), rien n'est supprimé. Suppression idempotente :
+    si le bon n'existe déjà plus (ex. rejouée depuis une page en cache après
+    une première suppression), un simple message informatif est affiché au
+    lieu de lever une Http404."""
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
-        bon_restitution = get_object_or_404(BonRestitution, pk=pk)
+        bon_restitution = BonRestitution.objects.filter(pk=pk).first()
+        if bon_restitution is None:
+            messages.info(request, 'Ce bon de restitution a déjà été supprimé.')
+            return redirect('commercial:bon-restitution-list')
         reference = str(bon_restitution)
 
         erreur = _erreur_suppression_bon_restitution(bon_restitution)
@@ -1990,8 +2000,8 @@ class BonRestitutionDeleteView(GroupRequiredMixin, View):
 class BonRestitutionUpdateView(GroupRequiredMixin, View):
     """Formulaire « Modification d'un bon de restitution » : Section 1
     (Commercial — visible et modifiable si l'utilisateur connecté n'est pas
-    du groupe Commercial, choisi parmi les utilisateurs actifs dont l'Employe
-    lié a service="Commercial" ; masqué et verrouillé sur soi-même sinon ;
+    du groupe Commercial, choisi parmi les utilisateurs actifs appartenant au
+    groupe Commercial ; masqué et verrouillé sur soi-même sinon ;
     Date, modifiable, jamais postérieure à aujourd'hui). Section 2 : lignes
     de détail existantes (Produit modifiable parmi les produits non
     semi-finis, Quantité modifiable, bouton Supprimer) préremplies depuis la
@@ -2002,7 +2012,7 @@ class BonRestitutionUpdateView(GroupRequiredMixin, View):
     Le bouton « Enregistrer les modifications » (voir post()) valide, dans
     l'ordre : le bon ne doit pas déjà être soldé (historique_stock_initial
     IS NULL, voir _erreur_suppression_bon_restitution) ; Commercial défini,
-    actif, et lié à un Employe de service Commercial ; Date définie et <=
+    actif, et du groupe Commercial ; Date définie et <=
     aujourd'hui ; au moins une ligne valide (Produit et Quantité définis,
     Quantité > 0) entre la Section 2 et la Section 3. En cas de succès, dans
     une transaction.atomic() : mise à jour de BonRestitution (user,
@@ -2020,7 +2030,7 @@ class BonRestitutionUpdateView(GroupRequiredMixin, View):
     def _comptes_commerciaux_actifs(self):
         return (
             User.objects
-            .filter(is_active=True, employes__service='Commercial')
+            .filter(is_active=True, groups__name='Commercial')
             .distinct()
             .order_by('last_name', 'first_name')
         )
@@ -2089,7 +2099,7 @@ class BonRestitutionUpdateView(GroupRequiredMixin, View):
         if (
             not commercial_id or not commercial_id.isdigit()
             or not User.objects.filter(
-                pk=commercial_id, is_active=True, employes__service='Commercial',
+                pk=commercial_id, is_active=True, groups__name='Commercial',
             ).exists()
         ):
             return _echec('Le bon de restitution doit être lié à un commercial actif.')
@@ -2217,7 +2227,7 @@ class BonSortieCreateView(GroupRequiredMixin, View):
 
         commerciaux_list = (
             None if is_commercial
-            else User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+            else User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
         )
         produits_list = Produit.objects.order_by('nom')
 
@@ -2339,7 +2349,10 @@ class BonSortieDeleteView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
-        bon_sortie = get_object_or_404(BonSortie, pk=pk)
+        bon_sortie = BonSortie.objects.filter(pk=pk).first()
+        if bon_sortie is None:
+            messages.info(request, 'Ce bon de sortie a déjà été supprimé.')
+            return redirect('commercial:bon-sortie-list')
         reference = str(bon_sortie)
 
         erreur = _erreur_suppression_bon_sortie(bon_sortie)
@@ -2374,8 +2387,8 @@ class BonSortieDeleteView(GroupRequiredMixin, View):
 class BonSortieUpdateView(GroupRequiredMixin, View):
     """Formulaire « Modification d'un bon de sortie » : Section 1
     (Commercial — visible et modifiable si l'utilisateur connecté n'est pas
-    du groupe Commercial, choisi parmi les utilisateurs actifs dont l'Employe
-    lié a service="Commercial" ; masqué et verrouillé sur soi-même sinon ;
+    du groupe Commercial, choisi parmi les utilisateurs actifs appartenant au
+    groupe Commercial ; masqué et verrouillé sur soi-même sinon ;
     Date, modifiable, jamais postérieure à aujourd'hui). Section 2 : lignes
     de détail existantes (Produit modifiable parmi les produits non
     semi-finis, Quantité modifiable, bouton Supprimer) préremplies depuis la
@@ -2386,7 +2399,7 @@ class BonSortieUpdateView(GroupRequiredMixin, View):
     Le bouton « Enregistrer les modifications » (voir post()) valide, dans
     l'ordre : le bon ne doit pas déjà être soldé (historique_stock_initial
     IS NULL, voir _erreur_suppression_bon_sortie) ; Commercial défini, actif,
-    et lié à un Employe de service Commercial ; Date définie et <=
+    et du groupe Commercial ; Date définie et <=
     aujourd'hui ; au moins une ligne valide (Produit et Quantité définis,
     Quantité > 0) entre la Section 2 et la Section 3. En cas de succès, dans
     une transaction.atomic() : mise à jour de BonSortie (user, sortie_at),
@@ -2403,7 +2416,7 @@ class BonSortieUpdateView(GroupRequiredMixin, View):
     def _comptes_commerciaux_actifs(self):
         return (
             User.objects
-            .filter(is_active=True, employes__service='Commercial')
+            .filter(is_active=True, groups__name='Commercial')
             .distinct()
             .order_by('last_name', 'first_name')
         )
@@ -2472,7 +2485,7 @@ class BonSortieUpdateView(GroupRequiredMixin, View):
         if (
             not commercial_id or not commercial_id.isdigit()
             or not User.objects.filter(
-                pk=commercial_id, is_active=True, employes__service='Commercial',
+                pk=commercial_id, is_active=True, groups__name='Commercial',
             ).exists()
         ):
             return _echec('Le bon de sortie doit être lié à un commercial actif.')
@@ -2540,10 +2553,9 @@ class HistoriqueStockInitialListView(GroupRequiredMixin, View):
     filtrée par commercial : verrouillée sur l'utilisateur connecté (champ
     masqué) s'il appartient au groupe Commercial, sinon un filtre déroulant
     (par défaut « tous les commerciaux », limité aux utilisateurs actifs
-    dont l'Employe lié a service="Commercial") est proposé. Triée par date
-    de mise à jour décroissante, paginée à 10 lignes. « Visualiser » et
-    « + Nouvelle mise à jour » sont des actions à développer ultérieurement
-    (placeholders)."""
+    appartenant au groupe Commercial) est proposé. Triée par date
+    de mise à jour décroissante, paginée à 10 lignes. « Visualiser » ouvre
+    HistoriqueStockInitialDetailPopupView en pop-up (AJAX)."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/historique_stock_initial/list.html'
     PAGINATE_BY = 10
@@ -2587,7 +2599,7 @@ class HistoriqueStockInitialListView(GroupRequiredMixin, View):
         commerciaux_list = (
             None if is_commercial
             else User.objects.filter(
-                is_active=True, employes__service='Commercial',
+                is_active=True, groups__name='Commercial',
             ).distinct().order_by('last_name', 'first_name')
         )
 
@@ -2603,6 +2615,275 @@ class HistoriqueStockInitialListView(GroupRequiredMixin, View):
             'date_fin':         date_fin_str,
             'commercial_id':    commercial_id,
             'commerciaux_list': commerciaux_list,
+        })
+
+
+class HistoriqueStockInitialDetailPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Les quantités
+    de produits conservées en stock chez le commercial ») déclenché par le
+    bouton Visualiser de la liste des mises à jour de stock — Section 1
+    (Commercial, si l'utilisateur connecté n'est pas du groupe Commercial ;
+    Date de mise à jour) et Section 2 (HistoriqueStockInitialDetaille de
+    l'enregistrement, Produit/Stock calculé/Stock réel — en rouge si
+    différent du calculé —/Observation, lecture seule)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/historique_stock_initial/detail_popup.html'
+
+    def get(self, request, pk):
+        hist = get_object_or_404(HistoriqueStockInitial.objects.select_related('user'), pk=pk)
+        return render(request, self.template_name, {
+            'is_commercial': _is_commercial(request.user),
+            'hist':          hist,
+            'details':       hist.details.select_related('produit').order_by('pk'),
+        })
+
+
+class StockCommercialActuelView(GroupRequiredMixin, View):
+    """Page « Les quantités de produits actuellement conservées en stock chez
+    le commercial » : Section 1 (Commercial — verrouillé sur l'utilisateur
+    connecté, champ masqué, s'il appartient au groupe Commercial, sinon
+    liste déroulante des utilisateurs actifs du groupe Commercial,
+    « - choisir un commercial » par défaut ; Date verrouillée sur
+    aujourd'hui). Section 2 : mêmes quatre requêtes que
+    BonRestitutionDefaultsView (Q1 dernier HistoriqueStockInitial du
+    commercial, indépendant de la date ; Q2 _quantite_bons_sortie_non_soldes ;
+    Q3 _quantite_livree_non_soldee ; Q4 _quantite_restituee_non_soldee,
+    toutes bornées à aujourd'hui), calculée entièrement côté serveur (pas
+    d'AJAX ici, contrairement à bons-restitution/nouveau/, puisque rien
+    n'est saisi sur cette page). Tous les champs sont en lecture seule.
+    Section 3 : boutons Bons de sortie / Bons de livraison / Bons de
+    restitution, ouvrant chacun en pop-up (AJAX) BonSortieNonSoldesPopupView /
+    BonLivraisonNonSoldesPopupView / BonRestitutionNonSoldesPopupView,
+    désactivés tant qu'aucun commercial n'est choisi."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/stock_commercial_actuel/list.html'
+
+    def get(self, request):
+        is_commercial = _is_commercial(request.user)
+        today = date.today()
+
+        commercial_id = str(request.user.pk) if is_commercial else request.GET.get('user_id', '').strip()
+
+        lignes = []
+        if commercial_id and commercial_id.isdigit():
+            hist = (
+                HistoriqueStockInitial.objects
+                .filter(user_id=commercial_id)
+                .order_by('-stock_initial_at')
+                .first()
+            )
+            quantite_initiale = {}
+            if hist is not None:
+                quantite_initiale = {
+                    row['produit_id']: row['total'] or 0
+                    for row in (
+                        hist.details.exclude(produit__isnull=True)
+                        .values('produit_id').annotate(total=Sum('reel_stock'))
+                    )
+                }
+
+            quantite_sortie = _quantite_bons_sortie_non_soldes(commercial_id, today)
+            quantite_livree = _quantite_livree_non_soldee(commercial_id, today)
+            quantite_deja_restituee = _quantite_restituee_non_soldee(commercial_id, today)
+
+            produit_ids = (
+                set(quantite_initiale) | set(quantite_sortie)
+                | set(quantite_livree) | set(quantite_deja_restituee)
+            )
+            produits_par_id = {p.pk: p.nom for p in Produit.objects.filter(pk__in=produit_ids)}
+
+            for pid in produit_ids:
+                qi = Decimal(quantite_initiale.get(pid, 0))
+                qs = Decimal(quantite_sortie.get(pid, 0))
+                ql = Decimal(quantite_livree.get(pid, 0))
+                qr = Decimal(quantite_deja_restituee.get(pid, 0))
+                lignes.append({
+                    'produit_nom':             produits_par_id.get(pid, '—'),
+                    'quantite_initiale':       qi,
+                    'quantite_sortie':         qs,
+                    'quantite_livree':         ql,
+                    'quantite_deja_restituee': qr,
+                    'reste_calcule':           qi + qs - ql - qr,
+                })
+            lignes.sort(key=lambda l: l['produit_nom'])
+
+        commerciaux_list = (
+            None if is_commercial
+            else User.objects.filter(
+                is_active=True, groups__name='Commercial',
+            ).distinct().order_by('last_name', 'first_name')
+        )
+
+        return render(request, self.template_name, {
+            'is_commercial':    is_commercial,
+            'commercial_id':    commercial_id,
+            'commerciaux_list': commerciaux_list,
+            'today':            today.isoformat(),
+            'lignes':           lignes,
+        })
+
+
+class BonSortieNonSoldesPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Les bons de
+    sortie non soldés ») déclenché par le bouton « Bons de sortie » de la
+    page Stock commercial actuel. Section 1 : BonSortie du commercial
+    (commercial_id, que le champ soit visible ou non sur la page d'origine)
+    dont historique_stock_initial IS NULL et sortie_at <= la date de
+    référence (date_ref), paginés UN enregistrement à la fois (Commercial,
+    si l'utilisateur connecté n'est pas du groupe Commercial ; Date).
+    Section 1-1 : BonSortieDetaille du BonSortie actuellement affiché
+    (Produit, Qté), sans paginateur propre."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/stock_commercial_actuel/bon_sortie_popup.html'
+
+    def get(self, request):
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        date_ref_str = request.GET.get('date_ref', '').strip()
+
+        try:
+            date_ref = date.fromisoformat(date_ref_str)
+        except ValueError:
+            date_ref = date.today()
+
+        qs = BonSortie.objects.none()
+        if commercial_id and commercial_id.isdigit():
+            qs = (
+                BonSortie.objects
+                .filter(user_id=commercial_id, sortie_at__lte=date_ref, historique_stock_initial__isnull=True)
+                .select_related('user')
+                .order_by('sortie_at', 'pk')
+            )
+
+        paginator = Paginator(qs, 1)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        bon_sortie = page_obj.object_list[0] if page_obj.object_list else None
+        details = (
+            bon_sortie.details.select_related('produit').order_by('pk')
+            if bon_sortie is not None else BonSortieDetaille.objects.none()
+        )
+
+        return render(request, self.template_name, {
+            'is_commercial': _is_commercial(request.user),
+            'commercial_id': commercial_id,
+            'date_ref':      date_ref.isoformat(),
+            'page_obj':      page_obj,
+            'bon_sortie':    bon_sortie,
+            'details':       details,
+            'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
+        })
+
+
+class BonRestitutionNonSoldesPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Les bons de
+    restitution non soldés ») déclenché par le bouton « Bons de restitution »
+    de la page Stock commercial actuel. Même principe que
+    BonSortieNonSoldesPopupView, pour BonRestitution/BonRestitutionDetaille
+    (Date = restitution_at)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/stock_commercial_actuel/bon_restitution_popup.html'
+
+    def get(self, request):
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        date_ref_str = request.GET.get('date_ref', '').strip()
+
+        try:
+            date_ref = date.fromisoformat(date_ref_str)
+        except ValueError:
+            date_ref = date.today()
+
+        qs = BonRestitution.objects.none()
+        if commercial_id and commercial_id.isdigit():
+            qs = (
+                BonRestitution.objects
+                .filter(user_id=commercial_id, restitution_at__lte=date_ref, historique_stock_initial__isnull=True)
+                .select_related('user')
+                .order_by('restitution_at', 'pk')
+            )
+
+        paginator = Paginator(qs, 1)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        bon_restitution = page_obj.object_list[0] if page_obj.object_list else None
+        details = (
+            bon_restitution.details.select_related('produit').order_by('pk')
+            if bon_restitution is not None else BonRestitutionDetaille.objects.none()
+        )
+
+        return render(request, self.template_name, {
+            'is_commercial':   _is_commercial(request.user),
+            'commercial_id':   commercial_id,
+            'date_ref':        date_ref.isoformat(),
+            'page_obj':        page_obj,
+            'bon_restitution': bon_restitution,
+            'details':         details,
+            'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
+        })
+
+
+class BonLivraisonNonSoldesPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Les bons de
+    livraison non soldés ») déclenché par le bouton « Bons de livraison » de
+    la page Stock commercial actuel. Section 1 : BonLivraisonCode dont un
+    BonLivraison lié appartient au commercial (commercial_id, que le champ
+    soit visible ou non sur la page d'origine), hist_stock_initial IS NULL
+    et bon_livraison_at <= la date de référence (date_ref), paginés UN
+    enregistrement à la fois (Client, Date, Numéro). Section 1-1 : DERNIER
+    BonLivraison lié au BonLivraisonCode actuellement affiché (Commercial,
+    si l'utilisateur connecté n'est pas du groupe Commercial ; Montant
+    total ; Reste à payer), sans paginateur propre. Section 1-1-1 :
+    BonLivraisonDetaille de ce dernier BonLivraison (Produit, Qté, Prix,
+    Total ligne), sans paginateur."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/stock_commercial_actuel/bon_livraison_popup.html'
+
+    def get(self, request):
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        date_ref_str = request.GET.get('date_ref', '').strip()
+
+        try:
+            date_ref = date.fromisoformat(date_ref_str)
+        except ValueError:
+            date_ref = date.today()
+
+        qs = BonLivraisonCode.objects.none()
+        if commercial_id and commercial_id.isdigit():
+            qs = (
+                BonLivraisonCode.objects
+                .filter(
+                    bons_livraison__user_id=commercial_id,
+                    bon_livraison_at__lte=date_ref,
+                    hist_stock_initial__isnull=True,
+                )
+                .select_related('client')
+                .distinct()
+                .order_by('bon_livraison_at', 'pk')
+            )
+
+        paginator = Paginator(qs, 1)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+        code = page_obj.object_list[0] if page_obj.object_list else None
+
+        dernier_bl = None
+        details = BonLivraisonDetaille.objects.none()
+        if code is not None:
+            dernier_bl = (
+                BonLivraison.objects.filter(bon_livraison_code=code)
+                .select_related('user').order_by('-id').first()
+            )
+            if dernier_bl is not None:
+                details = dernier_bl.details.select_related('produit').order_by('pk')
+
+        return render(request, self.template_name, {
+            'is_commercial': _is_commercial(request.user),
+            'commercial_id': commercial_id,
+            'date_ref':      date_ref.isoformat(),
+            'page_obj':      page_obj,
+            'code':          code,
+            'dernier_bl':    dernier_bl,
+            'details':       details,
+            'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
         })
 
 
@@ -2693,7 +2974,7 @@ class HistoriqueStockInitialCreateView(GroupRequiredMixin, View):
     """Formulaire « Mise à jour des stocks de produits chez le commercial » :
     Section 1 (Commercial — verrouillé sur l'utilisateur connecté, champ
     masqué, s'il appartient au groupe Commercial, sinon liste déroulante des
-    commerciaux actifs dont l'Employe lié a service="Commercial",
+    utilisateurs actifs appartenant au groupe Commercial,
     « -Choisir- » ; Date de mise à jour, par défaut aujourd'hui, jamais
     postérieure à aujourd'hui). Section 2 entièrement peuplée côté client
     via HistoriqueStockInitialDefaultsView (AJAX), déclenché au chargement
@@ -2738,7 +3019,7 @@ class HistoriqueStockInitialCreateView(GroupRequiredMixin, View):
         commerciaux_list = (
             None if is_commercial
             else User.objects.filter(
-                is_active=True, employes__service='Commercial',
+                is_active=True, groups__name='Commercial',
             ).distinct().order_by('last_name', 'first_name')
         )
         produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
@@ -2986,7 +3267,10 @@ class FournisseurDeleteView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
-        fournisseur = get_object_or_404(Fournisseur, pk=pk)
+        fournisseur = Fournisseur.objects.filter(pk=pk).first()
+        if fournisseur is None:
+            messages.info(request, 'Ce fournisseur a déjà été supprimé.')
+            return redirect('commercial:fournisseur-list')
         nom = fournisseur.raison_sociale
 
         if not _is_administration(request.user):
@@ -3015,7 +3299,7 @@ class FournisseurDeleteView(GroupRequiredMixin, View):
 
 
 class AchatListView(GroupRequiredMixin, View):
-    group_required = 'Commercial'
+    group_required = 'Administration'
     template_name = 'commercial/achat/list.html'
     PAGINATE_BY = 25
 
@@ -3100,7 +3384,7 @@ class AchatNumeroSuivantView(GroupRequiredMixin, View):
     """Petit point d'entrée AJAX utilisé par le template Nouveau achat : à
     chaque changement du champ Date achat, recalcule le Numéro achat suivant
     pour cette date (nombre d'AchatCode existants ce jour-là + 1)."""
-    group_required = 'Commercial'
+    group_required = 'Administration'
 
     def get(self, request):
         achat_at_str = request.GET.get('achat_at', '').strip()
@@ -3165,7 +3449,7 @@ class AchatCreateView(GroupRequiredMixin, View):
     _achat_create_context() pour l'affichage et post() pour l'enregistrement
     (validations puis écriture atomique — AchatCode, Achat, AchatDetaille,
     Transaction caisse)."""
-    group_required = 'Commercial'
+    group_required = 'Administration'
     template_name = 'commercial/achat/create.html'
 
     def get(self, request):
@@ -3399,14 +3683,15 @@ class AchatDeleteView(GroupRequiredMixin, View):
     (plancher zéro) de MatierePremiere.quantite pour chaque ligne de détail,
     suppression des AchatDetaille puis de l'Achat, puis de l'AchatCode (la
     condition 2 garantit qu'aucun autre Achat n'en dépend encore)."""
-    group_required = 'Commercial'
+    group_required = 'Administration'
     template_name = 'commercial/achat/delete.html'
     PAGINATE_DETAILS = 4
 
     def get(self, request, pk):
-        achat = get_object_or_404(
-            Achat.objects.select_related('achat_code__fournisseur'), pk=pk,
-        )
+        achat = Achat.objects.select_related('achat_code__fournisseur').filter(pk=pk).first()
+        if achat is None:
+            messages.info(request, 'Cet achat a déjà été supprimé.')
+            return redirect('commercial:achat-list')
         fournisseurs_list = (
             Fournisseur.objects
             .filter(type_fournisseur=FOURNISSEUR_TYPE_ACHAT)
@@ -3434,7 +3719,10 @@ class AchatDeleteView(GroupRequiredMixin, View):
         })
 
     def post(self, request, pk):
-        achat = get_object_or_404(Achat.objects.select_related('achat_code'), pk=pk)
+        achat = Achat.objects.select_related('achat_code').filter(pk=pk).first()
+        if achat is None:
+            messages.info(request, 'Cet achat a déjà été supprimé.')
+            return redirect('commercial:achat-list')
         achat_code = achat.achat_code
         numero = str(achat_code)
 
@@ -3599,7 +3887,7 @@ class AchatUpdateView(GroupRequiredMixin, View):
     ce même achat_code_id (ses AchatDetaille existants) est d'abord annulée
     (décrément, plancher zéro) — sinon les quantités achetées seraient
     comptées deux fois."""
-    group_required = 'Commercial'
+    group_required = 'Administration'
     template_name = 'commercial/achat/update.html'
 
     def get(self, request, pk):
@@ -3946,7 +4234,10 @@ class DepenseDeleteView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
-        depense = get_object_or_404(Depense.objects.select_related('depense_code'), pk=pk)
+        depense = Depense.objects.select_related('depense_code').filter(pk=pk).first()
+        if depense is None:
+            messages.info(request, 'Cette dépense a déjà été supprimée.')
+            return redirect('commercial:depense-list')
         code = depense.depense_code
         numero = str(code)
 
@@ -4429,7 +4720,7 @@ class DepenseUpdateView(GroupRequiredMixin, View):
 # ─── Agenda ─────────────────────────────────────────────────────────────────
 
 def _agenda_commerciaux_list():
-    return User.objects.filter(groups__name='Commercial').order_by('last_name', 'first_name')
+    return User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
 
 
 class AgendaListView(GroupRequiredMixin, View):
@@ -4586,7 +4877,10 @@ class AgendaDeleteView(GroupRequiredMixin, View):
         qs = Agenda.objects.all()
         if not _is_administration(request.user):
             qs = qs.filter(user=request.user)
-        agenda = get_object_or_404(qs, pk=pk)
+        agenda = qs.filter(pk=pk).first()
+        if agenda is None:
+            messages.info(request, 'Cette action planifiée a déjà été supprimée.')
+            return redirect('commercial:agenda-list')
         avant = model_to_dict(agenda)
 
         try:

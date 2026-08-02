@@ -33,9 +33,9 @@
         </div>
 
         <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Utilisateur</label>
+          <label class="form-label small mb-1">Employé</label>
           <select name="user_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les utilisateurs —</option>
+            <option value="">— Tous les employés —</option>
             {% for u in users_list %}
             <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
               {{ u.get_full_name|default:u.username }}
@@ -120,7 +120,7 @@
         <thead class="table-light">
           <tr>
             <th class="ps-3">Date / Heure</th>
-            <th>Utilisateur</th>
+            <th>Employé</th>
             <th>Libellé</th>
             <th class="d-none">Référence</th>
             <th class="text-end">Montant (TND)</th>

@@ -1,13 +1,13 @@
-{% extends "commercial/base.html" %}
+{% extends "administration/base.html" %}
 
-{% block title %}Mises à jour des stocks commerciaux — Commercial{% endblock %}
-{% block page_title %}Mises à jour des stocks commerciaux{% endblock %}
+{% block title %}Soldes comptes caisses — Administration{% endblock %}
+{% block page_title %}Soldes comptes caisses{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Mises à jour des stocks commerciaux</li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Soldes comptes caisses</li>
   </ol>
 </nav>
 {% endblock %}
@@ -15,9 +15,9 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des mises à jour des stocks de produits chez les commerciaux</h4>
-  <a href="{% url 'commercial:historique-stock-initial-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouvelle mise à jour
+  <h4 class="mb-0 fw-bold">Liste des soldes comptes caisses des Employés</h4>
+  <a href="{% url 'administration:solde-caisse' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i> Ajout d'une mise à jour du solde compte caisse
   </a>
 </div>
 
@@ -39,22 +39,20 @@
                  class="form-control form-control-sm" data-autosubmit>
         </div>
 
-        {% if not is_commercial %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Employé</label>
+          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les users —</option>
+            {% for u in users_list %}
+            <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
               {{ u.get_full_name|default:u.username }}
             </option>
             {% endfor %}
           </select>
         </div>
-        {% endif %}
 
         <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:historique-stock-initial-list' %}"
+          <a href="{% url 'administration:solde-caisse-list' %}"
              class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
             <i class="bi bi-x-circle"></i> Réinitialiser
           </a>
@@ -73,30 +71,41 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            {% if not is_commercial %}
-            <th class="ps-3">Commercial</th>
-            {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %}>Date de mise à jour</th>
+            <th class="ps-3">Date</th>
+            <th>Employé</th>
+            <th>Solde caisse calculé</th>
+            <th>Solde caisse réel</th>
+            <th>Observation</th>
             <th class="text-center pe-3" style="width:100px">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for h in page_obj.object_list %}
           <tr>
-            {% if not is_commercial %}
             <td class="ps-3">
+              <input type="date" class="form-control form-control-sm"
+                     value="{{ h.solde_at|date:'Y-m-d' }}" disabled>
+            </td>
+            <td>
               <input type="text" class="form-control form-control-sm"
                      value="{{ h.user.get_full_name|default:h.user.username }}" disabled>
             </td>
-            {% endif %}
-            <td {% if is_commercial %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm"
-                     value="{{ h.stock_initial_at|date:'Y-m-d' }}" disabled>
+            <td>
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner font-monospace"
+                     value="{{ h.calcul_solde|stringformat:'s' }}" disabled>
+            </td>
+            <td>
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm no-spinner font-monospace{% if h.calcul_solde != h.correction_solde %} text-danger{% endif %}"
+                     value="{{ h.correction_solde|stringformat:'s' }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ h.observation|default:'' }}" disabled>
             </td>
             <td class="text-center pe-3">
               <div class="d-flex justify-content-center gap-1">
-                <button type="button" class="btn btn-sm btn-outline-secondary hsi-detail-btn"
-                        data-url="{% url 'commercial:historique-stock-initial-detail-popup' h.pk %}" title="Visualiser">
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Visualiser (à venir)">
                   <i class="bi bi-eye"></i>
                 </button>
               </div>
@@ -112,7 +121,7 @@
     <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
       <small class="text-muted">
         Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} mise{{ page_obj.paginator.count|pluralize }} à jour
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} enregistrement{{ page_obj.paginator.count|pluralize }}
       </small>
       <nav>
         <ul class="pagination pagination-sm mb-0">
@@ -120,7 +129,7 @@
           {% if page_obj.has_previous %}
           <li class="page-item">
             <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -132,7 +141,7 @@
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
               <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ num }}">
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&page={{ num }}">
                 {{ num }}
               </a>
             </li>
@@ -142,7 +151,7 @@
           {% if page_obj.has_next %}
           <li class="page-item">
             <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -155,34 +164,14 @@
 
     {% else %}
     <div class="text-center py-5 text-muted">
-      <i class="bi bi-boxes fs-1 d-block mb-2 opacity-25"></i>
-      Aucune mise à jour de stock sur la période
+      <i class="bi bi-wallet2 fs-1 d-block mb-2 opacity-25"></i>
+      Aucun solde compte caisse sur la période
       <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
       →
       <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if commercial_id %}avec ces filtres{% endif %}.
+      {% if user_id %}avec ces filtres{% endif %}.
     </div>
     {% endif %}
-  </div>
-</div>
-
-{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
-<div class="modal fade" id="hsi-detail-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Les quantités de produits conservées en stock chez le commercial</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body" id="hsi-detail-modal-body">
-        <div class="text-center py-4 text-muted">
-          <div class="spinner-border spinner-border-sm"></div> Chargement…
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -198,24 +187,5 @@ document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
     form.submit();
   });
 });
-
-// ── Pop-up « Détail » ───────────────────────────────────────────────────────
-(function () {
-  var modalEl = document.getElementById('hsi-detail-modal');
-  var modalBody = document.getElementById('hsi-detail-modal-body');
-  if (!modalEl || !modalBody) { return; }
-  var modal = new bootstrap.Modal(modalEl);
-
-  document.querySelectorAll('.hsi-detail-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
-        '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
-      modal.show();
-      fetch(btn.getAttribute('data-url')).then(function (r) { return r.text(); }).then(function (html) {
-        modalBody.innerHTML = html;
-      });
-    });
-  });
-})();
 </script>
 {% endblock %}

@@ -22,7 +22,7 @@
 
         <div class="col-sm-6 col-md-4 col-lg-3">
           <label class="form-label small mb-1">Gouvernorat</label>
-          <select name="gouvernorat" class="form-select form-select-sm" data-autosubmit>
+          <select name="gouvernorat" id="zone-filter-gouvernorat" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Tous les gouvernorats —</option>
             {% for g in gouvernorats_list %}
             <option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
@@ -32,10 +32,12 @@
 
         <div class="col-sm-6 col-md-4 col-lg-3">
           <label class="form-label small mb-1">Délégation</label>
-          <select name="delegation" class="form-select form-select-sm" data-autosubmit>
+          <select name="delegation" id="zone-filter-delegation" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Toutes les délégations —</option>
             {% for d in delegations_list %}
+            {% if not gouvernorat_id or gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
             <option value="{{ d.pk }}" {% if delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
+            {% endif %}
             {% endfor %}
           </select>
         </div>
@@ -132,7 +134,7 @@
 
           {% if page_obj.has_previous %}
           <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+            <a class="page-link" href="?gouvernorat={{ gouvernorat_id }}&delegation={{ delegation_id }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -143,14 +145,14 @@
             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+              <a class="page-link" href="?gouvernorat={{ gouvernorat_id }}&delegation={{ delegation_id }}&page={{ num }}">{{ num }}</a>
             </li>
             {% endif %}
           {% endfor %}
 
           {% if page_obj.has_next %}
           <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+            <a class="page-link" href="?gouvernorat={{ gouvernorat_id }}&delegation={{ delegation_id }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -243,9 +245,25 @@
 
 {% block extra_js %}
 <script>
+// Chaque changement de filtre déclenche un rechargement complet (data-autosubmit) :
+// le serveur recalcule déjà les options Délégation en cascade au rendu suivant
+// (voir la condition dans le select ci-dessus). On efface seulement la valeur du
+// champ enfant devenue incompatible avant de soumettre, pour éviter qu'une
+// ancienne délégation filtre silencieusement le nouveau gouvernorat.
+var gouvSelect = document.getElementById('zone-filter-gouvernorat');
+var delegSelect = document.getElementById('zone-filter-delegation');
+
 document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
   el.addEventListener('change', function () {
-    this.closest('form').submit();
+    var form = this.closest('form');
+
+    if (this === gouvSelect) {
+      delegSelect.value = '';
+    }
+
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) { pageInput.remove(); }
+    form.submit();
   });
 });
 </script>

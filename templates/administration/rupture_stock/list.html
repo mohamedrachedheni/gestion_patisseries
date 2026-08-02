@@ -53,10 +53,10 @@
   </div>
 </div>
 
-{# ── Commandes internes de la période ────────────────────────────────────── #}
+{# ── Commandes internes de la période non encore produites ───────────────── #}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-clipboard-check me-2 text-primary"></i>Commandes internes de la période
+    <i class="bi bi-clipboard-check me-2 text-primary"></i>Commandes internes de la période non encore produites
   </div>
   <div class="card-body p-0">
     {% if commandes_internes_periode %}
@@ -101,7 +101,8 @@
               </select>
             </td>
             <td class="text-end">
-              <input type="number" step="{% if ci.recette.unite == 'Pièce' %}1{% else %}0.001{% endif %}" min="0.001"
+              <input type="number" step="{% if ci.recette.unite == 'Pièce' %}1{% else %}0.001{% endif %}"
+                     min="{% if ci.recette.unite == 'Pièce' %}1{% else %}0.001{% endif %}"
                      name="quantite_commander"
                      value="{% if ci.recette.unite == 'Pièce' %}{{ ci.quantite_commander|default_if_none:'0'|floatformat:0 }}{% else %}{{ ci.quantite_commander|default_if_none:'0'|stringformat:'s' }}{% endif %}"
                      class="form-control form-control-sm text-end no-spinner"
@@ -298,9 +299,11 @@ document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
       if (quantiteInput) {
         if (unite === 'Pièce') {
           quantiteInput.step = '1';
+          quantiteInput.min = '1';
           quantiteInput.value = String(Math.round(parseFloat(quantiteInput.value) || 0));
         } else {
           quantiteInput.step = '0.001';
+          quantiteInput.min = '0.001';
         }
       }
     }

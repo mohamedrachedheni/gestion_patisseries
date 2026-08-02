@@ -45,9 +45,9 @@
         </div>
 
         <div class="col-sm-6 col-md-3 col-lg-3">
-          <label class="form-label small mb-1">Opérateur</label>
+          <label class="form-label small mb-1">Compte source</label>
           <select name="operateur_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les opérateurs —</option>
+            <option value="">— Tous les employés —</option>
             {% for u in operateurs_list %}
             <option value="{{ u.pk }}" {% if operateur_id == u.pk|stringformat:"s" %}selected{% endif %}>
               {{ u.get_full_name|default:u.username }}
@@ -88,9 +88,9 @@
           <tr>
             <th class="ps-3">Date transfert</th>
             <th>Libellé</th>
-            <th>Opérateur</th>
+            <th>Compte source</th>
             <th class="text-end">Montant (TND)</th>
-            <th>Receveur</th>
+            <th>Compte destination</th>
             <th class="text-center pe-3" style="width:100px">Actions</th>
           </tr>
         </thead>
@@ -106,7 +106,7 @@
                      list="libelles-transfere" autocomplete="off" value="{{ t.libelle }}">
             </td>
             <td>
-              <select class="form-select form-select-sm">
+              <select class="form-select form-select-sm compte-source-select">
                 {% for u in users_list %}
                 <option value="{{ u.pk }}" {% if u.pk == t.compte_source_id %}selected{% endif %}>
                   {{ u.get_full_name|default:u.username }}
@@ -120,7 +120,7 @@
                      value="{{ t.montant|stringformat:'s' }}">
             </td>
             <td>
-              <select class="form-select form-select-sm">
+              <select class="form-select form-select-sm compte-destination-select">
                 {% for u in users_list %}
                 <option value="{{ u.pk }}" {% if u.pk == t.compte_destination_id %}selected{% endif %}>
                   {{ u.get_full_name|default:u.username }}
@@ -214,6 +214,28 @@ document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
     if (pageInput) pageInput.remove();
     form.submit();
   });
+});
+
+// ── Compte destination : exclut la valeur choisie en Compte source (même ligne) ──
+document.querySelectorAll('tbody tr').forEach(function (row) {
+  var source = row.querySelector('.compte-source-select');
+  var destination = row.querySelector('.compte-destination-select');
+  if (!source || !destination) { return; }
+
+  function syncDestination() {
+    Array.prototype.forEach.call(destination.options, function (option) {
+      option.disabled = option.value === source.value;
+    });
+    if (destination.value === source.value) {
+      var premiereOptionValide = Array.prototype.find.call(
+        destination.options, function (option) { return !option.disabled; },
+      );
+      if (premiereOptionValide) { destination.value = premiereOptionValide.value; }
+    }
+  }
+
+  source.addEventListener('change', syncDestination);
+  syncDestination();
 });
 </script>
 {% endblock %}
