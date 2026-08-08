@@ -112,11 +112,11 @@ WSGI_APPLICATION = 'patisserie_management.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'gestion_patisseries',           # ✅ Votre base de données
-        'USER': 'admin',                          # ✅ L'utilisateur que vous venez de créer
-        'PASSWORD': 'Mrhssoc#patisseries',       # ✅ Le mot de passe que vous avez défini
-        'HOST': 'localhost',                     # ✅ MySQL sur le même serveur
-        'PORT': '3306',                          # ✅ Port par défaut
+        'NAME': config('DB_NAME', default='gestion_patisseries'),
+        'USER': config('DB_USER', default='admin'),
+        'PASSWORD': config('DB_PASSWORD', default='Mrhssoc#patisseries'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
