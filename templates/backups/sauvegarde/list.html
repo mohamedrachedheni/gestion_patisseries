@@ -25,8 +25,6 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="get" id="filter-form">
-      <input type="hidden" name="chiffre_soumis" value="1">
-      <input type="hidden" name="reussie_soumis" value="1">
       <div class="d-flex flex-nowrap align-items-end gap-3 overflow-auto">
 
         <div style="width:170px;flex:0 0 auto;">
@@ -37,16 +35,22 @@
           </select>
         </div>
 
-        <div class="form-check mb-1" style="flex:0 0 auto;">
-          <input type="checkbox" class="form-check-input" id="chiffre-check" name="chiffre"
-                 {% if chiffre_filtre %}checked{% endif %} data-autosubmit>
-          <label class="form-check-label small" for="chiffre-check">Chiffré</label>
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Chiffré</label>
+          <select name="chiffre" class="form-select form-select-sm" data-autosubmit>
+            <option value="" {% if chiffre_filtre == '' %}selected{% endif %}>-- Tous les enregistrement--</option>
+            <option value="oui" {% if chiffre_filtre == 'oui' %}selected{% endif %}>Chiffré</option>
+            <option value="non" {% if chiffre_filtre == 'non' %}selected{% endif %}>Non chiffré</option>
+          </select>
         </div>
 
-        <div class="form-check mb-1" style="flex:0 0 auto;">
-          <input type="checkbox" class="form-check-input" id="reussie-check" name="reussie"
-                 {% if reussie_filtre %}checked{% endif %} data-autosubmit>
-          <label class="form-check-label small" for="reussie-check">Réussie</label>
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Réussie</label>
+          <select name="reussie" class="form-select form-select-sm" data-autosubmit>
+            <option value="" {% if reussie_filtre == '' %}selected{% endif %}>-- Tous les enregistrement--</option>
+            <option value="oui" {% if reussie_filtre == 'oui' %}selected{% endif %}>Réussie</option>
+            <option value="non" {% if reussie_filtre == 'non' %}selected{% endif %}>Non réussie</option>
+          </select>
         </div>
 
         <div style="flex:0 0 auto;">
@@ -147,7 +151,7 @@
         <ul class="pagination pagination-sm mb-0">
           {% if page_obj.has_previous %}
           <li class="page-item">
-            <a class="page-link" href="?ordre={{ ordre }}&chiffre_soumis=1{% if chiffre_filtre %}&chiffre=on{% endif %}&reussie_soumis=1{% if reussie_filtre %}&reussie=on{% endif %}&page={{ page_obj.previous_page_number }}">
+            <a class="page-link" href="?ordre={{ ordre }}&chiffre={{ chiffre_filtre }}&reussie={{ reussie_filtre }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -157,7 +161,7 @@
             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
-              <a class="page-link" href="?ordre={{ ordre }}&chiffre_soumis=1{% if chiffre_filtre %}&chiffre=on{% endif %}&reussie_soumis=1{% if reussie_filtre %}&reussie=on{% endif %}&page={{ num }}">
+              <a class="page-link" href="?ordre={{ ordre }}&chiffre={{ chiffre_filtre }}&reussie={{ reussie_filtre }}&page={{ num }}">
                 {{ num }}
               </a>
             </li>
@@ -165,7 +169,7 @@
           {% endfor %}
           {% if page_obj.has_next %}
           <li class="page-item">
-            <a class="page-link" href="?ordre={{ ordre }}&chiffre_soumis=1{% if chiffre_filtre %}&chiffre=on{% endif %}&reussie_soumis=1{% if reussie_filtre %}&reussie=on{% endif %}&page={{ page_obj.next_page_number }}">
+            <a class="page-link" href="?ordre={{ ordre }}&chiffre={{ chiffre_filtre }}&reussie={{ reussie_filtre }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>

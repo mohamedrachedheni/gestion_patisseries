@@ -19,12 +19,12 @@ class SauvegardeListView(GroupRequiredMixin, View):
     """Liste des sauvegardes de la base de données (app dédiée « backups »,
     réservée au groupe Administration). Section 1 « Filtres » : tri par Date
     (croissant/décroissant, décroissant par défaut), Chiffré et Réussie
-    (cases à cocher, cochées par défaut — un champ caché « _soumis »
-    accompagne chaque case pour distinguer un premier chargement, où le
-    filtre par défaut s'applique, d'une soumission explicite où la case a
-    été décochée). Section 2 : tableau paginé, colonnes Nom/Type/Chiffré/
-    Taille/Date de création/Réussie/Actions (Télécharger, Restaurer,
-    Supprimer — voir les vues dédiées ci-dessous)."""
+    (listes déroulantes « -- Tous les enregistrement-- »/valeur oui/valeur
+    non, « Tous » par défaut — aucune ambiguïté premier-chargement/valeur
+    par défaut puisque les deux se comportent identiquement : aucun filtre).
+    Section 2 : tableau paginé, colonnes Nom/Type/Chiffré/Taille/Date de
+    création/Réussie/Actions (Télécharger, Restaurer, Supprimer — voir les
+    vues dédiées ci-dessous)."""
     group_required = 'Administration'
     template_name = 'backups/sauvegarde/list.html'
     PAGINATE_BY = 15
@@ -34,15 +34,20 @@ class SauvegardeListView(GroupRequiredMixin, View):
         if ordre not in ('asc', 'desc'):
             ordre = 'desc'
 
-        chiffre_soumis = 'chiffre_soumis' in request.GET
-        chiffre_filtre = ('chiffre' in request.GET) if chiffre_soumis else True
+        chiffre_filtre = request.GET.get('chiffre', '')
+        if chiffre_filtre not in ('oui', 'non'):
+            chiffre_filtre = ''
 
-        reussie_soumis = 'reussie_soumis' in request.GET
-        reussie_filtre = ('reussie' in request.GET) if reussie_soumis else True
+        reussie_filtre = request.GET.get('reussie', '')
+        if reussie_filtre not in ('oui', 'non'):
+            reussie_filtre = ''
 
-        qs = Sauvegarde.objects.filter(
-            chiffre=chiffre_filtre, reussie=reussie_filtre,
-        ).order_by('created_at' if ordre == 'asc' else '-created_at')
+        qs = Sauvegarde.objects.all()
+        if chiffre_filtre:
+            qs = qs.filter(chiffre=(chiffre_filtre == 'oui'))
+        if reussie_filtre:
+            qs = qs.filter(reussie=(reussie_filtre == 'oui'))
+        qs = qs.order_by('created_at' if ordre == 'asc' else '-created_at')
 
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page'))
@@ -58,7 +63,12 @@ class SauvegardeListView(GroupRequiredMixin, View):
 class SauvegardeCreateView(GroupRequiredMixin, View):
     """Page « Ajout de Sauvegarde de base de données ». Déclenche une VRAIE
     sauvegarde (mysqldump, voir backups/services.py) au moment de
-    l'enregistrement — Nom/Type/Chiffré/Observation sont saisis par
+    l'enregistrement. « Nom de la sauvegarde » et « Type de sauvegarde »
+    sont pour le moment verrouillés (affichage seul, valeur par défaut
+    « Complète ») — le serveur ignore toute valeur postée pour ces deux
+    champs et fixe systématiquement lui-même nom (horodatage) et type
+    (Complète), non déductible côté client puisqu'ils ne sont pas soumis
+    par des champs désactivés. Seuls Chiffré et Observation sont saisis par
     l'utilisateur ; Taille/Date de création/Réussie sont calculés côté
     serveur à partir du résultat réel de mysqldump."""
     group_required = 'Administration'
@@ -77,21 +87,10 @@ class SauvegardeCreateView(GroupRequiredMixin, View):
         return render(request, self.template_name, self._context())
 
     def post(self, request):
-        nom = request.POST.get('nom', '').strip()
-        type_sauvegarde = request.POST.get('type_sauvegarde', '').strip()
+        nom = f'sauvegarde_{timezone.now():%Y%m%d_%H%M%S}'
+        type_sauvegarde = 'Complète'
         chiffre = request.POST.get('chiffre') == 'on'
         observation = request.POST.get('observation', '').strip()
-
-        if not nom:
-            messages.error(request, 'Le nom de la sauvegarde est obligatoire.')
-            return render(request, self.template_name, self._context(
-                nom_value=nom, observation_value=observation,
-            ))
-        if type_sauvegarde not in dict(TYPE_SAUVEGARDE_CHOICES):
-            messages.error(request, 'Le type de sauvegarde est invalide.')
-            return render(request, self.template_name, self._context(
-                nom_value=nom, observation_value=observation,
-            ))
 
         sauvegarde = Sauvegarde.objects.create(
             nom=nom, type_sauvegarde=type_sauvegarde, chiffre=chiffre,
