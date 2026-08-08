@@ -382,7 +382,7 @@ class VenteDetaille(models.Model):
         related_name='details',
     )
     # UNIQUE sur bon_livraison_code_id : un BL ne peut être facturé qu'une seule fois
-    bon_livraison_code = models.OneToOneField(
+    bon_livraison_code = models.ForeignKey(
         BonLivraisonCode,
         on_delete=models.RESTRICT,
         null=True, blank=True,

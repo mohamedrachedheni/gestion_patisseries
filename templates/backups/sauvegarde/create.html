@@ -1,0 +1,69 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Ajout de sauvegarde — Administration{% endblock %}
+{% block page_title %}Ajout de sauvegarde de base de données{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'backups:sauvegarde-list' %}">Sauvegardes de la base de données</a></li>
+    <li class="breadcrumb-item active">Ajout de sauvegarde</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Ajout de sauvegarde de base de données</h4>
+</div>
+
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-1"></i>
+  L'enregistrement déclenche immédiatement une sauvegarde réelle de la base de données (mysqldump).
+  Cette opération peut prendre quelques instants selon la taille de la base.
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small mb-1">Nom de la sauvegarde</label>
+          <input type="text" name="nom" value="{{ nom_value }}" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Type de sauvegarde</label>
+          <select name="type_sauvegarde" class="form-select">
+            {% for value, label in type_sauvegarde_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" id="chiffre-input" name="chiffre" checked>
+            <label class="form-check-label" for="chiffre-input">Chiffré</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" name="observation" value="{{ observation_value }}" class="form-control">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'backups:sauvegarde-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
+    </a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+
+{% endblock %}

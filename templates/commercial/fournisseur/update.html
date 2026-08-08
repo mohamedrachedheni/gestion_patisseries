@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Modifier {{ fournisseur }} — Fournisseurs{% endblock %}
 {% block page_title %}Modification des coordonnées du fournisseur{% endblock %}

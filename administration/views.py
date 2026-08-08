@@ -28,7 +28,8 @@ from django.views.generic import DetailView, ListView, TemplateView, View
 from xhtml2pdf import pisa
 
 from commercial.models import (
-    Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Delegation, Gouvernorat, Zone,
+    Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Delegation, Depense, DepenseDetaille,
+    Gouvernorat, Zone,
 )
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
@@ -611,36 +612,98 @@ class TransactionListView(GroupRequiredMixin, View):
         })
 
 
-_BON_LIVRAISON_TABLE_ID_RE = re.compile(r'^BonLivraison_id_(\d+)$')
+_BON_LIVRAISON_TABLE_ID_RE          = re.compile(r'^BonLivraison_id_(\d+)$')
+_HISTORIQUE_SOLDE_COMPTE_TABLE_ID_RE = re.compile(r'^historiquesoldecompte_id_(\d+)$')
+_ACHAT_TABLE_ID_RE                  = re.compile(r'^Achat_id_(\d+)$')
+_DEPENSE_TABLE_ID_RE                = re.compile(r'^Depense_id_(\d+)$')
+_TRANSFERE_VERSE_TABLE_ID_RE        = re.compile(r'^transfere_verse_id_(\d+)$')
+_TRANSFERE_RECU_TABLE_ID_RE         = re.compile(r'^transfere_recu_id_(\d+)$')
+
+_POPUP_TITLES = {
+    'bon_livraison':          'Détail bon de livraison',
+    'historique_solde_compte': 'Liste des transactions caisse liées au solde compte caisse sélectionné',
+    'achat':                  'Détail achat',
+    'depense':                'Détail dépense',
+    'transfere_verse':        'Transfère versé',
+    'transfere_recu':         'Transfère reçu',
+}
 
 
 class TransactionDetailPopupView(GroupRequiredMixin, View):
     """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Détail ») de la
-    page Transactions. Pour l'instant, seules les transactions liées à un
-    commercial_bonlivraison (table_id="BonLivraison_id_<id>") affichent
-    quelque chose — les autres tables restent à suivre.
+    page Transactions — le gabarit affiché dépend du format de
+    transaction.table_id :
 
-    Section 1 : BonLivraisonCode (bon_livraison_at, bon_livraison_numero,
-    client), sur une seule ligne.
-    Section 1-1 : sous-formulaire — les BonLivraison liés dynamiquement à ce
-    même bon_livraison_code_id, paginés un enregistrement à la fois (page par
-    défaut = celui référencé par la transaction elle-même).
-    Section 1-1-1 : sous-formulaire de la 1-1 — les BonLivraisonDetaille du
-    BonLivraison actuellement affiché, sans paginateur."""
+    - « BonLivraison_id_<id> » : Section 1 (BonLivraisonCode — sur une seule
+      ligne), Section 1-1 (BonLivraison liés au même bon_livraison_code_id,
+      paginés un enregistrement à la fois, page par défaut = celui référencé
+      par la transaction), Section 1-1-1 (BonLivraisonDetaille du
+      BonLivraison affiché, sans paginateur).
+    - « historiquesoldecompte_id_<id> » : pop-up « Les quantités de
+      produits... » — reprend administration/soldes-caisse/<pk>/transactions/
+      (Section 1 Données solde caisse, Section 2 champs calculés Transactions/
+      Crédits/Débits/Solde net, Section 3 même tableau sans le bouton Détail),
+      sans paginateur.
+    - « Achat_id_<id> » : Section 1 (AchatCode), Section 1-1 (l'Achat
+      sélectionné — Employé = transaction.user, Achat n'a pas de champ user
+      propre —, sans paginateur), Section 1-1-1 (AchatDetaille, sans
+      paginateur).
+    - « Depense_id_<id> » : même structure que Achat_id_ (Section 1
+      DepenseCode, Section 1-1 la Depense — Employé = depense.user —,
+      Section 1-1-1 DepenseDetaille).
+    - « transfere_verse_id_<id> » / « transfere_recu_id_<id> » : Transfere
+      (Employé émetteur/receveur, Date, Montant, Libellé), sur deux lignes.
+    - tout autre format : « Détail non disponible pour cette transaction »."""
     group_required = 'Administration'
     template_name = 'administration/transaction/detail_popup.html'
 
     def get(self, request, pk):
         transaction_obj = get_object_or_404(TransactionModel, pk=pk)
-        match = _BON_LIVRAISON_TABLE_ID_RE.match(transaction_obj.table_id or '')
+        table_id = transaction_obj.table_id or ''
 
-        if not match:
-            return render(request, self.template_name, {
-                'supported':   False,
+        popup_type = None
+        response = None
+
+        match = _BON_LIVRAISON_TABLE_ID_RE.match(table_id)
+        if match:
+            popup_type = 'bon_livraison'
+            response = self._render_bon_livraison(request, transaction_obj, int(match.group(1)))
+
+        match = _HISTORIQUE_SOLDE_COMPTE_TABLE_ID_RE.match(table_id) if response is None else None
+        if match:
+            popup_type = 'historique_solde_compte'
+            response = self._render_historique_solde_compte(request, transaction_obj, int(match.group(1)))
+
+        match = _ACHAT_TABLE_ID_RE.match(table_id) if response is None else None
+        if match:
+            popup_type = 'achat'
+            response = self._render_achat(request, transaction_obj, int(match.group(1)))
+
+        match = _DEPENSE_TABLE_ID_RE.match(table_id) if response is None else None
+        if match:
+            popup_type = 'depense'
+            response = self._render_depense(request, transaction_obj, int(match.group(1)))
+
+        match = _TRANSFERE_VERSE_TABLE_ID_RE.match(table_id) if response is None else None
+        if match:
+            popup_type = 'transfere_verse'
+            response = self._render_transfere(request, transaction_obj, int(match.group(1)), popup_type)
+
+        match = _TRANSFERE_RECU_TABLE_ID_RE.match(table_id) if response is None else None
+        if match:
+            popup_type = 'transfere_recu'
+            response = self._render_transfere(request, transaction_obj, int(match.group(1)), popup_type)
+
+        if response is None:
+            response = render(request, self.template_name, {
+                'type':        None,
                 'transaction': transaction_obj,
             })
 
-        bon_livraison_id = int(match.group(1))
+        response['X-Popup-Title'] = _POPUP_TITLES.get(popup_type, 'Détail')
+        return response
+
+    def _render_bon_livraison(self, request, transaction_obj, bon_livraison_id):
         bon_livraison_ref = get_object_or_404(BonLivraison, pk=bon_livraison_id)
         code = bon_livraison_ref.bon_livraison_code
 
@@ -663,7 +726,7 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
         )
 
         return render(request, self.template_name, {
-            'supported':          True,
+            'type':               'bon_livraison',
             'transaction':        transaction_obj,
             'bon_livraison_code': code,
             'page_obj':           page_obj,
@@ -675,6 +738,70 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
             # valeurs toujours sûres (repliées sur la page courante).
             'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
             'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
+        })
+
+    def _render_historique_solde_compte(self, request, transaction_obj, hist_id):
+        hist = get_object_or_404(HistoriqueSoldeCompte.objects.select_related('user'), pk=hist_id)
+
+        transactions_qs = (
+            TransactionModel.objects
+            .select_related('user', 'libelle')
+            .filter(hist_solde_compte_id=hist.pk)
+            .order_by('-created_at', '-pk')
+        )
+        totaux = transactions_qs.aggregate(
+            credit=Sum('montant', filter=Q(montant__gte=0)),
+            debit=Sum('montant', filter=Q(montant__lt=0)),
+        )
+        totaux['net'] = (totaux['credit'] or 0) + (totaux['debit'] or 0)
+
+        return render(request, self.template_name, {
+            'type':          'historique_solde_compte',
+            'transaction':   transaction_obj,
+            'hist':          hist,
+            'transactions':  transactions_qs,
+            'total_count':   transactions_qs.count(),
+            'totaux':        totaux,
+        })
+
+    def _render_achat(self, request, transaction_obj, achat_id):
+        achat = get_object_or_404(Achat.objects.select_related('achat_code__fournisseur'), pk=achat_id)
+        details = achat.details.select_related('matiere_premiere').order_by('pk')
+
+        return render(request, self.template_name, {
+            'type':        'achat',
+            'transaction': transaction_obj,
+            # Achat n'a pas de champ user propre : l'Employé affiché est
+            # celui de la transaction elle-même.
+            'employe':     transaction_obj.user,
+            'obj':         achat,
+            'code':        achat.achat_code,
+            'details':     details,
+        })
+
+    def _render_depense(self, request, transaction_obj, depense_id):
+        depense = get_object_or_404(
+            Depense.objects.select_related('depense_code__fournisseur', 'user'), pk=depense_id,
+        )
+        details = depense.details.order_by('pk')
+
+        return render(request, self.template_name, {
+            'type':        'depense',
+            'transaction': transaction_obj,
+            'employe':     depense.user,
+            'obj':         depense,
+            'code':        depense.depense_code,
+            'details':     details,
+        })
+
+    def _render_transfere(self, request, transaction_obj, transfere_id, type_):
+        transfere = get_object_or_404(
+            Transfere.objects.select_related('compte_source', 'compte_destination'), pk=transfere_id,
+        )
+        return render(request, self.template_name, {
+            'type':        type_,
+            'transaction': transaction_obj,
+            'transfere':   transfere,
         })
 
 
@@ -2108,16 +2235,18 @@ LIBELLE_MISE_A_JOUR_SOLDE = 'Mise à jour solde compte'
 class HistoriqueSoldeCompteListView(GroupRequiredMixin, View):
     """Page « Liste des soldes comptes caisses des Employés » : Section 1
     (filtres — Date début par défaut aujourd'hui - 6 jours, Date fin par
-    défaut aujourd'hui, Employé : liste déroulante de tous les utilisateurs
-    actifs tous groupes confondus, « — Tous les users — » par défaut).
-    Section 2 : tableau des HistoriqueSoldeCompte filtrés sur solde_at dans
-    [Date début, Date fin] et, si renseigné, sur Employé, trié par date de
-    solde décroissante, paginé (10 lignes), tous les champs verrouillés
-    (Date, Employé, Solde caisse calculé, Solde caisse réel — en rouge si
+    défaut aujourd'hui, Employé : liste déroulante des utilisateurs actifs
+    des groupes Administration, Production et Commercial — à l'exclusion
+    des superusers —, « — Tous les users — » par défaut). Section 2 :
+    tableau des HistoriqueSoldeCompte filtrés sur solde_at dans [Date
+    début, Date fin] et, si renseigné, sur Employé, trié par date de solde
+    décroissante, paginé (10 lignes), tous les champs verrouillés (Date,
+    Employé, Solde caisse calculé, Solde caisse réel — en rouge si
     différent du calculé —, Observation) ; le champ Administration (admin)
     n'est pas affiché dans le tableau. Le bouton « + Ajout d'une mise à jour
     du solde compte caisse » ouvre administration/solde-caisse/.
-    « Visualiser » est une action à développer ultérieurement."""
+    « Visualiser » ouvre HistoriqueSoldeCompteTransactionsView (réservée au
+    groupe Administration)."""
     group_required = 'Administration'
     template_name = 'administration/historique_solde_compte/list.html'
     PAGINATE_BY = 10
@@ -2151,7 +2280,13 @@ class HistoriqueSoldeCompteListView(GroupRequiredMixin, View):
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
 
-        users_list = User.objects.filter(is_active=True).order_by('last_name', 'first_name')
+        users_list = (
+            User.objects
+            .filter(is_active=True, groups__name__in=['Administration', 'Commercial', 'Production'])
+            .exclude(is_superuser=True)
+            .distinct()
+            .order_by('last_name', 'first_name')
+        )
 
         return render(request, self.template_name, {
             'page_obj':     page_obj,
@@ -2162,6 +2297,51 @@ class HistoriqueSoldeCompteListView(GroupRequiredMixin, View):
             'date_fin':     date_fin_str,
             'user_id':      user_id,
             'users_list':   users_list,
+        })
+
+
+class HistoriqueSoldeCompteTransactionsView(GroupRequiredMixin, View):
+    """Page « Liste des transactions caisse liées au solde compte caisse
+    sélectionné », réservée au groupe Administration — ouverte par le
+    bouton « Visualiser » de administration/soldes-caisse/. Section 1
+    (« Données solde caisse ») : Employé, Date, Solde caisse calculé, Solde
+    caisse réel, Observation de l'HistoriqueSoldeCompte sélectionné (pk),
+    tous les champs verrouillés, sur une seule ligne. Section 2 : mêmes
+    colonnes/gabarit que administration/transactions/ (sans la Section 1 de
+    filtres de cette dernière), pour les Transaction dont user_id=Employé,
+    created_at &lt;= Date et hist_solde_compte_id=pk (par construction, ces
+    trois conditions décrivent le même ensemble — celui des transactions
+    soldées par cet enregistrement). Un bouton « Page précédente » en bas à
+    droite du tableau ramène à la page précédente (history.back())."""
+    group_required = 'Administration'
+    template_name = 'administration/historique_solde_compte/transactions.html'
+    PAGINATE_BY = 25
+
+    def get(self, request, pk):
+        hist = get_object_or_404(HistoriqueSoldeCompte.objects.select_related('user'), pk=pk)
+
+        qs = (
+            TransactionModel.objects
+            .select_related('user', 'libelle')
+            .filter(user_id=hist.user_id, created_at__date__lte=hist.solde_at, hist_solde_compte_id=hist.pk)
+            .order_by('-created_at', '-pk')
+        )
+
+        totaux = qs.aggregate(
+            credit=Sum('montant', filter=Q(montant__gte=0)),
+            debit=Sum('montant', filter=Q(montant__lt=0)),
+        )
+        totaux['net'] = (totaux['credit'] or 0) + (totaux['debit'] or 0)
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'hist':         hist,
+            'page_obj':     page_obj,
+            'is_paginated': page_obj.has_other_pages(),
+            'total_count':  paginator.count,
+            'totaux':       totaux,
         })
 
 
@@ -2185,7 +2365,7 @@ class SoldeCaisseView(GroupRequiredMixin, View):
        recalculé côté serveur, jamais depuis une valeur postée —,
        correction_solde, observation, admin=utilisateur connecté,
        user=Employé) ; 2) création d'une nouvelle Transaction « table_id =
-       transaction_id_&lt;id du HistoriqueSoldeCompte&gt; », montant =
+       historiquesoldecompte_id_&lt;id du HistoriqueSoldeCompte&gt; », montant =
        Solde réel, libellé « Mise à jour solde compte » (get_or_create),
        hist_solde_compte=Null (nouveau point de départ non soldé) ; 3) les
        enregistrements de la Section 2 capturés AVANT l'étape 2 (pour ne
@@ -2359,7 +2539,7 @@ class SoldeCaisseView(GroupRequiredMixin, View):
                     user=compte_employe,
                     created_at=solde_at,
                     libelle=libelle_obj,
-                    table_id=f'transaction_id_{hist.pk}',
+                    table_id=f'historiquesoldecompte_id_{hist.pk}',
                     montant=correction_solde,
                     hist_solde_compte=None,
                 )

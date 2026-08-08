@@ -1,0 +1,301 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Ventes — Commercial{% endblock %}
+{% block page_title %}Ventes{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Ventes</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Liste des ventes</h4>
+  <a href="{% url 'commercial:vente-create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i> Nouvelle vente
+  </a>
+</div>
+
+{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:135px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Client</label>
+          <select name="client_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les clients —</option>
+            {% for c in clients_list %}
+            <option value="{{ c.pk }}" {% if client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Zone</label>
+          <select name="zone_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Toutes les zones —</option>
+            {% for z in zones_list %}
+            <option value="{{ z.pk }}" {% if zone_id == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Statut</label>
+          <select name="statut" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les statuts —</option>
+            {% for value, label in statut_choices %}
+            <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if is_administration %}
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:vente-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            {% if is_administration %}
+            <th class="ps-3">Commercial</th>
+            {% endif %}
+            <th {% if not is_administration %}class="ps-3"{% endif %}>Date</th>
+            <th>Client</th>
+            <th>Zone</th>
+            <th class="text-end">Montant (TND)</th>
+            <th>Statut</th>
+            <th class="text-center pe-3" style="width:180px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in page_obj.object_list %}
+          <tr>
+            {% if is_administration %}
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ v.user.get_full_name|default:v.user.username }}" disabled>
+            </td>
+            {% endif %}
+            <td {% if not is_administration %}class="ps-3"{% endif %}>
+              <input type="date" class="form-control form-control-sm"
+                     value="{{ v.vente_code.vente_at|date:'Y-m-d' }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ v.vente_code.client }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm"
+                     value="{{ v.vente_code.client.zone|default:'' }}" disabled>
+            </td>
+            <td class="text-end">
+              <input type="number" step="0.001"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ v.total_montant|stringformat:'s' }}" disabled>
+            </td>
+            <td>
+              <select class="form-select form-select-sm" disabled>
+                {% for value, label in statut_choices %}
+                <option value="{{ value }}" {% if value == v.statut %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center pe-3">
+              <div class="d-flex justify-content-center gap-1">
+                <button type="button" class="btn btn-sm btn-outline-secondary vente-visualiser-btn"
+                        data-url="{% url 'commercial:vente-historique-popup' v.pk %}" title="Visualiser">
+                  <i class="bi bi-eye"></i>
+                </button>
+                {% if v.statut == 'Payé' %}
+                <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Vente déjà payée">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                {% else %}
+                <a href="{% url 'commercial:vente-update' v.pk %}" class="btn btn-sm btn-outline-primary" title="Modifier">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+                <a href="{% url 'commercial:vente-pdf' v.pk %}" target="_blank"
+                   class="btn btn-sm btn-outline-primary" title="Etat PDF">
+                  <i class="bi bi-file-earmark-pdf"></i>
+                </a>
+                <form method="post" action="{% url 'commercial:vente-delete' v.pk %}" class="d-inline"
+                      onsubmit="return confirm('Voulez-vous vraiment supprimer cette vente ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} vente{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link"
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link"
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
+      Aucune vente sur la période
+      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+      →
+      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
+      {% if client_id or zone_id or statut or commercial_id %}avec ces filtres{% endif %}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Pop-up « Historique des modification d'une vente » ─────────────────── #}
+<div class="modal fade" id="vente-historique-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Historique des modifications d'une vente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="vente-historique-modal-body"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+
+(function () {
+  var modalEl = document.getElementById('vente-historique-modal');
+  var modalBody = document.getElementById('vente-historique-modal-body');
+  if (!modalEl || !modalBody) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+
+  function loadHistorique(url) {
+    modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
+      '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
+    modal.show();
+    fetch(url).then(function (r) { return r.text(); }).then(function (html) {
+      modalBody.innerHTML = html;
+    });
+  }
+
+  document.querySelectorAll('.vente-visualiser-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      loadHistorique(btn.getAttribute('data-url'));
+    });
+  });
+
+  // Délégation d'événement : le contenu de la pop-up est entièrement
+  // remplacé à chaque navigation (page précédente/suivante), les boutons du
+  // pager n'existent donc pas encore au moment de l'attache des listeners.
+  modalBody.addEventListener('click', function (e) {
+    var link = e.target.closest('.vente-hist-pager-btn');
+    if (!link || link.classList.contains('disabled')) { return; }
+    e.preventDefault();
+    loadHistorique(link.getAttribute('data-url'));
+  });
+})();
+</script>
+{% endblock %}

@@ -25,6 +25,16 @@ urlpatterns = [
     path('bons-livraison/<hashid:pk>/supprimer/', views.BonLivraisonDeleteView.as_view(),     name='bon-livraison-delete'),
     path('bons-livraison/<hashid:pk>/etat-pdf/', views.BonLivraisonPdfView.as_view(),         name='bon-livraison-pdf'),
 
+    # Ventes
+    path('ventes/',                          views.VenteListView.as_view(),         name='vente-list'),
+    path('ventes/nouveau/',                  views.VenteCreateView.as_view(),       name='vente-create'),
+    path('ventes/numero-suivant/',            views.VenteNumeroSuivantView.as_view(), name='vente-numero-suivant'),
+    path('ventes/valeurs-defaut/',           views.VenteDefaultsView.as_view(),     name='vente-defaults'),
+    path('ventes/<hashid:pk>/etat-pdf/',     views.VentePdfView.as_view(),          name='vente-pdf'),
+    path('ventes/<hashid:pk>/supprimer/',    views.VenteDeleteView.as_view(),       name='vente-delete'),
+    path('ventes/<hashid:pk>/historique/',   views.VenteHistoriquePopupView.as_view(), name='vente-historique-popup'),
+    path('ventes/<hashid:pk>/modifier/',     views.VenteUpdateView.as_view(),       name='vente-update'),
+
     # Bons de sortie
     path('bons-sortie/',                          views.BonSortieListView.as_view(),        name='bon-sortie-list'),
     path('bons-sortie/nouveau/',                  views.BonSortieCreateView.as_view(),      name='bon-sortie-create'),

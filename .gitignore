@@ -1,6 +1,7 @@
 .env
 venv/
 media/
+db_backups/
 */migrations/
 
 # Fichiers Python compilés

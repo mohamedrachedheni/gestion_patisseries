@@ -48,6 +48,7 @@ class AuditAction:
     EXPORT_EXCEL = 'EXPORT_EXCEL'
     EXPORT_PDF = 'EXPORT_PDF'
     DB_BACKUP = 'DB_BACKUP'
+    DB_RESTORE = 'DB_RESTORE'
 
 
 def _redact(value):

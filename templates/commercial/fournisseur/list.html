@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Fournisseurs — Commercial{% endblock %}
 {% block page_title %}Fournisseurs{% endblock %}

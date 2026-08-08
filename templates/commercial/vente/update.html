@@ -1,0 +1,279 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Modification d'une vente — Commercial{% endblock %}
+{% block page_title %}Modification d'une vente{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:vente-list' %}">Ventes</a></li>
+    <li class="breadcrumb-item active">Modification d'une vente</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Modification d'une vente</h4>
+</div>
+
+<form id="vente-update-form" method="post" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : information de la vente ──────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-info-circle me-2 text-primary"></i>Information de la vente
+    </div>
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto mb-3">
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <input type="text" class="form-control form-control-sm"
+                 value="{{ vente.user.get_full_name|default:vente.user.username }}" disabled>
+        </div>
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Zone</label>
+          <input type="text" class="form-control form-control-sm"
+                 value="{{ vente_code.client.zone|default:'' }}" disabled>
+        </div>
+        <div style="width:260px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Client</label>
+          <input type="text" class="form-control form-control-sm" value="{{ vente_code.client }}" disabled>
+        </div>
+      </div>
+
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date vente</label>
+          <input type="date" class="form-control form-control-sm"
+                 value="{{ vente_code.vente_at|date:'Y-m-d' }}" disabled>
+        </div>
+        <div style="width:140px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Numéro vente</label>
+          <input type="text" class="form-control form-control-sm" value="{{ vente_code.vente_numero }}" disabled>
+        </div>
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total montant des BL</label>
+          <input type="number" step="0.001" id="vente-total-montant"
+                 class="form-control form-control-sm no-spinner text-end font-monospace"
+                 value="{{ vente.total_montant|stringformat:'s' }}" disabled>
+        </div>
+        <div style="width:190px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total montant payé des BL</label>
+          <input type="number" step="0.001" id="vente-total-paye"
+                 class="form-control form-control-sm no-spinner text-end font-monospace"
+                 value="{{ vente.total_acompte|stringformat:'s' }}" disabled>
+        </div>
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Nouveau montant payé</label>
+          <input type="number" step="0.001" min="0.001" required id="vente-nouveau-acompte" name="nouveau_acompte"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" value="{{ nouveau_acompte_value }}"
+                 {% if locked %}disabled{% endif %}>
+        </div>
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Mode de paiement</label>
+          <select id="vente-mode-paiement" name="mode_paiement" class="form-select form-select-sm"
+                  {% if locked %}disabled{% endif %}>
+            {% for value, label in mode_paiement_choices %}
+            <option value="{{ value }}" {% if value == mode_paiement_value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:190px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total reste à payer des BL</label>
+          <input type="number" step="0.001" id="vente-total-reste"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
+        </div>
+      </div>
+
+      <div class="d-flex flex-nowrap align-items-end gap-2 mt-3">
+        <div style="flex:1 1 auto;">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" id="vente-observation" name="observation" value="{{ observation_value }}"
+                 class="form-control form-control-sm" {% if locked %}disabled{% endif %}>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : liste des bons de livraison de la vente ─────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-truck me-2 text-primary"></i>Liste des bons de livraison de la vente
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Date bon de livraison</span></div>
+        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Numéro bon de livraison</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total payé</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste à régler</span></div>
+        <div style="width:80px;flex:0 0 auto;text-align:center;"><span class="form-label small text-muted mb-0">Inclure</span></div>
+      </div>
+      <div id="vente-section2-rows">
+        <div class="text-muted small py-2" id="vente-section2-empty">Aucun bon de livraison lié à cette vente.</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 3 (ex-section 4) : liste des produits ────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-box-seam me-2 text-primary"></i>Liste des produits
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Produit</th>
+              <th>Qté</th>
+              <th>Prix unitaire</th>
+              <th class="pe-3">Total ligne</th>
+            </tr>
+          </thead>
+          <tbody id="vente-section3-rows">
+            <tr id="vente-section3-empty">
+              <td colspan="4" class="text-center py-3 text-muted">Aucun bon de livraison inclus.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── Actions ───────────────────────────────────────────────────────────────── #}
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:vente-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
+    </a>
+    <a href="{% url 'commercial:vente-pdf' vente.pk %}" target="_blank" class="btn btn-outline-primary">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
+    </a>
+    <button type="submit" class="btn btn-primary" {% if locked %}disabled{% endif %}>
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var LIGNES_VENTE = {{ lignes_vente_json|safe }};
+  var TOTAL_MONTANT = {{ vente.total_montant|stringformat:'s' }};
+  var TOTAL_ACOMPTE = {{ total_acompte_base_js|stringformat:'s' }};
+
+  var section2Rows = document.getElementById('vente-section2-rows');
+  var section3Rows = document.getElementById('vente-section3-rows');
+  var totalResteInput = document.getElementById('vente-total-reste');
+  var nouveauAcompteInput = document.getElementById('vente-nouveau-acompte');
+
+  function num(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // ── Section 1 : Total reste à payer = total_montant − total_acompte −
+  // Nouveau montant payé, plafonné à [0, total_montant − total_acompte] ─────
+  var plafond = Math.max(0, TOTAL_MONTANT - TOTAL_ACOMPTE);
+
+  function recomputeTotals() {
+    var nouveau = num(nouveauAcompteInput.value);
+    var reste = TOTAL_MONTANT - TOTAL_ACOMPTE - nouveau;
+    totalResteInput.value = reste.toFixed(3);
+    totalResteInput.classList.toggle('text-danger', reste < 0);
+  }
+
+  nouveauAcompteInput.addEventListener('input', function () {
+    var valeur = num(nouveauAcompteInput.value);
+    if (valeur > plafond) {
+      nouveauAcompteInput.setCustomValidity(
+        'Le nouveau montant payé ne peut pas dépasser le reste à régler (' + plafond.toFixed(3) + ').',
+      );
+      nouveauAcompteInput.reportValidity();
+      nouveauAcompteInput.value = plafond.toFixed(3);
+    } else {
+      nouveauAcompteInput.setCustomValidity('');
+    }
+    recomputeTotals();
+  });
+
+  // ── Section 2 : lignes verrouillées (affichage seul, case Inclure toujours
+  // cochée et désactivée, pas de bouton Supprimer) ──────────────────────────
+  function addBlRow(l) {
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 vente-bl-row';
+    row.innerHTML =
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="date" class="form-control form-control-sm" value="' + l.date + '" disabled>' +
+      '</div>' +
+      '<div style="width:120px;flex:0 0 auto;">' +
+        '<input type="text" class="form-control form-control-sm" value="' + l.numero + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.montant_total + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.montant_paye + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.reste + '" disabled>' +
+      '</div>' +
+      '<div style="width:80px;flex:0 0 auto;text-align:center;">' +
+        '<input type="checkbox" class="form-check-input" checked disabled>' +
+      '</div>';
+    section2Rows.appendChild(row);
+  }
+
+  // ── Section 3 : produits regroupés (Produit + Prix unitaire), ensemble
+  // fixe puisque la Section 2 ne peut plus être modifiée ────────────────────
+  function renderSection3() {
+    var groupes = {};
+    var ordre = [];
+    LIGNES_VENTE.forEach(function (l) {
+      (l.details || []).forEach(function (d) {
+        var cle = d.produit_id + '|' + d.prix_unitaire;
+        if (!groupes[cle]) {
+          groupes[cle] = { produit_nom: d.produit_nom, prix_unitaire: d.prix_unitaire, quantite: 0 };
+          ordre.push(cle);
+        }
+        groupes[cle].quantite += num(d.quantite);
+      });
+    });
+
+    section3Rows.innerHTML = '';
+    if (!ordre.length) {
+      section3Rows.innerHTML =
+        '<tr><td colspan="4" class="text-center py-3 text-muted">Aucun bon de livraison inclus.</td></tr>';
+      return;
+    }
+    ordre.sort(function (a, b) { return groupes[a].produit_nom.localeCompare(groupes[b].produit_nom); });
+    ordre.forEach(function (cle) {
+      var g = groupes[cle];
+      var totalLigne = num(g.prix_unitaire) * g.quantite;
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="ps-3">' + g.produit_nom + '</td>' +
+        '<td>' + g.quantite + '</td>' +
+        '<td>' + g.prix_unitaire + '</td>' +
+        '<td class="pe-3">' + totalLigne.toFixed(3) + '</td>';
+      section3Rows.appendChild(tr);
+    });
+  }
+
+  // ── Initialisation ─────────────────────────────────────────────────────────
+  if (LIGNES_VENTE.length) {
+    section2Rows.innerHTML = '';
+    LIGNES_VENTE.forEach(function (l) { addBlRow(l); });
+  }
+  renderSection3();
+  recomputeTotals();
+})();
+</script>
+{% endblock %}

@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'administration',
     'commercial',
     'production',
+    'backups',
 ]
 
 # Configuration de Crispy Forms
@@ -95,6 +96,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.is_administration',
             ],
         },
     },
@@ -119,8 +121,21 @@ DATABASES = {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
         },
-    }
+    },
+    # Base SÉPARÉE (SQLite) pour les métadonnées de l'app "backups" — jamais
+    # dans 'default' : une restauration de 'default' remplace TOUT son
+    # contenu (y compris sa propre table de suivi des sauvegardes) par
+    # l'instantané du dump restauré, ce qui efface ou fige l'historique des
+    # sauvegardes créées après ce dump. Isoler cette table dans sa propre
+    # base, jamais touchée par mysqldump/mysql, la rend insensible aux
+    # restaurations de 'default'. Voir backups/db_router.py.
+    'sauvegardes': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db_backups' / 'metadonnees.sqlite3',
+    },
 }
+
+DATABASE_ROUTERS = ['backups.db_router.SauvegardesRouter']
 
 
 # Password validation
@@ -166,6 +181,13 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'  # ✅ Dossier pour collectstatic
 # Media files (Uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'  # ✅ Dossier pour les fichiers uploadés
+
+# Sauvegardes de la base de données (app "backups") — volontairement HORS de
+# MEDIA_ROOT : ces fichiers contiennent un dump complet des données et ne
+# doivent jamais être exposés via une URL statique/media, uniquement via
+# SauvegardeDownloadView (contrôle d'accès + déchiffrement à la volée).
+DB_BACKUPS_DIR = BASE_DIR / 'db_backups'
+DB_BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

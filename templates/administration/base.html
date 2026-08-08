@@ -9,11 +9,25 @@
      class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'administration' %}active{% endif %}">
     <i class="bi bi-house-door"></i> Accueil
   </a>
+  <a href="{% url 'commercial:home' %}" class="nav-link">
+    <i class="bi bi-shop"></i> Commercial
+  </a>
+  <a href="{% url 'production:home' %}" class="nav-link">
+    <i class="bi bi-gear"></i> Production
+  </a>
 
   <div class="sidebar-section">Ressources humaines</div>
   <a href="{% url 'administration:employe-list' %}"
      class="nav-link {% if 'employe' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-person-badge"></i> Employés
+  </a>
+  <a href="{% url 'commercial:fournisseur-list' %}"
+     class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-truck"></i> Fournisseurs
+  </a>
+  <a href="{% url 'commercial:client-list' %}"
+     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-people"></i> Clients
   </a>
 
   <div class="sidebar-section">Finance</div>
@@ -32,6 +46,10 @@
   <a href="{% url 'commercial:achat-list' %}"
      class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-cart3"></i> Achats
+  </a>
+  <a href="{% url 'commercial:depense-list' %}"
+     class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cash-stack"></i> Dépense
   </a>
 
   <div class="sidebar-section">Stock</div>
@@ -79,6 +97,12 @@
       </a>
     </div>
   </div>
+
+  <div class="sidebar-section">Système</div>
+  <a href="{% url 'backups:sauvegarde-list' %}"
+     class="nav-link {% if request.resolver_match.app_name == 'backups' %}active{% endif %}">
+    <i class="bi bi-hdd-stack"></i> Sauvegardes
+  </a>
 {% endblock %}
 
 {% block extra_css %}

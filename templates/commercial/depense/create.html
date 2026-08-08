@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Nouvelle dépense — Commercial{% endblock %}
 {% block page_title %}Nouvelle dépense{% endblock %}

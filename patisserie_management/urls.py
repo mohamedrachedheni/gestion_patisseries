@@ -18,4 +18,5 @@ urlpatterns = [
     path('administration/', include('administration.urls', namespace='administration')),
     path('commercial/',     include('commercial.urls',     namespace='commercial')),
     path('production/',     include('production.urls',     namespace='production')),
+    path('administration/sauvegardes/', include('backups.urls', namespace='backups')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

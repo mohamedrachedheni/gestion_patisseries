@@ -8,6 +8,14 @@
      class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'commercial' %}active{% endif %}">
     <i class="bi bi-house-door"></i> Accueil
   </a>
+  {% if is_administration_user %}
+  <a href="{% url 'administration:home' %}" class="nav-link">
+    <i class="bi bi-gear-wide-connected"></i> Administration
+  </a>
+  <a href="{% url 'production:home' %}" class="nav-link">
+    <i class="bi bi-gear"></i> Production
+  </a>
+  {% endif %}
 
   <div class="sidebar-section">Clients & Secteur</div>
   <a href="{% url 'commercial:client-list' %}"
@@ -24,7 +32,10 @@
   </a>
 
   <div class="sidebar-section">Ventes</div>
-  <a href="#" class="nav-link"><i class="bi bi-receipt"></i> Ventes</a>
+  <a href="{% url 'commercial:vente-list' %}"
+     class="nav-link {% if 'vente' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-receipt"></i> Ventes
+  </a>
   <a href="{% url 'commercial:bon-livraison-list' %}"
      class="nav-link {% if 'bon-livraison' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-truck"></i> Bons de livraison

@@ -1,9 +1,4 @@
-{% if not supported %}
-<div class="text-center py-4 text-muted">
-  <i class="bi bi-hourglass-split fs-1 d-block mb-2 opacity-25"></i>
-  Détail non disponible pour cette transaction pour le moment (à suivre).
-</div>
-{% else %}
+{% if type == 'bon_livraison' %}
 
 {# ── Section 1 : BonLivraisonCode, sur une seule ligne ─────────────────── #}
 <div class="d-flex flex-nowrap gap-3 mb-3">
@@ -125,4 +120,262 @@
   {% endif %}
 </div>
 
+{% elif type == 'historique_solde_compte' %}
+
+{# ── Section 1 : Données solde caisse ───────────────────────────────────── #}
+<div class="mb-3">
+  <div class="d-flex flex-nowrap gap-3 mb-2">
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Employé</label>
+      <input type="text" class="form-control form-control-sm" disabled
+             value="{{ hist.user.get_full_name|default:hist.user.username }}">
+    </div>
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Date</label>
+      <input type="date" class="form-control form-control-sm" disabled value="{{ hist.solde_at|date:'Y-m-d' }}">
+    </div>
+  </div>
+  <div class="d-flex flex-nowrap gap-3">
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Solde caisse calculé</label>
+      <input type="number" step="0.001" class="form-control form-control-sm no-spinner font-monospace" disabled
+             value="{{ hist.calcul_solde|stringformat:'s' }}">
+    </div>
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Solde caisse réel</label>
+      <input type="number" step="0.001"
+             class="form-control form-control-sm no-spinner font-monospace{% if hist.calcul_solde != hist.correction_solde %} text-danger{% endif %}"
+             disabled value="{{ hist.correction_solde|stringformat:'s' }}">
+    </div>
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Observation</label>
+      <input type="text" class="form-control form-control-sm" disabled value="{{ hist.observation|default:'' }}">
+    </div>
+  </div>
+</div>
+
+{# ── Section 2 : champs calculés, sur une seule ligne ───────────────────── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Transactions</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ total_count }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Crédits (TND)</label>
+    <input type="text" class="form-control form-control-sm text-success font-monospace" disabled
+           value="+{{ totaux.credit|default:'0.000' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Débits (TND)</label>
+    <input type="text" class="form-control form-control-sm text-danger font-monospace" disabled
+           value="{{ totaux.debit|default:'0.000' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Solde net (TND)</label>
+    <input type="text" class="form-control form-control-sm font-monospace{% if totaux.net >= 0 %} text-success{% else %} text-danger{% endif %}"
+           disabled value="{{ totaux.net|default:'0.000' }}">
+  </div>
+</div>
+
+{# ── Section 3 : liste des transactions caisse liées ────────────────────── #}
+<div>
+  <h6 class="fw-semibold mb-2">Transactions caisse liées</h6>
+  {% if transactions %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Date / Heure</th>
+          <th>Employé</th>
+          <th>Libellé</th>
+          <th class="text-end">Montant (TND)</th>
+          <th class="text-center pe-3">Soldé</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr>
+          <td class="ps-3">
+            {% if t.created_at %}
+            <div class="fw-medium small">{{ t.created_at|date:"d/m/Y" }}</div>
+            <div class="text-muted" style="font-size:.75rem;">{{ t.created_at|date:"H:i" }}</div>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td><div class="fw-medium small">{{ t.user.get_full_name|default:t.user.username }}</div></td>
+          <td><span class="badge rounded-pill bg-light text-dark border small">{{ t.libelle }}</span></td>
+          <td class="text-end font-monospace fw-semibold">
+            {% if t.montant >= 0 %}
+            <span class="text-success">+{{ t.montant }}</span>
+            {% else %}
+            <span class="text-danger">{{ t.montant }}</span>
+            {% endif %}
+          </td>
+          <td class="text-center pe-3">
+            <input type="checkbox" class="form-check-input" disabled
+                   {% if t.hist_solde_compte_id %}checked{% endif %}
+                   title="{% if t.hist_solde_compte_id %}Soldée{% else %}Non soldée{% endif %}">
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-3 text-muted">Aucune transaction caisse liée.</div>
+  {% endif %}
+</div>
+
+{% elif type == 'achat' or type == 'depense' %}
+
+{% if type == 'achat' %}
+{# ── Section 1 : AchatCode, sur une seule ligne ─────────────────────────── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Date achat</label>
+    <input type="date" class="form-control form-control-sm" disabled value="{{ code.achat_at|date:'Y-m-d' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Numéro</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ code.achat_numero }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Fournisseur</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ code.fournisseur|default:'' }}">
+  </div>
+</div>
+{% else %}
+{# ── Section 1 : DepenseCode, sur une seule ligne ───────────────────────── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Date dépense</label>
+    <input type="date" class="form-control form-control-sm" disabled value="{{ code.depense_at|date:'Y-m-d' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Numéro</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ code.depense_numero }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Fournisseur</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ code.fournisseur|default:'' }}">
+  </div>
+</div>
+{% endif %}
+
+{# ── Sous-section 1-1 : l'enregistrement sélectionné, sans paginateur ───── #}
+<div class="card border-0 bg-light mb-3">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Employé</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ employe.get_full_name|default:employe.username }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Mode de paiement</label>
+        <input type="text" class="form-control form-control-sm" disabled value="{{ obj.mode_paiement }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Statut</label>
+        <input type="text" class="form-control form-control-sm" disabled value="{{ obj.statut }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Observation</label>
+        <input type="text" class="form-control form-control-sm" disabled value="{{ obj.observation|default:'' }}">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ obj.total_montant|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total payé</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ obj.total_acompte|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Nouveau montant payé</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ obj.nouveau_acompte|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Reste à payer</label>
+        <input type="number" step="0.001"
+               class="form-control form-control-sm no-spinner text-end font-monospace {% if obj.reste_a_payer > 0 %}text-danger{% endif %}"
+               disabled value="{{ obj.reste_a_payer|stringformat:'s' }}">
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Sous-section 1-1-1 : détails, sans paginateur ──────────────────────── #}
+<div>
+  <h6 class="fw-semibold mb-2">Détails {% if type == 'achat' %}matières premières{% else %}dépense{% endif %}</h6>
+  {% if details %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">{% if type == 'achat' %}Matière première{% else %}Libellé{% endif %}</th>
+          <th>Quantité</th>
+          <th>Prix unitaire</th>
+          <th class="pe-3">Total ligne</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in details %}
+        <tr>
+          <td class="ps-3">{% if type == 'achat' %}{{ d.matiere_premiere|default:'' }}{% else %}{{ d.libelle|default:'' }}{% endif %}</td>
+          <td>{{ d.quantite|stringformat:'s' }}</td>
+          <td>{% if type == 'achat' %}{{ d.prix_unitaire|stringformat:'s' }}{% else %}{{ d.valeur_unitaire|stringformat:'s' }}{% endif %}</td>
+          <td class="pe-3">{{ d.total_ligne|stringformat:'s' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-3 text-muted">Aucun détail.</div>
+  {% endif %}
+</div>
+
+{% elif type == 'transfere_verse' or type == 'transfere_recu' %}
+
+<div>
+  <h6 class="fw-semibold mb-3">
+    {% if type == 'transfere_verse' %}Données du transfère versé{% else %}Données du transfère reçu{% endif %}
+  </h6>
+  <div class="d-flex flex-nowrap gap-3 mb-2">
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">
+        {% if type == 'transfere_verse' %}Employé émetteur{% else %}Employé receveur{% endif %}
+      </label>
+      <input type="text" class="form-control form-control-sm" disabled
+             value="{% if type == 'transfere_verse' %}{{ transfere.compte_source.get_full_name|default:transfere.compte_source.username }}{% else %}{{ transfere.compte_destination.get_full_name|default:transfere.compte_destination.username }}{% endif %}">
+    </div>
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Date</label>
+      <input type="date" class="form-control form-control-sm" disabled value="{{ transfere.transfere_at|date:'Y-m-d' }}">
+    </div>
+  </div>
+  <div class="d-flex flex-nowrap gap-3">
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Montant</label>
+      <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+             value="{{ transfere.montant|stringformat:'s' }}">
+    </div>
+    <div style="flex:1 1 auto;">
+      <label class="form-label small mb-1">Libellé</label>
+      <input type="text" class="form-control form-control-sm" disabled value="{{ transfere.libelle|default:'' }}">
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center py-4 text-muted">
+  <i class="bi bi-hourglass-split fs-1 d-block mb-2 opacity-25"></i>
+  Détail non disponible pour cette transaction pour le moment (à suivre).
+</div>
 {% endif %}

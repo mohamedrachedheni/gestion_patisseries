@@ -1,0 +1,518 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Nouvelle vente — Commercial{% endblock %}
+{% block page_title %}Nouvelle vente{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:vente-list' %}">Ventes</a></li>
+    <li class="breadcrumb-item active">Nouvelle vente</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Nouvelle vente</h4>
+</div>
+
+<form id="vente-create-form" method="post" novalidate>
+  {% csrf_token %}
+
+  {# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-funnel me-2 text-primary"></i>Filtres
+    </div>
+    <div class="card-body py-3">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto mb-3">
+
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select id="vente-commercial-select" name="commercial_id" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
+            <option value="">— Choisir —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" id="vente-commercial-select" name="commercial_id" value="{{ request.user.pk }}">
+        {% endif %}
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Zone</label>
+          <select id="vente-zone-select" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
+            <option value="">— Toutes les zones —</option>
+          </select>
+        </div>
+
+        <div style="width:260px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Client</label>
+          <select id="vente-client-select" name="client_id" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
+            <option value="">— Choisir —</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date vente</label>
+          <input type="date" id="vente-date-input" name="vente_at" value="{{ vente_at_value }}"
+                 class="form-control form-control-sm" {% if saved_vente %}disabled{% endif %}>
+        </div>
+        <div style="width:140px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Numéro vente</label>
+          <input type="text" id="vente-numero-input" value="{{ numero_initial }}"
+                 class="form-control form-control-sm" disabled>
+        </div>
+        <div style="width:180px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total montant des BL</label>
+          <input type="number" step="0.001" id="vente-total-montant"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
+        </div>
+        <div style="width:190px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total montant payé des BL</label>
+          <input type="number" step="0.001" id="vente-total-paye"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
+        </div>
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Nouveau montant payé</label>
+          <input type="number" step="0.001" min="0" id="vente-nouveau-acompte" name="nouveau_acompte"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" value="0" {% if saved_vente %}disabled{% endif %}>
+        </div>
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Mode de paiement</label>
+          <select id="vente-mode-paiement" name="mode_paiement" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
+            {% for value, label in mode_paiement_choices %}
+            <option value="{{ value }}" {% if value == 'Espèces' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:190px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Total reste à payer des BL</label>
+          <input type="number" step="0.001" id="vente-total-reste"
+                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
+        </div>
+      </div>
+
+      <div class="d-flex flex-nowrap align-items-end gap-2 mt-3">
+        <div style="flex:1 1 auto;">
+          <label class="form-label small mb-1">Observation</label>
+          <input type="text" id="vente-observation" name="observation" value=""
+                 class="form-control form-control-sm" {% if saved_vente %}disabled{% endif %}>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 2 : liste des bons de livraison ──────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
+      <span class="fw-semibold"><i class="bi bi-truck me-2 text-primary"></i>Liste des bons de livraison</span>
+      <div class="d-flex align-items-center gap-3">
+        <div class="form-check mb-0">
+          <input type="checkbox" class="form-check-input" id="vente-toggle-tout" {% if saved_vente %}disabled{% endif %}>
+          <label class="form-check-label small" id="vente-toggle-tout-label" for="vente-toggle-tout">Tout cocher</label>
+        </div>
+        <button type="button" id="vente-reset-section2-btn" class="btn btn-outline-secondary btn-sm" {% if saved_vente %}disabled{% endif %}>
+          <i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Date bon de livraison</span></div>
+        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Numéro bon de livraison</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total payé</span></div>
+        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste à régler</span></div>
+        <div style="width:80px;flex:0 0 auto;text-align:center;"><span class="form-label small text-muted mb-0">Inclure</span></div>
+        <div style="width:44px;flex:0 0 auto;"></div>
+      </div>
+      <div id="vente-section2-rows">
+        <div class="text-muted small py-2" id="vente-section2-empty">Sélectionnez un client pour afficher les bons de livraison.</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section 3 : liste des produits ───────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-box-seam me-2 text-primary"></i>Liste des produits
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3">Produit</th>
+              <th>Qté</th>
+              <th>Prix unitaire</th>
+              <th class="pe-3">Total ligne</th>
+            </tr>
+          </thead>
+          <tbody id="vente-section3-rows">
+            <tr id="vente-section3-empty">
+              <td colspan="4" class="text-center py-3 text-muted">Sélectionnez un client pour afficher les produits.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── Actions ───────────────────────────────────────────────────────────────── #}
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:vente-list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
+    </a>
+    {% if saved_vente %}
+    <a href="{% url 'commercial:vente-pdf' saved_vente.pk %}" target="_blank" class="btn btn-outline-primary">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
+    </a>
+    {% else %}
+    <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
+    </a>
+    {% endif %}
+    <button type="submit" id="vente-save-btn" class="btn btn-primary" {% if saved_vente %}disabled{% endif %}
+            style="display:none;">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var CLIENTS = {{ clients_json|safe }};
+  var ZONES = {{ zones_json|safe }};
+  var CLIENT_USERS = {{ client_users_json|safe }};
+  var SELECTED_CLIENT_ID = "{{ selected_client_id }}";
+  var PRESERVED_LIGNES = {{ preserved_lignes_json|safe }};
+  var LOCKED = {% if saved_vente %}true{% else %}false{% endif %};
+  var DEFAULTS_URL = "{% url 'commercial:vente-defaults' %}";
+  var NUMERO_URL = "{% url 'commercial:vente-numero-suivant' %}";
+
+  var commercialEl   = document.getElementById('vente-commercial-select');
+  var dateInput       = document.getElementById('vente-date-input');
+  var numeroInput     = document.getElementById('vente-numero-input');
+  var zoneSelect      = document.getElementById('vente-zone-select');
+  var clientSelect    = document.getElementById('vente-client-select');
+  var section2Rows    = document.getElementById('vente-section2-rows');
+  var section3Rows    = document.getElementById('vente-section3-rows');
+  var toggleTout      = document.getElementById('vente-toggle-tout');
+  var toggleToutLabel = document.getElementById('vente-toggle-tout-label');
+  var resetBtn         = document.getElementById('vente-reset-section2-btn');
+  var saveBtn          = document.getElementById('vente-save-btn');
+  var totalMontantInput = document.getElementById('vente-total-montant');
+  var totalPayeInput    = document.getElementById('vente-total-paye');
+  var totalResteInput   = document.getElementById('vente-total-reste');
+  var nouveauAcompteInput = document.getElementById('vente-nouveau-acompte');
+  var modePaiementSelect  = document.getElementById('vente-mode-paiement');
+
+  function num(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // ── Cascade Commercial → Zone → Client (identique à bons-livraison/nouveau/) ──
+  function clientIdsForCommercial(commercialId) {
+    if (!commercialId) { return null; }
+    var ids = new Set();
+    CLIENT_USERS.forEach(function (cu) {
+      if (String(cu.user_id) === String(commercialId)) { ids.add(String(cu.client_id)); }
+    });
+    return ids;
+  }
+
+  function buildZoneOptions(commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var zoneIdsAllowed = new Set();
+    CLIENTS.forEach(function (c) {
+      if (allowed && !allowed.has(String(c.id))) { return; }
+      if (c.zone_id) { zoneIdsAllowed.add(String(c.zone_id)); }
+    });
+    var html = '<option value="">— Toutes les zones —</option>';
+    ZONES.forEach(function (z) {
+      if (allowed && !zoneIdsAllowed.has(String(z.id))) { return; }
+      var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
+    });
+    return html;
+  }
+
+  function buildClientOptions(zoneId, commercialId, selectedId) {
+    var allowed = clientIdsForCommercial(commercialId);
+    var html = '<option value="">— Choisir —</option>';
+    CLIENTS.forEach(function (c) {
+      if (zoneId) {
+        if (String(c.zone_id) !== String(zoneId)) { return; }
+      } else if (allowed) {
+        if (!allowed.has(String(c.id))) { return; }
+      }
+      var sel = (selectedId && String(c.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + c.id + '"' + sel + '>' + c.label + '</option>';
+    });
+    return html;
+  }
+
+  function currentCommercialId() {
+    return commercialEl ? commercialEl.value : '';
+  }
+
+  if (commercialEl && commercialEl.tagName === 'SELECT') {
+    commercialEl.addEventListener('change', function () {
+      zoneSelect.innerHTML = buildZoneOptions(commercialEl.value);
+      clientSelect.innerHTML = buildClientOptions(null, commercialEl.value);
+      updateSaveVisibility();
+      loadDefaults();
+    });
+  }
+
+  zoneSelect.addEventListener('change', function () {
+    clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId());
+    updateSaveVisibility();
+    loadDefaults();
+  });
+
+  clientSelect.addEventListener('change', function () {
+    updateSaveVisibility();
+    loadDefaults();
+  });
+
+  // ── Numéro vente (recalculé côté serveur à chaque changement de Date vente) ──
+  dateInput.addEventListener('change', function () {
+    var url = NUMERO_URL + '?vente_at=' + encodeURIComponent(dateInput.value);
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      numeroInput.value = data.vente_numero;
+    });
+  });
+
+  // Initialisation des listes déroulantes Zone / Client — si un client a été
+  // préservé (réaffichage après échec de validation), on retrouve sa zone
+  // pour garder les listes Zone → Client cohérentes.
+  var initialZoneId = null;
+  if (SELECTED_CLIENT_ID) {
+    var preservedClient = CLIENTS.find(function (c) { return String(c.id) === String(SELECTED_CLIENT_ID); });
+    if (preservedClient && preservedClient.zone_id) { initialZoneId = String(preservedClient.zone_id); }
+  }
+  zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), initialZoneId);
+  clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
+
+  // ── Bouton Enregistrer : visible dès qu'un client est sélectionné ─────────
+  function updateSaveVisibility() {
+    saveBtn.style.display = clientSelect.value ? '' : 'none';
+  }
+
+  // ── Section 1 : totaux calculés sur les lignes cochées "Inclure", plus
+  // Nouveau montant payé / Mode de paiement (modifiables) et Total reste à
+  // payer des BL = Total montant − Total montant payé − Nouveau montant payé.
+  function recomputeTotals() {
+    var totalMontant = 0, totalPaye = 0, hasChecked = false;
+    section2Rows.querySelectorAll('.vente-bl-row').forEach(function (row) {
+      var checkbox = row.querySelector('.vente-inclure-checkbox');
+      if (!checkbox.checked) { return; }
+      hasChecked = true;
+      totalMontant += num(row.querySelector('.vente-montant-total-input').value);
+      totalPaye += num(row.querySelector('.vente-montant-paye-input').value);
+    });
+
+    // Nouveau montant payé ne peut jamais dépasser ce qui reste réellement dû
+    // (indépendamment de sa propre valeur) — on le ramène silencieusement au
+    // plafond ici si un changement de la Section 2 vient de le dépasser (le
+    // refus avec infobulle, lui, n'a lieu que sur saisie directe, voir plus bas).
+    var plafond = Math.max(0, totalMontant - totalPaye);
+    var nouveau = Math.max(0, num(nouveauAcompteInput.value));
+    if (nouveau > plafond) {
+      nouveau = plafond;
+      nouveauAcompteInput.value = plafond.toFixed(3);
+    } else if (nouveau !== num(nouveauAcompteInput.value)) {
+      nouveauAcompteInput.value = nouveau.toFixed(3);
+    }
+
+    var reste = totalMontant - totalPaye - nouveau;
+
+    totalMontantInput.value = hasChecked ? totalMontant.toFixed(3) : '';
+    totalPayeInput.value = hasChecked ? totalPaye.toFixed(3) : '';
+    totalResteInput.value = (hasChecked || nouveau) ? reste.toFixed(3) : '';
+    totalResteInput.classList.toggle('text-danger', reste < 0);
+  }
+
+  // ── Section 3 : regroupement Produit + Prix unitaire, UNIQUEMENT sur les
+  // lignes de la Section 2 actuellement cochées "Inclure" (et toujours
+  // présentes — une ligne supprimée n'y contribue plus) ─────────────────────
+  var detailsByCodeId = {};
+
+  function recomputeSection3() {
+    var groupes = {};
+    var ordre = [];
+    section2Rows.querySelectorAll('.vente-bl-row').forEach(function (row) {
+      var checkbox = row.querySelector('.vente-inclure-checkbox');
+      if (!checkbox.checked) { return; }
+      var codeId = row.getAttribute('data-bl-code-id');
+      var details = detailsByCodeId[codeId] || [];
+      details.forEach(function (d) {
+        var cle = d.produit_id + '|' + d.prix_unitaire;
+        if (!groupes[cle]) {
+          groupes[cle] = { produit_nom: d.produit_nom, prix_unitaire: d.prix_unitaire, quantite: 0 };
+          ordre.push(cle);
+        }
+        groupes[cle].quantite += num(d.quantite);
+      });
+    });
+
+    section3Rows.innerHTML = '';
+    if (!ordre.length) {
+      section3Rows.innerHTML =
+        '<tr><td colspan="4" class="text-center py-3 text-muted">Aucun bon de livraison inclus.</td></tr>';
+      return;
+    }
+    ordre.sort(function (a, b) { return groupes[a].produit_nom.localeCompare(groupes[b].produit_nom); });
+    ordre.forEach(function (cle) {
+      var g = groupes[cle];
+      var totalLigne = num(g.prix_unitaire) * g.quantite;
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="ps-3">' + g.produit_nom + '</td>' +
+        '<td>' + g.quantite + '</td>' +
+        '<td>' + g.prix_unitaire + '</td>' +
+        '<td class="pe-3">' + totalLigne.toFixed(3) + '</td>';
+      section3Rows.appendChild(tr);
+    });
+  }
+
+  function recompute() {
+    recomputeTotals();
+    recomputeSection3();
+  }
+
+  // ── Nouveau montant payé : refus (infobulle native) si la saisie dépasse
+  // ce qui reste réellement dû (Total montant − Total montant payé) ─────────
+  nouveauAcompteInput.addEventListener('input', function () {
+    var plafond = Math.max(0, num(totalMontantInput.value) - num(totalPayeInput.value));
+    if (num(nouveauAcompteInput.value) > plafond) {
+      nouveauAcompteInput.setCustomValidity(
+        'Le nouveau montant payé ne peut pas dépasser le reste à régler (' + plafond.toFixed(3) + ').',
+      );
+      nouveauAcompteInput.reportValidity();
+      nouveauAcompteInput.value = plafond.toFixed(3);
+    } else {
+      nouveauAcompteInput.setCustomValidity('');
+    }
+    recompute();
+  });
+
+  modePaiementSelect.addEventListener('change', recompute);
+
+  // ── Section 2 : une ligne « bon de livraison » ────────────────────────────
+  function addSection2Row(l) {
+    detailsByCodeId[l.bon_livraison_code_id] = l.details || [];
+
+    var row = document.createElement('div');
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 vente-bl-row';
+    row.setAttribute('data-bl-code-id', l.bon_livraison_code_id);
+    row.innerHTML =
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="hidden" name="bl_code_id" value="' + l.bon_livraison_code_id + '">' +
+        '<input type="date" class="form-control form-control-sm" value="' + l.date + '" disabled>' +
+      '</div>' +
+      '<div style="width:120px;flex:0 0 auto;">' +
+        '<input type="text" class="form-control form-control-sm" value="' + l.numero + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace vente-montant-total-input" value="' + l.montant_total + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace vente-montant-paye-input" value="' + l.montant_paye + '" disabled>' +
+      '</div>' +
+      '<div style="width:130px;flex:0 0 auto;">' +
+        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.reste + '" disabled>' +
+      '</div>' +
+      '<div style="width:80px;flex:0 0 auto;text-align:center;">' +
+        '<input type="checkbox" name="bl_inclure" value="' + l.bon_livraison_code_id + '" class="form-check-input vente-inclure-checkbox"' + (LOCKED ? ' disabled' : '') + '>' +
+      '</div>' +
+      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger vente-remove-row-btn" title="Supprimer la ligne"' + (LOCKED ? ' disabled' : '') + '>' +
+          '<i class="bi bi-trash"></i>' +
+        '</button>' +
+      '</div>';
+
+    var checkbox = row.querySelector('.vente-inclure-checkbox');
+    checkbox.checked = !!l.checked;
+    checkbox.addEventListener('change', recompute);
+    row.querySelector('.vente-remove-row-btn').addEventListener('click', function () {
+      row.remove();
+      recompute();
+    });
+
+    section2Rows.appendChild(row);
+  }
+
+  function renderSection2(lignes) {
+    section2Rows.innerHTML = '';
+    detailsByCodeId = {};
+    if (!lignes.length) {
+      section2Rows.innerHTML =
+        '<div class="text-muted small py-2">Aucun bon de livraison non facturé pour ce client.</div>';
+    } else {
+      lignes.forEach(function (l) { addSection2Row(l); });
+    }
+    toggleTout.checked = false;
+    toggleToutLabel.textContent = 'Tout cocher';
+    recompute();
+  }
+
+  function loadDefaults() {
+    var clientId = clientSelect.value;
+    if (!clientId) {
+      renderSection2([]);
+      section2Rows.innerHTML =
+        '<div class="text-muted small py-2">Sélectionnez un client pour afficher les bons de livraison.</div>';
+      section3Rows.innerHTML =
+        '<tr><td colspan="4" class="text-center py-3 text-muted">Sélectionnez un client pour afficher les produits.</td></tr>';
+      return;
+    }
+    var url = DEFAULTS_URL + '?client_id=' + encodeURIComponent(clientId);
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      renderSection2(data.lignes_bl || []);
+    });
+  }
+
+  // ── Case « Tout cocher » / « Tout décocher » ──────────────────────────────
+  toggleTout.addEventListener('change', function () {
+    var cocher = toggleTout.checked;
+    section2Rows.querySelectorAll('.vente-inclure-checkbox').forEach(function (cb) {
+      cb.checked = cocher;
+    });
+    toggleToutLabel.textContent = cocher ? 'Tout décocher' : 'Tout cocher';
+    recompute();
+  });
+
+  // ── Bouton Réinitialiser : ne touche qu'à la section 2 (et 3, mêmes
+  // données) — recharge depuis le serveur, annule suppressions/cases cochées.
+  resetBtn.addEventListener('click', function () {
+    loadDefaults();
+  });
+
+  // En cas de réaffichage après échec de validation, toutes les lignes
+  // précédemment présentes (cochées ou non) sont restaurées telles quelles
+  // — la Section 2 n'est PAS rechargée depuis le serveur dans ce cas, pour
+  // ne jamais perdre ni modifier l'état déjà saisi par l'utilisateur.
+  if (PRESERVED_LIGNES.length) {
+    renderSection2(PRESERVED_LIGNES);
+  }
+
+  updateSaveVisibility();
+})();
+</script>
+{% endblock %}

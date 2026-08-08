@@ -8,6 +8,14 @@
      class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'production' %}active{% endif %}">
     <i class="bi bi-house-door"></i> Accueil
   </a>
+  {% if is_administration_user %}
+  <a href="{% url 'administration:home' %}" class="nav-link">
+    <i class="bi bi-gear-wide-connected"></i> Administration
+  </a>
+  <a href="{% url 'commercial:home' %}" class="nav-link">
+    <i class="bi bi-shop"></i> Commercial
+  </a>
+  {% endif %}
 
   <div class="sidebar-section">Catalogue</div>
   <a href="{% url 'production:produit-list' %}"

@@ -1,0 +1,200 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Sauvegardes — Administration{% endblock %}
+{% block page_title %}Sauvegardes de la base de données{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Sauvegardes de la base de données</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Sauvegardes de la base de données</h4>
+  <a href="{% url 'backups:sauvegarde-create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i> Ajouter sauvegarde base de données
+  </a>
+</div>
+
+{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <input type="hidden" name="chiffre_soumis" value="1">
+      <input type="hidden" name="reussie_soumis" value="1">
+      <div class="d-flex flex-nowrap align-items-end gap-3 overflow-auto">
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <select name="ordre" class="form-select form-select-sm" data-autosubmit>
+            <option value="desc" {% if ordre == 'desc' %}selected{% endif %}>Décroissant</option>
+            <option value="asc" {% if ordre == 'asc' %}selected{% endif %}>Croissant</option>
+          </select>
+        </div>
+
+        <div class="form-check mb-1" style="flex:0 0 auto;">
+          <input type="checkbox" class="form-check-input" id="chiffre-check" name="chiffre"
+                 {% if chiffre_filtre %}checked{% endif %} data-autosubmit>
+          <label class="form-check-label small" for="chiffre-check">Chiffré</label>
+        </div>
+
+        <div class="form-check mb-1" style="flex:0 0 auto;">
+          <input type="checkbox" class="form-check-input" id="reussie-check" name="reussie"
+                 {% if reussie_filtre %}checked{% endif %} data-autosubmit>
+          <label class="form-check-label small" for="reussie-check">Réussie</label>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'backups:sauvegarde-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : liste des sauvegardes ────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if page_obj.object_list %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nom de la sauvegarde</th>
+            <th>Type</th>
+            <th class="text-center">Chiffré</th>
+            <th class="text-end">Taille</th>
+            <th>Date de création</th>
+            <th class="text-center">Réussie</th>
+            <th class="text-center pe-3" style="width:160px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in page_obj.object_list %}
+          <tr>
+            <td class="ps-3">{{ s.nom }}</td>
+            <td>{{ s.type_sauvegarde }}</td>
+            <td class="text-center">
+              {% if s.chiffre %}<i class="bi bi-lock-fill text-success" title="Chiffré"></i>
+              {% else %}<i class="bi bi-unlock text-muted" title="Non chiffré"></i>{% endif %}
+            </td>
+            <td class="text-end font-monospace">{{ s.taille|default:0|filesizeformat }}</td>
+            <td>{{ s.created_at|date:'d/m/Y H:i' }}</td>
+            <td class="text-center">
+              {% if s.reussie %}<span class="badge bg-success">Oui</span>
+              {% else %}<span class="badge bg-danger" title="{{ s.message_erreur|default:'' }}">Non</span>{% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <div class="d-flex justify-content-center gap-1">
+                {% if s.reussie %}
+                <a href="{% url 'backups:sauvegarde-download' s.pk %}"
+                   class="btn btn-sm btn-outline-primary" title="Télécharger">
+                  <i class="bi bi-download"></i>
+                </a>
+                {% if s.type_sauvegarde == 'Complète' %}
+                <form method="post" action="{% url 'backups:sauvegarde-restore' s.pk %}" class="d-inline"
+                      onsubmit="return confirm('Restaurer la base de données depuis « {{ s.nom }} » ?\n\nCeci va REMPLACER TOUT le contenu actuel de la base par celui de cette sauvegarde. Une sauvegarde de sécurité de l\'état actuel sera créée automatiquement avant, mais cette opération reste irréversible sur le fonctionnement en cours. Continuer ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-warning" title="Restaurer">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                </form>
+                {% else %}
+                <button type="button" class="btn btn-sm btn-outline-warning" disabled
+                        title="Seule une sauvegarde « Complète » peut être restaurée">
+                  <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+                {% endif %}
+                {% else %}
+                <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Sauvegarde en échec">
+                  <i class="bi bi-download"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning" disabled title="Sauvegarde en échec">
+                  <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+                {% endif %}
+                <form method="post" action="{% url 'backups:sauvegarde-delete' s.pk %}" class="d-inline"
+                      onsubmit="return confirm('Voulez-vous vraiment supprimer cette sauvegarde ?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} sauvegarde{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?ordre={{ ordre }}&chiffre_soumis=1{% if chiffre_filtre %}&chiffre=on{% endif %}&reussie_soumis=1{% if reussie_filtre %}&reussie=on{% endif %}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?ordre={{ ordre }}&chiffre_soumis=1{% if chiffre_filtre %}&chiffre=on{% endif %}&reussie_soumis=1{% if reussie_filtre %}&reussie=on{% endif %}&page={{ num }}">
+                {{ num }}
+              </a>
+            </li>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?ordre={{ ordre }}&chiffre_soumis=1{% if chiffre_filtre %}&chiffre=on{% endif %}&reussie_soumis=1{% if reussie_filtre %}&reussie=on{% endif %}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-hdd-stack fs-1 d-block mb-2 opacity-25"></i>
+      Aucune sauvegarde avec ces filtres.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
+{% endblock %}

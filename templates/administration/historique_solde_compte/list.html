@@ -105,9 +105,10 @@
             </td>
             <td class="text-center pe-3">
               <div class="d-flex justify-content-center gap-1">
-                <button type="button" class="btn btn-sm btn-outline-secondary" title="Visualiser (à venir)">
+                <a href="{% url 'administration:solde-caisse-transactions' h.pk %}"
+                   class="btn btn-sm btn-outline-secondary" title="Visualiser">
                   <i class="bi bi-eye"></i>
-                </button>
+                </a>
               </div>
             </td>
           </tr>

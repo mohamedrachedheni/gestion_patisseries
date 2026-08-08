@@ -26,7 +26,7 @@ from .forms import ClientForm, FournisseurForm
 from .models import (
     Achat, AchatCode, AchatDetaille, Agenda, BonLivraison, BonLivraisonCode, BonLivraisonDetaille,
     Client, ClientUser, Delegation, Depense, DepenseCode, DepenseDetaille, Fournisseur, Gouvernorat,
-    HistoriqueStockInitial, HistoriqueStockInitialDetaille, Zone,
+    HistoriqueStockInitial, HistoriqueStockInitialDetaille, Vente, VenteCode, VenteDetaille, Zone,
     MODE_PAIEMENT_CHOICES, STATUT_PAIEMENT_CHOICES,
 )
 
@@ -35,6 +35,8 @@ User = get_user_model()
 FOURNISSEUR_TYPE_ACHAT = 'Matières premières et Emballages'
 LIBELLE_PAIEMENT_ACHAT = 'Paiement nouveau achat matière première'
 LIBELLE_PAIEMENT_ANCIEN_ACHAT = 'Paiement ancien achat matière première'
+LIBELLE_PAIEMENT_VENTE = 'Paiement nouvelle vente'
+LIBELLE_PAIEMENT_VENTE_MODIFIEE = 'Paiement vente modifié'
 
 
 class HomeView(GroupRequiredMixin, TemplateView):
@@ -1477,6 +1479,885 @@ class BonLivraisonDefaultsView(GroupRequiredMixin, View):
             if d.produit_id is not None
         ]
         return JsonResponse({'lignes': lignes, 'derniers_prix': derniers_prix_json})
+
+
+# ─── Ventes ─────────────────────────────────────────────────────────────────
+
+class VenteListView(GroupRequiredMixin, View):
+    """Liste des Vente sur une période — exactement les mêmes filtres et le
+    même tableau que BonLivraisonListView (Section 1 : Date début/fin,
+    Client, Zone, Statut, Commercial si Administration ; Section 2 : tableau
+    paginé), mais sur la table Vente/VenteCode au lieu de
+    BonLivraison/BonLivraisonCode. Comme pour les bons de livraison, un même
+    VenteCode peut avoir plusieurs Vente (historique) : seul le DERNIER
+    Vente de chaque VenteCode de la période est affiché. « Etat PDF » ouvre VentePdfView ; « Visualiser » ouvre la pop-up
+    « Historique des modification d'une vente » (VenteHistoriquePopupView) ;
+    « Modifier » ouvre la page « Modification d'une vente »
+    (VenteUpdateView) ; « Supprimer » ouvre VenteDeleteView (confirmation
+    puis suppression conditionnelle)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/vente/list.html'
+    PAGINATE_BY = 8
+
+    def get(self, request):
+        is_admin = _is_administration(request.user)
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str   = request.GET.get('date_fin', '').strip()
+        client_id      = request.GET.get('client_id', '').strip()
+        zone_id        = request.GET.get('zone_id', '').strip()
+        statut         = request.GET.get('statut', '').strip()
+        commercial_id  = request.GET.get('commercial_id', '').strip() if is_admin else ''
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=6)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=6)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        dernier_vente_id_par_code = (
+            Vente.objects
+            .filter(
+                vente_code__vente_at__gte=date_debut,
+                vente_code__vente_at__lte=date_fin,
+            )
+            .values('vente_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+        qs = Vente.objects.select_related(
+            'user', 'vente_code__client__zone__delegation',
+        ).filter(pk__in=dernier_vente_id_par_code)
+
+        if not is_admin:
+            qs = qs.filter(user=request.user)
+        elif commercial_id:
+            qs = qs.filter(user_id=commercial_id)
+
+        if client_id:
+            qs = qs.filter(vente_code__client_id=client_id)
+        if zone_id:
+            qs = qs.filter(vente_code__client__zone_id=zone_id)
+        if statut:
+            qs = qs.filter(statut=statut)
+
+        qs = qs.order_by('-vente_code__vente_at', 'vente_code__vente_numero')
+
+        if is_admin:
+            clients_list = Client.objects.order_by('raison_sociale')
+            zones_list = Zone.objects.order_by('nom')
+        else:
+            clients_scope = _client_queryset_for_user(request.user)
+            clients_list = clients_scope.order_by('raison_sociale')
+            zones_list = Zone.objects.filter(clients__in=clients_scope).distinct().order_by('nom')
+
+        commerciaux_list = (
+            User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
+            if is_admin else None
+        )
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':          page_obj,
+            'is_paginated':      page_obj.has_other_pages(),
+            'ventes':            page_obj.object_list,
+            'is_administration': is_admin,
+            'date_debut':        date_debut_str,
+            'date_fin':          date_fin_str,
+            'client_id':         client_id,
+            'zone_id':           zone_id,
+            'statut':            statut,
+            'commercial_id':     commercial_id,
+            'clients_list':      clients_list,
+            'zones_list':        zones_list,
+            'commerciaux_list':  commerciaux_list,
+            'statut_choices':    STATUT_PAIEMENT_CHOICES,
+        })
+
+
+class VentePdfView(GroupRequiredMixin, View):
+    """Génère l'« État PDF » d'une vente (pk = vente_id) — presque le même
+    gabarit que le PDF d'un bon de livraison (commercial/bon_livraison/pdf_etat.html) :
+    titre « FACTURE VENTE » au lieu de « BON DE LIVRAISON » ; tableau des
+    produits regroupés par (Produit, Prix unitaire), quantités sommées,
+    Total ligne = Prix unitaire × Qté — reprend exactement le calcul de la
+    Section 3 « Liste des produits » de ventes/nouveau/, mais à partir des
+    BonLivraisonDetaille des BonLivraisonCode effectivement liés à cette
+    vente (via VenteDetaille) plutôt que des cases cochées d'un formulaire ;
+    juste après le tableau, la liste des bons de livraison associés (Date,
+    Numéro). Le reste (bloc société, bloc client, montant en lettres/chiffres,
+    signatures, pied de page) est identique au PDF bon de livraison."""
+    group_required = ['Administration', 'Commercial']
+
+    def get(self, request, pk):
+        qs = Vente.objects.select_related('user', 'vente_code__client__zone')
+        if not _is_administration(request.user):
+            qs = qs.filter(user=request.user)
+        vente = get_object_or_404(qs, pk=pk)
+        code = vente.vente_code
+
+        bl_code_ids = list(vente.details.values_list('bon_livraison_code_id', flat=True))
+        bl_codes = BonLivraisonCode.objects.filter(pk__in=bl_code_ids).order_by(
+            'bon_livraison_at', 'bon_livraison_numero',
+        )
+
+        dernier_bl_id_par_code = (
+            BonLivraison.objects
+            .filter(bon_livraison_code_id__in=bl_code_ids)
+            .values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+        lignes_produits = (
+            BonLivraisonDetaille.objects
+            .filter(bon_livraison_id__in=dernier_bl_id_par_code, produit__isnull=False)
+            .values('produit__nom', 'prix_unitaire')
+            .annotate(quantite=Sum('quantite'))
+            .order_by('produit__nom')
+        )
+        details = [
+            {
+                'produit_nom':   l['produit__nom'],
+                'prix_unitaire': l['prix_unitaire'],
+                'quantite':      l['quantite'],
+                'total_ligne':   l['prix_unitaire'] * l['quantite'],
+            }
+            for l in lignes_produits
+        ]
+
+        html = render_to_string('commercial/vente/pdf_etat.html', {
+            'vente':              vente,
+            'vente_code':         code,
+            'client':             code.client,
+            'details':            details,
+            'bl_codes':           bl_codes,
+            'montant_lettres':    _montant_en_lettres(vente.total_montant),
+            'montant_chiffres':   _format_montant_tnd(vente.total_montant),
+        })
+
+        pdf_buffer = BytesIO()
+        pisa_status = pisa.CreatePDF(html, dest=pdf_buffer)
+        if pisa_status.err:
+            messages.error(request, 'Échec de la génération du PDF.')
+            return redirect('commercial:vente-list')
+
+        log_audit(
+            AuditAction.EXPORT_PDF, f'Export PDF vente {code}',
+            table='Vente', record_id=vente.pk,
+        )
+
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        filename = f'vente_{code.vente_numero}_{code.vente_at.isoformat()}.pdf'
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+
+
+class VenteHistoriquePopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Historique des
+    modification d'une vente ») déclenché par le bouton Visualiser de la
+    liste des ventes. Section 1 (VenteCode : Date vente / Numéro vente /
+    Client) ne varie jamais avec la pagination. Section 2 « Historique de la
+    vente » : paginateur d'UN enregistrement Vente à la fois parmi tous ceux
+    partageant le même vente_code_id (même mécanique que la section
+    « Historique du bon de livraison » de TransactionDetailPopupView) ;
+    l'enregistrement affiché à l'ouverture est celui sélectionné dans la
+    liste des ventes. Sections 3 (BL inclus) et 4 (produits regroupés) sont
+    recalculées à partir des VenteDetaille de l'enregistrement Vente COURANT
+    (celui affiché par le paginateur) — elles changent donc elles aussi en
+    naviguant dans l'historique."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/vente/historique_popup.html'
+
+    def get(self, request, pk):
+        vente_ref = get_object_or_404(Vente.objects.select_related('vente_code__client'), pk=pk)
+        vente_code = vente_ref.vente_code
+
+        historique_qs = Vente.objects.filter(
+            vente_code_id=vente_code.pk,
+        ).select_related('user').order_by('id')
+        historique_ids = list(historique_qs.values_list('id', flat=True))
+        try:
+            page_par_defaut = historique_ids.index(pk) + 1
+        except ValueError:
+            page_par_defaut = 1
+
+        paginator = Paginator(historique_qs, 1)
+        page_obj = paginator.get_page(request.GET.get('page') or page_par_defaut)
+        vente = page_obj.object_list[0] if page_obj.object_list else None
+
+        lignes_bl = []
+        groupes_produits = []
+        if vente is not None:
+            bl_code_ids = list(vente.details.values_list('bon_livraison_code_id', flat=True))
+            dernier_bl_id_par_code = (
+                BonLivraison.objects
+                .filter(bon_livraison_code_id__in=bl_code_ids)
+                .values('bon_livraison_code_id')
+                .annotate(dernier_id=Max('id'))
+                .values_list('dernier_id', flat=True)
+            )
+            derniers_bl = (
+                BonLivraison.objects
+                .filter(pk__in=dernier_bl_id_par_code)
+                .select_related('bon_livraison_code')
+                .order_by('bon_livraison_code__bon_livraison_at', 'bon_livraison_code__bon_livraison_numero')
+            )
+            lignes_bl = [
+                {
+                    'date':          bl.bon_livraison_code.bon_livraison_at,
+                    'numero':        bl.bon_livraison_code.bon_livraison_numero,
+                    'montant_total': bl.total_montant,
+                    'montant_paye':  bl.total_acompte,
+                    'reste':         bl.reste_a_payer,
+                }
+                for bl in derniers_bl
+            ]
+            lignes_produits = (
+                BonLivraisonDetaille.objects
+                .filter(bon_livraison_id__in=dernier_bl_id_par_code, produit__isnull=False)
+                .values('produit__nom', 'prix_unitaire')
+                .annotate(quantite=Sum('quantite'))
+                .order_by('produit__nom')
+            )
+            groupes_produits = [
+                {
+                    'produit_nom':   l['produit__nom'],
+                    'prix_unitaire': l['prix_unitaire'],
+                    'quantite':      l['quantite'],
+                    'total_ligne':   l['prix_unitaire'] * l['quantite'],
+                }
+                for l in lignes_produits
+            ]
+
+        return render(request, self.template_name, {
+            'root_pk':          pk,
+            'vente_code':       vente_code,
+            'page_obj':         page_obj,
+            'vente':            vente,
+            'lignes_bl':        lignes_bl,
+            'groupes_produits': groupes_produits,
+            'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
+        })
+
+
+def _lignes_bl_detail(bon_livraison_code_ids, coches_ids=None):
+    """Pour chaque BonLivraisonCode de bon_livraison_code_ids, calcule sa
+    ligne Section 2 (Date, Numéro, Montant total, Montant total payé, Reste
+    à régler — via son DERNIER BonLivraison) et le détail brut de ce
+    BonLivraison (Produit, Prix unitaire, Qté) pour le regroupement
+    dynamique de la Section 3 — réutilisée par VenteDefaultsView (AJAX) et
+    par le réaffichage de VenteCreateView après échec de validation. Si
+    coches_ids est fourni (chaînes), marque 'checked' pour les lignes déjà
+    incluses (réaffichage)."""
+    coches_ids = coches_ids or set()
+
+    dernier_bl_id_par_code = (
+        BonLivraison.objects
+        .filter(bon_livraison_code_id__in=bon_livraison_code_ids)
+        .values('bon_livraison_code_id')
+        .annotate(dernier_id=Max('id'))
+        .values_list('dernier_id', flat=True)
+    )
+
+    derniers_bl = (
+        BonLivraison.objects
+        .filter(pk__in=dernier_bl_id_par_code)
+        .select_related('bon_livraison_code')
+        .order_by('bon_livraison_code__bon_livraison_at', 'bon_livraison_code__bon_livraison_numero')
+    )
+
+    details_par_bl = {}
+    details_qs = (
+        BonLivraisonDetaille.objects
+        .filter(bon_livraison_id__in=dernier_bl_id_par_code, produit__isnull=False)
+        .select_related('produit')
+        .order_by('produit__nom')
+    )
+    for d in details_qs:
+        details_par_bl.setdefault(d.bon_livraison_id, []).append({
+            'produit_id':    d.produit_id,
+            'produit_nom':   d.produit.nom,
+            'prix_unitaire': str(d.prix_unitaire),
+            'quantite':      str(d.quantite),
+        })
+
+    return [
+        {
+            'bon_livraison_code_id': bl.bon_livraison_code_id,
+            'date':                  bl.bon_livraison_code.bon_livraison_at.isoformat(),
+            'numero':                bl.bon_livraison_code.bon_livraison_numero,
+            'montant_total':         str(bl.total_montant),
+            'montant_paye':          str(bl.total_acompte),
+            'reste':                 str(bl.reste_a_payer),
+            'details':               details_par_bl.get(bl.pk, []),
+            'checked':               str(bl.bon_livraison_code_id) in coches_ids,
+        }
+        for bl in derniers_bl
+    ]
+
+
+class VenteDefaultsView(GroupRequiredMixin, View):
+    """Point d'entrée AJAX utilisé par le template Nouvelle vente : étant
+    donné un client (client_id), calcule les BonLivraisonCode de ce client
+    pas encore rattachés à une vente (vente_code IS NULL) — voir
+    _lignes_bl_detail pour le détail du calcul de chaque ligne."""
+    group_required = ['Administration', 'Commercial']
+
+    def get(self, request):
+        client_id = request.GET.get('client_id', '').strip()
+        if not client_id or not client_id.isdigit():
+            return JsonResponse({'lignes_bl': []})
+
+        code_ids = BonLivraisonCode.objects.filter(
+            client_id=client_id, vente_code__isnull=True,
+        ).values_list('pk', flat=True)
+
+        return JsonResponse({'lignes_bl': _lignes_bl_detail(code_ids)})
+
+
+class VenteCreateView(GroupRequiredMixin, View):
+    """Formulaire « Nouvelle vente » : Section 1 (filtres — Commercial si
+    Administration, Zone, Client, cascade identique à
+    BonLivraisonCreateView — puis, sur la même ligne : Date vente, par
+    défaut aujourd'hui, modifiable ; Numéro vente, verrouillé, recalculé via
+    VenteNumeroSuivantView (AJAX) à chaque changement de Date vente — nombre
+    de VenteCode existants ce jour-là + 1, identique au mécanisme de Numéro
+    bon de livraison ; puis Total montant des BL
+    et Total montant payé des BL, calculés en lecture seule et vides par
+    défaut, sommés côté client sur les lignes de la Section 2 dont
+    « Inclure » est coché ; Nouveau montant payé, modifiable, par défaut 0,
+    plafonné côté client à [Total montant des BL − Total montant payé des
+    BL] — toute saisie supérieure est refusée avec une infobulle native
+    (setCustomValidity/reportValidity) et ramenée au plafond ; Mode de
+    paiement, modifiable, par défaut « Espèces », toujours modifiable (pas
+    de verrouillage lié au reste à payer) ; Total reste à payer des BL =
+    Total montant des BL − Total montant payé des BL − Nouveau montant
+    payé, recalculé en continu, en rouge si négatif ; puis, sur sa propre
+    ligne, Observation (vide, modifiable). Section 2 « Liste des bons de
+    livraison » : peuplée via VenteDefaultsView (AJAX) au changement de
+    Client — case à cocher « Tout cocher »/« Tout décocher » (Inclure de
+    toutes les lignes), bouton Réinitialiser (recharge la Section 2 depuis
+    le serveur, annulant les lignes supprimées et les cases cochées — ne
+    touche pas au reste de la page), bouton Supprimer par ligne (retire
+    uniquement la ligne de l'affichage, aucune suppression en base).
+    Section 3 « Liste des produits » : entièrement verrouillée, mais
+    recalculée côté client (regroupement Produit + Prix unitaire, somme des
+    quantités) à partir du détail embarqué dans les lignes de la Section 2
+    — ne concerne QUE les bons de livraison actuellement cochés « Inclure »
+    et toujours présents (non supprimés) ; changement de contenu à chaque
+    case cochée/décochée, ligne supprimée, « Tout cocher »/« Tout décocher »
+    ou Réinitialiser.
+
+    Le bouton « Enregistrer » (voir post()) valide, dans l'ordre : Client
+    défini ; au moins un bon de livraison coché « Inclure » en Section 2 ;
+    Commercial défini ; [Total montant des BL − Total montant payé des BL]
+    >= Nouveau montant payé (recalculés côté serveur à partir des lignes
+    cochées, jamais depuis les valeurs postées) ; Date vente >= la plus
+    récente Date bon de livraison parmi les lignes cochées ; aucun des
+    BonLivraisonCode cochés n'a, côté serveur, un vente_code déjà défini
+    (re-vérification juste avant l'enregistrement — garde contre une
+    double soumission ou un rattachement concurrent à une autre vente). Si
+    tout est valide, dans une transaction.atomic() : 1) création d'un VenteCode
+    (vente_at, vente_numero recalculé côté serveur, client) ; 2) création
+    d'une Vente (vente_code, total_montant/total_acompte recalculés côté
+    serveur à partir des lignes cochées + nouveau_acompte, reste_a_payer,
+    statut déduit, mode_paiement, observation, user=Commercial) ; 3) un
+    VenteDetaille par ligne cochée (vente, bon_livraison_code) ; 4) une
+    Transaction caisse (montant=nouveau_acompte, libellé « Paiement
+    nouvelle vente » (get_or_create), hist_solde_compte=Null) ; 5) mise à
+    jour des BonLivraisonCode cochés (vente_code IS NULL) : vente_code =
+    nouveau VenteCode. En cas d'échec (validation ou écriture), rien n'est
+    enregistré et la page est régénérée avec toutes les valeurs saisies et
+    les lignes de la Section 2 préservées (préremplissage JSON, comme pour
+    achats/nouveau). En cas de succès, on reste sur la même page (pas de
+    redirection) : le bouton « Enregistrer » se verrouille (saved_vente
+    défini), « Etat PDF » s'active vers VentePdfView de la vente qui vient
+    d'être traitée, et la Section 2 est rechargée avec les seuls bons de
+    livraison encore disponibles pour ce client (ceux qui viennent d'être
+    inclus ont désormais un vente_code et disparaissent donc de la liste)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/vente/create.html'
+
+    def _context(self, request, **overrides):
+        is_admin = _is_administration(request.user)
+        today = date.today()
+
+        if is_admin:
+            commerciaux_list = User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
+            clients_qs = Client.objects.order_by('raison_sociale')
+            zones_qs = Zone.objects.order_by('nom')
+            client_users_qs = ClientUser.objects.all()
+        else:
+            commerciaux_list = None
+            clients_scope = _client_queryset_for_user(request.user)
+            clients_qs = clients_scope.order_by('raison_sociale')
+            zones_qs = Zone.objects.filter(clients__in=clients_scope).distinct().order_by('nom')
+            client_users_qs = ClientUser.objects.filter(user=request.user)
+
+        context = {
+            'is_administration':     is_admin,
+            'commerciaux_list':      commerciaux_list,
+            'mode_paiement_choices': MODE_PAIEMENT_CHOICES,
+            'vente_at_value':        today.isoformat(),
+            'numero_initial':        VenteCode.objects.filter(vente_at=today).count() + 1,
+            'clients_json': json.dumps([
+                {'id': c.pk, 'label': str(c), 'zone_id': c.zone_id} for c in clients_qs
+            ]),
+            'zones_json': json.dumps([
+                {'id': z.pk, 'nom': z.nom} for z in zones_qs
+            ]),
+            'client_users_json': json.dumps([
+                {'client_id': cu.client_id, 'user_id': cu.user_id} for cu in client_users_qs
+            ]),
+            'selected_commercial_id': '',
+            'selected_client_id':     '',
+            'nouveau_acompte_value':  '0',
+            'mode_paiement_value':    'Espèces',
+            'observation_value':      '',
+            'preserved_lignes_json':  '[]',
+            'saved_vente':            None,
+        }
+        context.update(overrides)
+        return context
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(request))
+
+    def post(self, request):
+        is_admin = _is_administration(request.user)
+
+        vente_at_str = request.POST.get('vente_at', '').strip()
+        client_id = request.POST.get('client_id', '').strip()
+        commercial_id = request.POST.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+        nouveau_acompte_s = request.POST.get('nouveau_acompte', '').strip()
+        mode_paiement = request.POST.get('mode_paiement', '').strip() or 'Espèces'
+        observation = request.POST.get('observation', '').strip()
+
+        tous_ids = request.POST.getlist('bl_code_id')
+        coches_ids_set = set(request.POST.getlist('bl_inclure'))
+        valides_ids = [i for i in tous_ids if i in coches_ids_set]
+
+        def _echec(message):
+            messages.error(request, message)
+            vente_at_pour_numero = date.fromisoformat(vente_at_str) if _is_iso_date(vente_at_str) else date.today()
+            context = self._context(
+                request,
+                vente_at_value=vente_at_str or date.today().isoformat(),
+                numero_initial=VenteCode.objects.filter(vente_at=vente_at_pour_numero).count() + 1,
+                selected_commercial_id=commercial_id,
+                selected_client_id=client_id,
+                nouveau_acompte_value=nouveau_acompte_s or '0',
+                mode_paiement_value=mode_paiement,
+                observation_value=observation,
+                preserved_lignes_json=json.dumps(
+                    _lignes_bl_detail(tous_ids, coches_ids=coches_ids_set) if tous_ids else [],
+                ),
+            )
+            return render(request, self.template_name, context)
+
+        # ── Validations ────────────────────────────────────────────────────
+        if not client_id:
+            return _echec('Le client est obligatoire.')
+
+        if not valides_ids:
+            return _echec(
+                "Il faut inclure (case « Inclure ») au moins un bon de livraison dans la liste "
+                'de la section « Liste des bons de livraison ».',
+            )
+
+        if not commercial_id:
+            return _echec('Le commercial est obligatoire.')
+
+        # Total montant / Total montant payé recalculés côté serveur à partir
+        # des lignes cochées — jamais depuis les valeurs affichées/postées.
+        dernier_bl_id_par_code = (
+            BonLivraison.objects
+            .filter(bon_livraison_code_id__in=valides_ids)
+            .values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+        derniers_bl = list(
+            BonLivraison.objects.filter(pk__in=dernier_bl_id_par_code).select_related('bon_livraison_code'),
+        )
+        total_montant_bl = sum((bl.total_montant for bl in derniers_bl), Decimal('0'))
+        total_acompte_bl = sum((bl.total_acompte for bl in derniers_bl), Decimal('0'))
+
+        try:
+            nouveau_acompte = Decimal(nouveau_acompte_s) if nouveau_acompte_s else Decimal('0')
+        except InvalidOperation:
+            return _echec('Le nouveau montant payé doit être un nombre valide.')
+        if nouveau_acompte < 0:
+            return _echec('Le nouveau montant payé ne doit pas être négatif.')
+
+        if (total_montant_bl - total_acompte_bl) < nouveau_acompte:
+            return _echec(
+                'Le nouveau montant payé ne peut pas dépasser le reste à régler des bons de '
+                'livraison inclus.',
+            )
+
+        if not vente_at_str or not _is_iso_date(vente_at_str):
+            return _echec('La date de la vente est obligatoire.')
+        vente_at = date.fromisoformat(vente_at_str)
+
+        date_max_bl = max(bl.bon_livraison_code.bon_livraison_at for bl in derniers_bl)
+        if vente_at < date_max_bl:
+            return _echec(
+                'La date de la vente ne peut pas être antérieure à la date du bon de livraison '
+                f'le plus récent inclus ({date_max_bl.strftime("%d/%m/%Y")}).',
+            )
+
+        # Re-vérification côté serveur, juste avant l'enregistrement : un des
+        # bons de livraison inclus a pu, entre-temps, être rattaché à une
+        # autre vente (ou celle-ci a déjà été soumise avec succès — double
+        # clic/re-soumission) — jamais faire confiance au seul état affiché.
+        if BonLivraisonCode.objects.filter(pk__in=valides_ids, vente_code__isnull=False).exists():
+            return _echec(
+                'Un ou plusieurs bons de livraison sont déjà associés à une ou plusieurs ventes, '
+                'ou la vente en cours a déjà été enregistrée.',
+            )
+
+        # ── Enregistrement ─────────────────────────────────────────────────
+        try:
+            with transaction.atomic():
+                vente_code = VenteCode.objects.create(
+                    vente_at=vente_at,
+                    vente_numero=VenteCode.objects.filter(vente_at=vente_at).count() + 1,
+                    client_id=client_id,
+                )
+
+                total_montant = total_montant_bl
+                total_acompte = total_acompte_bl + nouveau_acompte
+                reste_a_payer = total_montant - total_acompte
+                if reste_a_payer == 0:
+                    statut = 'Payé'
+                elif reste_a_payer == total_montant:
+                    statut = 'Non payé'
+                else:
+                    statut = 'Partiellement payé'
+
+                vente = Vente.objects.create(
+                    vente_code=vente_code,
+                    total_montant=total_montant,
+                    nouveau_acompte=nouveau_acompte,
+                    total_acompte=total_acompte,
+                    reste_a_payer=reste_a_payer,
+                    statut=statut,
+                    mode_paiement=mode_paiement,
+                    observation=observation or None,
+                    user_id=commercial_id,
+                )
+
+                VenteDetaille.objects.bulk_create([
+                    VenteDetaille(vente=vente, bon_livraison_code_id=code_id)
+                    for code_id in valides_ids
+                ])
+
+                libelle_obj = LibelleTransaction.objects.get_or_create(libelle=LIBELLE_PAIEMENT_VENTE)[0]
+                Transaction.objects.create(
+                    user_id=commercial_id,
+                    created_at=date.today(),
+                    libelle=libelle_obj,
+                    table_id=f'Vente_id_{vente.pk}',
+                    montant=nouveau_acompte,
+                    hist_solde_compte=None,
+                )
+
+                BonLivraisonCode.objects.filter(
+                    pk__in=valides_ids, vente_code__isnull=True,
+                ).update(vente_code=vente_code)
+        except Exception:
+            return _echec("Échec de l'enregistrement de la vente : aucune donnée n'a été modifiée.")
+
+        log_audit(
+            AuditAction.CREATE, f'Création vente {vente_code} — {total_montant} TND',
+            table='Vente', record_id=vente.pk, new_value=model_to_dict(vente),
+        )
+        messages.success(request, f'Vente {vente_code} enregistrée avec succès.')
+
+        # On reste sur la même page plutôt que de rediriger vers la liste :
+        # « Enregistrer » se verrouille (voir template, saved_vente défini) et
+        # « Etat PDF » s'active vers la facture vente qui vient d'être traitée.
+        # La Section 2 est rechargée avec les bons de livraison encore
+        # disponibles pour ce client (les BL qui viennent d'être inclus ont
+        # désormais un vente_code et n'y figurent donc plus).
+        remaining_code_ids = BonLivraisonCode.objects.filter(
+            client_id=client_id, vente_code__isnull=True,
+        ).values_list('pk', flat=True)
+        context = self._context(
+            request,
+            vente_at_value=vente_at_str,
+            numero_initial=VenteCode.objects.filter(vente_at=vente_at).count() + 1,
+            selected_commercial_id=commercial_id,
+            selected_client_id=client_id,
+            nouveau_acompte_value='0',
+            mode_paiement_value=mode_paiement,
+            observation_value='',
+            preserved_lignes_json=json.dumps(_lignes_bl_detail(remaining_code_ids)),
+            saved_vente=vente,
+        )
+        return render(request, self.template_name, context)
+
+
+class VenteDeleteView(GroupRequiredMixin, View):
+    """Bouton « Supprimer » de la page Liste des ventes. Conditions de
+    suppression (dans l'ordre, la première non vérifiée annule toute la
+    procédure) :
+    1) l'enregistrement Vente <pk> existe encore ;
+    2) c'est le dernier enregistrement parmi ceux partageant le même
+       vente_code_id (jamais un enregistrement déjà remplacé par une
+       modification ultérieure) ;
+    3) la Transaction liée (table_id='Vente_id_<pk>') n'est pas déjà
+       rattachée à un solde compte caisse (hist_solde_compte non null).
+    Procédure (transaction atomique — tout est annulé si une étape échoue) :
+    suppression Transaction puis VenteDetaille puis Vente, remise à null de
+    BonLivraisonCode.vente_code puis suppression de VenteCode."""
+    group_required = ['Administration', 'Commercial']
+
+    def post(self, request, pk):
+        vente = Vente.objects.filter(pk=pk).first()
+        if vente is None:
+            messages.error(request, "L'enregistrement est déjà supprimé.")
+            return redirect('commercial:vente-list')
+
+        vente_code_id = vente.vente_code_id
+        dernier_id = Vente.objects.filter(vente_code_id=vente_code_id).aggregate(m=Max('id'))['m']
+        if dernier_id != vente.pk:
+            messages.error(request, "L'enregistrement vente ne peut pas être supprimé car il est déjà modifier.")
+            return redirect('commercial:vente-list')
+
+        transaction_liee = Transaction.objects.filter(table_id=f'Vente_id_{vente.pk}').first()
+        if transaction_liee is not None and transaction_liee.hist_solde_compte_id is not None:
+            messages.error(
+                request,
+                "L'enregistrement vente est déjà lié à un enregistrement solde compte caisse, "
+                'il ne peut être supprimer.',
+            )
+            return redirect('commercial:vente-list')
+
+        try:
+            with transaction.atomic():
+                if transaction_liee is not None:
+                    transaction_liee.delete()
+                VenteDetaille.objects.filter(vente_id=vente.pk).delete()
+                vente.delete()
+                BonLivraisonCode.objects.filter(vente_code_id=vente_code_id).update(vente_code=None)
+                VenteCode.objects.filter(pk=vente_code_id).delete()
+        except Exception:
+            messages.error(request, "Échec de la suppression de la vente : aucune donnée n'a été modifiée.")
+            return redirect('commercial:vente-list')
+
+        log_audit(AuditAction.DELETE, f'Suppression vente id={pk}', table='Vente', record_id=pk)
+        messages.success(request, 'Vente supprimée avec succès.')
+        return redirect('commercial:vente-list')
+
+
+class VenteUpdateView(GroupRequiredMixin, View):
+    """Page « Modification d'une vente » ouverte par le bouton Modifier de la
+    liste des ventes (pk = vente_id sélectionné). Section 1 « Information de
+    la vente » : Commercial/Zone/Client/Date vente verrouillés (aucune
+    cascade, aucun recalcul de Numéro vente) ; Total montant des BL et Total
+    montant payé des BL affichent tels quels total_montant/total_acompte de
+    la vente (verrouillés) ; seuls Nouveau montant payé (> 0 obligatoire),
+    Mode de paiement et Observation restent modifiables ; Total reste à
+    payer des BL = total_montant − total_acompte − Nouveau montant payé,
+    recalculé en continu, en rouge si négatif. Section 2 « Liste des bons de
+    livraison de la vente » : les BonLivraisonCode déjà liés à cette vente
+    (via VenteDetaille), affichage seul (case Inclure cochée et verrouillée,
+    pas de bouton Supprimer). Section 3 (BL non liés) supprimée. Section 4
+    « Liste des produits » : regroupement Produit + Prix unitaire des lignes
+    de la Section 2 (calcul client-side, ensemble fixe). « Revenir à la
+    liste »/« Etat PDF » identiques à ventes/nouveau/. Une vente déjà payée
+    (statut='Payé') ne peut plus être modifiée — bouton Modifier verrouillé
+    dans la liste des ventes ET accès direct à cette page bloqué (get()).
+
+    Le bouton « Enregistrer » (voir post()) crée un NOUVEL enregistrement
+    Vente (jamais de mise à jour en place — historique préservé, cf.
+    VenteHistoriquePopupView) portant le paiement supplémentaire. Conditions
+    de modification, dans l'ordre :
+    1) le VenteCode <pkcode> existe encore ;
+    2) la Vente <pk> existe encore ;
+    3) <pk> est le dernier enregistrement Vente pour ce vente_code_id ;
+    4) le statut de cette Vente n'est pas 'Payé' ;
+    5) nouveau_acompte > 0 ;
+    6) total_montant − total_acompte − nouveau_acompte >= 0.
+    Procédure (transaction atomique — tout est annulé si une étape échoue) :
+    1) nouvelle Vente (vente_code, total_montant inchangé, total_acompte =
+       ancien total_acompte + nouveau_acompte, reste_a_payer = total_montant
+       − total_acompte, statut déduit, mode_paiement/observation postés,
+       user = commercial de la vente d'origine) ; 2) un NOUVEAU VenteDetaille
+    par BonLivraisonCode déjà lié à l'ancienne vente (bon_livraison_code
+    n'est plus un OneToOneField — un même BL peut désormais avoir plusieurs
+    VenteDetaille au fil des modifications, comme BonLivraisonDetaille pour
+    BonLivraison) : les lignes de l'ancienne vente restent inchangées
+    (historique, cf. VenteHistoriquePopupView) ; 3) une Transaction caisse
+    (montant=nouveau_acompte, libellé « Paiement vente modifié »
+    (get_or_create), hist_solde_compte=Null). En cas de succès, on reste sur
+    la même page (pas de redirection) : la page est réaffichée pour la
+    NOUVELLE vente avec locked=True — Nouveau montant payé/Mode de paiement/
+    Observation et le bouton Enregistrer se verrouillent, confirmant
+    visuellement que la modification vient d'être enregistrée."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/vente/update.html'
+
+    def _context(self, vente, locked=False):
+        code = vente.vente_code
+        bl_code_ids_vente = list(vente.details.values_list('bon_livraison_code_id', flat=True))
+        lignes_vente = _lignes_bl_detail(
+            bl_code_ids_vente, coches_ids={str(i) for i in bl_code_ids_vente},
+        )
+        return {
+            'vente':                  vente,
+            'vente_code':             code,
+            'mode_paiement_choices':  MODE_PAIEMENT_CHOICES,
+            'mode_paiement_value':    vente.mode_paiement,
+            'observation_value':      vente.observation or '',
+            'nouveau_acompte_value':  str(vente.nouveau_acompte) if locked else '',
+            # Base utilisée par le recalcul JS (Total reste à payer = base −
+            # Nouveau montant payé saisi) : en édition normale, c'est
+            # total_acompte tel quel (aucun paiement de CETTE saisie encore
+            # inclus) ; sur la vue de confirmation verrouillée (locked=True),
+            # total_acompte du nouvel enregistrement inclut déjà le paiement
+            # qui vient d'être appliqué — on le retranche pour que la même
+            # formule JS reproduise exactement reste_a_payer.
+            'total_acompte_base_js': (
+                vente.total_acompte - vente.nouveau_acompte if locked else vente.total_acompte
+            ),
+            'lignes_vente_json':      json.dumps(lignes_vente),
+            'locked':                 locked,
+        }
+
+    def get(self, request, pk):
+        is_admin = _is_administration(request.user)
+        qs = Vente.objects.select_related('vente_code__client__zone', 'user')
+        if not is_admin:
+            qs = qs.filter(user=request.user)
+        vente = get_object_or_404(qs, pk=pk)
+        if vente.statut == 'Payé':
+            messages.error(request, 'Une vente déjà payée ne peut pas être modifiée.')
+            return redirect('commercial:vente-list')
+
+        return render(request, self.template_name, self._context(vente))
+
+    def post(self, request, pk):
+        vente = Vente.objects.filter(pk=pk).select_related('user').first()
+        if vente is None:
+            messages.error(request, "L'enregistrement est déjà supprimé.")
+            return redirect('commercial:vente-list')
+
+        vente_code = VenteCode.objects.filter(pk=vente.vente_code_id).first()
+        if vente_code is None:
+            messages.error(request, "L'enregistrement est déjà supprimé.")
+            return redirect('commercial:vente-list')
+
+        dernier_id = Vente.objects.filter(vente_code_id=vente_code.pk).aggregate(m=Max('id'))['m']
+        if dernier_id != vente.pk:
+            messages.error(request, "L'enregistrement vente ne peut pas être modifier car il est déjà modifier.")
+            return redirect('commercial:vente-list')
+
+        if vente.statut == 'Payé':
+            messages.error(request, 'Une vente déjà payée ne peut pas être modifiée.')
+            return redirect('commercial:vente-list')
+
+        nouveau_acompte_s = request.POST.get('nouveau_acompte', '').strip()
+        mode_paiement = request.POST.get('mode_paiement', '').strip() or 'Espèces'
+        observation = request.POST.get('observation', '').strip()
+
+        try:
+            nouveau_acompte = Decimal(nouveau_acompte_s) if nouveau_acompte_s else Decimal('0')
+        except InvalidOperation:
+            messages.error(request, 'Il faut que le nouveau acompte > 0.')
+            return redirect('commercial:vente-update', pk=pk)
+
+        if nouveau_acompte <= 0:
+            messages.error(request, 'Il faut que le nouveau acompte > 0.')
+            return redirect('commercial:vente-update', pk=pk)
+
+        total_montant = vente.total_montant
+        total_acompte = vente.total_acompte + nouveau_acompte
+        if total_montant - total_acompte < 0:
+            messages.error(request, 'Le montant total doit être >= total acompte y compris le nouveau acompte.')
+            return redirect('commercial:vente-update', pk=pk)
+
+        reste_a_payer = total_montant - total_acompte
+        if reste_a_payer == 0:
+            statut = 'Payé'
+        elif reste_a_payer == total_montant:
+            statut = 'Non payé'
+        else:
+            statut = 'Partiellement payé'
+
+        bl_code_ids = list(vente.details.values_list('bon_livraison_code_id', flat=True))
+
+        try:
+            with transaction.atomic():
+                nouvelle_vente = Vente.objects.create(
+                    user_id=vente.user_id,
+                    vente_code=vente_code,
+                    total_montant=total_montant,
+                    total_acompte=total_acompte,
+                    nouveau_acompte=nouveau_acompte,
+                    reste_a_payer=reste_a_payer,
+                    statut=statut,
+                    mode_paiement=mode_paiement,
+                    observation=observation or None,
+                )
+                VenteDetaille.objects.bulk_create([
+                    VenteDetaille(vente=nouvelle_vente, bon_livraison_code_id=code_id) for code_id in bl_code_ids
+                ])
+                libelle_obj = LibelleTransaction.objects.get_or_create(libelle=LIBELLE_PAIEMENT_VENTE_MODIFIEE)[0]
+                Transaction.objects.create(
+                    user_id=vente.user_id, created_at=date.today(), libelle=libelle_obj,
+                    table_id=f'Vente_id_{nouvelle_vente.pk}', montant=nouveau_acompte, hist_solde_compte=None,
+                )
+        except Exception:
+            messages.error(request, "Échec de la modification de la vente : aucune donnée n'a été modifiée.")
+            return redirect('commercial:vente-update', pk=pk)
+
+        log_audit(
+            AuditAction.UPDATE, f'Modification vente {vente_code} — nouveau paiement {nouveau_acompte} TND',
+            table='Vente', record_id=nouvelle_vente.pk, new_value=model_to_dict(nouvelle_vente),
+        )
+        messages.success(request, f'Vente {vente_code} modifiée avec succès.')
+
+        # On reste sur la même page (pas de redirection) : tous les champs et
+        # le bouton « Enregistrer » se verrouillent (locked=True) pour
+        # confirmer visuellement que la modification vient d'être enregistrée.
+        nouvelle_vente = Vente.objects.select_related('vente_code__client__zone', 'user').get(pk=nouvelle_vente.pk)
+        return render(request, self.template_name, self._context(nouvelle_vente, locked=True))
+
+
+class VenteNumeroSuivantView(GroupRequiredMixin, View):
+    """Point d'entrée AJAX utilisé par le template Nouvelle vente : à chaque
+    changement du champ Date vente, recalcule le Numéro vente suivant pour
+    cette date (nombre de VenteCode existants ce jour-là + 1)."""
+    group_required = ['Administration', 'Commercial']
+
+    def get(self, request):
+        vente_at_str = request.GET.get('vente_at', '').strip()
+        try:
+            vente_at = date.fromisoformat(vente_at_str)
+        except ValueError:
+            vente_at = date.today()
+        numero = VenteCode.objects.filter(vente_at=vente_at).count() + 1
+        return JsonResponse({'vente_numero': numero})
 
 
 # ─── Bons de sortie ───────────────────────────────────────────────────────────
