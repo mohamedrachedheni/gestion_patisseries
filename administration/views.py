@@ -29,7 +29,7 @@ from xhtml2pdf import pisa
 
 from commercial.models import (
     Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Delegation, Depense, DepenseDetaille,
-    Gouvernorat, Zone,
+    Gouvernorat, Vente, Zone,
 )
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
@@ -618,6 +618,7 @@ _ACHAT_TABLE_ID_RE                  = re.compile(r'^Achat_id_(\d+)$')
 _DEPENSE_TABLE_ID_RE                = re.compile(r'^Depense_id_(\d+)$')
 _TRANSFERE_VERSE_TABLE_ID_RE        = re.compile(r'^transfere_verse_id_(\d+)$')
 _TRANSFERE_RECU_TABLE_ID_RE         = re.compile(r'^transfere_recu_id_(\d+)$')
+_VENTE_TABLE_ID_RE                  = re.compile(r'^Vente_id_(\d+)$')
 
 _POPUP_TITLES = {
     'bon_livraison':          'Détail bon de livraison',
@@ -626,6 +627,7 @@ _POPUP_TITLES = {
     'depense':                'Détail dépense',
     'transfere_verse':        'Transfère versé',
     'transfere_recu':         'Transfère reçu',
+    'vente':                  "Historique des modification d'une vente",
 }
 
 
@@ -653,6 +655,12 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
       Section 1-1-1 DepenseDetaille).
     - « transfere_verse_id_<id> » / « transfere_recu_id_<id> » : Transfere
       (Employé émetteur/receveur, Date, Montant, Libellé), sur deux lignes.
+    - « Vente_id_<id> » : même conception que le bouton Visualiser de
+      commercial/ventes/ (VenteHistoriquePopupView) — Section 1 (VenteCode),
+      Section 2 « Historique de la vente » paginée un enregistrement Vente à
+      la fois (page par défaut = celui référencé par la transaction),
+      Sections 3/4 (BL inclus / produits regroupés) recalculées pour
+      l'enregistrement Vente courant du paginateur.
     - tout autre format : « Détail non disponible pour cette transaction »."""
     group_required = 'Administration'
     template_name = 'administration/transaction/detail_popup.html'
@@ -693,6 +701,11 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
         if match:
             popup_type = 'transfere_recu'
             response = self._render_transfere(request, transaction_obj, int(match.group(1)), popup_type)
+
+        match = _VENTE_TABLE_ID_RE.match(table_id) if response is None else None
+        if match:
+            popup_type = 'vente'
+            response = self._render_vente(request, transaction_obj, int(match.group(1)))
 
         if response is None:
             response = render(request, self.template_name, {
@@ -802,6 +815,79 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
             'type':        type_,
             'transaction': transaction_obj,
             'transfere':   transfere,
+        })
+
+    def _render_vente(self, request, transaction_obj, vente_id):
+        vente_ref = get_object_or_404(Vente.objects.select_related('vente_code__client'), pk=vente_id)
+        vente_code = vente_ref.vente_code
+
+        historique_qs = Vente.objects.filter(
+            vente_code_id=vente_code.pk,
+        ).select_related('user').order_by('id')
+        historique_ids = list(historique_qs.values_list('id', flat=True))
+        try:
+            page_par_defaut = historique_ids.index(vente_id) + 1
+        except ValueError:
+            page_par_defaut = 1
+
+        paginator = Paginator(historique_qs, 1)
+        page_obj = paginator.get_page(request.GET.get('page') or page_par_defaut)
+        vente = page_obj.object_list[0] if page_obj.object_list else None
+
+        lignes_bl = []
+        groupes_produits = []
+        if vente is not None:
+            bl_code_ids = list(vente.details.values_list('bon_livraison_code_id', flat=True))
+            dernier_bl_id_par_code = (
+                BonLivraison.objects
+                .filter(bon_livraison_code_id__in=bl_code_ids)
+                .values('bon_livraison_code_id')
+                .annotate(dernier_id=Max('id'))
+                .values_list('dernier_id', flat=True)
+            )
+            derniers_bl = (
+                BonLivraison.objects
+                .filter(pk__in=dernier_bl_id_par_code)
+                .select_related('bon_livraison_code')
+                .order_by('bon_livraison_code__bon_livraison_at', 'bon_livraison_code__bon_livraison_numero')
+            )
+            lignes_bl = [
+                {
+                    'date':          bl.bon_livraison_code.bon_livraison_at,
+                    'numero':        bl.bon_livraison_code.bon_livraison_numero,
+                    'montant_total': bl.total_montant,
+                    'montant_paye':  bl.total_acompte,
+                    'reste':         bl.reste_a_payer,
+                }
+                for bl in derniers_bl
+            ]
+            lignes_produits = (
+                BonLivraisonDetaille.objects
+                .filter(bon_livraison_id__in=dernier_bl_id_par_code, produit__isnull=False)
+                .values('produit__nom', 'prix_unitaire')
+                .annotate(quantite=Sum('quantite'))
+                .order_by('produit__nom')
+            )
+            groupes_produits = [
+                {
+                    'produit_nom':   l['produit__nom'],
+                    'prix_unitaire': l['prix_unitaire'],
+                    'quantite':      l['quantite'],
+                    'total_ligne':   l['prix_unitaire'] * l['quantite'],
+                }
+                for l in lignes_produits
+            ]
+
+        return render(request, self.template_name, {
+            'type':             'vente',
+            'transaction':      transaction_obj,
+            'vente_code':       vente_code,
+            'page_obj':         page_obj,
+            'vente':            vente,
+            'lignes_bl':        lignes_bl,
+            'groupes_produits': groupes_produits,
+            'prev_page': page_obj.previous_page_number() if page_obj.has_previous() else page_obj.number,
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else page_obj.number,
         })
 
 

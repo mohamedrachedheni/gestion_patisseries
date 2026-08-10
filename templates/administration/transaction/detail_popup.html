@@ -373,6 +373,152 @@
   </div>
 </div>
 
+{% elif type == 'vente' %}
+
+{# ── Section 1 : VenteCode, sur une seule ligne (ne varie pas avec la pagination) ── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Date vente</label>
+    <input type="date" class="form-control form-control-sm" disabled
+           value="{{ vente_code.vente_at|date:'Y-m-d' }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Numéro vente</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ vente_code.vente_numero }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Client</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ vente_code.client|default:'' }}">
+  </div>
+</div>
+
+{# ── Section 2 : historique de la vente, un enregistrement Vente à la fois ── #}
+<div class="card border-0 bg-light mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="mb-0 fw-semibold">Historique de la vente</h6>
+      <div class="d-flex align-items-center gap-2">
+        <small class="text-muted">Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</small>
+        <div class="btn-group btn-group-sm">
+          <a href="#"
+             class="btn btn-outline-secondary bl-pager-btn {% if not page_obj.has_previous %}disabled{% endif %}"
+             data-url="{% url 'administration:transaction-detail-popup' transaction.pk %}?page={{ prev_page }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+          <a href="#"
+             class="btn btn-outline-secondary bl-pager-btn {% if not page_obj.has_next %}disabled{% endif %}"
+             data-url="{% url 'administration:transaction-detail-popup' transaction.pk %}?page={{ next_page }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {% if vente %}
+    <div class="row g-2 mb-2">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Commercial</label>
+        <input type="text" class="form-control form-control-sm" disabled
+               value="{{ vente.user.get_full_name|default:vente.user.username }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Mode paiement</label>
+        <input type="text" class="form-control form-control-sm" disabled value="{{ vente.mode_paiement }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Statut</label>
+        <input type="text" class="form-control form-control-sm" disabled value="{{ vente.statut }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Observation</label>
+        <input type="text" class="form-control form-control-sm" disabled value="{{ vente.observation|default:'' }}">
+      </div>
+    </div>
+    <div class="row g-2">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ vente.total_montant|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Montant total payé</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ vente.total_acompte|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Nouveau montant payé</label>
+        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
+               value="{{ vente.nouveau_acompte|stringformat:'s' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Reste à payer</label>
+        <input type="number" step="0.001"
+               class="form-control form-control-sm no-spinner text-end font-monospace {% if vente.reste_a_payer < 0 %}text-danger{% endif %}"
+               disabled value="{{ vente.reste_a_payer|stringformat:'s' }}">
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-3 text-muted">Aucun enregistrement.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Section 3 : bons de livraison inclus dans la vente courante ─────────── #}
+<h6 class="fw-semibold mb-2">Bons de livraison inclus</h6>
+<div class="table-responsive mb-3">
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3">Date bon de livraison</th>
+        <th>Numéro bon de livraison</th>
+        <th class="text-end">Montant total</th>
+        <th class="text-end">Montant total payé</th>
+        <th class="text-end pe-3">Reste à régler</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lignes_bl %}
+      <tr>
+        <td class="ps-3">{{ l.date|date:'d/m/Y' }}</td>
+        <td>{{ l.numero }}</td>
+        <td class="text-end font-monospace">{{ l.montant_total|stringformat:'s' }}</td>
+        <td class="text-end font-monospace">{{ l.montant_paye|stringformat:'s' }}</td>
+        <td class="text-end font-monospace pe-3">{{ l.reste|stringformat:'s' }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center py-3 text-muted">Aucun bon de livraison.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Section 4 : produits regroupés (Produit + Prix unitaire) ────────────── #}
+<h6 class="fw-semibold mb-2">Liste des produits</h6>
+<div class="table-responsive">
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3">Produit</th>
+        <th class="text-end">Qté</th>
+        <th class="text-end">Prix unitaire</th>
+        <th class="text-end pe-3">Total ligne</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in groupes_produits %}
+      <tr>
+        <td class="ps-3">{{ g.produit_nom }}</td>
+        <td class="text-end font-monospace">{{ g.quantite }}</td>
+        <td class="text-end font-monospace">{{ g.prix_unitaire|stringformat:'s' }}</td>
+        <td class="text-end font-monospace pe-3">{{ g.total_ligne|stringformat:'s' }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-center py-3 text-muted">Aucun produit.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 {% else %}
 <div class="text-center py-4 text-muted">
   <i class="bi bi-hourglass-split fs-1 d-block mb-2 opacity-25"></i>
