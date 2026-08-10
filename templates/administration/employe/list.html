@@ -47,7 +47,7 @@
           <tr>
             <th class="ps-3">Nom</th>
             <th>Matricule</th>
-            <th>Service</th>
+            <th>Groupe</th>
             <th>Contrat</th>
             <th>Téléphone</th>
             <th class="text-end">Salaire</th>
@@ -76,7 +76,7 @@
               </div>
             </td>
             <td><span class="font-monospace small text-muted">{{ emp.matricule|default:"—" }}</span></td>
-            <td>{{ emp.service|default:"—" }}</td>
+            <td>{{ emp.user.groups.all|join:", "|default:"—" }}</td>
             <td>
               {% if emp.type_contrat %}
               <span class="badge rounded-pill bg-light text-dark border small">{{ emp.type_contrat }}</span>

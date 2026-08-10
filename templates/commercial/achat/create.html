@@ -25,7 +25,7 @@
     <div class="card-body">
 
       {# ── Ligne 1 : champs modifiables ──────────────────────────────── #}
-      <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
+      <div class="d-flex flex-nowrap align-items-end gap-3 mb-3 overflow-auto">
         <div style="width:150px;flex:0 0 auto;">
           <label class="form-label small mb-1">Date achat</label>
           <input type="date" name="achat_at" id="id_achat_at" value="{{ achat_at }}"
@@ -64,7 +64,7 @@
       </div>
 
       {# ── Ligne 2 : champs auto-définis, non modifiables ────────────── #}
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
+      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3 overflow-auto">
         <div style="width:150px;flex:0 0 auto;">
           <label class="form-label small mb-1">Numéro achat</label>
           <input type="text" id="id_achat_numero" value="{{ achat_numero }}"
@@ -98,15 +98,17 @@
       <i class="bi bi-box-seam me-2 text-primary"></i>Détails des achats par unité
     </div>
     <div class="card-body">
-      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
-        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Matière première</span></div>
-        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
-        <div style="width:90px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
-        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
-        <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-        <div style="width:44px;flex:0 0 auto;"></div>
+      <div class="overflow-auto">
+        <div class="d-flex flex-nowrap gap-2 mb-1">
+          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Matière première</span></div>
+          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
+          <div style="width:90px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
+          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
+          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
+          <div style="width:44px;flex:0 0 auto;"></div>
+        </div>
+        <div id="unite-rows"></div>
       </div>
-      <div id="unite-rows"></div>
       <div class="d-flex justify-content-end mt-2">
         <button type="button" id="add-unite-row-btn" class="btn btn-outline-primary btn-sm">
           <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
@@ -121,18 +123,20 @@
       <i class="bi bi-boxes me-2 text-primary"></i>Détails des achats par pack
     </div>
     <div class="card-body">
-      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex overflow-auto">
-        <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Matière première</span></div>
-        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Nombre de pack</span></div>
-        <div style="width:100px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix pack</span></div>
-        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité par pack</span></div>
-        <div style="width:80px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
-        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total quantité</span></div>
-        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
-        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-        <div style="width:44px;flex:0 0 auto;"></div>
+      <div class="overflow-auto">
+        <div class="d-flex flex-nowrap gap-2 mb-1">
+          <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Matière première</span></div>
+          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Nombre de pack</span></div>
+          <div style="width:100px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix pack</span></div>
+          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité par pack</span></div>
+          <div style="width:80px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
+          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total quantité</span></div>
+          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
+          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
+          <div style="width:44px;flex:0 0 auto;"></div>
+        </div>
+        <div id="pack-rows"></div>
       </div>
-      <div id="pack-rows"></div>
       <div class="d-flex justify-content-end mt-2">
         <button type="button" id="add-pack-row-btn" class="btn btn-outline-primary btn-sm">
           <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
@@ -288,7 +292,7 @@
   function addPackRow(prefill) {
     prefill = prefill || {};
     var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 overflow-auto';
+    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
     row.innerHTML =
       '<div style="flex:1 1 200px;min-width:160px;">' +
         '<select name="detail_pack_matiere_premiere_id" class="form-select form-select-sm mp-select">' + buildMpOptions() + '</select>' +

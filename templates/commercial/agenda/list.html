@@ -214,18 +214,20 @@
     <form method="post" id="agenda-add-form" action="{% url 'commercial:agenda-create' %}">
       {% csrf_token %}
 
-      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
-        {% if is_administration %}
-        <div style="width:190px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Commercial</span></div>
-        {% endif %}
-        <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Zone</span></div>
-        <div style="width:220px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Client</span></div>
-        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Action planifiée</span></div>
-        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Échéance</span></div>
-        <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Statut</span></div>
-        <div style="width:44px;flex:0 0 auto;"></div>
+      <div class="overflow-auto">
+        <div class="d-flex flex-nowrap gap-2 mb-1">
+          {% if is_administration %}
+          <div style="width:190px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Commercial</span></div>
+          {% endif %}
+          <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Zone</span></div>
+          <div style="width:220px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Client</span></div>
+          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Action planifiée</span></div>
+          <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Échéance</span></div>
+          <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Statut</span></div>
+          <div style="width:44px;flex:0 0 auto;"></div>
+        </div>
+        <div id="agenda-rows"></div>
       </div>
-      <div id="agenda-rows"></div>
 
       <div class="d-flex justify-content-end gap-2 mt-2">
         <button type="button" id="add-agenda-row-btn" class="btn btn-outline-primary btn-sm">

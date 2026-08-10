@@ -381,7 +381,7 @@ class EmployeListView(GroupRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Employe.objects.select_related('user')
+        qs = Employe.objects.select_related('user').prefetch_related('user__groups')
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(

@@ -4,6 +4,11 @@
 {% block title %}{{ title }} — Administration{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+.asteriskField { color: #dc3545; }
+{% endblock %}
+
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
