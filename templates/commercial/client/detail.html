@@ -55,8 +55,11 @@
       <div class="col-md-8">
         <label class="form-label small mb-1">Lien Google Maps</label>
         <input type="text" value="{{ client.google_mape|default:'' }}" class="form-control" readonly
-               title="Double-cliquer pour ouvrir le lien"
-               ondblclick="if (this.value) { window.open(this.value, '_blank'); }">
+               title="Double-cliquer pour ouvrir dans Google Maps"
+               ondblclick="if (!this.value) { return; }
+                           var v = this.value.trim();
+                           var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v);
+                           window.open(url, '_blank');">
       </div>
       <div class="col-md-4">
         <label class="form-label small mb-1">Actif</label>
