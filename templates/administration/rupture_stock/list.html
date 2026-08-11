@@ -91,8 +91,9 @@
                      class="form-control form-control-sm" form="rs-ci-update-{{ ci.pk }}"
                      {% if ci.is_stock_maj %}disabled{% endif %}>
             </td>
-            <td>
+            <td style="min-width:220px;">
               <select name="produit_id" class="form-select form-select-sm rs-produit-select"
+                      style="min-width:220px;"
                       form="rs-ci-update-{{ ci.pk }}" {% if ci.is_stock_maj %}disabled{% endif %}>
                 <option value="">— Choisir —</option>
                 {% for p in produits_list %}

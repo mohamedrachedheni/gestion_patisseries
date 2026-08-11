@@ -83,16 +83,16 @@
         <tbody>
           {% for z in zones %}
           <tr class="zone-gouv-deleg-group">
-            <td class="ps-3">
-              <select class="form-select form-select-sm zone-gouvernorat-select">
+            <td class="ps-3" style="min-width:160px;">
+              <select class="form-select form-select-sm zone-gouvernorat-select" style="min-width:160px;">
                 {% for g in gouvernorats_list %}
                 <option value="{{ g.pk }}" {% if g.pk == z.delegation.gouvernorat_id %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
               </select>
             </td>
-            <td>
+            <td style="min-width:160px;">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="zone-update-{{ z.pk }}">
-              <select name="delegation" class="form-select form-select-sm zone-delegation-select" form="zone-update-{{ z.pk }}">
+              <select name="delegation" class="form-select form-select-sm zone-delegation-select" style="min-width:160px;" form="zone-update-{{ z.pk }}">
                 {% for d in delegations_list %}
                 {% if d.gouvernorat_id == z.delegation.gouvernorat_id %}
                 <option value="{{ d.pk }}" {% if d.pk == z.delegation_id %}selected{% endif %}>{{ d.nom_delegation }}</option>
@@ -100,8 +100,9 @@
                 {% endfor %}
               </select>
             </td>
-            <td>
+            <td style="min-width:160px;">
               <input type="text" name="nom" value="{{ z.nom }}"
+                     style="min-width:160px;"
                      class="form-control form-control-sm" form="zone-update-{{ z.pk }}">
             </td>
             <td class="text-center pe-3">
