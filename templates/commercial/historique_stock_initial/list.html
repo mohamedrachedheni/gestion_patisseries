@@ -74,10 +74,10 @@
         <thead class="table-light">
           <tr>
             {% if not is_commercial %}
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:180px;">Commercial</th>
             {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %}>Date de mise à jour</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
+            <th {% if is_commercial %}class="ps-3"{% endif %} style="min-width:160px;">Date de mise à jour</th>
+            <th class="text-center pe-3" style="min-width:100px;width:100px">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -85,12 +85,12 @@
           <tr>
             {% if not is_commercial %}
             <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
                      value="{{ h.user.get_full_name|default:h.user.username }}" disabled>
             </td>
             {% endif %}
             <td {% if is_commercial %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm"
+              <input type="date" class="form-control form-control-sm" style="min-width:140px;"
                      value="{{ h.stock_initial_at|date:'Y-m-d' }}" disabled>
             </td>
             <td class="text-center pe-3">

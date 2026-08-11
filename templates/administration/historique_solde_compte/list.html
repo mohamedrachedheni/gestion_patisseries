@@ -71,11 +71,11 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Date</th>
-            <th>Employé</th>
-            <th>Solde caisse calculé</th>
-            <th>Solde caisse réel</th>
-            <th>Observation</th>
+            <th class="ps-3" style="min-width:120px;">Date</th>
+            <th style="min-width:180px;">Employé</th>
+            <th style="min-width:150px;">Solde caisse calculé</th>
+            <th style="min-width:150px;">Solde caisse réel</th>
+            <th style="min-width:200px;">Observation</th>
             <th class="text-center pe-3" style="width:100px">Actions</th>
           </tr>
         </thead>
@@ -83,24 +83,25 @@
           {% for h in page_obj.object_list %}
           <tr>
             <td class="ps-3">
-              <input type="date" class="form-control form-control-sm"
+              <input type="date" class="form-control form-control-sm" style="min-width:120px;"
                      value="{{ h.solde_at|date:'Y-m-d' }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:180px;"
                      value="{{ h.user.get_full_name|default:h.user.username }}" disabled>
             </td>
             <td>
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner font-monospace"
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner font-monospace" style="min-width:150px;"
                      value="{{ h.calcul_solde|stringformat:'s' }}" disabled>
             </td>
             <td>
               <input type="number" step="0.001"
                      class="form-control form-control-sm no-spinner font-monospace{% if h.calcul_solde != h.correction_solde %} text-danger{% endif %}"
+                     style="min-width:150px;"
                      value="{{ h.correction_solde|stringformat:'s' }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:200px;"
                      value="{{ h.observation|default:'' }}" disabled>
             </td>
             <td class="text-center pe-3">

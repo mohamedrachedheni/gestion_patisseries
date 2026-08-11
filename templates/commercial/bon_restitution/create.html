@@ -62,19 +62,21 @@
       <i class="bi bi-arrow-return-left me-2 text-primary"></i>Produits à restituer
     </div>
     <div class="card-body">
-      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
-        <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté initialement stockée</span></div>
-        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
-        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
-        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
-        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
-        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté à restituer</span></div>
-        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Solde</span></div>
-        <div style="width:44px;flex:0 0 auto;"></div>
-      </div>
-      <div id="br-section2-rows">
-        <div class="text-muted small py-2" id="br-section2-empty">Sélectionnez un commercial pour afficher les produits à restituer.</div>
+      <div class="overflow-auto">
+        <div class="d-flex flex-nowrap gap-2 mb-1">
+          <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+          <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté initialement stockée</span></div>
+          <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
+          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
+          <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
+          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
+          <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté à restituer</span></div>
+          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Solde</span></div>
+          <div style="width:44px;flex:0 0 auto;"></div>
+        </div>
+        <div id="br-section2-rows">
+          <div class="text-muted small py-2" id="br-section2-empty">Sélectionnez un commercial pour afficher les produits à restituer.</div>
+        </div>
       </div>
 
       <nav class="d-flex justify-content-end mt-2" id="br-section2-pagination" style="display:none;">
@@ -89,12 +91,14 @@
       <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits restitués
     </div>
     <div class="card-body">
-      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
-        <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-        <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité réellement restituée</span></div>
-        <div style="width:44px;flex:0 0 auto;"></div>
+      <div class="overflow-auto">
+        <div class="d-flex flex-nowrap gap-2 mb-1">
+          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+          <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité réellement restituée</span></div>
+          <div style="width:44px;flex:0 0 auto;"></div>
+        </div>
+        <div id="br-section3-rows"></div>
       </div>
-      <div id="br-section3-rows"></div>
 
       <div class="d-flex justify-content-end gap-2 mt-2">
         <button type="button" id="br-add-row-btn" class="btn btn-outline-primary btn-sm">

@@ -74,10 +74,10 @@
         <thead class="table-light">
           <tr>
             {% if not is_commercial %}
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:170px;">Commercial</th>
             {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %}>Date</th>
-            <th class="text-center">Soldé</th>
+            <th {% if is_commercial %}class="ps-3"{% endif %} style="min-width:120px;">Date</th>
+            <th class="text-center" style="min-width:100px;">Soldé</th>
             <th class="text-center pe-3" style="width:150px">Actions</th>
           </tr>
         </thead>
@@ -85,13 +85,13 @@
           {% for br in page_obj.object_list %}
           <tr>
             {% if not is_commercial %}
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+            <td class="ps-3" style="min-width:170px;">
+              <input type="text" class="form-control form-control-sm" style="min-width:150px;"
                      value="{{ br.user.get_full_name|default:br.user.username }}" disabled>
             </td>
             {% endif %}
-            <td {% if is_commercial %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm"
+            <td {% if is_commercial %}class="ps-3"{% endif %} style="min-width:120px;">
+              <input type="date" class="form-control form-control-sm" style="min-width:100px;"
                      value="{{ br.restitution_at|date:'Y-m-d' }}" disabled>
             </td>
             <td class="text-center">

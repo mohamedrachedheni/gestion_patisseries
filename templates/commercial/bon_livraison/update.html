@@ -117,31 +117,31 @@
         <table class="table table-sm align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th class="ps-3">Produit</th>
-              <th>Quantité</th>
-              <th>Prix unitaire</th>
-              <th class="pe-3">Total ligne</th>
+              <th class="ps-3" style="min-width:220px;">Produit</th>
+              <th style="min-width:120px;">Quantité</th>
+              <th style="min-width:140px;">Prix unitaire</th>
+              <th class="pe-3" style="min-width:140px;">Total ligne</th>
             </tr>
           </thead>
           <tbody>
             {% for d in detail_rows %}
             <tr>
-              <td class="ps-3">
+              <td class="ps-3" style="min-width:220px;">
                 <input type="hidden" name="detail_id" value="{{ d.pk }}">
-                <input type="text" class="form-control form-control-sm" value="{{ d.produit|default:'' }}" disabled>
+                <input type="text" class="form-control form-control-sm" style="min-width:200px;" value="{{ d.produit|default:'' }}" disabled>
               </td>
-              <td style="width:120px;">
-                <input type="number" step="1" class="form-control form-control-sm no-spinner"
+              <td style="min-width:120px;">
+                <input type="number" step="1" class="form-control form-control-sm no-spinner" style="min-width:100px;"
                        value="{{ d.quantite|stringformat:'s' }}" disabled>
               </td>
-              <td style="width:140px;">
+              <td style="min-width:140px;">
                 <input type="number" step="0.001" min="0" name="detail_prix_unitaire"
-                       class="form-control form-control-sm no-spinner blu-prix-input"
+                       class="form-control form-control-sm no-spinner blu-prix-input" style="min-width:120px;"
                        data-quantite="{{ d.quantite|stringformat:'s' }}"
                        value="{{ d.prix_unitaire|stringformat:'s' }}">
               </td>
-              <td class="pe-3" style="width:140px;">
-                <input type="number" step="0.001" class="form-control form-control-sm no-spinner blu-total-ligne-input"
+              <td class="pe-3" style="min-width:140px;">
+                <input type="number" step="0.001" class="form-control form-control-sm no-spinner blu-total-ligne-input" style="min-width:120px;"
                        value="{{ d.total_ligne|default:'0.000'|stringformat:'s' }}" disabled>
               </td>
             </tr>

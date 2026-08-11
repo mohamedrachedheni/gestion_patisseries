@@ -74,11 +74,11 @@
         <thead class="table-light">
           <tr>
             {% if not is_commercial %}
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:180px;">Commercial</th>
             {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %}>Date</th>
-            <th class="text-center">Soldé</th>
-            <th class="text-center pe-3" style="width:150px">Actions</th>
+            <th {% if is_commercial %}class="ps-3"{% endif %} style="min-width:130px;">Date</th>
+            <th class="text-center" style="min-width:90px;">Soldé</th>
+            <th class="text-center pe-3" style="min-width:150px;width:150px">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -86,12 +86,12 @@
           <tr>
             {% if not is_commercial %}
             <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
                      value="{{ bs.user.get_full_name|default:bs.user.username }}" disabled>
             </td>
             {% endif %}
             <td {% if is_commercial %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm"
+              <input type="date" class="form-control form-control-sm" style="min-width:120px;"
                      value="{{ bs.sortie_at|date:'Y-m-d' }}" disabled>
             </td>
             <td class="text-center">

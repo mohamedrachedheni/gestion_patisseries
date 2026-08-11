@@ -86,11 +86,11 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Date transfert</th>
-            <th>Libellé</th>
-            <th>Compte source</th>
-            <th class="text-end">Montant (TND)</th>
-            <th>Compte destination</th>
+            <th class="ps-3" style="min-width:130px;">Date transfert</th>
+            <th style="min-width:170px;">Libellé</th>
+            <th style="min-width:180px;">Compte source</th>
+            <th class="text-end" style="min-width:120px;">Montant (TND)</th>
+            <th style="min-width:180px;">Compte destination</th>
             <th class="text-center pe-3" style="width:100px">Actions</th>
           </tr>
         </thead>
@@ -98,15 +98,15 @@
           {% for t in page_obj.object_list %}
           <tr>
             <td class="ps-3">
-              <input type="date" class="form-control form-control-sm"
+              <input type="date" class="form-control form-control-sm" style="min-width:130px;"
                      value="{{ t.transfere_at|date:'Y-m-d' }}">
             </td>
             <td>
-              <input type="text" class="combobox-input textinput form-control form-control-sm"
+              <input type="text" class="combobox-input textinput form-control form-control-sm" style="min-width:170px;"
                      list="libelles-transfere" autocomplete="off" value="{{ t.libelle }}">
             </td>
             <td>
-              <select class="form-select form-select-sm compte-source-select">
+              <select class="form-select form-select-sm compte-source-select" style="min-width:180px;">
                 {% for u in users_list %}
                 <option value="{{ u.pk }}" {% if u.pk == t.compte_source_id %}selected{% endif %}>
                   {{ u.get_full_name|default:u.username }}
@@ -116,11 +116,11 @@
             </td>
             <td class="text-end">
               <input type="number" step="0.001" min="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     class="form-control form-control-sm text-end font-monospace no-spinner" style="min-width:120px;"
                      value="{{ t.montant|stringformat:'s' }}">
             </td>
             <td>
-              <select class="form-select form-select-sm compte-destination-select">
+              <select class="form-select form-select-sm compte-destination-select" style="min-width:180px;">
                 {% for u in users_list %}
                 <option value="{{ u.pk }}" {% if u.pk == t.compte_destination_id %}selected{% endif %}>
                   {{ u.get_full_name|default:u.username }}

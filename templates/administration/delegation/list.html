@@ -64,8 +64,8 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Gouvernorat</th>
-            <th>Délégation</th>
+            <th class="ps-3" style="min-width:160px;">Gouvernorat</th>
+            <th style="min-width:180px;">Délégation</th>
             <th class="text-center pe-3" style="width:100px">Actions</th>
           </tr>
         </thead>
@@ -74,7 +74,7 @@
           <tr>
             <td class="ps-3">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="delegation-update-{{ d.pk }}">
-              <select name="gouvernorat" class="form-select form-select-sm" form="delegation-update-{{ d.pk }}">
+              <select name="gouvernorat" class="form-select form-select-sm" style="min-width:160px;" form="delegation-update-{{ d.pk }}">
                 {% for g in gouvernorats_list %}
                 <option value="{{ g.pk }}" {% if g.pk == d.gouvernorat_id %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
@@ -82,7 +82,7 @@
             </td>
             <td>
               <input type="text" name="nom_delegation" value="{{ d.nom_delegation }}"
-                     class="form-control form-control-sm" form="delegation-update-{{ d.pk }}">
+                     class="form-control form-control-sm" style="min-width:180px;" form="delegation-update-{{ d.pk }}">
             </td>
             <td class="text-center pe-3">
               <button type="submit" form="delegation-update-{{ d.pk }}"

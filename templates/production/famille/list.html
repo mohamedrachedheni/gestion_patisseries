@@ -34,9 +34,9 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Famille</th>
-            <th>Observation</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
+            <th class="ps-3" style="min-width:180px;">Famille</th>
+            <th style="min-width:220px;">Observation</th>
+            <th class="text-center pe-3" style="min-width:100px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -44,11 +44,11 @@
           <tr>
             <td class="ps-3">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="famille-update-{{ f.pk }}">
-              <input type="text" name="famille" value="{{ f.famille }}"
+              <input type="text" name="famille" value="{{ f.famille }}" style="min-width:180px;"
                      class="form-control form-control-sm" form="famille-update-{{ f.pk }}">
             </td>
             <td>
-              <input type="text" name="observation" value="{{ f.observation|default:'' }}"
+              <input type="text" name="observation" value="{{ f.observation|default:'' }}" style="min-width:220px;"
                      class="form-control form-control-sm" form="famille-update-{{ f.pk }}">
             </td>
             <td class="text-center pe-3">

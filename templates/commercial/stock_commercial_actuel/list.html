@@ -55,41 +55,43 @@
   </div>
   <div class="card-body">
     {% if commercial_id %}
-    <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
-      <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-      <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
-      <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté initialement stockée</span></div>
-      <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
-      <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
-      <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
+    <div class="overflow-auto">
+      <div class="d-flex flex-nowrap gap-2 mb-1">
+        <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
+        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
+        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté initialement stockée</span></div>
+        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
+        <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
+        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
+      </div>
+      {% if lignes %}
+      {% for l in lignes %}
+      <div class="d-flex flex-nowrap align-items-center gap-2 mb-2">
+        <div style="flex:1 1 200px;min-width:160px;">
+          <input type="text" class="form-control form-control-sm" value="{{ l.produit_nom }}" disabled>
+        </div>
+        <div style="width:120px;flex:0 0 auto;">
+          <input type="number" class="form-control form-control-sm no-spinner{% if l.reste_calcule < 0 %} text-danger{% endif %}"
+                 value="{{ l.reste_calcule|stringformat:'s' }}" disabled>
+        </div>
+        <div style="width:140px;flex:0 0 auto;">
+          <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_initiale|stringformat:'s' }}" disabled>
+        </div>
+        <div style="width:140px;flex:0 0 auto;">
+          <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_sortie|stringformat:'s' }}" disabled>
+        </div>
+        <div style="width:120px;flex:0 0 auto;">
+          <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_livree|stringformat:'s' }}" disabled>
+        </div>
+        <div style="width:140px;flex:0 0 auto;">
+          <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_deja_restituee|stringformat:'s' }}" disabled>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="text-muted small py-2">Aucun produit en stock pour ce commercial.</div>
+      {% endif %}
     </div>
-    {% if lignes %}
-    {% for l in lignes %}
-    <div class="d-flex flex-nowrap align-items-center gap-2 mb-2">
-      <div style="flex:1 1 200px;min-width:160px;">
-        <input type="text" class="form-control form-control-sm" value="{{ l.produit_nom }}" disabled>
-      </div>
-      <div style="width:120px;flex:0 0 auto;">
-        <input type="number" class="form-control form-control-sm no-spinner{% if l.reste_calcule < 0 %} text-danger{% endif %}"
-               value="{{ l.reste_calcule|stringformat:'s' }}" disabled>
-      </div>
-      <div style="width:140px;flex:0 0 auto;">
-        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_initiale|stringformat:'s' }}" disabled>
-      </div>
-      <div style="width:140px;flex:0 0 auto;">
-        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_sortie|stringformat:'s' }}" disabled>
-      </div>
-      <div style="width:120px;flex:0 0 auto;">
-        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_livree|stringformat:'s' }}" disabled>
-      </div>
-      <div style="width:140px;flex:0 0 auto;">
-        <input type="number" class="form-control form-control-sm no-spinner" value="{{ l.quantite_deja_restituee|stringformat:'s' }}" disabled>
-      </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <div class="text-muted small py-2">Aucun produit en stock pour ce commercial.</div>
-    {% endif %}
     {% else %}
     <div class="text-muted small py-2">Sélectionnez un commercial pour afficher les produits en stock.</div>
     {% endif %}

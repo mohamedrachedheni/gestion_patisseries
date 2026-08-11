@@ -55,12 +55,19 @@
       <i class="bi bi-list-check me-2 text-primary"></i>Composition
     </div>
     <div class="card-body">
-      <div class="row g-2 mb-1 d-none d-md-flex">
-        <div class="col-md-5"><span class="form-label small text-muted mb-0">Matière première</span></div>
-        <div class="col-md-3"><span class="form-label small text-muted mb-0">Quantité</span></div>
-        <div class="col-md-3"><span class="form-label small text-muted mb-0">Unité</span></div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-3" style="min-width:220px;">Matière première</th>
+              <th style="min-width:130px;">Quantité</th>
+              <th style="min-width:110px;">Unité</th>
+              <th class="pe-3" style="width:60px;"></th>
+            </tr>
+          </thead>
+          <tbody id="detail-rows"></tbody>
+        </table>
       </div>
-      <div id="detail-rows"></div>
       <div class="d-flex justify-content-end mt-2">
         <button type="button" id="add-row-btn" class="btn btn-outline-primary btn-sm">
           <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
@@ -106,23 +113,23 @@
 
   function addRow(prefill) {
     prefill = prefill || {};
-    var row = document.createElement('div');
-    row.className = 'row g-2 align-items-center detail-row mb-2';
+    var row = document.createElement('tr');
+    row.className = 'detail-row';
     row.innerHTML =
-      '<div class="col-md-5">' +
+      '<td class="ps-3">' +
         '<select name="matiere_premiere_id" class="form-select form-select-sm mp-select">' + buildOptions() + '</select>' +
-      '</div>' +
-      '<div class="col-md-3">' +
+      '</td>' +
+      '<td>' +
         '<input type="number" step="0.001" name="quantite_detail" class="form-control form-control-sm no-spinner" value="0">' +
-      '</div>' +
-      '<div class="col-md-3">' +
+      '</td>' +
+      '<td>' +
         '<select class="form-select form-select-sm unite-auto" disabled>' + buildUniteOptions() + '</select>' +
-      '</div>' +
-      '<div class="col-md-1 text-end">' +
+      '</td>' +
+      '<td class="pe-3 text-end">' +
         '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne">' +
           '<i class="bi bi-trash"></i>' +
         '</button>' +
-      '</div>';
+      '</td>';
 
     var mpSelect = row.querySelector('.mp-select');
     var uniteSelect = row.querySelector('.unite-auto');

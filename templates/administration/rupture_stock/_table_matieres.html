@@ -25,21 +25,21 @@ masquable=True : ajoute les boutons Afficher/Cacher, contenu masqué par défaut
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Matière première</th>
+            <th class="ps-3" style="min-width:180px;">Matière première</th>
             <th class="text-end">Besoin</th>
             <th class="text-end">Stock disponible</th>
             <th class="text-end">Stock minimum</th>
             <th class="text-end">Manque</th>
-            <th class="text-end">Dernier prix</th>
-            <th>Dernier fournisseur</th>
-            <th class="text-end">Meilleur prix (60j)</th>
-            <th class="pe-3">Fournisseur (60j)</th>
+            <th class="text-end" style="min-width:110px;">Dernier prix</th>
+            <th style="min-width:170px;">Dernier fournisseur</th>
+            <th class="text-end" style="min-width:110px;">Meilleur prix (60j)</th>
+            <th class="pe-3" style="min-width:170px;">Fournisseur (60j)</th>
           </tr>
         </thead>
         <tbody>
           {% for r in ruptures %}
           <tr>
-            <td class="ps-3 fw-medium">{{ r.matiere_premiere.nom }}</td>
+            <td class="ps-3 fw-medium" style="min-width:180px;">{{ r.matiere_premiere.nom }}</td>
             <td class="text-end font-monospace">
               {% if r.matiere_premiere.unite == 'Pièce' %}{{ r.besoin|floatformat:0 }}{% else %}{{ r.besoin|stringformat:'s' }}{% endif %}
               {{ r.matiere_premiere.unite }}
@@ -53,7 +53,7 @@ masquable=True : ajoute les boutons Afficher/Cacher, contenu masqué par défaut
             <td class="text-end font-monospace fw-semibold {% if r.manque > 0 %}text-danger{% endif %}">
               {% if r.matiere_premiere.unite == 'Pièce' %}{{ r.manque_affiche|floatformat:0 }}{% else %}{{ r.manque_affiche|stringformat:'s' }}{% endif %}
             </td>
-            <td class="text-end font-monospace">
+            <td class="text-end font-monospace" style="min-width:110px;">
               {% if r.dernier_prix is not None %}
               {{ r.dernier_prix|stringformat:'s' }} TND
               <div class="text-muted" style="font-size:.75rem;">{{ r.dernier_date|date:'d/m/Y' }}</div>
@@ -61,8 +61,8 @@ masquable=True : ajoute les boutons Afficher/Cacher, contenu masqué par défaut
               <span class="text-muted">—</span>
               {% endif %}
             </td>
-            <td>{{ r.dernier_fournisseur.raison_sociale|default:'—' }}</td>
-            <td class="text-end font-monospace">
+            <td style="min-width:170px;">{{ r.dernier_fournisseur.raison_sociale|default:'—' }}</td>
+            <td class="text-end font-monospace" style="min-width:110px;">
               {% if r.meilleur_prix_60j is not None %}
               {{ r.meilleur_prix_60j|stringformat:'s' }} TND
               <div class="text-muted" style="font-size:.75rem;">{{ r.meilleur_date_60j|date:'d/m/Y' }}</div>
@@ -70,7 +70,7 @@ masquable=True : ajoute les boutons Afficher/Cacher, contenu masqué par défaut
               <span class="text-muted">—</span>
               {% endif %}
             </td>
-            <td class="pe-3">{{ r.meilleur_fournisseur_60j.raison_sociale|default:'—' }}</td>
+            <td class="pe-3" style="min-width:170px;">{{ r.meilleur_fournisseur_60j.raison_sociale|default:'—' }}</td>
           </tr>
           {% endfor %}
         </tbody>

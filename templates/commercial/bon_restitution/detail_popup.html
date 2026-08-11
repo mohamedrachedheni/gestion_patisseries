@@ -27,15 +27,15 @@
     <table class="table table-sm align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th class="ps-3">Produit</th>
-          <th class="pe-3">Quantité</th>
+          <th class="ps-3" style="min-width:200px;">Produit</th>
+          <th class="pe-3" style="min-width:100px;">Quantité</th>
         </tr>
       </thead>
       <tbody>
         {% for d in details %}
         <tr>
-          <td class="ps-3">{{ d.produit|default:'' }}</td>
-          <td class="pe-3">{{ d.quantite|stringformat:'s' }}</td>
+          <td class="ps-3" style="min-width:200px;">{{ d.produit|default:'' }}</td>
+          <td class="pe-3" style="min-width:100px;">{{ d.quantite|stringformat:'s' }}</td>
         </tr>
         {% endfor %}
       </tbody>

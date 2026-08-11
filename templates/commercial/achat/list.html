@@ -81,12 +81,12 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Date achat</th>
-            <th>Numéro</th>
-            <th>Fournisseur</th>
-            <th class="text-end">Montant (TND)</th>
-            <th class="text-end">Reste à payer (TND)</th>
-            <th>Statut</th>
+            <th class="ps-3" style="min-width:120px;">Date achat</th>
+            <th style="min-width:130px;">Numéro</th>
+            <th style="min-width:190px;">Fournisseur</th>
+            <th class="text-end" style="min-width:130px;">Montant (TND)</th>
+            <th class="text-end" style="min-width:150px;">Reste à payer (TND)</th>
+            <th style="min-width:150px;">Statut</th>
             <th class="text-center pe-3" style="width:120px">Actions</th>
           </tr>
         </thead>
@@ -94,15 +94,15 @@
           {% for a in page_obj.object_list %}
           <tr>
             <td class="ps-3">
-              <input type="date" class="form-control form-control-sm"
+              <input type="date" class="form-control form-control-sm" style="min-width:110px;"
                      value="{{ a.achat_code.achat_at|date:'Y-m-d' }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:120px;"
                      value="{{ a.achat_code.achat_numero }}" disabled>
             </td>
             <td>
-              <select class="form-select form-select-sm" disabled>
+              <select class="form-select form-select-sm" style="min-width:180px;" disabled>
                 {% for f in fournisseurs_list %}
                 <option value="{{ f.pk }}" {% if f.pk == a.achat_code.fournisseur_id %}selected{% endif %}>
                   {{ f.raison_sociale }}
@@ -113,15 +113,17 @@
             <td class="text-end">
               <input type="number" step="0.001"
                      class="form-control form-control-sm text-end font-monospace no-spinner"
+                     style="min-width:120px;"
                      value="{{ a.total_montant|stringformat:'s' }}" disabled>
             </td>
             <td class="text-end">
               <input type="number" step="0.001"
                      class="form-control form-control-sm text-end font-monospace no-spinner"
+                     style="min-width:140px;"
                      value="{{ a.reste_a_payer|stringformat:'s' }}" disabled>
             </td>
             <td>
-              <select class="form-select form-select-sm" disabled>
+              <select class="form-select form-select-sm" style="min-width:140px;" disabled>
                 {% for value, label in statut_choices %}
                 <option value="{{ value }}" {% if value == a.statut %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}

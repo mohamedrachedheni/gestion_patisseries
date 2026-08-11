@@ -59,7 +59,7 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:180px;">Commercial</th>
             <th class="text-end">Total montant (TND)</th>
             <th class="text-end pe-3">Part du CA (%)</th>
           </tr>
@@ -68,7 +68,7 @@
           {% for l in lignes %}
           <tr>
             <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:180px;"
                      value="{{ l.commercial.get_full_name|default:l.commercial.username }}" disabled>
             </td>
             <td class="text-end">

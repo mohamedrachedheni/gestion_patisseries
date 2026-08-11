@@ -104,13 +104,13 @@
         <thead class="table-light">
           <tr>
             {% if is_administration %}
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:170px;">Commercial</th>
             {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %}>Date</th>
-            <th>Client</th>
-            <th>Zone</th>
-            <th class="text-end">Montant (TND)</th>
-            <th>Statut</th>
+            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">Date</th>
+            <th style="min-width:180px;">Client</th>
+            <th style="min-width:140px;">Zone</th>
+            <th class="text-end" style="min-width:130px;">Montant (TND)</th>
+            <th style="min-width:160px;">Statut</th>
             <th class="text-center pe-3" style="width:180px">Actions</th>
           </tr>
         </thead>
@@ -118,30 +118,30 @@
           {% for bl in page_obj.object_list %}
           <tr>
             {% if is_administration %}
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+            <td class="ps-3" style="min-width:170px;">
+              <input type="text" class="form-control form-control-sm" style="min-width:150px;"
                      value="{{ bl.user.get_full_name|default:bl.user.username }}" disabled>
             </td>
             {% endif %}
-            <td {% if not is_administration %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm"
+            <td {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">
+              <input type="date" class="form-control form-control-sm" style="min-width:100px;"
                      value="{{ bl.bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}" disabled>
             </td>
-            <td>
-              <input type="text" class="form-control form-control-sm"
+            <td style="min-width:180px;">
+              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
                      value="{{ bl.bon_livraison_code.client }}" disabled>
             </td>
-            <td>
-              <input type="text" class="form-control form-control-sm"
+            <td style="min-width:140px;">
+              <input type="text" class="form-control form-control-sm" style="min-width:120px;"
                      value="{{ bl.bon_livraison_code.client.zone|default:'' }}" disabled>
             </td>
-            <td class="text-end">
+            <td class="text-end" style="min-width:130px;">
               <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     class="form-control form-control-sm text-end font-monospace no-spinner" style="min-width:110px;"
                      value="{{ bl.total_montant|stringformat:'s' }}" disabled>
             </td>
-            <td>
-              <select class="form-select form-select-sm" disabled>
+            <td style="min-width:160px;">
+              <select class="form-select form-select-sm" style="min-width:140px;" disabled>
                 {% for value, label in statut_choices %}
                 <option value="{{ value }}" {% if value == bl.statut %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}

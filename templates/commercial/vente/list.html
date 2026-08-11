@@ -104,14 +104,14 @@
         <thead class="table-light">
           <tr>
             {% if is_administration %}
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:180px;">Commercial</th>
             {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %}>Date</th>
-            <th>Client</th>
-            <th>Zone</th>
-            <th class="text-end">Montant (TND)</th>
-            <th>Statut</th>
-            <th class="text-center pe-3" style="width:180px">Actions</th>
+            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">Date</th>
+            <th style="min-width:180px;">Client</th>
+            <th style="min-width:130px;">Zone</th>
+            <th class="text-end" style="min-width:140px;">Montant (TND)</th>
+            <th style="min-width:150px;">Statut</th>
+            <th class="text-center pe-3" style="min-width:180px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -119,29 +119,29 @@
           <tr>
             {% if is_administration %}
             <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:180px;"
                      value="{{ v.user.get_full_name|default:v.user.username }}" disabled>
             </td>
             {% endif %}
             <td {% if not is_administration %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm"
+              <input type="date" class="form-control form-control-sm" style="min-width:120px;"
                      value="{{ v.vente_code.vente_at|date:'Y-m-d' }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:180px;"
                      value="{{ v.vente_code.client }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:130px;"
                      value="{{ v.vente_code.client.zone|default:'' }}" disabled>
             </td>
             <td class="text-end">
-              <input type="number" step="0.001"
+              <input type="number" step="0.001" style="min-width:140px;"
                      class="form-control form-control-sm text-end font-monospace no-spinner"
                      value="{{ v.total_montant|stringformat:'s' }}" disabled>
             </td>
             <td>
-              <select class="form-select form-select-sm" disabled>
+              <select class="form-select form-select-sm" style="min-width:150px;" disabled>
                 {% for value, label in statut_choices %}
                 <option value="{{ value }}" {% if value == v.statut %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}

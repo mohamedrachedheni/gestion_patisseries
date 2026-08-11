@@ -58,24 +58,25 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Date</th>
-            <th>Libellé</th>
-            <th class="text-end pe-3">Montant (TND)</th>
+            <th class="ps-3" style="min-width:140px;">Date</th>
+            <th style="min-width:170px;">Libellé</th>
+            <th class="text-end pe-3" style="min-width:120px;">Montant (TND)</th>
           </tr>
         </thead>
         <tbody>
           {% for t in lignes %}
           <tr>
             <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm" style="min-width:140px;"
                      value="{{ t.created_at|date:'d/m/Y H:i' }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" value="{{ t.libelle }}" disabled>
+              <input type="text" class="form-control form-control-sm" style="min-width:170px;" value="{{ t.libelle }}" disabled>
             </td>
             <td class="text-end pe-3">
               <input type="number" step="0.001"
                      class="form-control form-control-sm text-end font-monospace no-spinner {% if t.montant < 0 %}text-danger{% endif %}"
+                     style="min-width:120px;"
                      value="{{ t.montant|stringformat:'.3f' }}" disabled>
             </td>
           </tr>

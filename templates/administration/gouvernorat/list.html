@@ -34,7 +34,7 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Nom</th>
+            <th class="ps-3" style="min-width:200px;">Nom</th>
             <th class="text-center pe-3" style="width:100px">Actions</th>
           </tr>
         </thead>
@@ -44,7 +44,7 @@
             <td class="ps-3">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="gouvernorat-update-{{ g.pk }}">
               <input type="text" name="nom" value="{{ g.nom }}"
-                     class="form-control form-control-sm" form="gouvernorat-update-{{ g.pk }}">
+                     class="form-control form-control-sm" style="min-width:200px;" form="gouvernorat-update-{{ g.pk }}">
             </td>
             <td class="text-center pe-3">
               <button type="submit" form="gouvernorat-update-{{ g.pk }}"

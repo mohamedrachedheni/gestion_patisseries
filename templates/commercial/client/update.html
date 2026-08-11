@@ -27,15 +27,15 @@
         <table class="table align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th class="ps-3">Gouvernorat</th>
-              <th>Délégation</th>
-              <th class="pe-3">Zone</th>
+              <th class="ps-3" style="min-width:170px;">Gouvernorat</th>
+              <th style="min-width:170px;">Délégation</th>
+              <th class="pe-3" style="min-width:200px;">Zone</th>
             </tr>
           </thead>
           <tbody>
             <tr class="zone-gouv-deleg-group">
               <td class="ps-3">
-                <select class="form-select zone-gouvernorat-select">
+                <select class="form-select zone-gouvernorat-select" style="min-width:160px;">
                   <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
                   {% for g in gouvernorats_list %}
                   <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
@@ -43,7 +43,7 @@
                 </select>
               </td>
               <td>
-                <select name="delegation" class="form-select zone-delegation-select">
+                <select name="delegation" class="form-select zone-delegation-select" style="min-width:160px;">
                   <option value="" {% if not selected_delegation_id %}selected{% endif %}>— Choisir —</option>
                   {% for d in delegations_list %}
                   {% if selected_gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
@@ -56,6 +56,7 @@
                 <input type="text" name="zone_nom" list="zone-datalist" autocomplete="off"
                        value="{{ zone_nom_value|default:'' }}"
                        class="form-control combobox-input"
+                       style="min-width:190px;"
                        placeholder="Sélectionner ou saisir une nouvelle zone…">
                 <datalist id="zone-datalist"></datalist>
               </td>
