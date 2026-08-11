@@ -24,6 +24,7 @@
     </div>
     <div class="card-body">
 
+      <div class="overflow-auto">
       {# ── Ligne 1 : champs modifiables ──────────────────────────────── #}
       <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
         {% if is_administration %}
@@ -106,6 +107,7 @@
           <input type="text" id="id_statut" value="" class="form-control form-control-sm" disabled>
         </div>
       </div>
+      </div>
 
     </div>
   </div>
@@ -116,14 +118,16 @@
       <i class="bi bi-list-ul me-2 text-primary"></i>Détails de la dépense
     </div>
     <div class="card-body">
-      <div class="d-flex flex-nowrap gap-2 mb-1 d-none d-md-flex">
-        <div style="flex:1 1 260px;min-width:200px;"><span class="form-label small text-muted mb-0">Libellé</span></div>
-        <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
-        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Valeur unitaire</span></div>
-        <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-        <div style="width:44px;flex:0 0 auto;"></div>
+      <div class="overflow-auto">
+        <div class="d-flex flex-nowrap gap-2 mb-1">
+          <div style="flex:1 1 260px;min-width:200px;"><span class="form-label small fw-semibold mb-0">Libellé</span></div>
+          <div style="width:110px;flex:0 0 auto;"><span class="form-label small fw-semibold mb-0">Quantité</span></div>
+          <div style="width:140px;flex:0 0 auto;"><span class="form-label small fw-semibold mb-0">Valeur unitaire</span></div>
+          <div style="width:140px;flex:0 0 auto;"><span class="form-label small fw-semibold mb-0">Total ligne</span></div>
+          <div style="width:44px;flex:0 0 auto;"></div>
+        </div>
+        <div id="detail-rows"></div>
       </div>
-      <div id="detail-rows"></div>
       <div class="d-flex justify-content-end mt-2">
         <button type="button" id="add-detail-row-btn" class="btn btn-outline-primary btn-sm">
           <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne

@@ -790,6 +790,7 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
             'obj':         achat,
             'code':        achat.achat_code,
             'details':     details,
+            'montant_total_affiche': achat.total_montant.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP),
         })
 
     def _render_depense(self, request, transaction_obj, depense_id):
@@ -805,6 +806,7 @@ class TransactionDetailPopupView(GroupRequiredMixin, View):
             'obj':         depense,
             'code':        depense.depense_code,
             'details':     details,
+            'montant_total_affiche': depense.total_montant.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP),
         })
 
     def _render_transfere(self, request, transaction_obj, transfere_id, type_):

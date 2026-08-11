@@ -42,6 +42,10 @@ class UserCreateForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
+        # UserCreationForm met « autofocus » en dur sur username — on le
+        # retire pour respecter l'ordre visuel du formulaire (Prénom en premier).
+        del self.fields['username'].widget.attrs['autofocus']
+        self.fields['first_name'].widget.attrs['autofocus'] = True
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
