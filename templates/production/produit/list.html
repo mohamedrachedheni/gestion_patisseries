@@ -78,19 +78,19 @@
         <tbody>
           {% for p in page_obj.object_list %}
           <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" value="{{ p.nom }}" readonly>
+            <td class="ps-3" style="min-width:180px;">
+              <input type="text" class="form-control form-control-sm" style="min-width:180px;" value="{{ p.nom }}" readonly>
             </td>
-            <td class="text-end">
-              <input type="number" class="form-control form-control-sm text-end no-spinner"
+            <td class="text-end" style="min-width:110px;">
+              <input type="number" class="form-control form-control-sm text-end no-spinner" style="min-width:110px;"
                      value="{{ p.stock }}" readonly>
             </td>
             <td class="text-end">
               <input type="number" class="form-control form-control-sm text-end no-spinner"
                      value="{{ p.quantite_minimale }}" readonly>
             </td>
-            <td class="text-end">
-              <input type="number" class="form-control form-control-sm text-end font-monospace no-spinner"
+            <td class="text-end" style="min-width:150px;">
+              <input type="number" class="form-control form-control-sm text-end font-monospace no-spinner" style="min-width:150px;"
                      value="{{ p.prix_unitaire|stringformat:'s' }}" readonly>
             </td>
             <td class="text-center pe-3">

@@ -50,22 +50,22 @@
     <form id="recette-delete-{{ r.pk }}" method="post" action="{% url 'production:recette-delete' r.pk %}"></form>
     {% endfor %}
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0" style="table-layout:fixed">
+      <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3" style="width:25%">Produit</th>
-            <th class="text-end" style="width:25%">Quantité</th>
-            <th style="width:25%">Unité</th>
-            <th class="text-center pe-3" style="width:25%">Actions</th>
+            <th class="ps-3" style="min-width:200px;">Produit</th>
+            <th class="text-end" style="min-width:130px;">Quantité</th>
+            <th>Unité</th>
+            <th class="text-center pe-3" style="min-width:140px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for r in page_obj.object_list %}
           <tr>
-            <td class="ps-3 fw-medium text-truncate" title="{{ r.produit.nom }}">{{ r.produit.nom }}</td>
-            <td class="text-end font-monospace">{{ r.quantite|stringformat:'s' }}</td>
+            <td class="ps-3 fw-medium" style="min-width:200px;">{{ r.produit.nom }}</td>
+            <td class="text-end font-monospace" style="min-width:130px;">{{ r.quantite|stringformat:'s' }}</td>
             <td>{{ r.unite|default:'—' }}</td>
-            <td class="text-center pe-3 text-nowrap">
+            <td class="text-center pe-3 text-nowrap" style="min-width:140px;">
               <a href="{% url 'production:recette-detail' r.pk %}"
                  class="btn btn-sm btn-outline-secondary" title="Visualiser">
                 <i class="bi bi-eye"></i>

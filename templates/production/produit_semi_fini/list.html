@@ -88,21 +88,21 @@
         <tbody>
           {% for mp in page_obj.object_list %}
           <tr>
-            <td class="ps-3">
+            <td class="ps-3" style="min-width:180px;">
               <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="psf-update-{{ mp.pk }}">
-              <input type="text" name="nom" value="{{ mp.nom }}"
+              <input type="text" name="nom" value="{{ mp.nom }}" style="min-width:180px;"
                      class="form-control form-control-sm" form="psf-update-{{ mp.pk }}">
             </td>
-            <td>
-              <select name="matiere_premiere_famille" class="form-select form-select-sm" form="psf-update-{{ mp.pk }}">
+            <td style="min-width:160px;">
+              <select name="matiere_premiere_famille" class="form-select form-select-sm" style="min-width:160px;" form="psf-update-{{ mp.pk }}">
                 <option value="">— Aucune —</option>
                 {% for f in familles_list %}
                 <option value="{{ f.pk }}" {% if f.pk == mp.matiere_premiere_famille_id %}selected{% endif %}>{{ f.famille }}</option>
                 {% endfor %}
               </select>
             </td>
-            <td>
-              <select name="unite" class="form-select form-select-sm" form="psf-update-{{ mp.pk }}">
+            <td style="min-width:130px;">
+              <select name="unite" class="form-select form-select-sm" style="min-width:130px;" form="psf-update-{{ mp.pk }}">
                 <option value="">—</option>
                 {% for value, label in unite_choices %}
                 <option value="{{ value }}" {% if value == mp.unite %}selected{% endif %}>{{ label }}</option>
