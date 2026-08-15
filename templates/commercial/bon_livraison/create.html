@@ -21,12 +21,10 @@
 {% if is_locked %}
 {% comment %}
    État verrouillé : affiché juste après un enregistrement réussi. Plus aucun
-   champ n'est modifiable ; seuls Fermer et Etat PDF restent actifs.
+   champ n'est modifiable ; seuls Fermer et Etat PDF restent actifs. Le message
+   de confirmation est déjà affiché par le framework messages de Django
+   (voir base_global.html) — pas de bannière redondante ici.
 {% endcomment %}
-<div class="alert alert-success d-flex align-items-center gap-2">
-  <i class="bi bi-check-circle-fill"></i>
-  Bon de livraison {{ saved_bon_livraison.bon_livraison_code }} enregistré avec succès.
-</div>
 
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-transparent fw-semibold py-3">
