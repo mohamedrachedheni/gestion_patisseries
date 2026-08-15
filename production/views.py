@@ -14,6 +14,7 @@ from django.views.generic import TemplateView, View
 
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
+from core.models import JourNonOuvre
 
 from .forms import FamilleForm, MatierePremiereForm, ProduitForm, ProduitSemiFiniForm
 from .models import CommandeInterne, MatierePremiere, MatierePremiereFamille, Produit, Recette, RecetteDetaille
@@ -1112,20 +1113,30 @@ def _commande_interne_list_context(request):
 
     produits_avec_recette = Produit.objects.filter(recettes__isnull=False).order_by('nom')
 
+    # Jours non ouvrés (fermetures, fériés impactant la livraison) : chargés
+    # sans filtre de date (table de référence, faible volume) pour couvrir à
+    # la fois les lignes déjà enregistrées (Partie 1) et toute échéance future
+    # saisie en Partie 2, indépendamment de la période filtrée ici.
+    jours_non_ouvres = list(
+        JourNonOuvre.objects.filter(concerne_livraison=True).values_list('date', flat=True)
+    )
+
     return {
-        'page_obj':            page_obj,
-        'is_paginated':        page_obj.has_other_pages(),
-        'date_debut':          date_debut_str,
-        'date_fin':            date_fin_str,
-        'produit_id':          produit_id,
-        'is_completed_filter': is_completed_f,
-        'is_stock_maj_filter': is_stock_maj_f,
-        'produits_list':       produits_avec_recette,
-        'produits_json':       json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_avec_recette]),
-        'recettes_json':       _recettes_json(),
-        'unite_choices':       Recette.UNITE_CHOICES,
-        'total_count':         paginator.count,
-        'querystring':         request.GET.urlencode(),
+        'page_obj':               page_obj,
+        'is_paginated':           page_obj.has_other_pages(),
+        'date_debut':             date_debut_str,
+        'date_fin':               date_fin_str,
+        'produit_id':             produit_id,
+        'is_completed_filter':    is_completed_f,
+        'is_stock_maj_filter':    is_stock_maj_f,
+        'produits_list':          produits_avec_recette,
+        'produits_json':          json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_avec_recette]),
+        'recettes_json':          _recettes_json(),
+        'unite_choices':          Recette.UNITE_CHOICES,
+        'total_count':            paginator.count,
+        'querystring':            request.GET.urlencode(),
+        'jours_non_ouvres_dates': set(jours_non_ouvres),
+        'jours_non_ouvres_json':  json.dumps([d.isoformat() for d in jours_non_ouvres]),
     }
 
 
