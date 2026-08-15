@@ -111,11 +111,16 @@
         </thead>
         <tbody>
           {% for ci in page_obj.object_list %}
-          <tr class="ci-row">
+          <tr class="ci-row {% if ci.livraison_at in jours_non_ouvres_dates %}table-warning{% endif %}">
             <td class="ps-3">
               <input type="date" name="livraison_at" value="{{ ci.livraison_at|date:'Y-m-d' }}"
                      class="form-control form-control-sm" form="ci-update-{{ ci.pk }}"
                      {% if ci.is_stock_maj %}disabled{% endif %}>
+              {% if ci.livraison_at in jours_non_ouvres_dates %}
+              <small class="text-warning d-block mt-1" title="Cette échéance tombe un jour non ouvré">
+                <i class="bi bi-exclamation-triangle-fill"></i> Jour non ouvré
+              </small>
+              {% endif %}
             </td>
             <td>
               <select name="produit_id" class="form-select form-select-sm produit-select"
@@ -262,6 +267,19 @@
   var RECETTES = {{ recettes_json|safe }};
   var PRODUITS = {{ produits_json|safe }};
   var PART2_ROWS = {{ part2_rows_json|safe }};
+  var JOURS_NON_OUVRES = {{ jours_non_ouvres_json|safe }};
+
+  // ── Avertissement échéance sur un jour non ouvré (Partie 2) ─────────────
+  function bindLivraisonAtWarning(row) {
+    var input = row.querySelector('.livraison-at-input');
+    var warning = row.querySelector('.livraison-at-warning');
+    if (!input || !warning) { return; }
+    function refresh() {
+      warning.classList.toggle('d-none', JOURS_NON_OUVRES.indexOf(input.value) === -1);
+    }
+    input.addEventListener('change', refresh);
+    refresh();
+  }
 
   // ── Filtres : auto-soumission ───────────────────────────────────────────
   document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
@@ -332,7 +350,10 @@
     row.className = 'd-flex flex-nowrap align-items-center gap-2 ci-add-row ci-row mb-2';
     row.innerHTML =
       '<div style="width:150px;flex:0 0 auto;">' +
-        '<input type="date" name="livraison_at" class="form-control form-control-sm">' +
+        '<input type="date" name="livraison_at" class="form-control form-control-sm livraison-at-input">' +
+        '<small class="text-warning d-none livraison-at-warning" title="Cette échéance tombe un jour non ouvré">' +
+          '<i class="bi bi-exclamation-triangle-fill"></i> Jour non ouvré' +
+        '</small>' +
       '</div>' +
       '<div style="flex:1 1 220px;min-width:180px;">' +
         '<select name="produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
@@ -360,6 +381,7 @@
     });
 
     bindProduitUniteSync(row);
+    bindLivraisonAtWarning(row);
     rowsContainer.appendChild(row);
     return row;
   }
