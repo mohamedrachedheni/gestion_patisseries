@@ -59,6 +59,7 @@ urlpatterns = [
     path('rupture-stock/pdf-commandes/',   views.RuptureStockCommandesPdfView.as_view(), name='rupture-stock-commandes-pdf'),
 
     # Production
+    path('demande-reference-produits/', views.DemandeReferenceProduitsView.as_view(), name='demande-reference-produits-list'),
     path('cout-production/',           views.CoutProductionListView.as_view(),         name='cout-production-list'),
     path('chiffre-affaire-produit/',   views.ChiffreAffaireParProduitView.as_view(),   name='chiffre-affaire-produit-list'),
     path(

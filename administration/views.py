@@ -30,7 +30,9 @@ from xhtml2pdf import pisa
 from commercial.models import (
     Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Delegation, Depense, DepenseDetaille,
     Gouvernorat, Vente, Zone,
+    JOUR_SEMAINE_CHOICES,
 )
+from commercial.services import calculer_demande_reference_produits
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
 from core.models import JourNonOuvre
@@ -1796,6 +1798,70 @@ class CoutProductionListView(GroupRequiredMixin, View):
             'is_paginated': page_obj.has_other_pages(),
             'lignes':       page_obj.object_list,
             'total_count':  paginator.count,
+        })
+
+
+# ─── Demande de référence produits ───────────────────────────────────────────
+
+class DemandeReferenceProduitsView(GroupRequiredMixin, View):
+    """Phase 3 (feuille de route adhérence visites) : quantité de référence
+    moyenne livrée par produit et par jour de semaine sur une période de
+    référence, pour programmer les commandes internes de production — voir
+    commercial/services.py::calculer_demande_reference_produits."""
+    group_required = 'Administration'
+    template_name = 'administration/production/demande_reference_produits_list.html'
+    NB_JOURS_DEFAUT = 89  # période de référence par défaut : ~3 mois, une semaine étant trop courte pour une moyenne fiable
+
+    def get(self, request):
+        today = date.today()
+
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        produit_ids_str = request.GET.getlist('produit_id')
+        produit_ids = [int(p) for p in produit_ids_str if p.strip().isdigit()]
+
+        jours_valides = {str(v) for v, _ in JOUR_SEMAINE_CHOICES}
+        jours_semaine_selectionnes = sorted({
+            int(v) for v in request.GET.getlist('jour_semaine') if v in jours_valides
+        })
+        # Aucune case cochée (première visite ou tout décoché) : tous les jours
+        if not jours_semaine_selectionnes:
+            jours_semaine_selectionnes = [w for w, _ in JOUR_SEMAINE_CHOICES]
+
+        lignes = calculer_demande_reference_produits(
+            date_debut, date_fin,
+            produit_ids=produit_ids or None,
+            jours_semaine=set(jours_semaine_selectionnes),
+        )
+
+        return render(request, self.template_name, {
+            'lignes':                      lignes,
+            'date_debut':                  date_debut_str,
+            'date_fin':                    date_fin_str,
+            'produits_list':                Produit.objects.order_by('nom'),
+            'produit_ids_selectionnes':    [str(p) for p in produit_ids],
+            'jours_semaine_choices':       JOUR_SEMAINE_CHOICES,
+            'jours_semaine_selectionnes':  jours_semaine_selectionnes,
         })
 
 

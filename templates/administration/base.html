@@ -59,6 +59,10 @@
   </a>
 
   <div class="sidebar-section">Production</div>
+  <a href="{% url 'administration:demande-reference-produits-list' %}"
+     class="nav-link {% if 'demande-reference-produits' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-clipboard-data"></i> Demande de référence produits
+  </a>
   <a href="{% url 'administration:cout-production-list' %}"
      class="nav-link {% if 'cout-production' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-calculator"></i> Coût de production

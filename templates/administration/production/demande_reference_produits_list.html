@@ -1,0 +1,135 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Demande de référence produits — Administration{% endblock %}
+{% block page_title %}Demande de référence produits{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Demande de référence produits</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-4 fw-bold">
+  Demande de référence par produit et jour de semaine
+</h4>
+<p class="text-muted small mb-4">
+  Quantité moyenne livrée par produit sur chaque jour de semaine, calculée sur la période de référence
+  (les jours non ouvrés sont exclus du calcul) — sert à programmer les commandes internes de production.
+</p>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+        <div style="width:260px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Produits (défaut : tous)</label>
+          <select name="produit_id" class="form-select form-select-sm" multiple size="1" data-autosubmit>
+            {% for p in produits_list %}
+            <option value="{{ p.pk }}" {% if p.pk|stringformat:"s" in produit_ids_selectionnes %}selected{% endif %}>
+              {{ p.nom }}
+            </option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Ctrl/Cmd + clic pour en sélectionner plusieurs.</small>
+        </div>
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'administration:demande-reference-produits-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <label class="form-label small mb-1 d-block">Jours de la semaine (défaut : tous)</label>
+        <div class="d-flex flex-wrap gap-3">
+          {% for valeur, libelle in jours_semaine_choices %}
+          <div class="form-check">
+            <input type="checkbox" name="jour_semaine" value="{{ valeur }}" id="jour-semaine-{{ valeur }}"
+                   class="form-check-input" autocomplete="off" data-autosubmit
+                   {% if valeur in jours_semaine_selectionnes %}checked{% endif %}>
+            <label class="form-check-label" for="jour-semaine-{{ valeur }}">{{ libelle }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : tableau ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if lignes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:120px;">Jour de la semaine</th>
+            <th style="min-width:200px;">Produit</th>
+            <th class="text-end" style="min-width:170px;">Quantité de référence demandée</th>
+            <th class="text-end pe-3" style="min-width:150px;">Stock disponible actuel</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lignes %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm" value="{{ l.jour_semaine_label }}" disabled>
+            </td>
+            <td>
+              <input type="text" class="form-control form-control-sm" style="min-width:190px;" value="{{ l.produit }}" disabled>
+            </td>
+            <td class="text-end">
+              <input type="number" step="1"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ l.quantite_reference }}" disabled>
+            </td>
+            <td class="text-end pe-3">
+              <input type="number"
+                     class="form-control form-control-sm text-end font-monospace no-spinner"
+                     value="{{ l.stock_disponible }}" disabled>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-bar-chart fs-1 d-block mb-2 opacity-25"></i>
+      Aucune donnée pour ces filtres sur cette période.
+      <br>
+      <small>Vérifiez que des bons de livraison existent sur la période sélectionnée.</small>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+</script>
+{% endblock %}

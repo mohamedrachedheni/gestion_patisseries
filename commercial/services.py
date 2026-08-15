@@ -1,4 +1,5 @@
 import base64
+import math
 from datetime import timedelta
 from io import BytesIO
 
@@ -6,10 +7,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from django.db.models import Max
 
 from core.models import JourNonOuvre
 
-from .models import Agenda, BonLivraison, JourVisiteClient
+from .models import JOUR_SEMAINE_CHOICES, Agenda, BonLivraison, BonLivraisonDetaille, JourVisiteClient
 
 TOLERANCE_JOURS = 1
 
@@ -261,3 +263,82 @@ def generer_graphique_adherence(series_par_commercial):
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+def calculer_demande_reference_produits(date_debut, date_fin, produit_ids=None, jours_semaine=None):
+    """Phase 3 : quantité de référence moyenne livrée par produit et par jour
+    de semaine sur la période [date_debut, date_fin], pour programmer les
+    commandes internes de production.
+
+    - Ne retient que le DERNIER BonLivraison de chaque BonLivraisonCode (un
+      bon révisé plusieurs fois ne doit être compté qu'une fois — même
+      principe que administration.views.ChiffreAffaireParCommercialView).
+    - Exclut les dates qui tombent dans un JourNonOuvre (concerne_livraison=True),
+      à la fois du total livré ET du nombre de jours de ce jour de semaine
+      dans la période — sinon elles tirent la moyenne vers le bas artificiellement.
+    - `produit_ids` : restreint aux produits donnés (None ou vide = tous).
+    - `jours_semaine` : ensemble des jours de semaine à retenir, 0=Lundi..6=Dimanche
+      (None = tous les 7 jours).
+
+    Retourne une liste de dicts triés par jour de semaine puis nom de produit :
+    {'jour_semaine', 'produit', 'quantite_reference', 'stock_disponible'}
+    """
+    jours_non_ouvres = _jours_non_ouvres_livraison(date_debut, date_fin)
+
+    nb_jours_par_semaine = {w: 0 for w in range(7)}
+    jour = date_debut
+    while jour <= date_fin:
+        if jour not in jours_non_ouvres:
+            nb_jours_par_semaine[jour.weekday()] += 1
+        jour += timedelta(days=1)
+
+    dernier_bl_id_par_code = (
+        BonLivraison.objects
+        .filter(
+            bon_livraison_code__bon_livraison_at__gte=date_debut,
+            bon_livraison_code__bon_livraison_at__lte=date_fin,
+        )
+        .exclude(bon_livraison_code__bon_livraison_at__in=jours_non_ouvres)
+        .values('bon_livraison_code_id')
+        .annotate(dernier_id=Max('id'))
+        .values_list('dernier_id', flat=True)
+    )
+
+    details_qs = BonLivraisonDetaille.objects.filter(
+        bon_livraison_id__in=dernier_bl_id_par_code,
+        produit__isnull=False,
+    ).select_related('bon_livraison__bon_livraison_code', 'produit')
+
+    if produit_ids:
+        details_qs = details_qs.filter(produit_id__in=produit_ids)
+
+    totaux = {}
+    produits_par_id = {}
+    for detail in details_qs:
+        jour_semaine = detail.bon_livraison.bon_livraison_code.bon_livraison_at.weekday()
+        if jours_semaine is not None and jour_semaine not in jours_semaine:
+            continue
+        cle = (jour_semaine, detail.produit_id)
+        totaux[cle] = totaux.get(cle, 0) + detail.quantite
+        produits_par_id[detail.produit_id] = detail.produit
+
+    libelle_jour = dict(JOUR_SEMAINE_CHOICES)
+
+    resultats = []
+    for (jour_semaine, produit_id), quantite_totale in totaux.items():
+        nb_jours = nb_jours_par_semaine.get(jour_semaine, 0)
+        if not nb_jours:
+            continue
+        produit = produits_par_id[produit_id]
+        resultats.append({
+            'jour_semaine': jour_semaine,
+            'jour_semaine_label': libelle_jour[jour_semaine],
+            'produit': produit,
+            # Arrondi au supérieur : mieux vaut prévoir légèrement plus que
+            # d'être en rupture sur la quantité de référence.
+            'quantite_reference': math.ceil(quantite_totale / nb_jours),
+            'stock_disponible': produit.stock,
+        })
+
+    resultats.sort(key=lambda r: (r['jour_semaine'], r['produit'].nom))
+    return resultats
