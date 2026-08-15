@@ -1,0 +1,143 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Courbes d'adhérence — Commercial{% endblock %}
+{% block page_title %}Courbes d'adhérence{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:client-adherence-visites' %}">Adhérence visites</a></li>
+    <li class="breadcrumb-item active">Courbes</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Taux d'adhérence quotidien par commercial</h4>
+  <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-table me-1"></i>Voir le détail
+  </a>
+</div>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:client-adherence-graphique' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : résultat global de la période ───────────────────────────── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-success">{{ nb_honorees }}</div>
+        <div class="text-muted small">Honorés</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-danger">{{ nb_manquees }}</div>
+        <div class="text-muted small">Manqués</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-secondary">{{ nb_ignorees }}</div>
+        <div class="text-muted small">Ignorés</div>
+        <div class="text-muted" style="font-size:.7rem;">(couverts par un autre commercial)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold">{{ taux_adherence|default_if_none:'—' }}{% if taux_adherence is not None %}%{% endif %}</div>
+        <div class="text-muted small">Taux d'adhérence</div>
+        <div class="text-muted" style="font-size:.7rem;">(hors ignorés)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Section 3 : courbes ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-graph-up me-2 text-primary"></i>Évolution du taux d'adhérence
+  </div>
+  <div class="card-body">
+    {% if chart_b64 %}
+    <img src="data:image/png;base64,{{ chart_b64 }}" class="img-fluid" alt="Courbes d'adhérence par commercial">
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
+      Aucune donnée d'adhérence sur cette période.
+      <br>
+      <small>Vérifiez que des jours de visite récurrents sont définis sur les fiches clients.</small>
+    </div>
+    {% endif %}
+
+    {% if commerciaux_sans_donnees %}
+    <p class="text-muted small mt-3 mb-0">
+      Sans donnée sur cette période : {{ commerciaux_sans_donnees|join:", " }}.
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+</script>
+{% endblock %}

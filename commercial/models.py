@@ -16,6 +16,16 @@ STATUT_PAIEMENT_CHOICES = [
     ('Payé', 'Payé'),
 ]
 
+JOUR_SEMAINE_CHOICES = [
+    (0, 'Lundi'),
+    (1, 'Mardi'),
+    (2, 'Mercredi'),
+    (3, 'Jeudi'),
+    (4, 'Vendredi'),
+    (5, 'Samedi'),
+    (6, 'Dimanche'),
+]
+
 
 class Gouvernorat(models.Model):
     nom = models.CharField(max_length=100, unique=True)
@@ -146,6 +156,29 @@ class ClientUser(models.Model):
     def __str__(self):
         return f'{self.client} → {self.user}'
 # fin corection 29/06/2026
+
+class JourVisiteClient(models.Model):
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='jours_visite',
+    )
+    jour_semaine = models.PositiveSmallIntegerField(choices=JOUR_SEMAINE_CHOICES)
+
+    class Meta:
+        verbose_name = 'Jour de visite client'
+        verbose_name_plural = 'Jours de visite client'
+        ordering = ['client', 'jour_semaine']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['client', 'jour_semaine'],
+                name='unique_jour_visite_client',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.client} — {self.get_jour_semaine_display()}'
+
 
 class Agenda(models.Model):
     STATUS_CHOICES = [

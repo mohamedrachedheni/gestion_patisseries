@@ -23,11 +23,13 @@ from production.models import (
 )
 
 from .forms import ClientForm, FournisseurForm
+from .services import calculer_adherence_visites, generer_graphique_adherence, serie_quotidienne_adherence
 from .models import (
     Achat, AchatCode, AchatDetaille, Agenda, BonLivraison, BonLivraisonCode, BonLivraisonDetaille,
     Client, ClientUser, Delegation, Depense, DepenseCode, DepenseDetaille, Fournisseur, Gouvernorat,
-    HistoriqueStockInitial, HistoriqueStockInitialDetaille, Vente, VenteCode, VenteDetaille, Zone,
-    MODE_PAIEMENT_CHOICES, STATUT_PAIEMENT_CHOICES,
+    HistoriqueStockInitial, HistoriqueStockInitialDetaille, JourVisiteClient, Vente, VenteCode,
+    VenteDetaille, Zone,
+    JOUR_SEMAINE_CHOICES, MODE_PAIEMENT_CHOICES, STATUT_PAIEMENT_CHOICES,
 )
 
 User = get_user_model()
@@ -60,6 +62,15 @@ def _client_queryset_for_user(user):
     if _is_administration(user):
         return Client.objects.all()
     return Client.objects.filter(client_users__user=user)
+
+
+def _jours_visite_from_post(request):
+    """Retourne la liste triée (sans doublons) des jours de semaine (0-6)
+    cochés dans le formulaire, en ignorant toute valeur hors de cet intervalle."""
+    valides = {str(v) for v, _ in JOUR_SEMAINE_CHOICES}
+    return sorted({
+        int(v) for v in request.POST.getlist('jour_visite') if v.strip() in valides
+    })
 
 
 # ─── Clients ─────────────────────────────────────────────────────────────────
@@ -137,6 +148,9 @@ class ClientCreateView(GroupRequiredMixin, View):
             'selected_delegation_id': '',
             'zone_nom_value': '',
             'selected_commercial_ids_json': '[]',
+            'jours_semaine_choices': JOUR_SEMAINE_CHOICES,
+            # Lundi à Samedi cochés par défaut à la création (Dimanche = jour non travaillé).
+            'selected_jours_visite': [j for j, _ in JOUR_SEMAINE_CHOICES if j != 6],
         }
         context.update(overrides)
         return context
@@ -163,6 +177,7 @@ class ClientCreateView(GroupRequiredMixin, View):
         commercial_ids = list(dict.fromkeys(
             v.strip() for v in request.POST.getlist('commercial_id') if v.strip()
         ))
+        jours_visite = _jours_visite_from_post(request)
 
         delegation_obj = Delegation.objects.filter(pk=delegation_id).first() if delegation_id else None
         gouvernorat_id_preserve = str(delegation_obj.gouvernorat_id) if delegation_obj else ''
@@ -186,6 +201,7 @@ class ClientCreateView(GroupRequiredMixin, View):
                 selected_delegation_id=delegation_id,
                 zone_nom_value=zone_nom,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
+                selected_jours_visite=jours_visite,
             ))
 
         # ── Validations ─────────────────────────────────────────────────────
@@ -247,6 +263,10 @@ class ClientCreateView(GroupRequiredMixin, View):
                     ])
                 elif is_commercial:
                     ClientUser.objects.create(client=client, user=request.user)
+
+                JourVisiteClient.objects.bulk_create([
+                    JourVisiteClient(client=client, jour_semaine=jour) for jour in jours_visite
+                ])
         except Exception:
             messages.error(
                 request,
@@ -258,6 +278,7 @@ class ClientCreateView(GroupRequiredMixin, View):
                 selected_delegation_id=delegation_id,
                 zone_nom_value=zone_nom,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
+                selected_jours_visite=jours_visite,
             ))
 
         log_audit(
@@ -277,7 +298,12 @@ class ClientDetailView(GroupRequiredMixin, View):
         commerciaux = client.client_users.select_related('user').order_by(
             'user__last_name', 'user__first_name',
         )
-        return render(request, self.template_name, {'client': client, 'commerciaux': commerciaux})
+        jours_visite = client.jours_visite.order_by('jour_semaine')
+        return render(request, self.template_name, {
+            'client': client,
+            'commerciaux': commerciaux,
+            'jours_visite': jours_visite,
+        })
 
 
 class ClientUpdateView(GroupRequiredMixin, View):
@@ -324,6 +350,10 @@ class ClientUpdateView(GroupRequiredMixin, View):
             'selected_commercial_ids_json': json.dumps([
                 str(uid) for uid in client.client_users.values_list('user_id', flat=True)
             ]),
+            'jours_semaine_choices': JOUR_SEMAINE_CHOICES,
+            'selected_jours_visite': list(
+                client.jours_visite.values_list('jour_semaine', flat=True)
+            ),
         }
         context.update(overrides)
         return context
@@ -345,6 +375,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
         commercial_ids = list(dict.fromkeys(
             v.strip() for v in request.POST.getlist('commercial_id') if v.strip()
         ))
+        jours_visite = _jours_visite_from_post(request)
 
         delegation_obj = Delegation.objects.filter(pk=delegation_id).first() if delegation_id else None
         gouvernorat_id_preserve = str(delegation_obj.gouvernorat_id) if delegation_obj else ''
@@ -360,6 +391,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
                 selected_delegation_id=delegation_id,
                 zone_nom_value=zone_nom,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
+                selected_jours_visite=jours_visite,
             ))
 
         if not form.is_valid():
@@ -389,6 +421,11 @@ class ClientUpdateView(GroupRequiredMixin, View):
                     ClientUser.objects.bulk_create([
                         ClientUser(client=client, user_id=uid) for uid in commercial_ids
                     ])
+
+                client.jours_visite.all().delete()
+                JourVisiteClient.objects.bulk_create([
+                    JourVisiteClient(client=client, jour_semaine=jour) for jour in jours_visite
+                ])
         except Exception:
             messages.error(
                 request,
@@ -400,6 +437,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
                 selected_delegation_id=delegation_id,
                 zone_nom_value=zone_nom,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
+                selected_jours_visite=jours_visite,
             ))
 
         log_audit(
@@ -550,6 +588,162 @@ class ClientSansBLListView(GroupRequiredMixin, View):
             'zones_list':        zones_list,
             'bl_agenda_date_debut': (today - timedelta(days=self.NB_BL_JOURS)).isoformat(),
             'bl_agenda_date_fin':   today.isoformat(),
+        })
+
+
+class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
+    """Rapport d'adhérence : compare, sur une période donnée, les jours de
+    visite récurrents (JourVisiteClient) des clients aux bons de livraison
+    réellement enregistrés — voir commercial/services.py::calculer_adherence_visites."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/client/adherence_visites.html'
+    PAGINATE_BY = 30
+    NB_JOURS_DEFAUT = 6
+
+    def get(self, request):
+        today = date.today()
+        is_admin = _is_administration(request.user)
+
+        commercial_id  = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str   = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        qs = _client_queryset_for_user(request.user).filter(is_active=True)
+        if is_admin and commercial_id:
+            qs = qs.filter(client_users__user_id=commercial_id)
+        qs = qs.distinct()
+
+        # Sans commercial sélectionné (admin, « tous les commerciaux »), l'analyse
+        # reste au niveau client : toute livraison compte, peu importe l'auteur.
+        commercial_id_int = int(commercial_id) if commercial_id else None
+        lignes = calculer_adherence_visites(qs, date_debut, date_fin, commercial_id=commercial_id_int)
+
+        nb_honorees = sum(1 for l in lignes if l['statut'] == 'honoré')
+        nb_manquees = sum(1 for l in lignes if l['statut'] == 'manqué')
+        nb_ignorees = sum(1 for l in lignes if l['statut'] == 'ignoré')
+        nb_evaluees = nb_honorees + nb_manquees
+        taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':          page_obj,
+            'is_paginated':      page_obj.has_other_pages(),
+            'lignes':            page_obj.object_list,
+            'is_administration': is_admin,
+            'commercial_id':     commercial_id,
+            'date_debut':        date_debut_str,
+            'date_fin':          date_fin_str,
+            'commerciaux_list':  _agenda_commerciaux_list() if is_admin else None,
+            'nb_attendues':      len(lignes),
+            'nb_honorees':       nb_honorees,
+            'nb_manquees':       nb_manquees,
+            'nb_ignorees':       nb_ignorees,
+            'taux_adherence':    taux_adherence,
+        })
+
+
+class ClientAdherenceGraphiqueView(GroupRequiredMixin, View):
+    """Courbe du taux d'adhérence quotidien par commercial (une courbe par
+    commercial) sur une période filtrée — voir commercial/services.py::
+    serie_quotidienne_adherence / generer_graphique_adherence. Chaque
+    commercial est évalué séparément avec son propre commercial_id (voir
+    calculer_adherence_visites) : un client partagé entre plusieurs
+    commerciaux ne biaise pas la courbe de celui qui n'a pas livré (statut
+    « ignoré », exclu du calcul du taux)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/client/adherence_graphique.html'
+    NB_JOURS_DEFAUT = 6
+
+    def get(self, request):
+        today = date.today()
+        is_admin = _is_administration(request.user)
+
+        commercial_id  = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str   = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        if not is_admin:
+            commerciaux = [request.user]
+        elif commercial_id:
+            commerciaux = list(User.objects.filter(pk=commercial_id))
+        else:
+            commerciaux = list(_agenda_commerciaux_list())
+
+        toutes_lignes = []
+        series = []
+        commerciaux_sans_donnees = []
+        for commercial in commerciaux:
+            clients_qs = Client.objects.filter(
+                client_users__user_id=commercial.pk, is_active=True,
+            ).distinct()
+            lignes = calculer_adherence_visites(clients_qs, date_debut, date_fin, commercial_id=commercial.pk)
+            toutes_lignes.extend(lignes)
+            label = commercial.get_full_name() or commercial.username
+            if lignes:
+                series.append((label, serie_quotidienne_adherence(lignes, date_debut, date_fin)))
+            else:
+                commerciaux_sans_donnees.append(label)
+
+        nb_honorees = sum(1 for l in toutes_lignes if l['statut'] == 'honoré')
+        nb_manquees = sum(1 for l in toutes_lignes if l['statut'] == 'manqué')
+        nb_ignorees = sum(1 for l in toutes_lignes if l['statut'] == 'ignoré')
+        nb_evaluees = nb_honorees + nb_manquees
+        taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
+
+        chart_b64 = generer_graphique_adherence(series)
+
+        return render(request, self.template_name, {
+            'is_administration':        is_admin,
+            'commercial_id':            commercial_id,
+            'date_debut':               date_debut_str,
+            'date_fin':                 date_fin_str,
+            'commerciaux_list':         _agenda_commerciaux_list() if is_admin else None,
+            'nb_honorees':              nb_honorees,
+            'nb_manquees':              nb_manquees,
+            'nb_ignorees':              nb_ignorees,
+            'taux_adherence':           taux_adherence,
+            'chart_b64':                chart_b64,
+            'commerciaux_sans_donnees': commerciaux_sans_donnees,
         })
 
 

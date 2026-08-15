@@ -3,7 +3,7 @@ from django.utils.html import format_html
 
 from .models import (
     Gouvernorat, Delegation, Zone,
-    Fournisseur, Client, ClientUser, Agenda,
+    Fournisseur, Client, ClientUser, JourVisiteClient, Agenda,
     VenteCode, Vente, VenteDetaille,
     HistoriqueStockInitial, HistoriqueStockInitialDetaille,
     BonLivraisonCode, BonLivraison, BonLivraisonDetaille,
@@ -58,6 +58,14 @@ class ClientUserInline(admin.TabularInline):
     fields = ['user']
     verbose_name = 'Commercial assigné'
     verbose_name_plural = 'Commerciaux assignés'
+
+
+class JourVisiteClientInline(admin.TabularInline):
+    model = JourVisiteClient
+    extra = 0
+    fields = ['jour_semaine']
+    verbose_name = 'Jour de visite récurrent'
+    verbose_name_plural = 'Jours de visite récurrents'
 
 
 class AgendaClientInline(admin.TabularInline):
@@ -251,7 +259,7 @@ class ClientAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'zone__delegation__gouvernorat', 'zone__delegation']
     ordering = ['nom_client']
     readonly_fields = ['created_at']
-    inlines = [ClientUserInline, AgendaClientInline]
+    inlines = [ClientUserInline, JourVisiteClientInline, AgendaClientInline]
     list_per_page = 25
     fieldsets = (
         ('Identification', {

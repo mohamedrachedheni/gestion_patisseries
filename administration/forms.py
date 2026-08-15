@@ -6,6 +6,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Column, Layout, Row
 
 from commercial.models import Delegation, Gouvernorat, Zone
+from core.models import JourNonOuvre
 
 from .models import Employe, Transfere
 
@@ -293,3 +294,15 @@ class ZoneForm(forms.ModelForm):
     class Meta:
         model = Zone
         fields = ['delegation', 'nom']
+
+
+class JourNonOuvreForm(forms.ModelForm):
+    class Meta:
+        model = JourNonOuvre
+        fields = ['date', 'libelle', 'type_jour', 'concerne_livraison']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'libelle': forms.TextInput(attrs={'class': 'form-control'}),
+            'type_jour': forms.Select(attrs={'class': 'form-select'}),
+            'concerne_livraison': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }

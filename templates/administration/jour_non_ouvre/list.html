@@ -1,0 +1,179 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Jours non ouvrés — Administration{% endblock %}
+{% block page_title %}Jours non ouvrés{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Jours non ouvrés</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ── Partie 1 : liste des jours non ouvrés enregistrés ───────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-calendar-x me-2 text-primary"></i>Jours non ouvrés enregistrés
+  </div>
+  <div class="card-body p-0">
+    {% if jours_non_ouvres %}
+    {% comment %}
+      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
+      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
+      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
+    {% endcomment %}
+    {% for j in jours_non_ouvres %}
+    <form id="jour-non-ouvre-update-{{ j.pk }}" method="post" action="{% url 'administration:jour-non-ouvre-update' j.pk %}"></form>
+    <form id="jour-non-ouvre-delete-{{ j.pk }}" method="post" action="{% url 'administration:jour-non-ouvre-delete' j.pk %}"></form>
+    {% endfor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:150px;">Date</th>
+            <th style="min-width:200px;">Libellé</th>
+            <th style="min-width:180px;">Type</th>
+            <th class="text-center" style="width:120px;">Impacte livraison</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for j in jours_non_ouvres %}
+          <tr>
+            <td class="ps-3">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="jour-non-ouvre-update-{{ j.pk }}">
+              <input type="date" name="date" value="{{ j.date|date:'Y-m-d' }}"
+                     class="form-control form-control-sm" form="jour-non-ouvre-update-{{ j.pk }}">
+            </td>
+            <td>
+              <input type="text" name="libelle" value="{{ j.libelle }}"
+                     class="form-control form-control-sm" style="min-width:190px;" form="jour-non-ouvre-update-{{ j.pk }}">
+            </td>
+            <td>
+              <select name="type_jour" class="form-select form-select-sm" form="jour-non-ouvre-update-{{ j.pk }}">
+                {% for valeur, libelle in type_choices %}
+                <option value="{{ valeur }}" {% if j.type_jour == valeur %}selected{% endif %}>{{ libelle }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="text-center">
+              <input type="checkbox" name="concerne_livraison" value="true"
+                     class="form-check-input" {% if j.concerne_livraison %}checked{% endif %}
+                     form="jour-non-ouvre-update-{{ j.pk }}">
+            </td>
+            <td class="text-center pe-3">
+              <button type="submit" form="jour-non-ouvre-update-{{ j.pk }}"
+                      class="btn btn-sm btn-outline-primary" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="jour-non-ouvre-delete-{{ j.pk }}">
+              <button type="submit" form="jour-non-ouvre-delete-{{ j.pk }}"
+                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
+                      onclick="return confirm('Supprimer le jour non ouvré « {{ j.libelle|escapejs }} » ?');">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} jour{{ page_obj.paginator.count|pluralize }} non ouvré{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-25"></i>
+      Aucun jour non ouvré enregistré.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Partie 2 : ajout d'un nouveau jour non ouvré ─────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter un jour non ouvré
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'administration:jour-non-ouvre-create' %}">
+      {% csrf_token %}
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Date</label>
+          <input type="date" name="date" value="{{ add_form.date.value|default:'' }}" class="form-control">
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small mb-1">Libellé</label>
+          <input type="text" name="libelle" value="{{ add_form.libelle.value|default:'' }}" class="form-control"
+                 placeholder="Ex : Fête de l'Indépendance">
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Type</label>
+          <select name="type_jour" class="form-select">
+            {% for valeur, libelle in type_choices %}
+            <option value="{{ valeur }}">{{ libelle }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-1">
+          <div class="form-check mb-2">
+            <input type="checkbox" name="concerne_livraison" value="true" class="form-check-input" checked
+                   id="concerne-livraison-add">
+            <label class="form-check-label small" for="concerne-livraison-add">Livraison</label>
+          </div>
+        </div>
+        <div class="col-sm-1">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

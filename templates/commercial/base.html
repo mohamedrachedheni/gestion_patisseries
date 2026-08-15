@@ -19,12 +19,20 @@
 
   <div class="sidebar-section">Clients & Secteur</div>
   <a href="{% url 'commercial:client-list' %}"
-     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name %}active{% endif %}">
+     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-people"></i> Clients
   </a>
   <a href="{% url 'commercial:client-sans-bl-list' %}"
      class="nav-link {% if 'sans-bl' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-person-x"></i> Clients sans BL
+  </a>
+  <a href="{% url 'commercial:client-adherence-visites' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'client-adherence-visites' %}active{% endif %}">
+    <i class="bi bi-calendar-check"></i> Adhérence visites
+  </a>
+  <a href="{% url 'commercial:client-adherence-graphique' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'client-adherence-graphique' %}active{% endif %}">
+    <i class="bi bi-graph-up"></i> Courbes d'adhérence
   </a>
   <a href="{% url 'commercial:agenda-list' %}"
      class="nav-link {% if 'agenda' in request.resolver_match.url_name %}active{% endif %}">

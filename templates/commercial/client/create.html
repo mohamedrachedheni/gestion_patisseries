@@ -133,6 +133,28 @@
     </div>
   </div>
 
+  {# ── Section Jours de visite récurrents ───────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-calendar-week me-2 text-primary"></i>Jours de visite récurrents
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-2">
+        Jours habituels de la semaine où ce client reçoit une livraison (optionnel).
+      </p>
+      <div class="d-flex flex-wrap gap-3">
+        {% for valeur, libelle in jours_semaine_choices %}
+        <div class="form-check">
+          <input type="checkbox" name="jour_visite" value="{{ valeur }}" id="jour-visite-{{ valeur }}"
+                 class="form-check-input" autocomplete="off"
+                 {% if valeur in selected_jours_visite %}checked{% endif %}>
+          <label class="form-check-label" for="jour-visite-{{ valeur }}">{{ libelle }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
   {# ── Section Ajout autres Commerciaux (Administration uniquement) ────────── #}
   {% if is_administration %}
   <div class="card border-0 shadow-sm mb-4">

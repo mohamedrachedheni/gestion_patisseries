@@ -96,6 +96,24 @@
   </div>
 </div>
 
+{# ── Section Jours de visite récurrents ───────────────────────────────────── #}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-calendar-week me-2 text-primary"></i>Jours de visite récurrents
+  </div>
+  <div class="card-body">
+    {% if jours_visite %}
+    <div class="d-flex flex-wrap gap-2">
+      {% for jv in jours_visite %}
+      <span class="badge text-bg-light border">{{ jv.get_jour_semaine_display }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted small mb-0">Aucun jour de visite récurrent défini pour ce client.</p>
+    {% endif %}
+  </div>
+</div>
+
 {# ── Section Liste des commerciaux ────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm mt-4">
   <div class="card-header bg-transparent fw-semibold py-3">

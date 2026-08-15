@@ -25,6 +25,12 @@ urlpatterns = [
     path('zones/<hashid:pk>/modifier/',  views.ZoneUpdateView.as_view(), name='zone-update'),
     path('zones/<hashid:pk>/supprimer/', views.ZoneDeleteView.as_view(), name='zone-delete'),
 
+    # Jours non ouvrés
+    path('jours-non-ouvres/',                       views.JourNonOuvreListView.as_view(),   name='jour-non-ouvre-list'),
+    path('jours-non-ouvres/nouveau/',               views.JourNonOuvreCreateView.as_view(), name='jour-non-ouvre-create'),
+    path('jours-non-ouvres/<hashid:pk>/modifier/',  views.JourNonOuvreUpdateView.as_view(), name='jour-non-ouvre-update'),
+    path('jours-non-ouvres/<hashid:pk>/supprimer/', views.JourNonOuvreDeleteView.as_view(), name='jour-non-ouvre-delete'),
+
     # Employés
     path('employes/',                         views.EmployeListView.as_view(),   name='employe-list'),
     path('employes/nouveau/',                 views.EmployeCreateView.as_view(), name='employe-create'),

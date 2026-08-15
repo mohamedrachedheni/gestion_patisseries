@@ -33,6 +33,7 @@ from commercial.models import (
 )
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
+from core.models import JourNonOuvre
 from production.models import CommandeInterne, MatierePremiere, Produit, Recette, RecetteDetaille
 from production.services import (
     calculer_besoins_matieres_premieres_periode,
@@ -46,6 +47,7 @@ from .forms import (
     DelegationForm,
     EmployeForm,
     GouvernoratForm,
+    JourNonOuvreForm,
     TransfereForm,
     UserCreateForm,
     UserUpdateForm,
@@ -370,6 +372,84 @@ class ZoneDeleteView(GroupRequiredMixin, View):
             )
             messages.success(request, f'Zone « {nom} » supprimée avec succès.')
         return redirect('administration:zone-list')
+
+
+# ─── Jours non ouvrés ────────────────────────────────────────────────────────
+
+class JourNonOuvreListView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+    template_name = 'administration/jour_non_ouvre/list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        qs = JourNonOuvre.objects.order_by('date')
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':          page_obj,
+            'is_paginated':      page_obj.has_other_pages(),
+            'jours_non_ouvres':  page_obj.object_list,
+            'add_form':          JourNonOuvreForm(),
+            'type_choices':      JourNonOuvre.TYPE_CHOICES,
+        })
+
+
+class JourNonOuvreCreateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request):
+        form = JourNonOuvreForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:jour-non-ouvre-list')
+
+        jour = form.save()
+        log_audit(
+            AuditAction.CREATE, f'Création jour non ouvré « {jour} »',
+            table='JourNonOuvre', record_id=jour.pk, new_value=model_to_dict(jour),
+        )
+        messages.success(request, f'Jour non ouvré « {jour} » ajouté avec succès.')
+        return redirect('administration:jour-non-ouvre-list')
+
+
+class JourNonOuvreUpdateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(JourNonOuvre, pk=pk)
+        avant = model_to_dict(instance)
+        form = JourNonOuvreForm(request.POST, instance=instance)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:jour-non-ouvre-list')
+
+        jour = form.save()
+        log_audit(
+            AuditAction.UPDATE, f'Modification jour non ouvré « {jour} »',
+            table='JourNonOuvre', record_id=jour.pk, old_value=avant, new_value=model_to_dict(jour),
+        )
+        messages.success(request, f'Jour non ouvré « {jour} » modifié avec succès.')
+        return redirect('administration:jour-non-ouvre-list')
+
+
+class JourNonOuvreDeleteView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = JourNonOuvre.objects.filter(pk=pk).first()
+        if instance is None:
+            messages.info(request, 'Ce jour non ouvré a déjà été supprimé.')
+            return redirect('administration:jour-non-ouvre-list')
+        libelle = str(instance)
+        avant = model_to_dict(instance)
+        instance.delete()
+        log_audit(
+            AuditAction.DELETE, f'Suppression jour non ouvré « {libelle} »',
+            table='JourNonOuvre', record_id=pk, old_value=avant,
+        )
+        messages.success(request, f'Jour non ouvré « {libelle} » supprimé avec succès.')
+        return redirect('administration:jour-non-ouvre-list')
 
 
 # ─── Employés ───────────────────────────────────────────────────────────────
