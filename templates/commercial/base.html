@@ -8,6 +8,10 @@
      class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'commercial' %}active{% endif %}">
     <i class="bi bi-house-door"></i> Accueil
   </a>
+  <a href="{% url 'commercial:tournee-du-jour' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'tournee-du-jour' %}active{% endif %}">
+    <i class="bi bi-signpost-split"></i> Ma tournée du jour
+  </a>
   {% if is_administration_user %}
   <a href="{% url 'administration:home' %}" class="nav-link">
     <i class="bi bi-gear-wide-connected"></i> Administration
@@ -19,12 +23,20 @@
 
   <div class="sidebar-section">Clients & Secteur</div>
   <a href="{% url 'commercial:client-list' %}"
-     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name %}active{% endif %}">
+     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-people"></i> Clients
   </a>
   <a href="{% url 'commercial:client-sans-bl-list' %}"
      class="nav-link {% if 'sans-bl' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-person-x"></i> Clients sans BL
+  </a>
+  <a href="{% url 'commercial:client-impayes-list' %}"
+     class="nav-link {% if 'impayes' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cash-coin"></i> Suivi des impayés
+  </a>
+  <a href="{% url 'commercial:client-derive-list' %}"
+     class="nav-link {% if 'derive' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-graph-down-arrow"></i> Clients en dérive
   </a>
   <a href="{% url 'commercial:client-adherence-visites' %}"
      class="nav-link {% if request.resolver_match.url_name == 'client-adherence-visites' %}active{% endif %}">

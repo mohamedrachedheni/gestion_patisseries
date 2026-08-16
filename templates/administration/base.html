@@ -26,8 +26,24 @@
     <i class="bi bi-truck"></i> Fournisseurs
   </a>
   <a href="{% url 'commercial:client-list' %}"
-     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name %}active{% endif %}">
+     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-people"></i> Clients
+  </a>
+  <a href="{% url 'commercial:tournee-du-jour' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'tournee-du-jour' %}active{% endif %}">
+    <i class="bi bi-signpost-split"></i> Tournée du jour
+  </a>
+  <a href="{% url 'commercial:client-impayes-list' %}"
+     class="nav-link {% if 'impayes' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-cash-coin"></i> Suivi des impayés
+  </a>
+  <a href="{% url 'commercial:client-derive-list' %}"
+     class="nav-link {% if 'derive' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-graph-down-arrow"></i> Clients en dérive
+  </a>
+  <a href="{% url 'administration:tableau-bord-commerciaux-list' %}"
+     class="nav-link {% if 'tableau-bord-commerciaux' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-bar-chart-steps"></i> Tableau de bord commerciaux
   </a>
 
   <div class="sidebar-section">Finance</div>

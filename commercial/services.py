@@ -1,13 +1,14 @@
 import base64
 import math
 from datetime import timedelta
+from decimal import Decimal
 from io import BytesIO
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-from django.db.models import Max
+from django.db.models import Count, Max, Min, Q, Sum
 
 from core.models import JourNonOuvre
 
@@ -22,6 +23,26 @@ def _jours_non_ouvres_livraison(date_debut, date_fin):
             date__gte=date_debut, date__lte=date_fin, concerne_livraison=True,
         ).values_list('date', flat=True)
     )
+
+
+def prochaine_date_visite_attendue(client, a_partir_de, horizon_jours=60):
+    """Prochaine date (à partir de `a_partir_de` inclus) où ce client a un
+    jour de visite récurrent (JourVisiteClient) qui tombe un jour ouvré (hors
+    JourNonOuvre, concerne_livraison=True). None si aucun jour de visite
+    n'est défini pour ce client, ou si aucune date ouverte n'est trouvée dans
+    les `horizon_jours` prochains jours (garde-fou, cas normalement
+    impossible en pratique)."""
+    jours_semaine = set(client.jours_visite.values_list('jour_semaine', flat=True))
+    if not jours_semaine:
+        return None
+    horizon_fin = a_partir_de + timedelta(days=horizon_jours)
+    jours_non_ouvres = _jours_non_ouvres_livraison(a_partir_de, horizon_fin)
+    jour = a_partir_de
+    while jour <= horizon_fin:
+        if jour.weekday() in jours_semaine and jour not in jours_non_ouvres:
+            return jour
+        jour += timedelta(days=1)
+    return None
 
 
 def _dates_attendues(jours_semaine, date_debut, date_fin, jours_non_ouvres):
@@ -341,4 +362,112 @@ def calculer_demande_reference_produits(date_debut, date_fin, produit_ids=None, 
         })
 
     resultats.sort(key=lambda r: (r['jour_semaine'], r['produit'].nom))
+    return resultats
+
+
+def detecter_clients_en_derive(
+    clients_qs, aujourdhui,
+    nb_livraisons_min=8, fenetre_recente_jours=30, fenetre_historique_jours=90,
+    seuil_retard=1.5, seuil_baisse=0.5,
+):
+    """Détecte, parmi `clients_qs`, les clients dont le rythme de commande
+    dévie de leur propre moyenne historique — deux signaux indépendants,
+    complémentaires (un client peut déclencher l'un, l'autre, ou les deux) :
+
+    1. Retard : intervalle moyen entre deux livraisons calculé sur
+       l'historique complet du client (jamais Client.a_visiter_apres,
+       volontairement écarté). Signalé si le nombre de jours écoulés depuis
+       la dernière livraison dépasse `seuil_retard` fois cet intervalle.
+    2. Baisse de volume : montant livré sur les `fenetre_recente_jours`
+       derniers jours comparé au montant « attendu » proportionnellement à
+       la moyenne des `fenetre_historique_jours` derniers jours (qui
+       englobent la fenêtre récente — pas une période disjointe). Signalé si
+       le ratio recent/attendu descend sous `seuil_baisse`.
+
+    Un client avec moins de `nb_livraisons_min` livraisons (dernière révision
+    de chaque BonLivraisonCode, tout l'historique) est exclu de l'analyse :
+    pas assez d'historique pour une moyenne significative.
+
+    Retourne une liste de dicts (clients en dérive uniquement), triés par
+    urgence (les deux signaux actifs d'abord, puis par ancienneté de la
+    dernière livraison) :
+    {'client', 'nb_livraisons', 'derniere_livraison', 'jours_depuis_derniere',
+     'intervalle_moyen', 'en_retard', 'ratio_retard',
+     'montant_recent', 'montant_attendu_recent', 'en_baisse', 'ratio_volume_pct'}
+    """
+    date_debut_recent = aujourdhui - timedelta(days=fenetre_recente_jours - 1)
+    date_debut_historique = aujourdhui - timedelta(days=fenetre_historique_jours - 1)
+
+    dernier_bl_id_par_code = (
+        BonLivraison.objects
+        .filter(bon_livraison_code__client__in=clients_qs)
+        .values('bon_livraison_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+    )
+
+    stats_par_client = (
+        BonLivraison.objects.filter(pk__in=dernier_bl_id_par_code)
+        .values('bon_livraison_code__client_id')
+        .annotate(
+            nb_livraisons=Count('id'),
+            premiere_livraison=Min('bon_livraison_code__bon_livraison_at'),
+            derniere_livraison=Max('bon_livraison_code__bon_livraison_at'),
+            montant_recent=Sum(
+                'total_montant',
+                filter=Q(bon_livraison_code__bon_livraison_at__gte=date_debut_recent),
+            ),
+            montant_historique=Sum(
+                'total_montant',
+                filter=Q(bon_livraison_code__bon_livraison_at__gte=date_debut_historique),
+            ),
+        )
+    )
+
+    clients_par_id = {c.pk: c for c in clients_qs.select_related('zone')}
+    facteur_extrapolation = Decimal(fenetre_historique_jours) / Decimal(fenetre_recente_jours)
+
+    resultats = []
+    for stats in stats_par_client:
+        client = clients_par_id.get(stats['bon_livraison_code__client_id'])
+        if client is None or stats['nb_livraisons'] < nb_livraisons_min:
+            continue
+
+        premiere, derniere = stats['premiere_livraison'], stats['derniere_livraison']
+        nb_intervalles = stats['nb_livraisons'] - 1
+        intervalle_moyen = (derniere - premiere).days / nb_intervalles if nb_intervalles > 0 else None
+        jours_depuis_derniere = (aujourdhui - derniere).days
+
+        ratio_retard = None
+        en_retard = False
+        if intervalle_moyen:
+            ratio_retard = jours_depuis_derniere / intervalle_moyen
+            en_retard = ratio_retard > seuil_retard
+
+        montant_recent = stats['montant_recent'] or Decimal('0')
+        montant_historique = stats['montant_historique'] or Decimal('0')
+        montant_attendu_recent = montant_historique / facteur_extrapolation
+
+        ratio_volume = None
+        en_baisse = False
+        if montant_attendu_recent > 0:
+            ratio_volume = montant_recent / montant_attendu_recent
+            en_baisse = ratio_volume < seuil_baisse
+
+        if not en_retard and not en_baisse:
+            continue
+
+        resultats.append({
+            'client': client,
+            'nb_livraisons': stats['nb_livraisons'],
+            'derniere_livraison': derniere,
+            'jours_depuis_derniere': jours_depuis_derniere,
+            'intervalle_moyen': round(intervalle_moyen, 1) if intervalle_moyen else None,
+            'en_retard': en_retard,
+            'ratio_retard': round(ratio_retard, 2) if ratio_retard is not None else None,
+            'montant_recent': montant_recent,
+            'montant_attendu_recent': montant_attendu_recent,
+            'en_baisse': en_baisse,
+            'ratio_volume_pct': round(ratio_volume * 100) if ratio_volume is not None else None,
+        })
+
+    resultats.sort(key=lambda r: (not (r['en_retard'] and r['en_baisse']), -r['jours_depuis_derniere']))
     return resultats

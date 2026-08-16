@@ -1,0 +1,115 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Tableau de bord commerciaux — Administration{% endblock %}
+{% block page_title %}Tableau de bord commerciaux{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Tableau de bord commerciaux</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-4 fw-bold">Comparatif des commerciaux</h4>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ date_debut }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+        <div style="width:150px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ date_fin }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'administration:tableau-bord-commerciaux-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<p class="text-muted small mb-4">
+  CA et taux d'adhérence calculés sur la période ci-dessus. Les impayés cumulés portent sur toutes les périodes
+  (une dette ne s'annule pas avec le temps) et sont imputés au commercial ayant enregistré le bon de livraison.
+</p>
+
+{# ── Section 2 : tableau comparatif ──────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if lignes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:180px;">Commercial</th>
+            <th class="text-center" style="width:120px;">Clients actifs</th>
+            <th class="text-end" style="min-width:140px;">CA période (TND)</th>
+            <th class="text-center" style="width:150px;">Taux d'adhérence</th>
+            <th class="text-end" style="min-width:150px;">Impayés cumulés (TND)</th>
+            <th class="text-center pe-3" style="width:130px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lignes %}
+          <tr>
+            <td class="ps-3">{{ l.commercial.get_full_name|default:l.commercial.username }}</td>
+            <td class="text-center">{{ l.nb_clients_actifs }}</td>
+            <td class="text-end font-monospace">{{ l.ca|stringformat:'.3f' }}</td>
+            <td class="text-center">
+              {% if l.taux_adherence is not None %}
+              <span class="badge {% if l.taux_adherence >= 80 %}text-bg-success{% elif l.taux_adherence >= 50 %}text-bg-warning text-dark{% else %}text-bg-danger{% endif %}">
+                {{ l.taux_adherence }}%
+              </span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end font-monospace {% if l.impayes > 0 %}text-danger{% endif %}">{{ l.impayes|stringformat:'.3f' }}</td>
+            <td class="text-center pe-3">
+              <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ l.commercial.pk }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}"
+                 class="btn btn-sm btn-outline-secondary" title="Détail adhérence">
+                <i class="bi bi-calendar-check"></i>
+              </a>
+              <a href="{% url 'commercial:client-impayes-list' %}?commercial_id={{ l.commercial.pk }}"
+                 class="btn btn-sm btn-outline-secondary ms-1" title="Détail impayés">
+                <i class="bi bi-cash-coin"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+      Aucun commercial actif.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+</script>
+{% endblock %}

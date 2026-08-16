@@ -14,6 +14,78 @@
 {% endblock %}
 
 {% block content %}
+
+{% if derive_client %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-graph-down-arrow"></i>
+  <div>
+    <strong>Client en dérive</strong> —
+    {% if derive_client.en_retard %}en retard ({{ derive_client.ratio_retard }}× son intervalle habituel de {{ derive_client.intervalle_moyen }} jours){% endif %}
+    {% if derive_client.en_retard and derive_client.en_baisse %} et {% endif %}
+    {% if derive_client.en_baisse %}volume récent à {{ derive_client.ratio_volume_pct }}% de l'attendu{% endif %}.
+    <a href="{% url 'commercial:client-derive-list' %}" class="alert-link">Voir le détail</a>
+  </div>
+</div>
+{% endif %}
+
+{# ── Fiche 360° : résumé en un coup d'œil ─────────────────────────────────── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        {% if prochaine_visite %}
+        <div class="fs-6 fw-bold">{{ prochaine_visite|date:'d/m/Y' }}</div>
+        <div class="text-muted small">{{ prochaine_visite|date:'l' }}</div>
+        {% else %}
+        <div class="fs-6 fw-bold text-muted">—</div>
+        {% endif %}
+        <div class="text-muted small mt-1">Prochaine visite attendue</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-6 fw-bold {% if solde_impaye > 0 %}text-danger{% endif %}">
+          {{ solde_impaye|stringformat:'.3f' }} TND
+        </div>
+        <div class="text-muted small mt-1">Solde impayé cumulé</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-6 fw-bold">
+          {{ taux_adherence_client|default_if_none:'—' }}{% if taux_adherence_client is not None %}%{% endif %}
+        </div>
+        <div class="text-muted small mt-1">
+          Adhérence ({{ periode_adherence_jours }} derniers jours)
+          {% if taux_adherence_client is not None %}
+          <br>{{ nb_honorees_client }} honoré{{ nb_honorees_client|pluralize }} / {{ nb_manquees_client }} manqué{{ nb_manquees_client|pluralize }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        {% if dernier_bl_code %}
+        <div class="fs-6 fw-bold">{{ dernier_bl_code.bon_livraison_at|date:'d/m/Y' }}</div>
+        <div class="text-muted small">
+          BL-{{ dernier_bl_code.bon_livraison_numero }}
+          {% if dernier_bl %}· {{ dernier_bl.total_montant|stringformat:'.3f' }} TND · {{ dernier_bl.statut }}{% endif %}
+        </div>
+        {% else %}
+        <div class="fs-6 fw-bold text-muted">—</div>
+        {% endif %}
+        <div class="text-muted small mt-1">Dernier bon de livraison</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-transparent fw-semibold py-3">
     <i class="bi bi-person-vcard me-2 text-primary"></i>Fiche client
@@ -131,6 +203,48 @@
     {% endfor %}
     {% else %}
     <p class="text-muted small mb-0">Aucun commercial rattaché à ce client.</p>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Section Historique des comptes-rendus / actions ──────────────────────── #}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-journal-text me-2 text-primary"></i>Historique des comptes-rendus
+  </div>
+  <div class="card-body p-0">
+    {% if historique_agenda %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:100px;">Date</th>
+            <th style="min-width:140px;">Commercial</th>
+            <th style="min-width:250px;">Note</th>
+            <th class="text-center pe-3" style="width:120px;">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in historique_agenda %}
+          <tr>
+            <td class="ps-3">{{ a.echeance_at|date:'d/m/Y' }}</td>
+            <td>{{ a.user.get_full_name|default:a.user.username }}</td>
+            <td>{{ a.detaille_action_planifier|default:'—' }}</td>
+            <td class="text-center pe-3">
+              <span class="badge
+                {% if a.status == 'Réaliser' %}text-bg-success
+                {% elif a.status == 'Annuler' %}text-bg-secondary
+                {% else %}text-bg-warning text-dark{% endif %}">
+                {{ a.status }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted small mb-0 p-3">Aucun compte-rendu enregistré pour ce client.</p>
     {% endif %}
   </div>
 </div>

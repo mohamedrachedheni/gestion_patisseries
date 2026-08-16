@@ -7,12 +7,19 @@ app_name = 'commercial'
 urlpatterns = [
     path('', views.HomeView.as_view(), name='home'),
 
+    # Tournée du jour
+    path('tournee-du-jour/', views.TourneeDuJourView.as_view(), name='tournee-du-jour'),
+    path('tournee-du-jour/compte-rendu/', views.CompteRenduVisiteCreateView.as_view(), name='compte-rendu-visite-create'),
+
     # Clients
     path('clients/',                          views.ClientListView.as_view(),        name='client-list'),
     path('clients/nouveau/',                  views.ClientCreateView.as_view(),      name='client-create'),
     path('clients/sans-bon-livraison/',       views.ClientSansBLListView.as_view(),  name='client-sans-bl-list'),
     path('clients/adherence-visites/',        views.ClientAdherenceVisitesListView.as_view(), name='client-adherence-visites'),
     path('clients/adherence-visites/graphique/', views.ClientAdherenceGraphiqueView.as_view(), name='client-adherence-graphique'),
+    path('clients/impayes/',                  views.ClientImpayesListView.as_view(), name='client-impayes-list'),
+    path('clients/<hashid:pk>/impayes-detail-popup/', views.ClientImpayesDetailPopupView.as_view(), name='client-impayes-detail-popup'),
+    path('clients/derive/',                   views.ClientDeriveListView.as_view(), name='client-derive-list'),
     path('clients/<hashid:pk>/',              views.ClientDetailView.as_view(),      name='client-detail'),
     path('clients/<hashid:pk>/modifier/',     views.ClientUpdateView.as_view(),      name='client-update'),
     path('clients/<hashid:pk>/supprimer/',    views.ClientDeleteView.as_view(),      name='client-delete'),

@@ -73,6 +73,11 @@ urlpatterns = [
         name='chiffre-affaire-commercial-list',
     ),
     path(
+        'tableau-bord-commerciaux/',
+        views.TableauDeBordCommerciauxView.as_view(),
+        name='tableau-bord-commerciaux-list',
+    ),
+    path(
         'chiffre-affaire-zone/',
         views.ChiffreAffaireParZoneView.as_view(),
         name='chiffre-affaire-zone-list',

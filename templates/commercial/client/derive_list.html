@@ -1,0 +1,189 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Clients en dérive — Commercial{% endblock %}
+{% block page_title %}Clients en dérive{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Clients en dérive</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-4 fw-bold">Détection de clients en dérive</h4>
+<p class="text-muted small mb-4">
+  Comparaison au rythme et au volume habituels de chaque client (calculés sur son propre historique, jamais sur
+  « À visiter après »). Clients avec au moins 8 livraisons enregistrées uniquement — pas assez d'historique sinon
+  pour une moyenne significative.
+</p>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:client-derive-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold">{{ total_count }}</div>
+        <div class="text-muted small">Client{{ total_count|pluralize }} en dérive</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-warning">{{ nb_en_retard }}</div>
+        <div class="text-muted small">En retard</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-danger">{{ nb_en_baisse }}</div>
+        <div class="text-muted small">En baisse de volume</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Section 3 : liste ───────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if lignes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:180px;">Client</th>
+            <th style="min-width:120px;">Zone</th>
+            <th style="min-width:110px;">Dernière livraison</th>
+            <th class="text-center" style="width:110px;">Jours écoulés</th>
+            <th class="text-center" style="width:130px;">Intervalle habituel</th>
+            <th class="text-end" style="width:120px;">Montant 30j</th>
+            <th class="text-end" style="width:120px;">Montant attendu</th>
+            <th class="text-center pe-3" style="width:160px;">Alertes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lignes %}
+          <tr>
+            <td class="ps-3">
+              <a href="{% url 'commercial:client-detail' l.client.pk %}">{{ l.client }}</a>
+            </td>
+            <td>{{ l.client.zone|default:'—' }}</td>
+            <td>{{ l.derniere_livraison|date:'d/m/Y' }}</td>
+            <td class="text-center">{{ l.jours_depuis_derniere }}</td>
+            <td class="text-center">
+              {% if l.intervalle_moyen %}{{ l.intervalle_moyen }} j.{% else %}—{% endif %}
+            </td>
+            <td class="text-end font-monospace">{{ l.montant_recent|stringformat:'.3f' }}</td>
+            <td class="text-end font-monospace">{{ l.montant_attendu_recent|stringformat:'.3f' }}</td>
+            <td class="text-center pe-3">
+              {% if l.en_retard %}
+              <span class="badge text-bg-warning text-dark d-block d-inline-block mb-1" title="Ratio : {{ l.ratio_retard }}×">
+                En retard ({{ l.ratio_retard }}×)
+              </span>
+              {% endif %}
+              {% if l.en_baisse %}
+              <span class="badge text-bg-danger d-block d-inline-block">
+                Volume {{ l.ratio_volume_pct }}%
+              </span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} client{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?commercial_id={{ commercial_id }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-emoji-smile fs-1 d-block mb-2 opacity-25"></i>
+      Aucun client en dérive détecté.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+</script>
+{% endblock %}

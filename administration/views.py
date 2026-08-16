@@ -28,11 +28,11 @@ from django.views.generic import DetailView, ListView, TemplateView, View
 from xhtml2pdf import pisa
 
 from commercial.models import (
-    Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Delegation, Depense, DepenseDetaille,
+    Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Client, Delegation, Depense, DepenseDetaille,
     Gouvernorat, Vente, Zone,
     JOUR_SEMAINE_CHOICES,
 )
-from commercial.services import calculer_demande_reference_produits
+from commercial.services import calculer_adherence_visites, calculer_demande_reference_produits
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
 from core.models import JourNonOuvre
@@ -2293,6 +2293,102 @@ class ChiffreAffaireParCommercialView(GroupRequiredMixin, View):
             'total_chiffre_affaire': total_chiffre_affaire,
             'chart_montant_b64':     chart_montant_b64,
             'chart_part_b64':        chart_part_b64,
+        })
+
+
+# ─── Tableau de bord commerciaux ─────────────────────────────────────────────
+
+class TableauDeBordCommerciauxView(GroupRequiredMixin, View):
+    """Comparatif des commerciaux sur une période : CA (dernier BonLivraison
+    de chaque BonLivraisonCode, même principe que ChiffreAffaireParCommercialView),
+    nombre de clients actifs affectés, taux d'adhérence (commercial.services.
+    calculer_adherence_visites, du point de vue de chaque commercial — voir
+    la correction « ignoré » pour les clients partagés), et impayés cumulés
+    imputés au commercial ayant enregistré le bon (BonLivraison.user), toutes
+    périodes confondues (une dette ne s'expire pas)."""
+    group_required = 'Administration'
+    template_name = 'administration/production/tableau_bord_commerciaux_list.html'
+    NB_JOURS_DEFAUT = 29
+
+    def get(self, request):
+        today = date.today()
+        date_debut_str = request.GET.get('date_debut', '').strip()
+        date_fin_str = request.GET.get('date_fin', '').strip()
+
+        try:
+            date_debut = date.fromisoformat(date_debut_str)
+        except ValueError:
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_debut_str = date_debut.isoformat()
+
+        try:
+            date_fin = date.fromisoformat(date_fin_str)
+        except ValueError:
+            date_fin = today
+            date_fin_str = date_fin.isoformat()
+
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=self.NB_JOURS_DEFAUT)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        commerciaux = User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
+
+        # ── CA de la période (dernier BonLivraison de chaque code) ──────────────
+        dernier_bl_id_periode = (
+            BonLivraison.objects
+            .filter(
+                bon_livraison_code__bon_livraison_at__gte=date_debut,
+                bon_livraison_code__bon_livraison_at__lte=date_fin,
+            )
+            .values('bon_livraison_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+        )
+        ca_par_commercial = {
+            g['user_id']: g['total'] or Decimal('0')
+            for g in BonLivraison.objects.filter(pk__in=dernier_bl_id_periode)
+            .values('user_id').annotate(total=Sum('total_montant'))
+        }
+
+        # ── Impayés cumulés, toutes périodes (dernier BonLivraison de chaque code) ──
+        dernier_bl_id_tout = (
+            BonLivraison.objects.values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+        )
+        impayes_par_commercial = {
+            g['user_id']: g['total'] or Decimal('0')
+            for g in BonLivraison.objects.filter(pk__in=dernier_bl_id_tout, reste_a_payer__gt=0)
+            .values('user_id').annotate(total=Sum('reste_a_payer'))
+        }
+
+        lignes = []
+        for commercial in commerciaux:
+            clients_qs = Client.objects.filter(client_users__user=commercial, is_active=True).distinct()
+            nb_clients_actifs = clients_qs.count()
+
+            lignes_adherence = calculer_adherence_visites(
+                clients_qs, date_debut, date_fin, commercial_id=commercial.pk,
+            )
+            nb_honorees = sum(1 for l in lignes_adherence if l['statut'] == 'honoré')
+            nb_manquees = sum(1 for l in lignes_adherence if l['statut'] == 'manqué')
+            nb_evaluees = nb_honorees + nb_manquees
+            taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
+
+            lignes.append({
+                'commercial':        commercial,
+                'nb_clients_actifs': nb_clients_actifs,
+                'ca':                ca_par_commercial.get(commercial.pk, Decimal('0')),
+                'taux_adherence':    taux_adherence,
+                'impayes':           impayes_par_commercial.get(commercial.pk, Decimal('0')),
+            })
+
+        lignes.sort(key=lambda l: l['ca'], reverse=True)
+
+        return render(request, self.template_name, {
+            'lignes':       lignes,
+            'date_debut':   date_debut_str,
+            'date_fin':     date_fin_str,
         })
 
 

@@ -1,0 +1,222 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Suivi des impayés — Commercial{% endblock %}
+{% block page_title %}Suivi des impayés{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Suivi des impayés</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-4 fw-bold">Clients avec un solde impayé</h4>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Montant minimum (TND)</label>
+          <input type="number" step="0.001" min="0" name="montant_min" value="{{ montant_min }}"
+                 class="form-control form-control-sm no-spinner" data-autosubmit>
+        </div>
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:client-impayes-list' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold">{{ total_count }}</div>
+        <div class="text-muted small">Client{{ total_count|pluralize }} avec impayé{{ total_count|pluralize }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-danger">{{ montant_total_global|stringformat:'.3f' }}</div>
+        <div class="text-muted small">Montant total impayé (TND)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Section 3 : liste des clients ────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if lignes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:200px;">Client</th>
+            <th style="min-width:140px;">Zone</th>
+            <th class="text-end" style="min-width:150px;">Montant impayé (TND)</th>
+            <th class="text-center" style="width:130px;">Bons impayés</th>
+            <th style="min-width:160px;">Impayé depuis</th>
+            <th class="text-center pe-3" style="width:100px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lignes %}
+          <tr>
+            <td class="ps-3">{{ l.client }}</td>
+            <td>{{ l.client.zone|default:'—' }}</td>
+            <td class="text-end font-monospace">{{ l.montant_total|stringformat:'.3f' }}</td>
+            <td class="text-center">{{ l.nb_bl_impayes }}</td>
+            <td>{{ l.plus_ancien|date:'d/m/Y' }} <span class="text-muted small">({{ l.plus_ancien|timesince }})</span></td>
+            <td class="text-center pe-3">
+              <a href="{% url 'commercial:client-detail' l.client.pk %}"
+                 class="btn btn-sm btn-outline-secondary" title="Voir le client">
+                <i class="bi bi-eye"></i>
+              </a>
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary ms-1 impayes-detail-btn"
+                      data-url="{% url 'commercial:client-impayes-detail-popup' l.client.pk %}"
+                      title="Détail des bons de livraison">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ total_count }} client{{ total_count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?commercial_id={{ commercial_id }}&montant_min={{ montant_min }}&page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?commercial_id={{ commercial_id }}&montant_min={{ montant_min }}&page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?commercial_id={{ commercial_id }}&montant_min={{ montant_min }}&page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
+      Aucun client avec un solde impayé pour ces filtres.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Pop-up « Détail des bons de livraison » (contenu chargé en AJAX) ─────── #}
+<div class="modal fade" id="impayes-detail-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="impayes-detail-modal-title">Détail des bons de livraison</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="impayes-detail-modal-body">
+        <div class="text-center py-4 text-muted">
+          <div class="spinner-border spinner-border-sm"></div> Chargement…
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) { pageInput.remove(); }
+    form.submit();
+  });
+});
+
+// ── Pop-up « Détail des bons de livraison » ─────────────────────────────────
+(function () {
+  var modalEl = document.getElementById('impayes-detail-modal');
+  var modalTitleEl = document.getElementById('impayes-detail-modal-title');
+  var modalBody = document.getElementById('impayes-detail-modal-body');
+  if (!modalEl || !modalBody) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+
+  document.querySelectorAll('.impayes-detail-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
+        '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
+      modal.show();
+      fetch(btn.getAttribute('data-url')).then(function (r) {
+        var title = r.headers.get('X-Popup-Title');
+        if (title) { modalTitleEl.textContent = title; }
+        return r.text();
+      }).then(function (html) {
+        modalBody.innerHTML = html;
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

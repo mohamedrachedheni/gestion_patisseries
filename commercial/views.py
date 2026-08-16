@@ -7,23 +7,28 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Max, Q, RestrictedError, Sum
+from django.db.models import Count, Max, Min, Q, RestrictedError, Sum
 from django.forms.models import model_to_dict
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.views.generic import TemplateView, View
 from xhtml2pdf import pisa
 
 from administration.models import LibelleTransaction, Transaction
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
+from core.models import JourNonOuvre
 from production.models import (
     BonRestitution, BonRestitutionDetaille, BonSortie, BonSortieDetaille, MatierePremiere, Produit,
 )
 
 from .forms import ClientForm, FournisseurForm
-from .services import calculer_adherence_visites, generer_graphique_adherence, serie_quotidienne_adherence
+from .services import (
+    calculer_adherence_visites, detecter_clients_en_derive, generer_graphique_adherence,
+    prochaine_date_visite_attendue, serie_quotidienne_adherence,
+)
 from .models import (
     Achat, AchatCode, AchatDetaille, Agenda, BonLivraison, BonLivraisonCode, BonLivraisonDetaille,
     Client, ClientUser, Delegation, Depense, DepenseCode, DepenseDetaille, Fournisseur, Gouvernorat,
@@ -71,6 +76,337 @@ def _jours_visite_from_post(request):
     return sorted({
         int(v) for v in request.POST.getlist('jour_visite') if v.strip() in valides
     })
+
+
+# ─── Tournée du jour ─────────────────────────────────────────────────────────
+
+class TourneeDuJourView(GroupRequiredMixin, View):
+    """« Ma tournée du jour » : pour une date donnée (défaut aujourd'hui),
+    liste les clients à visiter — ceux dont c'est le jour de visite récurrent
+    (JourVisiteClient, sauf jour non ouvré) et ceux ayant une action Agenda
+    planifiée ce jour-là — avec leur statut (déjà livré aujourd'hui ou non)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/tournee_jour.html'
+
+    def get(self, request):
+        is_admin = _is_administration(request.user)
+
+        date_str = request.GET.get('date', '').strip()
+        try:
+            jour = date.fromisoformat(date_str)
+        except ValueError:
+            jour = date.today()
+            date_str = jour.isoformat()
+
+        commercial_id = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+
+        clients_qs = _client_queryset_for_user(request.user).filter(is_active=True)
+        if is_admin and commercial_id:
+            clients_qs = clients_qs.filter(client_users__user_id=commercial_id)
+        clients_qs = clients_qs.distinct()
+
+        jour_non_ouvre = JourNonOuvre.objects.filter(date=jour, concerne_livraison=True).first()
+
+        clients_recurrents_ids = set()
+        if jour_non_ouvre is None:
+            clients_recurrents_ids = set(
+                clients_qs.filter(jours_visite__jour_semaine=jour.weekday()).values_list('pk', flat=True)
+            )
+
+        agenda_du_jour = Agenda.objects.filter(
+            client__in=clients_qs, echeance_at=jour, status__in=['En attente', 'En cours'],
+        ).select_related('client')
+        agenda_par_client = {}
+        for a in agenda_du_jour:
+            agenda_par_client.setdefault(a.client_id, []).append(a)
+
+        client_ids = clients_recurrents_ids | set(agenda_par_client.keys())
+        clients = clients_qs.filter(pk__in=client_ids).select_related('zone').order_by('zone__nom', 'raison_sociale')
+
+        clients_livres_ids = set(
+            BonLivraisonCode.objects.filter(
+                client_id__in=client_ids, bon_livraison_at=jour,
+            ).values_list('client_id', flat=True)
+        )
+
+        lignes = [
+            {
+                'client': client,
+                'est_recurrent': client.pk in clients_recurrents_ids,
+                'actions_agenda': agenda_par_client.get(client.pk, []),
+                'deja_livre': client.pk in clients_livres_ids,
+            }
+            for client in clients
+        ]
+
+        return render(request, self.template_name, {
+            'is_administration':   is_admin,
+            'commercial_id':       commercial_id,
+            'commerciaux_list':    _agenda_commerciaux_list() if is_admin else None,
+            'date_jour':           date_str,
+            'jour_non_ouvre':      jour_non_ouvre,
+            'lignes':              lignes,
+            'nb_clients':          len(lignes),
+            'nb_deja_livres':      sum(1 for l in lignes if l['deja_livre']),
+            'nb_restants':         sum(1 for l in lignes if not l['deja_livre']),
+        })
+
+
+class CompteRenduVisiteCreateView(GroupRequiredMixin, View):
+    """Compte-rendu de visite rapide (depuis « Ma tournée du jour ») —
+    réutilise Agenda telle quelle, sans nouveau champ : cherche une ligne
+    (client, echeance_at=date visitée, user=commercial du contexte) ; si elle
+    existe, complète detaille_action_planifier (séparateur « // ») ; sinon la
+    crée. Statut toujours forcé à 'Réaliser' (reconnu par
+    calculer_adherence_visites comme visite honorée sans livraison).
+
+    Le commercial attribué est celui du contexte de la page appelante (le
+    commercial connecté, ou le commercial filtré côté Admin) — jamais un choix
+    ambigu parmi plusieurs ClientUser d'un même client. Le bouton associé est
+    volontairement masqué côté template quand ce contexte n'est pas défini
+    (Admin en vue « tous les commerciaux »)."""
+    group_required = ['Administration', 'Commercial']
+
+    def post(self, request):
+        is_admin = _is_administration(request.user)
+
+        date_jour = request.POST.get('date_jour', '').strip()
+        commercial_id_filtre = request.POST.get('commercial_id', '').strip() if is_admin else ''
+        redirect_params = '&'.join(
+            f'{k}={v}' for k, v in (('date', date_jour), ('commercial_id', commercial_id_filtre)) if v
+        )
+        redirect_url = reverse('commercial:tournee-du-jour')
+        if redirect_params:
+            redirect_url = f'{redirect_url}?{redirect_params}'
+
+        client_id = request.POST.get('client_id', '').strip()
+        note = request.POST.get('note', '').strip()
+        commercial_id = str(request.user.pk) if not is_admin else commercial_id_filtre
+
+        if not note:
+            messages.error(request, 'Veuillez saisir un compte-rendu.')
+            return redirect(redirect_url)
+
+        client = _client_queryset_for_user(request.user).filter(pk=client_id).first()
+        if client is None:
+            messages.error(request, 'Client introuvable.')
+            return redirect(redirect_url)
+
+        try:
+            date_visite = date.fromisoformat(date_jour)
+        except ValueError:
+            messages.error(request, 'Date invalide.')
+            return redirect(redirect_url)
+
+        commercial_user = User.objects.filter(pk=commercial_id).first() if commercial_id else None
+        if commercial_user is None:
+            messages.error(
+                request,
+                'Impossible de déterminer le commercial concerné : filtrez sur un commercial précis.',
+            )
+            return redirect(redirect_url)
+
+        agenda = Agenda.objects.filter(
+            client=client, echeance_at=date_visite, user=commercial_user,
+        ).order_by('-pk').first()
+
+        if agenda:
+            avant = model_to_dict(agenda)
+            texte_existant = (agenda.detaille_action_planifier or '').strip()
+            agenda.detaille_action_planifier = f'{texte_existant} // {note}' if texte_existant else note
+            agenda.status = 'Réaliser'
+            agenda.save(update_fields=['detaille_action_planifier', 'status'])
+            log_audit(
+                AuditAction.UPDATE, f'Compte-rendu de visite complété « {client} »',
+                table='Agenda', record_id=agenda.pk, old_value=avant, new_value=model_to_dict(agenda),
+            )
+        else:
+            agenda = Agenda.objects.create(
+                client=client, user=commercial_user, echeance_at=date_visite,
+                detaille_action_planifier=note, status='Réaliser',
+            )
+            log_audit(
+                AuditAction.CREATE, f'Compte-rendu de visite « {client} »',
+                table='Agenda', record_id=agenda.pk, new_value=model_to_dict(agenda),
+            )
+
+        messages.success(request, f'Compte-rendu enregistré pour « {client} ».')
+        return redirect(redirect_url)
+
+
+# ─── Suivi des impayés ───────────────────────────────────────────────────────
+
+class ClientImpayesListView(GroupRequiredMixin, View):
+    """Suivi des impayés : pour chaque client, somme le reste_a_payer du
+    DERNIER BonLivraison de chaque BonLivraisonCode (un bon révisé plusieurs
+    fois ne compte qu'une fois — même principe que
+    ChiffreAffaireParCommercialView / calculer_demande_reference_produits),
+    en ne retenant que les clients avec un solde restant strictement positif.
+    Trié par ancienneté du plus vieux bon impayé (priorité de relance)."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/client/impayes_list.html'
+    PAGINATE_BY = 15
+
+    def get(self, request):
+        is_admin = _is_administration(request.user)
+        commercial_id = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+
+        montant_min_s = request.GET.get('montant_min', '').strip()
+        try:
+            montant_min = Decimal(montant_min_s) if montant_min_s else None
+        except InvalidOperation:
+            montant_min = None
+            montant_min_s = ''
+
+        clients_qs = _client_queryset_for_user(request.user).filter(is_active=True)
+        if is_admin and commercial_id:
+            clients_qs = clients_qs.filter(client_users__user_id=commercial_id)
+        clients_qs = clients_qs.distinct()
+
+        dernier_bl_id_par_code = (
+            BonLivraison.objects
+            .filter(bon_livraison_code__client__in=clients_qs)
+            .values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+
+        impayes_par_client = (
+            BonLivraison.objects
+            .filter(pk__in=dernier_bl_id_par_code, reste_a_payer__gt=0)
+            .values('bon_livraison_code__client_id')
+            .annotate(
+                montant_total=Sum('reste_a_payer'),
+                plus_ancien=Min('bon_livraison_code__bon_livraison_at'),
+                nb_bl_impayes=Count('id'),
+            )
+        )
+        if montant_min is not None:
+            impayes_par_client = impayes_par_client.filter(montant_total__gte=montant_min)
+        impayes_par_client = impayes_par_client.order_by('plus_ancien')
+
+        clients_par_id = {
+            c.pk: c for c in
+            Client.objects.filter(
+                pk__in=[g['bon_livraison_code__client_id'] for g in impayes_par_client],
+            ).select_related('zone')
+        }
+        lignes = [
+            {
+                'client':         clients_par_id[g['bon_livraison_code__client_id']],
+                'montant_total':  g['montant_total'],
+                'plus_ancien':    g['plus_ancien'],
+                'nb_bl_impayes':  g['nb_bl_impayes'],
+            }
+            for g in impayes_par_client
+            if g['bon_livraison_code__client_id'] in clients_par_id
+        ]
+
+        montant_total_global = sum((l['montant_total'] for l in lignes), Decimal('0'))
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':              page_obj,
+            'is_paginated':          page_obj.has_other_pages(),
+            'lignes':                page_obj.object_list,
+            'total_count':           paginator.count,
+            'is_administration':     is_admin,
+            'commercial_id':         commercial_id,
+            'montant_min':           montant_min_s,
+            'commerciaux_list':      _agenda_commerciaux_list() if is_admin else None,
+            'montant_total_global':  montant_total_global,
+        })
+
+
+class ClientImpayesDetailPopupView(GroupRequiredMixin, View):
+    """Contenu (fragment HTML, chargé en AJAX dans la pop-up « Détail des bons
+    de livraison ») du rapport Suivi des impayés : liste, pour le client
+    demandé, l'état final (dernier BonLivraison) de chaque BonLivraisonCode
+    encore impayé — pas d'historique de révisions ici, contrairement à la
+    pop-up Transactions, puisqu'il s'agit de plusieurs bons différents et non
+    des révisions successives d'un seul."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/client/impayes_detail_popup.html'
+
+    def get(self, request, pk):
+        client = get_object_or_404(_client_queryset_for_user(request.user), pk=pk)
+
+        dernier_bl_id_par_code = (
+            BonLivraison.objects
+            .filter(bon_livraison_code__client=client)
+            .values('bon_livraison_code_id')
+            .annotate(dernier_id=Max('id'))
+            .values_list('dernier_id', flat=True)
+        )
+        bons_impayes = (
+            BonLivraison.objects
+            .filter(pk__in=dernier_bl_id_par_code, reste_a_payer__gt=0)
+            .select_related('bon_livraison_code', 'user')
+            .order_by('bon_livraison_code__bon_livraison_at')
+        )
+
+        response = render(request, self.template_name, {
+            'client': client,
+            'bons_impayes': bons_impayes,
+        })
+        # Titre statique volontairement : un header HTTP hors Latin-1 (ex :
+        # tiret cadratin, nom de client avec caractères exotiques) serait
+        # encodé en MIME (RFC 2047) par Django, que le JS ne décode pas — le
+        # nom du client est de toute façon déjà affiché dans le corps du popup.
+        response['X-Popup-Title'] = 'Détail des bons de livraison'
+        return response
+
+
+class ClientDeriveListView(GroupRequiredMixin, View):
+    """Détection de clients en dérive — voir commercial/services.py::
+    detecter_clients_en_derive : retard par rapport au rythme historique
+    propre du client (jamais Client.a_visiter_apres), et/ou baisse de volume
+    récent par rapport à sa moyenne. Les deux signaux sont indépendants et
+    non exclusifs."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/client/derive_list.html'
+    PAGINATE_BY = 15
+
+    NB_LIVRAISONS_MIN = 8
+    FENETRE_RECENTE_JOURS = 30
+    FENETRE_HISTORIQUE_JOURS = 90
+    SEUIL_RETARD = 1.5
+    SEUIL_BAISSE = 0.5
+
+    def get(self, request):
+        is_admin = _is_administration(request.user)
+        commercial_id = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+
+        clients_qs = _client_queryset_for_user(request.user).filter(is_active=True)
+        if is_admin and commercial_id:
+            clients_qs = clients_qs.filter(client_users__user_id=commercial_id)
+        clients_qs = clients_qs.distinct()
+
+        lignes = detecter_clients_en_derive(
+            clients_qs, date.today(),
+            nb_livraisons_min=self.NB_LIVRAISONS_MIN,
+            fenetre_recente_jours=self.FENETRE_RECENTE_JOURS,
+            fenetre_historique_jours=self.FENETRE_HISTORIQUE_JOURS,
+            seuil_retard=self.SEUIL_RETARD,
+            seuil_baisse=self.SEUIL_BAISSE,
+        )
+
+        paginator = Paginator(lignes, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':          page_obj,
+            'is_paginated':      page_obj.has_other_pages(),
+            'lignes':            page_obj.object_list,
+            'total_count':       paginator.count,
+            'is_administration': is_admin,
+            'commercial_id':     commercial_id,
+            'commerciaux_list':  _agenda_commerciaux_list() if is_admin else None,
+            'nb_en_retard':      sum(1 for l in lignes if l['en_retard']),
+            'nb_en_baisse':      sum(1 for l in lignes if l['en_baisse']),
+        })
 
 
 # ─── Clients ─────────────────────────────────────────────────────────────────
@@ -293,16 +629,65 @@ class ClientDetailView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/client/detail.html'
 
+    PERIODE_ADHERENCE_JOURS = 30
+
     def get(self, request, pk):
         client = get_object_or_404(_client_queryset_for_user(request.user), pk=pk)
         commerciaux = client.client_users.select_related('user').order_by(
             'user__last_name', 'user__first_name',
         )
         jours_visite = client.jours_visite.order_by('jour_semaine')
+
+        # ── Dernier bon de livraison (dernière révision du code le plus récent) ──
+        dernier_bl_code = BonLivraisonCode.objects.filter(client=client).order_by(
+            '-bon_livraison_at', '-bon_livraison_numero',
+        ).first()
+        dernier_bl = dernier_bl_code.bons_livraison.order_by('-id').first() if dernier_bl_code else None
+
+        # ── Solde impayé cumulé (dernière révision de chaque code, > 0) ──────────
+        dernier_bl_id_par_code = (
+            BonLivraison.objects.filter(bon_livraison_code__client=client)
+            .values('bon_livraison_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+        )
+        solde_impaye = BonLivraison.objects.filter(
+            pk__in=dernier_bl_id_par_code, reste_a_payer__gt=0,
+        ).aggregate(total=Sum('reste_a_payer'))['total'] or Decimal('0')
+
+        # ── Prochain jour de visite attendu ──────────────────────────────────────
+        today = date.today()
+        prochaine_visite = prochaine_date_visite_attendue(client, today)
+
+        # ── Taux d'adhérence récent (niveau client, indépendant du commercial) ──
+        date_debut_adh = today - timedelta(days=self.PERIODE_ADHERENCE_JOURS - 1)
+        lignes_adherence = calculer_adherence_visites(
+            Client.objects.filter(pk=client.pk), date_debut_adh, today, commercial_id=None,
+        )
+        nb_honorees_client = sum(1 for l in lignes_adherence if l['statut'] == 'honoré')
+        nb_manquees_client = sum(1 for l in lignes_adherence if l['statut'] == 'manqué')
+        nb_evaluees_client = nb_honorees_client + nb_manquees_client
+        taux_adherence_client = round(100 * nb_honorees_client / nb_evaluees_client) if nb_evaluees_client else None
+
+        # ── Historique des comptes-rendus / actions Agenda ───────────────────────
+        historique_agenda = Agenda.objects.filter(client=client).select_related('user').order_by('-echeance_at', '-pk')[:20]
+
+        # ── Détection de dérive (retard / baisse de volume) pour ce client ──────
+        derive = detecter_clients_en_derive(Client.objects.filter(pk=client.pk), today)
+        derive_client = derive[0] if derive else None
+
         return render(request, self.template_name, {
             'client': client,
             'commerciaux': commerciaux,
             'jours_visite': jours_visite,
+            'dernier_bl_code': dernier_bl_code,
+            'dernier_bl': dernier_bl,
+            'solde_impaye': solde_impaye,
+            'derive_client': derive_client,
+            'prochaine_visite': prochaine_visite,
+            'nb_honorees_client': nb_honorees_client,
+            'nb_manquees_client': nb_manquees_client,
+            'taux_adherence_client': taux_adherence_client,
+            'periode_adherence_jours': self.PERIODE_ADHERENCE_JOURS,
+            'historique_agenda': historique_agenda,
         })
 
 
@@ -1332,7 +1717,17 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
         return context
 
     def get(self, request):
-        return render(request, self.template_name, self._context(request))
+        # Pré-remplissage optionnel depuis un lien externe (ex : « Ma tournée
+        # du jour ») : ?client_id=...&commercial_id=... (ce dernier ignoré
+        # pour un utilisateur Commercial, son propre ID prévaut déjà côté template).
+        overrides = {}
+        client_id = request.GET.get('client_id', '').strip()
+        if client_id:
+            overrides['selected_client_id'] = client_id
+        commercial_id = request.GET.get('commercial_id', '').strip()
+        if commercial_id and _is_administration(request.user):
+            overrides['selected_commercial_id'] = commercial_id
+        return render(request, self.template_name, self._context(request, **overrides))
 
     def post(self, request):
         is_admin = _is_administration(request.user)

@@ -1,0 +1,256 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Ma tournée du jour — Commercial{% endblock %}
+{% block page_title %}Ma tournée du jour{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Ma tournée du jour</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<h4 class="mb-4 fw-bold">Clients à visiter</h4>
+
+{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+        <div style="width:170px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Date</label>
+          <input type="date" name="date" value="{{ date_jour }}"
+                 class="form-control form-control-sm" data-autosubmit>
+        </div>
+
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+        {% endif %}
+
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:tournee-du-jour' %}"
+             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold">{{ nb_clients }}</div>
+        <div class="text-muted small">Client{{ nb_clients|pluralize }} à voir</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-success">{{ nb_deja_livres }}</div>
+        <div class="text-muted small">Déjà livré{{ nb_deja_livres|pluralize }} aujourd'hui</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-warning">{{ nb_restants }}</div>
+        <div class="text-muted small">Restant{{ nb_restants|pluralize }} à faire</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if is_administration and not commercial_id %}
+<div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-info-circle-fill"></i>
+  <div>Filtrez sur un commercial précis pour pouvoir ajouter un compte-rendu de visite.</div>
+</div>
+{% endif %}
+
+{% if jour_non_ouvre %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <div>
+    <strong>{{ jour_non_ouvre.libelle }}</strong> — ce jour est un jour non ouvré ({{ jour_non_ouvre.type_jour }}).
+    Aucune visite récurrente n'est prévue ; seules les actions planifiées manuellement ci-dessous restent affichées.
+  </div>
+</div>
+{% endif %}
+
+{# ── Section 3 : liste des clients à visiter ──────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if lignes %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:200px;">Client</th>
+            <th style="min-width:140px;">Zone</th>
+            <th style="min-width:130px;">Téléphone</th>
+            <th style="min-width:200px;">Motif de la visite</th>
+            <th class="text-center" style="width:150px;">Statut</th>
+            <th class="text-center pe-3" style="width:190px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lignes %}
+          <tr class="{% if l.deja_livre %}table-success{% endif %}">
+            <td class="ps-3">{{ l.client }}</td>
+            <td>{{ l.client.zone|default:'—' }}</td>
+            <td>{{ l.client.telephone|default:'—' }}</td>
+            <td>
+              {% if l.est_recurrent %}
+              <span class="badge text-bg-light border d-block d-inline-block mb-1">
+                <i class="bi bi-calendar-week"></i> Visite récurrente
+              </span>
+              {% endif %}
+              {% for a in l.actions_agenda %}
+              <span class="badge text-bg-light border d-block d-inline-block mb-1">
+                <i class="bi bi-calendar-event"></i> {{ a.detaille_action_planifier|default:'Action planifiée' }}
+              </span>
+              {% endfor %}
+            </td>
+            <td class="text-center">
+              {% if l.deja_livre %}
+              <span class="badge text-bg-success">Livré aujourd'hui</span>
+              {% else %}
+              <span class="badge text-bg-warning text-dark">À faire</span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{% url 'commercial:client-detail' l.client.pk %}"
+                 class="btn btn-sm btn-outline-secondary" title="Voir le client">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if l.client.google_mape %}
+              <a href="#" onclick="var v='{{ l.client.google_mape|escapejs }}'.trim(); var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v); window.open(url, '_blank'); return false;"
+                 class="btn btn-sm btn-outline-secondary ms-1" title="Ouvrir dans Google Maps">
+                <i class="bi bi-geo-alt"></i>
+              </a>
+              {% endif %}
+              {% if not l.deja_livre %}
+              <a href="{% url 'commercial:bon-livraison-create' %}?client_id={{ l.client.pk }}&commercial_id={{ commercial_id }}"
+                 class="btn btn-sm btn-outline-primary ms-1" title="Nouveau bon de livraison">
+                <i class="bi bi-truck"></i>
+              </a>
+              {% endif %}
+              {% if commercial_id %}
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary ms-1 compte-rendu-btn"
+                      data-client-id="{{ l.client.pk }}" data-client-label="{{ l.client|escapejs }}"
+                      title="Compte-rendu de visite">
+                <i class="bi bi-journal-text"></i>
+              </button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-calendar-check fs-1 d-block mb-2 opacity-25"></i>
+      Aucun client à visiter ce jour.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Pop-up « Compte-rendu de visite » ────────────────────────────────────── #}
+<div class="modal fade" id="compte-rendu-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'commercial:compte-rendu-visite-create' %}">
+      {% csrf_token %}
+      <input type="hidden" name="client_id" id="compte-rendu-client-id">
+      <input type="hidden" name="date_jour" value="{{ date_jour }}">
+      <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Compte-rendu de visite — <span id="compte-rendu-client-label"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label small mb-1">Motifs rapides</label>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Client absent">Client absent</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Fermé">Fermé</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Refus de livraison">Refus de livraison</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="RAS">RAS</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Autre">Autre</button>
+          </div>
+          <label class="form-label small mb-1">Note</label>
+          <textarea name="note" id="compte-rendu-note" class="form-control" rows="4" required></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Enregistrer
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    this.closest('form').submit();
+  });
+});
+
+// ── Pop-up « Compte-rendu de visite » ───────────────────────────────────────
+(function () {
+  var modalEl = document.getElementById('compte-rendu-modal');
+  if (!modalEl) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+  var clientIdInput = document.getElementById('compte-rendu-client-id');
+  var clientLabelEl = document.getElementById('compte-rendu-client-label');
+  var noteInput = document.getElementById('compte-rendu-note');
+
+  document.querySelectorAll('.compte-rendu-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      clientIdInput.value = btn.getAttribute('data-client-id');
+      clientLabelEl.textContent = btn.getAttribute('data-client-label');
+      noteInput.value = '';
+      modal.show();
+    });
+  });
+
+  document.querySelectorAll('.motif-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var motif = btn.getAttribute('data-motif');
+      noteInput.value = noteInput.value ? (noteInput.value.trim() + ' ' + motif) : motif;
+      noteInput.focus();
+    });
+  });
+})();
+</script>
+{% endblock %}

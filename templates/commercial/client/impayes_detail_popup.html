@@ -1,0 +1,49 @@
+{# ── Section 1 : Client, sur une seule ligne ──────────────────────────────── #}
+<div class="d-flex flex-nowrap gap-3 mb-3">
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Client</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ client }}">
+  </div>
+  <div style="flex:1 1 auto;">
+    <label class="form-label small mb-1">Zone</label>
+    <input type="text" class="form-control form-control-sm" disabled value="{{ client.zone|default:'' }}">
+  </div>
+</div>
+
+{# ── Section 2 : liste des bons de livraison impayés (état final) ────────── #}
+<div class="card border-0 bg-light">
+  <div class="card-body p-0">
+    {% if bons_impayes %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Date</th>
+            <th>Numéro</th>
+            <th>Commercial</th>
+            <th class="text-end">Montant total</th>
+            <th class="text-end">Payé</th>
+            <th class="text-end pe-3">Reste à payer</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bl in bons_impayes %}
+          <tr>
+            <td class="ps-3">{{ bl.bon_livraison_code.bon_livraison_at|date:'d/m/Y' }}</td>
+            <td>BL-{{ bl.bon_livraison_code.bon_livraison_numero }}</td>
+            <td>{{ bl.user.get_full_name|default:bl.user.username }}</td>
+            <td class="text-end font-monospace">{{ bl.total_montant|stringformat:'.3f' }}</td>
+            <td class="text-end font-monospace">{{ bl.total_acompte|stringformat:'.3f' }}</td>
+            <td class="text-end font-monospace text-danger pe-3">{{ bl.reste_a_payer|stringformat:'.3f' }}</td>
+            <td>{{ bl.statut }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-3 text-muted">Aucun bon de livraison impayé pour ce client.</div>
+    {% endif %}
+  </div>
+</div>
