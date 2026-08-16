@@ -369,7 +369,10 @@ class ClientDeriveListView(GroupRequiredMixin, View):
     template_name = 'commercial/client/derive_list.html'
     PAGINATE_BY = 15
 
-    NB_LIVRAISONS_MIN = 8
+    # Abaissé temporairement de 8 à 4 : la base clients est encore jeune, peu
+    # de clients atteignent 8 livraisons pour l'instant. À remonter à 8 (ou
+    # plus) une fois l'historique plus mûr, pour une moyenne plus fiable.
+    NB_LIVRAISONS_MIN = 4
     FENETRE_RECENTE_JOURS = 30
     FENETRE_HISTORIQUE_JOURS = 90
     SEUIL_RETARD = 1.5
@@ -406,6 +409,7 @@ class ClientDeriveListView(GroupRequiredMixin, View):
             'commerciaux_list':  _agenda_commerciaux_list() if is_admin else None,
             'nb_en_retard':      sum(1 for l in lignes if l['en_retard']),
             'nb_en_baisse':      sum(1 for l in lignes if l['en_baisse']),
+            'nb_livraisons_min': self.NB_LIVRAISONS_MIN,
         })
 
 
