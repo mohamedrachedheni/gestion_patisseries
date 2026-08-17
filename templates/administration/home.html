@@ -27,13 +27,24 @@
     </div>
   </div>
 
-  {# Tuiles de raccourcis (à alimenter avec de vraies données au prochain cycle) #}
+  {# ── Section Résumé ──────────────────────────────────────────────────────── #}
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0 fw-bold">
+        Résumé — {{ date_debut_resume|date:'d/m/Y' }} → {{ date_fin_resume|date:'d/m/Y' }}
+      </h5>
+      <a href="{% url 'administration:tableau-bord-commerciaux-list' %}" class="btn btn-outline-secondary btn-sm">
+        Voir le tableau de bord complet <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+
   <div class="col-sm-6 col-xl-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-4">
-        <i class="bi bi-people fs-2 text-primary mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Employés</div>
+        <i class="bi bi-cash-stack fs-2 text-primary mb-2 d-block"></i>
+        <div class="fw-bold fs-4">{{ ca_total|stringformat:'.3f' }}</div>
+        <div class="text-muted small">CA (TND)</div>
       </div>
     </div>
   </div>
@@ -41,9 +52,11 @@
   <div class="col-sm-6 col-xl-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-4">
-        <i class="bi bi-wallet2 fs-2 text-success mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Soldes en cours</div>
+        <i class="bi bi-calendar-check fs-2 text-success mb-2 d-block"></i>
+        <div class="fw-bold fs-4">
+          {{ taux_adherence_global|default_if_none:'—' }}{% if taux_adherence_global is not None %}%{% endif %}
+        </div>
+        <div class="text-muted small">Taux d'adhérence</div>
       </div>
     </div>
   </div>
@@ -51,9 +64,9 @@
   <div class="col-sm-6 col-xl-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-4">
-        <i class="bi bi-arrow-left-right fs-2 text-warning mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Transactions</div>
+        <i class="bi bi-cash-coin fs-2 text-danger mb-2 d-block"></i>
+        <div class="fw-bold fs-4">{{ impayes_total|stringformat:'.3f' }}</div>
+        <div class="text-muted small">Impayés cumulés (TND)</div>
       </div>
     </div>
   </div>
@@ -61,9 +74,84 @@
   <div class="col-sm-6 col-xl-3">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-4">
-        <i class="bi bi-bank fs-2 text-info mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Transferts</div>
+        <i class="bi bi-people fs-2 text-info mb-2 d-block"></i>
+        <div class="fw-bold fs-4">{{ nb_clients_actifs_total }}</div>
+        <div class="text-muted small">Clients actifs (affectations)</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Section Alertes ─────────────────────────────────────────────────────── #}
+  <div class="col-12 mt-2">
+    <h5 class="mb-2 fw-bold">Alertes</h5>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent fw-semibold py-3 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-graph-down-arrow me-2 text-warning"></i>Clients en dérive</span>
+        {% if nb_clients_en_derive %}
+        <span class="badge text-bg-warning text-dark">{{ nb_clients_en_derive }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        {% if clients_en_derive %}
+        <ul class="list-group list-group-flush">
+          {% for l in clients_en_derive %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <a href="{% url 'commercial:client-detail' l.client.pk %}">{{ l.client }}</a>
+            <span>
+              {% if l.en_retard %}<span class="badge text-bg-warning text-dark ms-1">En retard ({{ l.ratio_retard }}×)</span>{% endif %}
+              {% if l.en_baisse %}<span class="badge text-bg-danger ms-1">Volume {{ l.ratio_volume_pct }}%</span>{% endif %}
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if nb_clients_en_derive > clients_en_derive|length %}
+        <div class="text-center py-2 border-top">
+          <a href="{% url 'commercial:client-derive-list' %}" class="small">
+            Voir les {{ nb_clients_en_derive }} clients en dérive <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-check-circle fs-3 d-block mb-2 opacity-25"></i>
+          Aucun client en dérive détecté.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent fw-semibold py-3 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-emoji-frown me-2 text-danger"></i>Commerciaux en baisse d'adhérence</span>
+        {% if commerciaux_en_baisse %}
+        <span class="badge text-bg-danger">{{ commerciaux_en_baisse|length }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        {% if commerciaux_en_baisse %}
+        <ul class="list-group list-group-flush">
+          {% for c in commerciaux_en_baisse %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ c.commercial.pk }}">
+              {{ c.commercial.get_full_name|default:c.commercial.username }}
+            </a>
+            <span class="text-danger small">
+              {{ c.taux_precedent }}% → {{ c.taux_actuel }}% ({{ c.ecart }} pts)
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-check-circle fs-3 d-block mb-2 opacity-25"></i>
+          Aucune baisse d'adhérence significative cette semaine.
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>

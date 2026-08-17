@@ -42,8 +42,14 @@
   </div>
 </div>
 <p class="text-muted small mb-4">
-  CA et taux d'adhérence calculés sur la période ci-dessus. Les impayés cumulés portent sur toutes les périodes
-  (une dette ne s'annule pas avec le temps) et sont imputés au commercial ayant enregistré le bon de livraison.
+  CA, panier moyen, nouveaux clients et taux d'adhérence calculés sur la période ci-dessus. Les impayés cumulés
+  portent sur toutes les périodes (une dette ne s'annule pas avec le temps) et sont imputés au commercial ayant
+  enregistré le bon de livraison.
+  <br>
+  Le <strong>score</strong> et le <strong>classement</strong> combinent ces mesures sur des valeurs brutes
+  (aucune division par la taille du portefeuille) selon la pondération CA 50 %, adhérence 30 %, panier moyen 5 %,
+  nouveaux clients 15 % — chaque mesure est ramenée sur 100 par rapport au meilleur commercial de la période avant
+  d'appliquer les poids.
 </p>
 
 {# ── Section 2 : tableau comparatif ──────────────────────────────────────── #}
@@ -54,20 +60,32 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3" style="min-width:180px;">Commercial</th>
-            <th class="text-center" style="width:120px;">Clients actifs</th>
-            <th class="text-end" style="min-width:140px;">CA période (TND)</th>
-            <th class="text-center" style="width:150px;">Taux d'adhérence</th>
-            <th class="text-end" style="min-width:150px;">Impayés cumulés (TND)</th>
+            <th class="text-center ps-3" style="width:70px;">Rang</th>
+            <th style="min-width:180px;">Commercial</th>
+            <th class="text-center" style="width:110px;">Clients actifs</th>
+            <th class="text-end" style="min-width:130px;">CA période (TND)</th>
+            <th class="text-end" style="min-width:120px;">Panier moyen (TND)</th>
+            <th class="text-center" style="width:110px;">Nouveaux clients</th>
+            <th class="text-center" style="width:140px;">Taux d'adhérence</th>
+            <th class="text-end" style="min-width:140px;">Impayés cumulés (TND)</th>
+            <th class="text-center" style="width:90px;">Score</th>
             <th class="text-center pe-3" style="width:130px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for l in lignes %}
           <tr>
-            <td class="ps-3">{{ l.commercial.get_full_name|default:l.commercial.username }}</td>
+            <td class="text-center ps-3">
+              {% if l.rang == 1 %}<span title="1er">🥇</span>
+              {% elif l.rang == 2 %}<span title="2e">🥈</span>
+              {% elif l.rang == 3 %}<span title="3e">🥉</span>
+              {% else %}{{ l.rang }}{% endif %}
+            </td>
+            <td>{{ l.commercial.get_full_name|default:l.commercial.username }}</td>
             <td class="text-center">{{ l.nb_clients_actifs }}</td>
             <td class="text-end font-monospace">{{ l.ca|stringformat:'.3f' }}</td>
+            <td class="text-end font-monospace">{{ l.panier_moyen|stringformat:'.3f' }}</td>
+            <td class="text-center">{{ l.nb_nouveaux_clients }}</td>
             <td class="text-center">
               {% if l.taux_adherence is not None %}
               <span class="badge {% if l.taux_adherence >= 80 %}text-bg-success{% elif l.taux_adherence >= 50 %}text-bg-warning text-dark{% else %}text-bg-danger{% endif %}">
@@ -78,6 +96,7 @@
               {% endif %}
             </td>
             <td class="text-end font-monospace {% if l.impayes > 0 %}text-danger{% endif %}">{{ l.impayes|stringformat:'.3f' }}</td>
+            <td class="text-center fw-bold">{{ l.score|stringformat:'.1f' }}</td>
             <td class="text-center pe-3">
               <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ l.commercial.pk }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}"
                  class="btn btn-sm btn-outline-secondary" title="Détail adhérence">

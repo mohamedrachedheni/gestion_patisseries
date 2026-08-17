@@ -17,7 +17,7 @@ from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Max, Q, RestrictedError, Sum
+from django.db.models import Count, Max, Q, RestrictedError, Sum
 from django.forms.models import model_to_dict
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -32,7 +32,9 @@ from commercial.models import (
     DepenseDetaille, Gouvernorat, Vente, Zone,
     JOUR_SEMAINE_CHOICES,
 )
-from commercial.services import calculer_adherence_visites, calculer_demande_reference_produits
+from commercial.services import (
+    calculer_adherence_visites, calculer_demande_reference_produits, detecter_clients_en_derive,
+)
 from core.audit import AuditAction, log_audit
 from core.mixins import GroupRequiredMixin
 from core.models import JourNonOuvre
@@ -66,8 +68,87 @@ def _form_errors_text(form):
 
 
 class HomeView(GroupRequiredMixin, TemplateView):
+    """Page d'accueil Admin — Section Résumé (CA, adhérence, impayés sur les
+    NB_JOURS_RESUME derniers jours, mêmes calculs que le Tableau de bord
+    commerciaux — voir _construire_lignes_tableau_bord_commerciaux) et Section
+    Alertes : clients en dérive (commercial.services.detecter_clients_en_derive,
+    tous commerciaux confondus) et commerciaux dont le taux d'adhérence a
+    chuté d'au moins SEUIL_BAISSE_ADHERENCE_POINTS points par rapport à la
+    période équivalente précédente. In-app uniquement (pas d'email/tâche
+    planifiée) : consulté à la connexion, sans avoir à naviguer entre les
+    différents rapports."""
     group_required = 'Administration'
     template_name = 'administration/home.html'
+
+    NB_JOURS_RESUME = 6
+    NB_CLIENTS_EN_DERIVE_AFFICHES = 5
+    SEUIL_BAISSE_ADHERENCE_POINTS = 15
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = date.today()
+        date_debut = today - timedelta(days=self.NB_JOURS_RESUME)
+        date_fin = today
+
+        # ── Résumé : reprend le Tableau de bord commerciaux, agrégé ─────────────
+        lignes_commerciaux = _construire_lignes_tableau_bord_commerciaux(date_debut, date_fin)
+        ca_total = sum((l['ca'] for l in lignes_commerciaux), Decimal('0'))
+        impayes_total = sum((l['impayes'] for l in lignes_commerciaux), Decimal('0'))
+        nb_clients_actifs_total = sum(l['nb_clients_actifs'] for l in lignes_commerciaux)
+
+        clients_actifs_qs = Client.objects.filter(is_active=True)
+        lignes_adherence_globale = calculer_adherence_visites(clients_actifs_qs, date_debut, date_fin)
+        nb_honorees_global = sum(1 for l in lignes_adherence_globale if l['statut'] == 'honoré')
+        nb_manquees_global = sum(1 for l in lignes_adherence_globale if l['statut'] == 'manqué')
+        nb_evaluees_global = nb_honorees_global + nb_manquees_global
+        taux_adherence_global = round(100 * nb_honorees_global / nb_evaluees_global) if nb_evaluees_global else None
+
+        # ── Alertes 1 : clients en dérive (tous commerciaux confondus) ──────────
+        clients_en_derive = detecter_clients_en_derive(clients_actifs_qs, today)
+
+        # ── Alertes 2 : commerciaux dont l'adhérence a chuté vs la période
+        # équivalente précédente (même durée, immédiatement avant) ──────────────
+        date_debut_precedente = date_debut - timedelta(days=self.NB_JOURS_RESUME + 1)
+        date_fin_precedente = date_debut - timedelta(days=1)
+        commerciaux_en_baisse = []
+        for commercial in User.objects.filter(groups__name='Commercial', is_active=True):
+            clients_qs = Client.objects.filter(client_users__user=commercial, is_active=True).distinct()
+
+            def _taux(lignes):
+                h = sum(1 for l in lignes if l['statut'] == 'honoré')
+                m = sum(1 for l in lignes if l['statut'] == 'manqué')
+                return round(100 * h / (h + m)) if (h + m) else None
+
+            taux_actuel = _taux(calculer_adherence_visites(
+                clients_qs, date_debut, date_fin, commercial_id=commercial.pk,
+            ))
+            taux_precedent = _taux(calculer_adherence_visites(
+                clients_qs, date_debut_precedente, date_fin_precedente, commercial_id=commercial.pk,
+            ))
+            if (
+                taux_actuel is not None and taux_precedent is not None
+                and (taux_precedent - taux_actuel) >= self.SEUIL_BAISSE_ADHERENCE_POINTS
+            ):
+                commerciaux_en_baisse.append({
+                    'commercial':     commercial,
+                    'taux_actuel':    taux_actuel,
+                    'taux_precedent': taux_precedent,
+                    'ecart':          taux_actuel - taux_precedent,
+                })
+        commerciaux_en_baisse.sort(key=lambda c: c['ecart'])
+
+        context.update({
+            'date_debut_resume':        date_debut,
+            'date_fin_resume':          date_fin,
+            'ca_total':                 ca_total,
+            'impayes_total':            impayes_total,
+            'nb_clients_actifs_total':  nb_clients_actifs_total,
+            'taux_adherence_global':    taux_adherence_global,
+            'clients_en_derive':        clients_en_derive[:self.NB_CLIENTS_EN_DERIVE_AFFICHES],
+            'nb_clients_en_derive':     len(clients_en_derive),
+            'commerciaux_en_baisse':    commerciaux_en_baisse,
+        })
+        return context
 
 
 # ─── Gouvernorats ───────────────────────────────────────────────────────────
@@ -2377,14 +2458,130 @@ class ChiffreAffaireParCommercialView(GroupRequiredMixin, View):
 
 # ─── Tableau de bord commerciaux ─────────────────────────────────────────────
 
+POIDS_SCORE_CA = Decimal('0.50')
+POIDS_SCORE_ADHERENCE = Decimal('0.30')
+POIDS_SCORE_PANIER_MOYEN = Decimal('0.05')
+POIDS_SCORE_NOUVEAUX_CLIENTS = Decimal('0.15')
+
+
+def _construire_lignes_tableau_bord_commerciaux(date_debut, date_fin):
+    """Construit les lignes du comparatif commerciaux (CA, clients actifs,
+    panier moyen, nouveaux clients, adhérence, impayés, score composite) sur
+    [date_debut, date_fin] — logique partagée par TableauDeBordCommerciauxView
+    et HomeView (section Résumé). Voir TableauDeBordCommerciauxView pour le
+    détail des règles de calcul de chaque colonne et du score."""
+    commerciaux = User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
+
+    # ── CA + nombre de bons de livraison de la période (dernier BonLivraison
+    # de chaque code) — le nombre sert au panier moyen ────────────────────
+    dernier_bl_id_periode = (
+        BonLivraison.objects
+        .filter(
+            bon_livraison_code__bon_livraison_at__gte=date_debut,
+            bon_livraison_code__bon_livraison_at__lte=date_fin,
+        )
+        .values('bon_livraison_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+    )
+    stats_ca_par_commercial = list(
+        BonLivraison.objects.filter(pk__in=dernier_bl_id_periode)
+        .values('user_id').annotate(total=Sum('total_montant'), nb=Count('id'))
+    )
+    ca_par_commercial = {g['user_id']: g['total'] or Decimal('0') for g in stats_ca_par_commercial}
+    nb_livraisons_par_commercial = {g['user_id']: g['nb'] for g in stats_ca_par_commercial}
+
+    # ── Impayés cumulés, toutes périodes (dernier BonLivraison de chaque code) ──
+    dernier_bl_id_tout = (
+        BonLivraison.objects.values('bon_livraison_code_id')
+        .annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
+    )
+    impayes_par_commercial = {
+        g['user_id']: g['total'] or Decimal('0')
+        for g in BonLivraison.objects.filter(pk__in=dernier_bl_id_tout, reste_a_payer__gt=0)
+        .values('user_id').annotate(total=Sum('reste_a_payer'))
+    }
+
+    # ── Nouveaux clients acquis (créés pendant la période, affectés à ce
+    # commercial aujourd'hui) — un client créé pendant la période et
+    # partagé entre plusieurs commerciaux est crédité à chacun d'eux ──────
+    nouveaux_clients_par_commercial = {
+        g['client_users__user_id']: g['total']
+        for g in Client.objects.filter(created_at__gte=date_debut, created_at__lte=date_fin)
+        .values('client_users__user_id').annotate(total=Count('pk', distinct=True))
+        if g['client_users__user_id'] is not None
+    }
+
+    lignes = []
+    for commercial in commerciaux:
+        clients_qs = Client.objects.filter(client_users__user=commercial, is_active=True).distinct()
+        nb_clients_actifs = clients_qs.count()
+
+        lignes_adherence = calculer_adherence_visites(
+            clients_qs, date_debut, date_fin, commercial_id=commercial.pk,
+        )
+        nb_honorees = sum(1 for l in lignes_adherence if l['statut'] == 'honoré')
+        nb_manquees = sum(1 for l in lignes_adherence if l['statut'] == 'manqué')
+        nb_evaluees = nb_honorees + nb_manquees
+        taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
+
+        ca = ca_par_commercial.get(commercial.pk, Decimal('0'))
+        nb_livraisons = nb_livraisons_par_commercial.get(commercial.pk, 0)
+        panier_moyen = (ca / nb_livraisons) if nb_livraisons else Decimal('0')
+
+        lignes.append({
+            'commercial':          commercial,
+            'nb_clients_actifs':   nb_clients_actifs,
+            'ca':                  ca,
+            'taux_adherence':      taux_adherence,
+            'impayes':             impayes_par_commercial.get(commercial.pk, Decimal('0')),
+            'panier_moyen':        panier_moyen,
+            'nb_nouveaux_clients': nouveaux_clients_par_commercial.get(commercial.pk, 0),
+        })
+
+    # ── Score composite (voir docstring de TableauDeBordCommerciauxView) ──────
+    ca_max = max((l['ca'] for l in lignes), default=Decimal('0'))
+    panier_max = max((l['panier_moyen'] for l in lignes), default=Decimal('0'))
+    nouveaux_max = max((l['nb_nouveaux_clients'] for l in lignes), default=0)
+
+    for l in lignes:
+        score_ca = (100 * l['ca'] / ca_max) if ca_max else Decimal('0')
+        score_adherence = Decimal(l['taux_adherence']) if l['taux_adherence'] is not None else Decimal('0')
+        score_panier = (100 * l['panier_moyen'] / panier_max) if panier_max else Decimal('0')
+        score_nouveaux = (Decimal(100 * l['nb_nouveaux_clients']) / nouveaux_max) if nouveaux_max else Decimal('0')
+        l['score'] = round(
+            POIDS_SCORE_CA * score_ca
+            + POIDS_SCORE_ADHERENCE * score_adherence
+            + POIDS_SCORE_PANIER_MOYEN * score_panier
+            + POIDS_SCORE_NOUVEAUX_CLIENTS * score_nouveaux,
+            1,
+        )
+
+    lignes.sort(key=lambda l: l['score'], reverse=True)
+    for rang, l in enumerate(lignes, start=1):
+        l['rang'] = rang
+
+    return lignes
+
+
 class TableauDeBordCommerciauxView(GroupRequiredMixin, View):
     """Comparatif des commerciaux sur une période : CA (dernier BonLivraison
     de chaque BonLivraisonCode, même principe que ChiffreAffaireParCommercialView),
     nombre de clients actifs affectés, taux d'adhérence (commercial.services.
     calculer_adherence_visites, du point de vue de chaque commercial — voir
-    la correction « ignoré » pour les clients partagés), et impayés cumulés
+    la correction « ignoré » pour les clients partagés), impayés cumulés
     imputés au commercial ayant enregistré le bon (BonLivraison.user), toutes
-    périodes confondues (une dette ne s'expire pas)."""
+    périodes confondues (une dette ne s'expire pas), panier moyen (CA / nombre
+    de bons de livraison de la période) et nouveaux clients acquis (clients
+    créés — Client.created_at — pendant la période, actuellement affectés à
+    ce commercial).
+
+    Classement : un score composite pondéré (CA 50 %, adhérence 30 %, panier
+    moyen 5 %, nouveaux clients 15 %) sur des valeurs BRUTES (non ramenées au
+    nombre de clients — un plus gros portefeuille n'est pas pénalisé). Chaque
+    mesure est ramenée sur 100 par rapport au meilleur commercial de la
+    période avant pondération (l'adhérence, déjà un pourcentage, est utilisée
+    telle quelle) — sans cette étape, les poids ne seraient pas comparables
+    puisque CA/panier moyen/nouveaux clients n'ont pas d'échelle naturelle
+    commune avec un taux d'adhérence en %."""
     group_required = 'Administration'
     template_name = 'administration/production/tableau_bord_commerciaux_list.html'
     NB_JOURS_DEFAUT = 29
@@ -2413,56 +2610,7 @@ class TableauDeBordCommerciauxView(GroupRequiredMixin, View):
             date_debut_str = date_debut.isoformat()
             date_fin_str = date_fin.isoformat()
 
-        commerciaux = User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name')
-
-        # ── CA de la période (dernier BonLivraison de chaque code) ──────────────
-        dernier_bl_id_periode = (
-            BonLivraison.objects
-            .filter(
-                bon_livraison_code__bon_livraison_at__gte=date_debut,
-                bon_livraison_code__bon_livraison_at__lte=date_fin,
-            )
-            .values('bon_livraison_code_id').annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
-        )
-        ca_par_commercial = {
-            g['user_id']: g['total'] or Decimal('0')
-            for g in BonLivraison.objects.filter(pk__in=dernier_bl_id_periode)
-            .values('user_id').annotate(total=Sum('total_montant'))
-        }
-
-        # ── Impayés cumulés, toutes périodes (dernier BonLivraison de chaque code) ──
-        dernier_bl_id_tout = (
-            BonLivraison.objects.values('bon_livraison_code_id')
-            .annotate(dernier_id=Max('id')).values_list('dernier_id', flat=True)
-        )
-        impayes_par_commercial = {
-            g['user_id']: g['total'] or Decimal('0')
-            for g in BonLivraison.objects.filter(pk__in=dernier_bl_id_tout, reste_a_payer__gt=0)
-            .values('user_id').annotate(total=Sum('reste_a_payer'))
-        }
-
-        lignes = []
-        for commercial in commerciaux:
-            clients_qs = Client.objects.filter(client_users__user=commercial, is_active=True).distinct()
-            nb_clients_actifs = clients_qs.count()
-
-            lignes_adherence = calculer_adherence_visites(
-                clients_qs, date_debut, date_fin, commercial_id=commercial.pk,
-            )
-            nb_honorees = sum(1 for l in lignes_adherence if l['statut'] == 'honoré')
-            nb_manquees = sum(1 for l in lignes_adherence if l['statut'] == 'manqué')
-            nb_evaluees = nb_honorees + nb_manquees
-            taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
-
-            lignes.append({
-                'commercial':        commercial,
-                'nb_clients_actifs': nb_clients_actifs,
-                'ca':                ca_par_commercial.get(commercial.pk, Decimal('0')),
-                'taux_adherence':    taux_adherence,
-                'impayes':           impayes_par_commercial.get(commercial.pk, Decimal('0')),
-            })
-
-        lignes.sort(key=lambda l: l['ca'], reverse=True)
+        lignes = _construire_lignes_tableau_bord_commerciaux(date_debut, date_fin)
 
         return render(request, self.template_name, {
             'lignes':       lignes,
