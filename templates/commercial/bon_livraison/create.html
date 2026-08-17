@@ -440,6 +440,11 @@
   zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), initialZoneId);
   clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
   updateClientDependentVisibility();
+  // Un client déjà présélectionné au chargement (lien direct ?client_id=..., ou
+  // ré-affichage après échec de validation) doit aussi déclencher le
+  // préremplissage de la section 3 — sinon elle reste vide tant que
+  // l'utilisateur ne retouche pas la zone/le client manuellement.
+  if (SELECTED_CLIENT_ID) { refreshDefaults(); }
 
   // ── Numéro bon de livraison (recalculé côté serveur à chaque changement de date) ──
   dateInput.addEventListener('change', function () {

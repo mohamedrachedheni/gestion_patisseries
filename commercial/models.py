@@ -157,6 +157,26 @@ class ClientUser(models.Model):
         return f'{self.client} → {self.user}'
 # fin corection 29/06/2026
 
+
+class AbsenceCommercial(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.RESTRICT,
+        related_name='absences',
+    )
+    date_debut = models.DateField()
+    date_fin = models.DateField()
+    motif = models.CharField(max_length=100, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Absence commercial'
+        verbose_name_plural = 'Absences commerciaux'
+        ordering = ['-date_debut']
+
+    def __str__(self):
+        return f'{self.user} — {self.date_debut} → {self.date_fin}'
+
+
 class JourVisiteClient(models.Model):
     client = models.ForeignKey(
         Client,

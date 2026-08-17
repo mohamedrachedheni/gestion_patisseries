@@ -26,11 +26,11 @@ from production.models import (
 
 from .forms import ClientForm, FournisseurForm
 from .services import (
-    calculer_adherence_visites, detecter_clients_en_derive, generer_graphique_adherence,
+    TOLERANCE_JOURS, calculer_adherence_visites, detecter_clients_en_derive, generer_graphique_adherence,
     prochaine_date_visite_attendue, serie_quotidienne_adherence,
 )
 from .models import (
-    Achat, AchatCode, AchatDetaille, Agenda, BonLivraison, BonLivraisonCode, BonLivraisonDetaille,
+    Achat, AchatCode, AchatDetaille, AbsenceCommercial, Agenda, BonLivraison, BonLivraisonCode, BonLivraisonDetaille,
     Client, ClientUser, Delegation, Depense, DepenseCode, DepenseDetaille, Fournisseur, Gouvernorat,
     HistoriqueStockInitial, HistoriqueStockInitialDetaille, JourVisiteClient, Vente, VenteCode,
     VenteDetaille, Zone,
@@ -107,6 +107,12 @@ class TourneeDuJourView(GroupRequiredMixin, View):
 
         jour_non_ouvre = JourNonOuvre.objects.filter(date=jour, concerne_livraison=True).first()
 
+        absence_commercial = None
+        if commercial_id:
+            absence_commercial = AbsenceCommercial.objects.filter(
+                user_id=commercial_id, date_debut__lte=jour, date_fin__gte=jour,
+            ).select_related('user').first()
+
         clients_recurrents_ids = set()
         if jour_non_ouvre is None:
             clients_recurrents_ids = set(
@@ -145,6 +151,7 @@ class TourneeDuJourView(GroupRequiredMixin, View):
             'commerciaux_list':    _agenda_commerciaux_list() if is_admin else None,
             'date_jour':           date_str,
             'jour_non_ouvre':      jour_non_ouvre,
+            'absence_commercial':  absence_commercial,
             'lignes':              lignes,
             'nb_clients':          len(lignes),
             'nb_deja_livres':      sum(1 for l in lignes if l['deja_livre']),
@@ -409,7 +416,11 @@ class ClientDeriveListView(GroupRequiredMixin, View):
             'commerciaux_list':  _agenda_commerciaux_list() if is_admin else None,
             'nb_en_retard':      sum(1 for l in lignes if l['en_retard']),
             'nb_en_baisse':      sum(1 for l in lignes if l['en_baisse']),
-            'nb_livraisons_min': self.NB_LIVRAISONS_MIN,
+            'nb_livraisons_min':          self.NB_LIVRAISONS_MIN,
+            'fenetre_recente_jours':      self.FENETRE_RECENTE_JOURS,
+            'fenetre_historique_jours':   self.FENETRE_HISTORIQUE_JOURS,
+            'seuil_retard':               self.SEUIL_RETARD,
+            'seuil_baisse_pct':           round(self.SEUIL_BAISSE * 100),
         })
 
 
@@ -1029,6 +1040,7 @@ class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
         nb_honorees = sum(1 for l in lignes if l['statut'] == 'honoré')
         nb_manquees = sum(1 for l in lignes if l['statut'] == 'manqué')
         nb_ignorees = sum(1 for l in lignes if l['statut'] == 'ignoré')
+        nb_absentes = sum(1 for l in lignes if l['statut'] == 'absent')
         nb_evaluees = nb_honorees + nb_manquees
         taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
 
@@ -1048,7 +1060,9 @@ class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
             'nb_honorees':       nb_honorees,
             'nb_manquees':       nb_manquees,
             'nb_ignorees':       nb_ignorees,
+            'nb_absentes':       nb_absentes,
             'taux_adherence':    taux_adherence,
+            'tolerance_jours':   TOLERANCE_JOURS,
         })
 
 
@@ -1116,6 +1130,7 @@ class ClientAdherenceGraphiqueView(GroupRequiredMixin, View):
         nb_honorees = sum(1 for l in toutes_lignes if l['statut'] == 'honoré')
         nb_manquees = sum(1 for l in toutes_lignes if l['statut'] == 'manqué')
         nb_ignorees = sum(1 for l in toutes_lignes if l['statut'] == 'ignoré')
+        nb_absentes = sum(1 for l in toutes_lignes if l['statut'] == 'absent')
         nb_evaluees = nb_honorees + nb_manquees
         taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
 
@@ -1130,6 +1145,7 @@ class ClientAdherenceGraphiqueView(GroupRequiredMixin, View):
             'nb_honorees':              nb_honorees,
             'nb_manquees':              nb_manquees,
             'nb_ignorees':              nb_ignorees,
+            'nb_absentes':              nb_absentes,
             'taux_adherence':           taux_adherence,
             'chart_b64':                chart_b64,
             'commerciaux_sans_donnees': commerciaux_sans_donnees,

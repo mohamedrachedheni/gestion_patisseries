@@ -99,6 +99,18 @@
 </div>
 {% endif %}
 
+{% if absence_commercial %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-person-dash-fill"></i>
+  <div>
+    <strong>{{ absence_commercial.user.get_full_name|default:absence_commercial.user.username }}</strong> est
+    enregistré absent ce jour{% if absence_commercial.motif %} ({{ absence_commercial.motif }}){% endif %}. Ce jour
+    ne comptera pas comme « manqué » dans le rapport d'adhérence, sauf s'il est couvert par une livraison, un
+    compte-rendu, ou un collègue.
+  </div>
+</div>
+{% endif %}
+
 {# ── Section 3 : liste des clients à visiter ──────────────────────────────── #}
 <div class="card border-0 shadow-sm">
   <div class="card-body p-0">

@@ -12,7 +12,9 @@ from django.db.models import Count, Max, Min, Q, Sum
 
 from core.models import JourNonOuvre
 
-from .models import JOUR_SEMAINE_CHOICES, Agenda, BonLivraison, BonLivraisonDetaille, JourVisiteClient
+from .models import (
+    JOUR_SEMAINE_CHOICES, AbsenceCommercial, Agenda, BonLivraison, BonLivraisonDetaille, JourVisiteClient,
+)
 
 TOLERANCE_JOURS = 1
 
@@ -84,11 +86,29 @@ def calculer_adherence_visites(clients_qs, date_debut, date_fin, commercial_id=N
     toute livraison du client compte, quel que soit l'auteur — comportement
     inchangé.
 
+    Si le commercial évalué est enregistré absent (AbsenceCommercial) un jour
+    attendu qui, sans ça, serait resté « manqué » (aucune preuve positive —
+    livraison, tolérance, autre commercial, agenda — ne l'a expliqué), ce jour
+    est marqué « absent » (ni honoré, ni manqué) plutôt que « manqué » : une
+    preuve positive l'emporte toujours sur l'absence déclarée.
+
     Retourne une liste de dicts triés par date puis client :
-    {'client', 'date_attendue', 'jour_semaine', 'statut' ('honoré'/'manqué'/'ignoré'), 'detail', 'bon_livraison'}
+    {'client', 'date_attendue', 'jour_semaine',
+     'statut' ('honoré'/'manqué'/'ignoré'/'absent'), 'detail', 'bon_livraison'}
     """
     marge = timedelta(days=TOLERANCE_JOURS)
     jours_non_ouvres = _jours_non_ouvres_livraison(date_debut - marge, date_fin + marge)
+
+    absences_commercial = set()
+    if commercial_id is not None:
+        for absence in AbsenceCommercial.objects.filter(
+            user_id=commercial_id, date_debut__lte=date_fin, date_fin__gte=date_debut,
+        ):
+            jour = max(absence.date_debut, date_debut)
+            fin_absence = min(absence.date_fin, date_fin)
+            while jour <= fin_absence:
+                absences_commercial.add(jour)
+                jour += timedelta(days=1)
 
     clients = clients_qs.prefetch_related('jours_visite')
     resultats = []
@@ -187,12 +207,26 @@ def calculer_adherence_visites(clients_qs, date_debut, date_fin, commercial_id=N
             encore_restantes = toujours_restantes
 
         # 4) complément agenda (visite réalisée sans bon de livraison)
+        toujours_sans_preuve = []
         for date_attendue in encore_restantes:
             if date_attendue in agenda_realise:
                 lignes_client.append({
                     'client': client, 'date_attendue': date_attendue,
                     'jour_semaine': date_attendue.weekday(),
                     'statut': 'honoré', 'detail': 'Visite réalisée (agenda, sans livraison)',
+                    'bon_livraison': None,
+                })
+            else:
+                toujours_sans_preuve.append(date_attendue)
+
+        # 5) commercial absent ce jour-là → absent (ni honoré, ni manqué) ;
+        # sinon, faute de toute preuve positive, le jour reste manqué
+        for date_attendue in toujours_sans_preuve:
+            if date_attendue in absences_commercial:
+                lignes_client.append({
+                    'client': client, 'date_attendue': date_attendue,
+                    'jour_semaine': date_attendue.weekday(),
+                    'statut': 'absent', 'detail': 'Commercial absent ce jour-là',
                     'bon_livraison': None,
                 })
             else:
@@ -213,16 +247,18 @@ def serie_quotidienne_adherence(lignes, date_debut, date_fin):
     """Regroupe les lignes d'un rapport d'adhérence (déjà évalué pour UN seul
     commercial via `calculer_adherence_visites(..., commercial_id=...)`) par
     date_attendue et calcule le taux d'adhérence du jour (honorés / (honorés +
-    manqués), les « ignorés » étant exclus du calcul comme du dénominateur).
+    manqués), les « ignorés » et « absent » étant exclus du calcul comme du
+    dénominateur).
 
     Retourne une liste de tuples (date, taux) couvrant CHAQUE jour de
     [date_debut, date_fin] — taux est `None` les jours sans aucune visite
     honorée/manquée attendue ce jour-là (jour non prévu pour ce commercial,
-    ou entièrement couvert par un autre commercial), pour que le graphique
-    interrompe la courbe plutôt que d'interpoler à tort sur ces jours."""
+    entièrement couvert par un autre commercial, ou commercial absent), pour
+    que le graphique interrompe la courbe plutôt que d'interpoler à tort sur
+    ces jours."""
     par_jour = {}
     for ligne in lignes:
-        if ligne['statut'] == 'ignoré':
+        if ligne['statut'] in ('ignoré', 'absent'):
             continue
         stats = par_jour.setdefault(ligne['date_attendue'], {'honore': 0, 'total': 0})
         stats['total'] += 1

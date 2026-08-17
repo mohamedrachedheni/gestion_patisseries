@@ -15,11 +15,34 @@
 {% block content %}
 
 <h4 class="mb-4 fw-bold">Détection de clients en dérive</h4>
-<p class="text-muted small mb-4">
-  Comparaison au rythme et au volume habituels de chaque client (calculés sur son propre historique, jamais sur
-  « À visiter après »). Clients avec au moins {{ nb_livraisons_min }} livraisons enregistrées uniquement — pas assez
-  d'historique sinon pour une moyenne significative.
-</p>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <p>
+      Cette page compare chaque client à <strong>son propre historique</strong> afin de détecter rapidement une
+      baisse d'activité.
+    </p>
+    <p class="mb-2">Deux indicateurs sont analysés indépendamment :</p>
+    <ul class="mb-2">
+      <li>
+        <strong>En retard</strong> : si le délai depuis la dernière livraison dépasse <strong>{{ seuil_retard }} fois</strong>
+        le délai habituel entre deux livraisons.
+        <br><em>Exemple : pour un client livré en moyenne tous les 10 jours, une absence de livraison pendant 15 jours
+        déclenche une alerte.</em>
+      </li>
+      <li>
+        <strong>En baisse de volume</strong> : si le montant livré au cours des <strong>{{ fenetre_recente_jours }} derniers
+        jours</strong> est inférieur à <strong>{{ seuil_baisse_pct }} %</strong> du montant attendu, calculé selon le rythme
+        des {{ fenetre_historique_jours }} derniers jours.
+      </li>
+    </ul>
+    <p class="mb-2">Un client peut déclencher <strong>un seul indicateur ou les deux</strong>.</p>
+    <p class="mb-0">
+      Seuls les clients ayant au moins <strong>{{ nb_livraisons_min }} livraisons</strong> sont analysés. En dessous
+      de ce seuil, l'historique est considéré comme insuffisant.
+    </p>
+  </div>
+</div>
 
 {# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm mb-4">

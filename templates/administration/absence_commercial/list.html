@@ -1,0 +1,185 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Absences commerciaux — Administration{% endblock %}
+{% block page_title %}Absences commerciaux{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Absences commerciaux</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<p class="text-muted small mb-4">
+  Une absence déclarée ici n'empêche aucune action technique — elle sert uniquement à ne pas compter un jour comme
+  « manqué » dans le rapport d'adhérence de ce commercial quand aucune preuve de visite n'existe par ailleurs. Pour
+  qu'un collègue puisse couvrir les clients concernés pendant l'absence, ajoutez-le temporairement dans la section
+  « Liste des commerciaux » de la fiche de chaque client, puis retirez-le au retour du titulaire.
+</p>
+
+{# ── Partie 1 : liste des absences enregistrées ───────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-person-dash me-2 text-primary"></i>Absences enregistrées
+  </div>
+  <div class="card-body p-0">
+    {% if absences %}
+    {% comment %}
+      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
+      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
+      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
+    {% endcomment %}
+    {% for a in absences %}
+    <form id="absence-update-{{ a.pk }}" method="post" action="{% url 'administration:absence-commercial-update' a.pk %}"></form>
+    <form id="absence-delete-{{ a.pk }}" method="post" action="{% url 'administration:absence-commercial-delete' a.pk %}"></form>
+    {% endfor %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:180px;">Commercial</th>
+            <th style="min-width:150px;">Date début</th>
+            <th style="min-width:150px;">Date fin</th>
+            <th style="min-width:180px;">Motif</th>
+            <th class="text-center pe-3" style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in absences %}
+          <tr>
+            <td class="ps-3">
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="absence-update-{{ a.pk }}">
+              <select name="user" class="form-select form-select-sm" style="min-width:170px;" form="absence-update-{{ a.pk }}">
+                {% for u in commerciaux_list %}
+                <option value="{{ u.pk }}" {% if a.user_id == u.pk %}selected{% endif %}>
+                  {{ u.get_full_name|default:u.username }}
+                </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="date" name="date_debut" value="{{ a.date_debut|date:'Y-m-d' }}"
+                     class="form-control form-control-sm" form="absence-update-{{ a.pk }}">
+            </td>
+            <td>
+              <input type="date" name="date_fin" value="{{ a.date_fin|date:'Y-m-d' }}"
+                     class="form-control form-control-sm" form="absence-update-{{ a.pk }}">
+            </td>
+            <td>
+              <input type="text" name="motif" value="{{ a.motif|default:'' }}"
+                     class="form-control form-control-sm" style="min-width:170px;" form="absence-update-{{ a.pk }}">
+            </td>
+            <td class="text-center pe-3">
+              <button type="submit" form="absence-update-{{ a.pk }}"
+                      class="btn btn-sm btn-outline-primary" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="absence-delete-{{ a.pk }}">
+              <button type="submit" form="absence-delete-{{ a.pk }}"
+                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
+                      onclick="return confirm('Supprimer cette absence ?');">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+      <small class="text-muted">
+        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        &nbsp;·&nbsp; {{ page_obj.paginator.count }} absence{{ page_obj.paginator.count|pluralize }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+
+          {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% endif %}
+
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-person-dash fs-1 d-block mb-2 opacity-25"></i>
+      Aucune absence enregistrée.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Partie 2 : ajout d'une nouvelle absence ──────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter une absence
+  </div>
+  <div class="card-body">
+    <form method="post" action="{% url 'administration:absence-commercial-create' %}">
+      {% csrf_token %}
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="user" class="form-select">
+            <option value="">— Choisir —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label small mb-1">Date début</label>
+          <input type="date" name="date_debut" value="{{ add_form.date_debut.value|default:'' }}" class="form-control">
+        </div>
+        <div class="col-sm-2">
+          <label class="form-label small mb-1">Date fin</label>
+          <input type="date" name="date_fin" value="{{ add_form.date_fin.value|default:'' }}" class="form-control">
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small mb-1">Motif</label>
+          <input type="text" name="motif" value="{{ add_form.motif.value|default:'' }}" class="form-control"
+                 placeholder="Ex : Maladie, Congé">
+        </div>
+        <div class="col-sm-1">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Column, Layout, Row
 
-from commercial.models import Delegation, Gouvernorat, Zone
+from commercial.models import AbsenceCommercial, Delegation, Gouvernorat, Zone
 from core.models import JourNonOuvre
 
 from .models import Employe, Transfere
@@ -306,3 +306,27 @@ class JourNonOuvreForm(forms.ModelForm):
             'type_jour': forms.Select(attrs={'class': 'form-select'}),
             'concerne_livraison': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+
+class AbsenceCommercialForm(forms.ModelForm):
+    user = UserChoiceField(
+        queryset=User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name'),
+        label='Commercial',
+    )
+
+    class Meta:
+        model = AbsenceCommercial
+        fields = ['user', 'date_debut', 'date_fin', 'motif']
+        widgets = {
+            'date_debut': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'date_fin': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'motif': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        date_debut = cleaned_data.get('date_debut')
+        date_fin = cleaned_data.get('date_fin')
+        if date_debut and date_fin and date_fin < date_debut:
+            self.add_error('date_fin', 'La date de fin doit être postérieure ou égale à la date de début.')
+        return cleaned_data

@@ -28,8 +28,8 @@ from django.views.generic import DetailView, ListView, TemplateView, View
 from xhtml2pdf import pisa
 
 from commercial.models import (
-    Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Client, Delegation, Depense, DepenseDetaille,
-    Gouvernorat, Vente, Zone,
+    AbsenceCommercial, Achat, AchatDetaille, BonLivraison, BonLivraisonDetaille, Client, Delegation, Depense,
+    DepenseDetaille, Gouvernorat, Vente, Zone,
     JOUR_SEMAINE_CHOICES,
 )
 from commercial.services import calculer_adherence_visites, calculer_demande_reference_produits
@@ -46,6 +46,7 @@ from production.services import (
 )
 
 from .forms import (
+    AbsenceCommercialForm,
     DelegationForm,
     EmployeForm,
     GouvernoratForm,
@@ -452,6 +453,84 @@ class JourNonOuvreDeleteView(GroupRequiredMixin, View):
         )
         messages.success(request, f'Jour non ouvré « {libelle} » supprimé avec succès.')
         return redirect('administration:jour-non-ouvre-list')
+
+
+# ─── Absences commerciaux ────────────────────────────────────────────────────
+
+class AbsenceCommercialListView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+    template_name = 'administration/absence_commercial/list.html'
+    PAGINATE_BY = 10
+
+    def get(self, request):
+        qs = AbsenceCommercial.objects.select_related('user').order_by('-date_debut')
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
+
+        return render(request, self.template_name, {
+            'page_obj':           page_obj,
+            'is_paginated':       page_obj.has_other_pages(),
+            'absences':           page_obj.object_list,
+            'add_form':           AbsenceCommercialForm(),
+            'commerciaux_list':   User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name'),
+        })
+
+
+class AbsenceCommercialCreateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request):
+        form = AbsenceCommercialForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:absence-commercial-list')
+
+        absence = form.save()
+        log_audit(
+            AuditAction.CREATE, f'Création absence commercial « {absence} »',
+            table='AbsenceCommercial', record_id=absence.pk, new_value=model_to_dict(absence),
+        )
+        messages.success(request, f'Absence « {absence} » ajoutée avec succès.')
+        return redirect('administration:absence-commercial-list')
+
+
+class AbsenceCommercialUpdateView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = get_object_or_404(AbsenceCommercial, pk=pk)
+        avant = model_to_dict(instance)
+        form = AbsenceCommercialForm(request.POST, instance=instance)
+        if not form.is_valid():
+            messages.error(request, _form_errors_text(form))
+            return redirect('administration:absence-commercial-list')
+
+        absence = form.save()
+        log_audit(
+            AuditAction.UPDATE, f'Modification absence commercial « {absence} »',
+            table='AbsenceCommercial', record_id=absence.pk, old_value=avant, new_value=model_to_dict(absence),
+        )
+        messages.success(request, f'Absence « {absence} » modifiée avec succès.')
+        return redirect('administration:absence-commercial-list')
+
+
+class AbsenceCommercialDeleteView(GroupRequiredMixin, View):
+    group_required = 'Administration'
+
+    def post(self, request, pk):
+        instance = AbsenceCommercial.objects.filter(pk=pk).first()
+        if instance is None:
+            messages.info(request, 'Cette absence a déjà été supprimée.')
+            return redirect('administration:absence-commercial-list')
+        libelle = str(instance)
+        avant = model_to_dict(instance)
+        instance.delete()
+        log_audit(
+            AuditAction.DELETE, f'Suppression absence commercial « {libelle} »',
+            table='AbsenceCommercial', record_id=pk, old_value=avant,
+        )
+        messages.success(request, f'Absence « {libelle} » supprimée avec succès.')
+        return redirect('administration:absence-commercial-list')
 
 
 # ─── Employés ───────────────────────────────────────────────────────────────

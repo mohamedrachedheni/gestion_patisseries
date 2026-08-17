@@ -3,7 +3,7 @@ from django.utils.html import format_html
 
 from .models import (
     Gouvernorat, Delegation, Zone,
-    Fournisseur, Client, ClientUser, JourVisiteClient, Agenda,
+    Fournisseur, Client, ClientUser, JourVisiteClient, Agenda, AbsenceCommercial,
     VenteCode, Vente, VenteDetaille,
     HistoriqueStockInitial, HistoriqueStockInitialDetaille,
     BonLivraisonCode, BonLivraison, BonLivraisonDetaille,
@@ -292,6 +292,21 @@ class AgendaAdmin(admin.ModelAdmin):
         }),
         ('Détail', {
             'fields': ('detaille_action_planifier',),
+        }),
+    )
+
+
+@admin.register(AbsenceCommercial)
+class AbsenceCommercialAdmin(admin.ModelAdmin):
+    list_display = ['user', 'date_debut', 'date_fin', 'motif']
+    search_fields = ['user__username', 'user__last_name', 'user__first_name', 'motif']
+    list_filter = ['date_debut']
+    ordering = ['-date_debut']
+    autocomplete_fields = ['user']
+    list_per_page = 25
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'date_debut', 'date_fin', 'motif'),
         }),
     )
 

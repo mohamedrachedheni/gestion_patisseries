@@ -22,6 +22,41 @@
   </a>
 </div>
 
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <p>
+      Cette page compare, pour chaque client, les <strong>jours de visite récurrents</strong> définis sur sa fiche
+      aux <strong>bons de livraison réellement enregistrés</strong> sur la période choisie.
+    </p>
+    <p class="mb-2">Pour chaque jour attendu, un statut est déterminé :</p>
+    <ul class="mb-2">
+      <li>
+        <strong>Honoré</strong> : une livraison a eu lieu le jour même, ou à {{ tolerance_jours }} jour près (une
+        livraison ne peut valider qu'un seul jour attendu, jamais deux) — ou une visite a été notée réalisée dans
+        l'Agenda même sans livraison.
+      </li>
+      <li>
+        <strong>Manqué</strong> : aucune livraison ni visite enregistrée pour ce jour attendu.
+      </li>
+      <li>
+        <strong>Ignoré</strong> : uniquement quand un commercial précis est filtré — le client a bien été livré ce
+        jour-là, mais par un <strong>autre</strong> commercial (client partagé). Ce jour n'est alors compté ni comme
+        honoré, ni comme manqué pour le commercial affiché.
+      </li>
+      <li>
+        <strong>Absent</strong> : uniquement quand un commercial précis est filtré — ce jour ne peut être expliqué
+        ni par une livraison, ni par un compte-rendu, ni par un collègue, mais le commercial était enregistré absent
+        (congé, maladie...) — le jour n'est alors compté ni comme honoré, ni comme manqué.
+      </li>
+    </ul>
+    <p class="mb-0">
+      Les jours fériés/fermetures (jours non ouvrés) sont exclus du planning attendu, et le
+      <strong>taux d'adhérence</strong> ne porte que sur les jours honorés et manqués — les jours ignorés et absents
+      n'y entrent pas.
+    </p>
+  </div>
+</div>
+
 {# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
@@ -68,7 +103,7 @@
 
 {# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
 <div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-3">
         <div class="fs-4 fw-bold text-success">{{ nb_honorees }}</div>
@@ -76,7 +111,7 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-3">
         <div class="fs-4 fw-bold text-danger">{{ nb_manquees }}</div>
@@ -84,7 +119,7 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-3">
         <div class="fs-4 fw-bold text-secondary">{{ nb_ignorees }}</div>
@@ -93,12 +128,21 @@
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center py-3">
+        <div class="fs-4 fw-bold text-secondary">{{ nb_absentes }}</div>
+        <div class="text-muted small">Absents</div>
+        <div class="text-muted" style="font-size:.7rem;">(commercial en congé/absence)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body text-center py-3">
         <div class="fs-4 fw-bold">{{ taux_adherence|default_if_none:'—' }}{% if taux_adherence is not None %}%{% endif %}</div>
         <div class="text-muted small">Taux d'adhérence</div>
-        <div class="text-muted" style="font-size:.7rem;">(hors ignorés)</div>
+        <div class="text-muted" style="font-size:.7rem;">(hors ignorés/absents)</div>
       </div>
     </div>
   </div>
@@ -132,6 +176,8 @@
               <span class="badge text-bg-success">Honoré</span>
               {% elif l.statut == 'ignoré' %}
               <span class="badge text-bg-secondary">Ignoré</span>
+              {% elif l.statut == 'absent' %}
+              <span class="badge text-bg-secondary">Absent</span>
               {% else %}
               <span class="badge text-bg-danger">Manqué</span>
               {% endif %}
