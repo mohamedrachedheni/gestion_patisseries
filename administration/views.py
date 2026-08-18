@@ -2116,7 +2116,7 @@ def _construire_lignes_chiffre_affaire_produit(date_debut, date_fin):
             if total_chiffre_affaire else None
         )
         l['part_benefice'] = (
-            (l['benefice'] / total_benefice_brut * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            (l['benefice'] / abs(total_benefice_brut) * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             if l['benefice'] is not None and total_benefice_brut else None
         )
 

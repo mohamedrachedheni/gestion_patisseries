@@ -91,12 +91,12 @@
         <thead class="table-light">
           <tr>
             {% if is_administration %}
-            <th class="ps-3">Commercial</th>
+            <th class="ps-3" style="min-width:170px;">Commercial</th>
             {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %}>Client</th>
-            <th>Action planifiée</th>
-            <th>Échéance</th>
-            <th>Statut</th>
+            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:190px;">Client</th>
+            <th style="min-width:260px;">Action planifiée</th>
+            <th style="min-width:150px;">Échéance</th>
+            <th style="min-width:160px;">Statut</th>
             <th class="text-center pe-3" style="width:110px">Actions</th>
           </tr>
         </thead>

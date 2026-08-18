@@ -16,6 +16,7 @@
     /* ── Variables ────────────────────────────────────── */
     :root {
       --sidebar-width: 240px;
+      --sidebar-width-collapsed: 68px;
       --sidebar-bg:    #1a1d23;
       --sidebar-hover: rgba(255,255,255,.07);
       --sidebar-active:#2c7be5;
@@ -33,12 +34,27 @@
       flex-direction: column;
       overflow-y: auto;
       z-index: 1000;
-      transition: transform .25s ease;
+      transition: transform .25s ease, width .2s ease;
     }
     .sidebar-brand {
       padding: 1rem 1.25rem;
       border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
     }
+    .sidebar-collapse-btn {
+      background: transparent;
+      border: 0;
+      color: rgba(255,255,255,.5);
+      padding: .25rem .4rem;
+      border-radius: .35rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .sidebar-collapse-btn:hover { background: var(--sidebar-hover); color: #fff; }
+    .sidebar-collapse-btn i { transition: transform .2s ease; }
     .sidebar-brand .app-name {
       font-size: .7rem;
       letter-spacing: .08em;
@@ -109,6 +125,37 @@
       display: flex;
       flex-direction: column;
       background: #f5f6fa;
+      transition: margin-left .2s ease;
+    }
+
+    /* ── Sidebar réduit (desktop uniquement — pas de conflit avec le mode
+       hors-canevas mobile, géré séparément par .show) ──────────────────── */
+    @media (min-width: 992px) {
+      body.sidebar-collapsed #sidebar { width: var(--sidebar-width-collapsed); }
+      body.sidebar-collapsed #wrapper { margin-left: var(--sidebar-width-collapsed); }
+      body.sidebar-collapsed .sidebar-brand .app-name,
+      body.sidebar-collapsed .sidebar-brand .brand-title,
+      body.sidebar-collapsed .sidebar-section,
+      body.sidebar-collapsed .sidebar-user .user-info {
+        display: none;
+      }
+      body.sidebar-collapsed .sidebar-brand { justify-content: center; }
+      /* Le texte des liens est réduit à une largeur nulle (font-size: 0)
+         plutôt que d'envelopper chaque libellé dans un <span> dédié — les
+         icônes retrouvent explicitement leur taille juste après. */
+      body.sidebar-collapsed .sidebar-nav .nav-link,
+      body.sidebar-collapsed .sidebar-footer .btn {
+        font-size: 0;
+        justify-content: center;
+        gap: 0;
+      }
+      body.sidebar-collapsed .sidebar-nav .nav-link i,
+      body.sidebar-collapsed .sidebar-footer .btn i {
+        font-size: 1.1rem;
+      }
+      body.sidebar-collapsed .sidebar-collapse-btn i {
+        transform: rotate(180deg);
+      }
     }
 
     /* ── Topbar ───────────────────────────────────────── */
@@ -175,10 +222,16 @@
 <aside id="sidebar">
 
   <div class="sidebar-brand">
-    <div class="app-name">{% block sidebar_app_name %}Application{% endblock %}</div>
-    <div class="brand-title">
-      <i class="bi bi-shop me-1"></i>{% block sidebar_brand %}Pâtisseries{% endblock %}
+    <div>
+      <div class="app-name">{% block sidebar_app_name %}Application{% endblock %}</div>
+      <div class="brand-title">
+        <i class="bi bi-shop me-1"></i>{% block sidebar_brand %}Pâtisseries{% endblock %}
+      </div>
     </div>
+    <button type="button" class="sidebar-collapse-btn d-none d-lg-inline-flex"
+            id="sidebarCollapseToggle" title="Réduire le menu" aria-label="Réduire le menu">
+      <i class="bi bi-chevron-double-left"></i>
+    </button>
   </div>
 
   <nav class="sidebar-nav">
@@ -246,6 +299,22 @@
   document.getElementById('sidebarToggle')?.addEventListener('click', () => {
     document.getElementById('sidebar').classList.toggle('show');
   });
+
+  // Réduction du sidebar (desktop) — préférence mémorisée par navigateur,
+  // partagée par les 3 apps puisqu'elles étendent toutes ce même template.
+  (function () {
+    var STORAGE_KEY = 'sidebarCollapsed';
+    var toggleBtn = document.getElementById('sidebarCollapseToggle');
+
+    if (localStorage.getItem(STORAGE_KEY) === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+
+    toggleBtn?.addEventListener('click', function () {
+      var collapsed = document.body.classList.toggle('sidebar-collapsed');
+      localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
+    });
+  })();
 </script>
 
 {% block extra_js %}{% endblock %}
