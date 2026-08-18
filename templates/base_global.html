@@ -39,22 +39,30 @@
     .sidebar-brand {
       padding: 1rem 1.25rem;
       border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    /* Bouton de réduction : positionné sur le BORD de la sidebar (jamais à
+       l'intérieur de son contenu), taille fixe — reste pleinement visible et
+       au même endroit relatif que la sidebar soit réduite ou non, sans jamais
+       se retrouver à l'étroit ni caché. */
+    .sidebar-collapse-btn {
+      position: absolute;
+      top: 1.1rem;
+      right: -14px;
+      width: 28px;
+      height: 28px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: .5rem;
+      justify-content: center;
+      background: var(--sidebar-bg);
+      border: 2px solid rgba(255,255,255,.15);
+      border-radius: 50%;
+      color: rgba(255,255,255,.75);
+      padding: 0;
+      z-index: 1001;
+      transition: background .15s, color .15s;
     }
-    .sidebar-collapse-btn {
-      background: transparent;
-      border: 0;
-      color: rgba(255,255,255,.5);
-      padding: .25rem .4rem;
-      border-radius: .35rem;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-    .sidebar-collapse-btn:hover { background: var(--sidebar-hover); color: #fff; }
-    .sidebar-collapse-btn i { transition: transform .2s ease; }
+    .sidebar-collapse-btn:hover { background: var(--sidebar-active); color: #fff; border-color: var(--sidebar-active); }
+    .sidebar-collapse-btn i { font-size: .75rem; transition: transform .2s ease; }
     .sidebar-brand .app-name {
       font-size: .7rem;
       letter-spacing: .08em;
@@ -139,7 +147,6 @@
       body.sidebar-collapsed .sidebar-user .user-info {
         display: none;
       }
-      body.sidebar-collapsed .sidebar-brand { justify-content: center; }
       /* Le texte des liens est réduit à une largeur nulle (font-size: 0)
          plutôt que d'envelopper chaque libellé dans un <span> dédié — les
          icônes retrouvent explicitement leur taille juste après. */
@@ -221,17 +228,16 @@
 {# ═══════════════════════════════════════════════════════ Sidebar #}
 <aside id="sidebar">
 
+  <button type="button" class="sidebar-collapse-btn d-none d-lg-flex"
+          id="sidebarCollapseToggle" title="Réduire/agrandir le menu" aria-label="Réduire/agrandir le menu">
+    <i class="bi bi-chevron-double-left"></i>
+  </button>
+
   <div class="sidebar-brand">
-    <div>
-      <div class="app-name">{% block sidebar_app_name %}Application{% endblock %}</div>
-      <div class="brand-title">
-        <i class="bi bi-shop me-1"></i>{% block sidebar_brand %}Pâtisseries{% endblock %}
-      </div>
+    <div class="app-name">{% block sidebar_app_name %}Application{% endblock %}</div>
+    <div class="brand-title">
+      <i class="bi bi-shop me-1"></i>{% block sidebar_brand %}Pâtisseries{% endblock %}
     </div>
-    <button type="button" class="sidebar-collapse-btn d-none d-lg-inline-flex"
-            id="sidebarCollapseToggle" title="Réduire le menu" aria-label="Réduire le menu">
-      <i class="bi bi-chevron-double-left"></i>
-    </button>
   </div>
 
   <nav class="sidebar-nav">
