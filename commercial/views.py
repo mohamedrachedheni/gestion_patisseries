@@ -432,27 +432,55 @@ class ClientListView(GroupRequiredMixin, View):
     PAGINATE_BY = 8
 
     def get(self, request):
-        q = request.GET.get('q', '').strip()
+        is_admin = _is_administration(request.user)
+        client_id = request.GET.get('client_id', '').strip()
+        zone_id = request.GET.get('zone_id', '').strip()
+        # Filtre Commercial réservé à l'Administration : un utilisateur
+        # Commercial ne voit déjà que ses propres clients (voir base_qs).
+        commercial_id = request.GET.get('commercial_id', '').strip() if is_admin else ''
 
-        qs = _client_queryset_for_user(request.user).select_related(
-            'zone__delegation__gouvernorat',
-        ).distinct()
-        if q:
-            qs = qs.filter(
-                Q(raison_sociale__icontains=q) |
-                Q(nom_client__icontains=q) |
-                Q(telephone__icontains=q)
-            )
+        base_qs = _client_queryset_for_user(request.user)
+
+        qs = base_qs.select_related('zone__delegation__gouvernorat').distinct()
+        if commercial_id:
+            qs = qs.filter(client_users__user_id=commercial_id)
+        if zone_id:
+            qs = qs.filter(zone_id=zone_id)
+        if client_id:
+            qs = qs.filter(pk=client_id)
         qs = qs.order_by('zone__nom', 'raison_sociale')
 
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
 
+        # Options des listes déroulantes — cohérentes entre elles (Zone et
+        # Commercial restreignent aussi la liste « Raison sociale ») et déjà
+        # bornées à la portée de l'utilisateur (base_qs).
+        clients_options_qs = base_qs
+        zones_options_qs = Zone.objects.filter(clients__in=base_qs)
+        if commercial_id:
+            clients_options_qs = clients_options_qs.filter(client_users__user_id=commercial_id)
+            zones_options_qs = zones_options_qs.filter(clients__client_users__user_id=commercial_id)
+        if zone_id:
+            clients_options_qs = clients_options_qs.filter(zone_id=zone_id)
+
+        commerciaux_list = None
+        if is_admin:
+            commerciaux_list = User.objects.filter(
+                groups__name='Commercial', is_active=True,
+            ).order_by('last_name', 'first_name')
+
         return render(request, self.template_name, {
             'page_obj':     page_obj,
             'is_paginated': page_obj.has_other_pages(),
             'clients':      page_obj.object_list,
-            'q':            q,
+            'is_administration':     is_admin,
+            'clients_options':       clients_options_qs.order_by('raison_sociale').distinct(),
+            'zones_options':         zones_options_qs.order_by('nom').distinct(),
+            'commerciaux_list':      commerciaux_list,
+            'selected_client_id':     client_id,
+            'selected_zone_id':       zone_id,
+            'selected_commercial_id': commercial_id,
         })
 
 

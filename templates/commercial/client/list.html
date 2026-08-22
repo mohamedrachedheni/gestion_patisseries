@@ -23,17 +23,54 @@
 {# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
-    <form method="get" class="d-flex gap-2">
-      <input type="text" name="q" value="{{ q }}" class="form-control"
-             placeholder="Rechercher par raison sociale, nom, téléphone…">
-      <button type="submit" class="btn btn-outline-primary px-3">
-        <i class="bi bi-search"></i>
-      </button>
-      {% if q %}
-      <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary px-3">
-        <i class="bi bi-x-lg"></i>
-      </a>
-      {% endif %}
+    <form method="get" id="filter-form">
+      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+
+        <div style="width:240px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Raison sociale</label>
+          <select name="client_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les clients —</option>
+            {% for c in clients_options %}
+            <option value="{{ c.pk }}" {% if selected_client_id == c.pk|stringformat:"s" %}selected{% endif %}>
+              {{ c.raison_sociale|default:c.nom_client }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="width:200px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Zone</label>
+          <select name="zone_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Toutes les zones —</option>
+            {% for z in zones_options %}
+            <option value="{{ z.pk }}" {% if selected_zone_id == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if is_administration %}
+        <div style="width:220px;flex:0 0 auto;">
+          <label class="form-label small mb-1">Commercial</label>
+          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
+            <option value="">— Tous les commerciaux —</option>
+            {% for u in commerciaux_list %}
+            <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        {% if selected_client_id or selected_zone_id or selected_commercial_id %}
+        <div style="flex:0 0 auto;">
+          <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
+            <i class="bi bi-x-circle"></i> Réinitialiser
+          </a>
+        </div>
+        {% endif %}
+
+      </div>
     </form>
   </div>
 </div>
@@ -97,7 +134,7 @@
         <ul class="pagination pagination-sm mb-0">
           {% if page_obj.has_previous %}
           <li class="page-item">
-            <a class="page-link" href="?{% if q %}q={{ q }}&{% endif %}page={{ page_obj.previous_page_number }}">
+            <a class="page-link" href="?{% if selected_client_id %}client_id={{ selected_client_id }}&{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id }}&{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id }}&{% endif %}page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -107,13 +144,13 @@
             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
-              <a class="page-link" href="?{% if q %}q={{ q }}&{% endif %}page={{ num }}">{{ num }}</a>
+              <a class="page-link" href="?{% if selected_client_id %}client_id={{ selected_client_id }}&{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id }}&{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id }}&{% endif %}page={{ num }}">{{ num }}</a>
             </li>
             {% endif %}
           {% endfor %}
           {% if page_obj.has_next %}
           <li class="page-item">
-            <a class="page-link" href="?{% if q %}q={{ q }}&{% endif %}page={{ page_obj.next_page_number }}">
+            <a class="page-link" href="?{% if selected_client_id %}client_id={{ selected_client_id }}&{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id }}&{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id }}&{% endif %}page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>
@@ -126,11 +163,11 @@
     {% else %}
     <div class="text-center py-5 text-muted">
       <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
-      {% if q %}
-        Aucun résultat pour <strong>« {{ q }} »</strong>.
+      {% if selected_client_id or selected_zone_id or selected_commercial_id %}
+        Aucun client ne correspond aux filtres sélectionnés.
         <br>
         <a href="{% url 'commercial:client-list' %}" class="mt-2 d-inline-block">
-          Effacer la recherche
+          Réinitialiser les filtres
         </a>
       {% else %}
         Aucun client enregistré.
@@ -139,4 +176,17 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+  el.addEventListener('change', function () {
+    var form = this.closest('form');
+    var pageInput = form.querySelector('[name="page"]');
+    if (pageInput) pageInput.remove();
+    form.submit();
+  });
+});
+</script>
 {% endblock %}

@@ -326,6 +326,7 @@
   var PRODUITS = {{ produits_json|safe }};
   var SELECTED_CLIENT_ID = "{{ selected_client_id }}";
   var PRESERVED_LIGNES = {{ preserved_lignes_json|safe }};
+  var IS_ADMINISTRATION = {{ is_administration|yesno:"true,false" }};
   var NUMERO_URL = "{% url 'commercial:bon-livraison-numero-suivant' %}";
   var DEFAULTS_URL = "{% url 'commercial:bon-livraison-defaults' %}";
 
@@ -345,6 +346,13 @@
   var totalAcompteInput    = document.getElementById('bl-total-acompte');
   var resteInput           = document.getElementById('bl-reste');
   var statutInput          = document.getElementById('bl-statut');
+
+  // Le bouton Enregistrer ne doit être activé que par un clic souris — la
+  // touche Entrée (dans n'importe quel champ, y compris le bouton lui-même
+  // une fois focus par tabulation) ne doit jamais soumettre le formulaire.
+  document.getElementById('bl-create-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); }
+  });
 
   // ── Sections 4/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
   // sélectionné dans la section 1 ────────────────────────────────────────────
@@ -409,10 +417,19 @@
     return commercialEl ? commercialEl.value : '';
   }
 
+  // ── Verrouillage du champ Client tant qu'aucun commercial n'est choisi ────
+  // Un utilisateur Administration doit d'abord choisir un commercial avant de
+  // pouvoir sélectionner un client ; un utilisateur Commercial (champ
+  // Commercial figé sur lui-même) a le champ Client actif dès l'ouverture.
+  function updateCommercialClientLock() {
+    clientSelect.disabled = IS_ADMINISTRATION && !currentCommercialId();
+  }
+
   if (commercialEl && commercialEl.tagName === 'SELECT') {
     commercialEl.addEventListener('change', function () {
       zoneSelect.innerHTML = buildZoneOptions(commercialEl.value, null);
       clientSelect.innerHTML = buildClientOptions(null, commercialEl.value, null);
+      updateCommercialClientLock();
       updateClientDependentVisibility();
       refreshDefaults();
     });
@@ -439,12 +456,16 @@
   }
   zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), initialZoneId);
   clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
+  updateCommercialClientLock();
   updateClientDependentVisibility();
   // Un client déjà présélectionné au chargement (lien direct ?client_id=..., ou
   // ré-affichage après échec de validation) doit aussi déclencher le
   // préremplissage de la section 3 — sinon elle reste vide tant que
-  // l'utilisateur ne retouche pas la zone/le client manuellement.
-  if (SELECTED_CLIENT_ID) { refreshDefaults(); }
+  // l'utilisateur ne retouche pas la zone/le client manuellement. Sauf en cas
+  // de ré-affichage après échec : les lignes préservées (voir plus bas)
+  // remplissent déjà la section 3, un refreshDefaults() les écraserait avec
+  // les produits habituels du client au lieu de ce qui a été saisi.
+  if (SELECTED_CLIENT_ID && !PRESERVED_LIGNES.length) { refreshDefaults(); }
 
   // ── Numéro bon de livraison (recalculé côté serveur à chaque changement de date) ──
   dateInput.addEventListener('change', function () {
@@ -486,7 +507,7 @@
         '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
       '</div>' +
       '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="0">' +
+        '<input type="number" step="1" min="1" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="0">' +
       '</div>' +
       '<div style="width:130px;flex:0 0 auto;">' +
         '<input type="number" step="0.001" min="0" name="detail_prix_unitaire" class="form-control form-control-sm no-spinner prix-input" value="0">' +
@@ -526,8 +547,22 @@
       syncTotal();
     }
 
+    // Quantité modifiée : doit rester strictement positive (repli à 1 à la
+    // sortie du champ si l'utilisateur a saisi 0, négatif ou vidé le champ).
+    function onQteInput() {
+      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) <= 0);
+      syncTotal();
+    }
+    qteInput.addEventListener('input', onQteInput);
+    qteInput.addEventListener('blur', function () {
+      if (num(qteInput) <= 0) {
+        qteInput.value = '1';
+        qteInput.classList.remove('is-invalid');
+        syncTotal();
+      }
+    });
+
     produitSelect.addEventListener('change', autoPrixSurChoixProduit);
-    qteInput.addEventListener('input', syncTotal);
     prixInput.addEventListener('input', syncTotal);
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
@@ -568,22 +603,29 @@
   }
 
   // ── Section 4 : ajouter d'autres produits ─────────────────────────────────
-  // Après un échec de validation, toutes les lignes précédemment saisies
-  // (issues des sections 3 et 4 réunies) sont restituées ici, pour ne rien
-  // perdre — la section 3 reprendra son préremplissage automatique dès que
-  // le client ou la date sera de nouveau modifié.
   document.getElementById('bl-add-extra-row-btn').addEventListener('click', function () {
     addProduitRow(extraRowsContainer, null);
   });
   if (PRESERVED_LIGNES.length) {
-    PRESERVED_LIGNES.forEach(function (ligne) { addProduitRow(extraRowsContainer, ligne); });
-  } else {
-    addProduitRow(extraRowsContainer, null);
+    // Après un échec de validation, toutes les lignes précédemment saisies
+    // (issues des sections 3 et 4 réunies) sont restituées dans la section
+    // « Détail bon de livraison par défaut » — la section « Ajouter d'autres
+    // produits » repart vide, plutôt que de dupliquer l'ensemble des lignes
+    // ici pendant que la section 3 réaffiche (via AJAX) les produits
+    // habituels du client, sans rapport avec ce qui vient d'être saisi.
+    PRESERVED_LIGNES.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
+    section3Card.style.display = '';
   }
+  addProduitRow(extraRowsContainer, null);
 
   // ── Section 5 : récapitulatif paiement ────────────────────────────────────
   function recalcResteEtStatut() {
     var total = num(totalMontantInput);
+    // Le montant payé ne doit jamais dépasser le reste à payer avant
+    // paiement (= le montant total) : on le ramène au total si dépassé.
+    if (num(nouveauAcompteInput) > total) {
+      nouveauAcompteInput.value = total.toFixed(3);
+    }
     var paye  = num(nouveauAcompteInput);
     var reste = round3(total - paye);
 

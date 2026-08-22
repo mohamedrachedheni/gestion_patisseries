@@ -179,8 +179,19 @@ class EmployeForm(forms.ModelForm):
                 format='%Y-%m-%d',
             ),
             'salaire': forms.NumberInput(attrs={'class': 'no-spinner'}),
+            'telephone': forms.TextInput(attrs={
+                'inputmode': 'numeric',
+                'pattern': '[0-9]*',
+                'oninput': "this.value = this.value.replace(/[^0-9]/g, '')",
+            }),
             'observation': forms.Textarea(attrs={'rows': 3}),
         }
+
+    def clean_telephone(self):
+        telephone = self.cleaned_data.get('telephone')
+        if telephone and not telephone.isdigit():
+            raise forms.ValidationError('Le téléphone ne doit contenir que des chiffres.')
+        return telephone
 
     def __init__(self, *args, hide_matricule_service=False, **kwargs):
         super().__init__(*args, **kwargs)
