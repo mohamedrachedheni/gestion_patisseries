@@ -73,8 +73,7 @@ def calculer_adherence_visites(clients_qs, date_debut, date_fin, commercial_id=N
       livraison décalée, le jour le plus ancien est prioritaire.
     - Complément Agenda (statut « Réaliser ») pour capter une visite réalisée
       sans bon de livraison, sans dupliquer l'information dans une table à part.
-    - Un client sans aucun JourVisiteClient est hors périmètre de ce rapport
-      (a_visiter_apres n'est volontairement pas utilisé ici).
+    - Un client sans aucun JourVisiteClient est hors périmètre de ce rapport.
 
     Si `commercial_id` est fourni, l'analyse se place du point de vue de CE
     commercial (cas d'un client rattaché à plusieurs commerciaux) : seules SES
@@ -411,9 +410,8 @@ def detecter_clients_en_derive(
     complémentaires (un client peut déclencher l'un, l'autre, ou les deux) :
 
     1. Retard : intervalle moyen entre deux livraisons calculé sur
-       l'historique complet du client (jamais Client.a_visiter_apres,
-       volontairement écarté). Signalé si le nombre de jours écoulés depuis
-       la dernière livraison dépasse `seuil_retard` fois cet intervalle.
+       l'historique complet du client. Signalé si le nombre de jours écoulés
+       depuis la dernière livraison dépasse `seuil_retard` fois cet intervalle.
     2. Baisse de volume : montant livré sur les `fenetre_recente_jours`
        derniers jours comparé au montant « attendu » proportionnellement à
        la moyenne des `fenetre_historique_jours` derniers jours (qui

@@ -369,9 +369,8 @@ class ClientImpayesDetailPopupView(GroupRequiredMixin, View):
 class ClientDeriveListView(GroupRequiredMixin, View):
     """Détection de clients en dérive — voir commercial/services.py::
     detecter_clients_en_derive : retard par rapport au rythme historique
-    propre du client (jamais Client.a_visiter_apres), et/ou baisse de volume
-    récent par rapport à sa moyenne. Les deux signaux sont indépendants et
-    non exclusifs."""
+    propre du client, et/ou baisse de volume récent par rapport à sa
+    moyenne. Les deux signaux sont indépendants et non exclusifs."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/client/derive_list.html'
     PAGINATE_BY = 15
@@ -546,7 +545,6 @@ class ClientCreateView(GroupRequiredMixin, View):
         telephone = request.POST.get('telephone', '').strip()
         google_mape = request.POST.get('google_mape', '').strip()
         observation = request.POST.get('observation', '').strip()
-        a_visiter_apres_s = request.POST.get('a_visiter_apres', '').strip()
         created_at_s = request.POST.get('created_at', '').strip()
         is_active = ('is_active' in request.POST) if is_admin else True
         photo = request.FILES.get('photo')
@@ -570,7 +568,6 @@ class ClientCreateView(GroupRequiredMixin, View):
                 'telephone': telephone,
                 'google_mape': google_mape,
                 'observation': observation,
-                'a_visiter_apres': a_visiter_apres_s or None,
                 'created_at': created_at_s or None,
                 'is_active': is_active,
             })
@@ -602,13 +599,6 @@ class ClientCreateView(GroupRequiredMixin, View):
         if zone_existante is None and delegation_obj is None:
             return _echec('La délégation sélectionnée est introuvable.')
 
-        a_visiter_apres = None
-        if a_visiter_apres_s:
-            try:
-                a_visiter_apres = int(a_visiter_apres_s)
-            except ValueError:
-                return _echec('Le champ « à visiter après » doit être un nombre entier.')
-
         created_at_val = None
         if created_at_s:
             try:
@@ -630,7 +620,6 @@ class ClientCreateView(GroupRequiredMixin, View):
                     telephone=telephone or None,
                     photo=photo,
                     google_mape=google_mape or None,
-                    a_visiter_apres=a_visiter_apres,
                     observation=observation or None,
                     is_active=is_active,
                     created_at=created_at_val,

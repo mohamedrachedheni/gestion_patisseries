@@ -116,10 +116,6 @@
         <input type="text" value="{{ client.telephone|default:'' }}" class="form-control" disabled>
       </div>
       <div class="col-md-4">
-        <label class="form-label small mb-1">À visiter après (jours)</label>
-        <input type="number" value="{{ client.a_visiter_apres|default_if_none:'' }}" class="form-control no-spinner" disabled>
-      </div>
-      <div class="col-md-4">
         <label class="form-label small mb-1">Date de création</label>
         <input type="date" value="{{ client.created_at|date:'Y-m-d' }}" class="form-control" disabled>
       </div>

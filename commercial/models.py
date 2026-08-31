@@ -120,10 +120,6 @@ class Client(models.Model):
     telephone = models.CharField(max_length=255, null=True, blank=True)
     photo = models.ImageField(upload_to='clients/', null=True, blank=True)
     google_mape = models.TextField(null=True, blank=True, verbose_name='Lien Google Maps')
-    a_visiter_apres = models.PositiveSmallIntegerField(
-        null=True, blank=True,
-        help_text='Nombre de jours avant la prochaine visite',
-    )
     observation = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(null=True, blank=True)

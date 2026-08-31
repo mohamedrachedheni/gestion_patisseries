@@ -254,7 +254,7 @@ class FournisseurAdmin(admin.ModelAdmin):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['nom_client', 'raison_sociale', 'zone', 'telephone', 'is_active', 'a_visiter_apres', 'created_at']
+    list_display = ['nom_client', 'raison_sociale', 'zone', 'telephone', 'is_active', 'created_at']
     search_fields = ['nom_client', 'raison_sociale', 'telephone']
     list_filter = ['is_active', 'zone__delegation__gouvernorat', 'zone__delegation']
     ordering = ['nom_client']
@@ -269,7 +269,7 @@ class ClientAdmin(admin.ModelAdmin):
             'fields': ('adresse', 'zone', 'google_mape'),
         }),
         ('Contact & Visite', {
-            'fields': ('telephone', 'a_visiter_apres'),
+            'fields': ('telephone',),
         }),
         ('Remarques', {
             'fields': ('observation',),

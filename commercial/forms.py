@@ -8,7 +8,7 @@ class ClientForm(forms.ModelForm):
         model = Client
         fields = [
             'raison_sociale', 'nom_client', 'adresse', 'zone', 'telephone',
-            'photo', 'google_mape', 'a_visiter_apres', 'observation',
+            'photo', 'google_mape', 'observation',
             'is_active', 'created_at',
         ]
         widgets = {
@@ -24,7 +24,6 @@ class ClientForm(forms.ModelForm):
                 'pattern': '[0-9]*',
                 'oninput': "this.value = this.value.replace(/[^0-9]/g, '')",
             }),
-            'a_visiter_apres': forms.NumberInput(attrs={'class': 'form-control no-spinner'}),
             'zone': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
