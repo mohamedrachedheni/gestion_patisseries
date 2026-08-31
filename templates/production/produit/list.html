@@ -72,7 +72,7 @@
             <th class="text-end">Stock</th>
             <th class="text-end">Quantité minimale</th>
             <th class="text-end">Prix unitaire (TND)</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
+            <th class="text-center pe-3" style="width:140px">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -101,6 +101,10 @@
               <a href="{% url 'production:produit-update' p.pk %}"
                  class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
                 <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'production:produit-delete' p.pk %}"
+                 class="btn btn-sm btn-outline-danger ms-1" title="Supprimer">
+                <i class="bi bi-trash"></i>
               </a>
             </td>
           </tr>

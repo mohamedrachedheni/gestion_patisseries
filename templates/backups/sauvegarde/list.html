@@ -79,6 +79,7 @@
             <th class="text-end">Taille</th>
             <th>Date de création</th>
             <th class="text-center">Réussie</th>
+            <th>Observation</th>
             <th class="text-center pe-3" style="width:160px">Actions</th>
           </tr>
         </thead>
@@ -96,6 +97,9 @@
             <td class="text-center">
               {% if s.reussie %}<span class="badge bg-success">Oui</span>
               {% else %}<span class="badge bg-danger" title="{{ s.message_erreur|default:'' }}">Non</span>{% endif %}
+            </td>
+            <td class="text-truncate" style="max-width:220px;" title="{{ s.observation|default:'' }}">
+              {{ s.observation|default:'' }}
             </td>
             <td class="text-center pe-3">
               <div class="d-flex justify-content-center gap-1">

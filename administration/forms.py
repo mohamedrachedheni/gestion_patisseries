@@ -43,6 +43,7 @@ class UserCreateForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
+        self.fields['email'].required = True
         # UserCreationForm met « autofocus » en dur sur username — on le
         # retire pour respecter l'ordre visuel du formulaire (Prénom en premier).
         del self.fields['username'].widget.attrs['autofocus']
@@ -111,6 +112,7 @@ class UserUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
+        self.fields['email'].required = True
         # Pré-remplir les champs supplémentaires depuis l'instance
         if self.instance.pk:
             self.fields['is_staff'].initial = self.instance.is_staff
