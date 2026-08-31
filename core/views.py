@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from django.contrib import messages
@@ -24,6 +25,29 @@ from .services import (
 
 SESSION_PENDING_USER = 'connexion_2fa_user_id'
 SESSION_DERNIER_ENVOI = 'connexion_2fa_dernier_envoi'
+
+technical_logger = logging.getLogger('app.technical')
+
+MESSAGE_ECHEC_ENVOI = (
+    "Impossible d'envoyer le code de connexion pour le moment "
+    '(problème technique côté serveur mail). Réessayez dans quelques instants '
+    'ou contactez un administrateur si le problème persiste.'
+)
+
+
+def _envoyer_code_ou_echec(user):
+    """Génère et envoie le code de connexion ; retourne (code_connexion, None)
+    en cas de succès, ou (None, message_erreur) si l'envoi échoue — un email
+    SMTP indisponible ne doit jamais faire planter la page de connexion."""
+    try:
+        code_connexion = generer_code_connexion(user)
+        envoyer_code_connexion(user, code_connexion)
+    except Exception:
+        technical_logger.exception(
+            "Échec d'envoi du code de connexion à « %s »", user.get_username(),
+        )
+        return None, MESSAGE_ECHEC_ENVOI
+    return code_connexion, None
 
 
 class CustomLoginView(LoginView):
@@ -70,8 +94,11 @@ class CustomLoginView(LoginView):
             )
             return self.render_to_response(self.get_context_data(form=form))
 
-        code_connexion = generer_code_connexion(user)
-        envoyer_code_connexion(user, code_connexion)
+        _code_connexion, erreur = _envoyer_code_ou_echec(user)
+        if erreur:
+            messages.error(self.request, erreur)
+            return self.render_to_response(self.get_context_data(form=form))
+
         self.request.session[SESSION_PENDING_USER] = user.pk
         self.request.session[SESSION_DERNIER_ENVOI] = timezone.now().isoformat()
         return redirect('core:login-code')
@@ -150,8 +177,11 @@ class LoginCodeView(View):
             messages.error(request, 'Veuillez patienter avant de demander un nouveau code.')
             return render(request, self.template_name, contexte)
 
-        code_connexion = generer_code_connexion(user)
-        envoyer_code_connexion(user, code_connexion)
+        _code_connexion, erreur = _envoyer_code_ou_echec(user)
+        if erreur:
+            messages.error(request, erreur)
+            return render(request, self.template_name, contexte)
+
         request.session[SESSION_DERNIER_ENVOI] = timezone.now().isoformat()
         messages.success(request, 'Un nouveau code vous a été envoyé.')
         return render(request, self.template_name, contexte)
