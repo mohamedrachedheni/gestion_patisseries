@@ -12,6 +12,7 @@ temporaire, supprimé immédiatement après l'exécution.
 """
 import base64
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
@@ -20,7 +21,12 @@ from dataclasses import dataclass
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.db.models import Q
 from django.utils import timezone
+
+technical_logger = logging.getLogger('app.technical')
 
 # Dossiers usuels où chercher mysqldump/mysql si absents du PATH (ex: XAMPP
 # sur Windows, qui n'ajoute jamais son MySQL au PATH système par défaut).
@@ -194,3 +200,43 @@ def executer_restauration(sauvegarde):
         erreur = processus.stderr.decode('utf-8', errors='replace').strip()
         return Resultat(False, erreur or 'Échec de la restauration (code de sortie non nul).')
     return Resultat(True)
+
+
+def emails_administrateurs():
+    """Emails des comptes actifs pouvant gérer les sauvegardes (groupe
+    Administration ou superuser) — destinataires de l'alerte d'échec de la
+    sauvegarde automatique. Les comptes sans email (hérités d'avant que le
+    champ soit rendu obligatoire) sont ignorés."""
+    User = get_user_model()
+    return list(
+        User.objects.filter(is_active=True)
+        .filter(Q(groups__name='Administration') | Q(is_superuser=True))
+        .exclude(email='')
+        .values_list('email', flat=True)
+        .distinct()
+    )
+
+
+def envoyer_alerte_echec_sauvegarde(nom, erreur):
+    """Alerte les administrateurs par email quand la sauvegarde automatique
+    quotidienne échoue — sans ça, un échec silencieux (mysqldump absent,
+    disque plein...) peut passer inaperçu pendant des jours puisque personne
+    ne consulte forcément la page Sauvegardes tous les jours."""
+    destinataires = emails_administrateurs()
+    if not destinataires:
+        return
+    try:
+        send_mail(
+            subject=f'Échec de la sauvegarde automatique « {nom} »',
+            message=(
+                "La sauvegarde automatique quotidienne de la base de données a échoué.\n\n"
+                f'Nom : {nom}\n'
+                f'Erreur : {erreur}\n\n'
+                'Vérifiez la page Sauvegardes de l\'administration dès que possible.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=destinataires,
+            fail_silently=False,
+        )
+    except Exception:
+        technical_logger.exception("Échec d'envoi de l'alerte de sauvegarde automatique « %s »", nom)
