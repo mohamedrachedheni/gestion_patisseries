@@ -50,7 +50,14 @@
         <div style="width:180px;flex:0 0 auto;">
           <label class="form-label small mb-1">Date de mise à jour</label>
           <input type="date" id="hsi-date-input" name="stock_initial_at" value="{{ stock_initial_at }}" max="{{ today }}"
+                 {% if derniere_date_maj %}min="{{ derniere_date_maj }}"{% endif %}
                  class="form-control form-control-sm">
+        </div>
+
+        <div id="hsi-derniere-date-wrapper" style="width:180px;flex:0 0 auto;{% if not derniere_date_maj %}display:none;{% endif %}">
+          <label class="form-label small mb-1">Dernière date de mise à jour</label>
+          <input type="date" id="hsi-derniere-date-input" value="{{ derniere_date_maj }}"
+                 class="form-control form-control-sm" disabled>
         </div>
 
       </div>
@@ -126,12 +133,30 @@
   var DEFAULTS_URL = "{% url 'commercial:historique-stock-initial-defaults' %}";
   var PAGE_SIZE = 8;
 
-  var commercialEl      = document.getElementById('hsi-commercial-select');
-  var dateInput          = document.getElementById('hsi-date-input');
+  var commercialEl        = document.getElementById('hsi-commercial-select');
+  var dateInput            = document.getElementById('hsi-date-input');
+  var derniereDateWrapper = document.getElementById('hsi-derniere-date-wrapper');
+  var derniereDateInput   = document.getElementById('hsi-derniere-date-input');
   var section2Rows       = document.getElementById('hsi-section2-rows');
   var section2Pager      = document.getElementById('hsi-section2-pagination');
   var section3Rows       = document.getElementById('hsi-section3-rows');
   var section2Page       = 1;
+
+  // ── Champ « Dernière date de mise à jour » : visible uniquement si le
+  // commercial sélectionné a un enregistrement HistoriqueStockInitial ; sert
+  // aussi de borne min (HTML5) pour « Date de mise à jour » dans ce cas —
+  // sinon aucune contrainte de date minimale.
+  function updateDerniereDateMaj(derniereDate) {
+    if (derniereDate) {
+      derniereDateInput.value = derniereDate;
+      derniereDateWrapper.style.display = '';
+      dateInput.min = derniereDate;
+    } else {
+      derniereDateInput.value = '';
+      derniereDateWrapper.style.display = 'none';
+      dateInput.removeAttribute('min');
+    }
+  }
 
   function num(el) {
     var v = parseFloat(el.value);
@@ -216,7 +241,13 @@
 
     rows.forEach(function (row, idx) {
       var page = Math.floor(idx / PAGE_SIZE) + 1;
-      row.style.display = (page === section2Page) ? '' : 'none';
+      var visible = page === section2Page;
+      // Bootstrap's .d-flex est marquée !important : une simple bascule de
+      // style.display='none' ne peut pas la surclasser (la ligne resterait
+      // visible sur toutes les pages). On retire donc la classe .d-flex à la
+      // place, pour que .d-none (également !important) fasse foi seule.
+      row.classList.toggle('d-flex', visible);
+      row.classList.toggle('d-none', !visible);
     });
 
     var ul = section2Pager.querySelector('ul');
@@ -262,6 +293,7 @@
     if (!commercialId) {
       section2Rows.innerHTML =
         '<div class="text-muted small py-2">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div>';
+      updateDerniereDateMaj(null);
       renderSection2Pagination();
       return;
     }
@@ -269,6 +301,7 @@
     var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
       '&stock_initial_at=' + encodeURIComponent(dateInput.value);
     fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      updateDerniereDateMaj(data.derniere_date_maj);
       var lignes = data.lignes || [];
       if (!lignes.length) {
         section2Rows.innerHTML =

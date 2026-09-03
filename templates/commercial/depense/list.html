@@ -99,12 +99,12 @@
             <th class="ps-3" style="min-width:180px;">Employé</th>
             {% endif %}
             <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:130px;">Date</th>
-            <th style="min-width:130px;">Numéro</th>
+            <th style="min-width:90px;">Numéro</th>
             <th style="min-width:200px;">Fournisseur</th>
             <th class="text-end" style="min-width:140px;">Montant (TND)</th>
             <th class="text-end" style="min-width:150px;">Reste à payer (TND)</th>
             <th style="min-width:170px;">Statut</th>
-            <th class="text-center pe-3" style="min-width:120px;width:120px">Actions</th>
+            <th class="text-center pe-3" style="min-width:160px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -121,7 +121,7 @@
                      value="{{ d.depense_code.depense_at|date:'Y-m-d' }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:110px;"
+              <input type="text" class="form-control form-control-sm" style="min-width:90px;"
                      value="{{ d.depense_code.depense_numero }}" disabled>
             </td>
             <td>
@@ -150,8 +150,11 @@
                 {% endfor %}
               </select>
             </td>
-            <td class="text-center pe-3">
-              <a href="{% url 'commercial:depense-update' d.pk %}" class="btn btn-sm btn-outline-primary" title="Modifier">
+            <td class="text-center pe-3 text-nowrap">
+              <a href="{% url 'commercial:depense-detail' d.pk %}" class="btn btn-sm btn-outline-secondary" title="Visualiser">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{% url 'commercial:depense-update' d.pk %}" class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
                 <i class="bi bi-pencil"></i>
               </a>
               <form method="post" action="{% url 'commercial:depense-delete' d.pk %}" class="d-inline">

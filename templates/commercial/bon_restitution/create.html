@@ -218,7 +218,13 @@
 
     rows.forEach(function (row, idx) {
       var page = Math.floor(idx / PAGE_SIZE) + 1;
-      row.style.display = (page === section2Page) ? '' : 'none';
+      var visible = page === section2Page;
+      // Bootstrap's .d-flex est marquée !important : une simple bascule de
+      // style.display='none' ne peut pas la surclasser (la ligne resterait
+      // visible sur toutes les pages). On retire donc la classe .d-flex à la
+      // place, pour que .d-none (également !important) fasse foi seule.
+      row.classList.toggle('d-flex', visible);
+      row.classList.toggle('d-none', !visible);
     });
 
     var ul = section2Pager.querySelector('ul');

@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends "administration/base.html" %}
 
 {% block title %}Courbes d'adhérence — Commercial{% endblock %}
 {% block page_title %}Courbes d'adhérence{% endblock %}
@@ -6,7 +6,7 @@
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:client-adherence-visites' %}">Adhérence visites</a></li>
     <li class="breadcrumb-item active">Courbes</li>
   </ol>

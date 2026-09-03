@@ -83,6 +83,7 @@ urlpatterns = [
     path('achats/',                        views.AchatListView.as_view(),          name='achat-list'),
     path('achats/nouveau/',                views.AchatCreateView.as_view(),        name='achat-create'),
     path('achats/numero-suivant/',         views.AchatNumeroSuivantView.as_view(), name='achat-numero-suivant'),
+    path('achats/<hashid:pk>/',            views.AchatDetailView.as_view(),        name='achat-detail'),
     path('achats/<hashid:pk>/supprimer/',  views.AchatDeleteView.as_view(),        name='achat-delete'),
     path('achats/<hashid:pk>/modifier/',   views.AchatUpdateView.as_view(),        name='achat-update'),
 
@@ -90,6 +91,7 @@ urlpatterns = [
     path('depenses/',                        views.DepenseListView.as_view(),          name='depense-list'),
     path('depenses/nouveau/',                views.DepenseCreateView.as_view(),        name='depense-create'),
     path('depenses/numero-suivant/',         views.DepenseNumeroSuivantView.as_view(), name='depense-numero-suivant'),
+    path('depenses/<hashid:pk>/',            views.DepenseDetailView.as_view(),        name='depense-detail'),
     path('depenses/<hashid:pk>/modifier/',   views.DepenseUpdateView.as_view(),        name='depense-update'),
     path('depenses/<hashid:pk>/supprimer/',  views.DepenseDeleteView.as_view(),        name='depense-delete'),
 

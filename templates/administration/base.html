@@ -41,6 +41,10 @@
      class="nav-link {% if 'derive' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-graph-down-arrow"></i> Clients en dérive
   </a>
+  <a href="{% url 'commercial:client-adherence-graphique' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'client-adherence-graphique' %}active{% endif %}">
+    <i class="bi bi-graph-up"></i> Courbes d'adhérence
+  </a>
   <a href="{% url 'administration:tableau-bord-commerciaux-list' %}"
      class="nav-link {% if 'tableau-bord-commerciaux' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-bar-chart-steps"></i> Tableau de bord commerciaux

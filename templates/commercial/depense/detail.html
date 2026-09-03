@@ -1,0 +1,146 @@
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
+
+{% block title %}Visualiser {{ depense_code }} — Commercial{% endblock %}
+{% block page_title %}Détail de la dépense{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'commercial:depense-list' %}">Dépenses</a></li>
+    <li class="breadcrumb-item active">Visualiser {{ depense_code }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+{# ══ Section 1 : informations de la dépense (lecture seule) ══════════════ #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-cash-stack me-2 text-primary"></i>Information de la dépense
+  </div>
+  <div class="card-body">
+
+    <div class="overflow-auto">
+    {# ── Ligne 1 ────────────────────────────────────────────────────── #}
+    <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
+      <div style="width:200px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Employé</label>
+        <input type="text" value="{{ depense.user.get_full_name|default:depense.user.username }}"
+               class="form-control form-control-sm" disabled>
+      </div>
+
+      <div style="width:150px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Date dépense</label>
+        <input type="date" value="{{ depense_code.depense_at|date:'Y-m-d' }}" class="form-control form-control-sm" disabled>
+      </div>
+
+      <div style="width:220px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Fournisseur</label>
+        <input type="text" value="{{ depense_code.fournisseur|default:'' }}" class="form-control form-control-sm" disabled>
+      </div>
+
+      <div style="width:140px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Montant payé</label>
+        <input type="number" step="0.001" value="{{ depense.nouveau_acompte|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner" disabled>
+      </div>
+
+      <div style="width:150px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Mode paiement</label>
+        <input type="text" value="{{ depense.mode_paiement }}" class="form-control form-control-sm" disabled>
+      </div>
+
+      <div style="flex:1 1 auto;min-width:200px;">
+        <label class="form-label small mb-1">Observation</label>
+        <input type="text" value="{{ depense.observation|default:'' }}" class="form-control form-control-sm" disabled>
+      </div>
+    </div>
+
+    {# ── Ligne 2 ────────────────────────────────────────────────────── #}
+    <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
+      <div style="width:150px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Numéro dépense</label>
+        <input type="text" value="{{ depense_code.depense_numero }}" class="form-control form-control-sm" disabled>
+      </div>
+
+      <div style="width:150px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Montant total</label>
+        <input type="number" step="0.001" value="{{ depense.total_montant|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+      </div>
+
+      <div style="width:150px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Total acompte</label>
+        <input type="number" step="0.001" value="{{ depense.total_acompte|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
+      </div>
+
+      <div style="width:150px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Reste à payer</label>
+        <input type="number" step="0.001" value="{{ depense.reste_a_payer|stringformat:'s' }}"
+               class="form-control form-control-sm no-spinner text-end font-monospace {% if depense.reste_a_payer < 0 %}text-danger{% endif %}"
+               disabled>
+      </div>
+
+      <div style="width:180px;flex:0 0 auto;">
+        <label class="form-label small mb-1">Statut paiement</label>
+        <input type="text" value="{{ depense.statut }}" class="form-control form-control-sm" disabled>
+      </div>
+    </div>
+    </div>
+
+  </div>
+</div>
+
+{# ══ Section 2 : détails de la dépense (lecture seule) ════════════════════ #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-transparent fw-semibold py-3">
+    <i class="bi bi-list-ul me-2 text-primary"></i>Détails de la dépense
+  </div>
+  <div class="card-body p-0">
+    {% if details %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="min-width:220px;">Libellé</th>
+            <th style="min-width:110px;">Quantité</th>
+            <th style="min-width:140px;">Valeur unitaire</th>
+            <th class="pe-3" style="min-width:140px;">Total ligne</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in details %}
+          <tr>
+            <td class="ps-3">
+              <input type="text" class="form-control form-control-sm" value="{{ d.libelle|default:'' }}" disabled>
+            </td>
+            <td style="width:110px;">
+              <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
+            </td>
+            <td style="width:140px;">
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.valeur_unitaire|stringformat:'s' }}" disabled>
+            </td>
+            <td class="pe-3" style="width:140px;">
+              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">Aucun détail pour cette dépense.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="d-flex justify-content-end">
+  <a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
+  </a>
+</div>
+
+{% endblock %}

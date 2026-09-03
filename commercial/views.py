@@ -4394,6 +4394,22 @@ class BonLivraisonNonSoldesPopupView(GroupRequiredMixin, View):
         })
 
 
+def _derniere_date_maj_stock(commercial_id):
+    """Dernier HistoriqueStockInitial.stock_initial_at de ce commercial (le
+    plus récent, toutes dates confondues, sans borne de référence — à la
+    différence du « dernier stock initial <= ref_date » utilisé pour le
+    calcul du Stock calculé), ou None s'il n'a aucun enregistrement."""
+    if not commercial_id or not str(commercial_id).isdigit():
+        return None
+    hist = (
+        HistoriqueStockInitial.objects
+        .filter(user_id=commercial_id)
+        .order_by('-stock_initial_at')
+        .first()
+    )
+    return hist.stock_initial_at if hist else None
+
+
 class HistoriqueStockInitialDefaultsView(GroupRequiredMixin, View):
     """Point d'entrée AJAX utilisé par le template Mise à jour des stocks de
     produits chez le commercial : étant donné un commercial (commercial_id)
@@ -4474,7 +4490,11 @@ class HistoriqueStockInitialDefaultsView(GroupRequiredMixin, View):
             })
         lignes.sort(key=lambda l: l['produit_nom'])
 
-        return JsonResponse({'lignes': lignes})
+        derniere_date_maj = _derniere_date_maj_stock(commercial_id)
+        return JsonResponse({
+            'lignes': lignes,
+            'derniere_date_maj': derniere_date_maj.isoformat() if derniere_date_maj else None,
+        })
 
 
 class HistoriqueStockInitialCreateView(GroupRequiredMixin, View):
@@ -4534,12 +4554,15 @@ class HistoriqueStockInitialCreateView(GroupRequiredMixin, View):
         if commercial_id is None:
             commercial_id = str(request.user.pk) if is_commercial else ''
 
+        derniere_date_maj = _derniere_date_maj_stock(commercial_id)
+
         return {
             'is_commercial':     is_commercial,
             'commercial_id':     commercial_id,
             'commerciaux_list':  commerciaux_list,
             'stock_initial_at':  stock_initial_at or today.isoformat(),
             'today':             today.isoformat(),
+            'derniere_date_maj': derniere_date_maj.isoformat() if derniere_date_maj else '',
             'produits_json':     json.dumps([{'id': p.pk, 'nom': p.nom} for p in produits_list]),
             'detail_rows_json':  detail_rows_json or '[]',
         }
@@ -4582,13 +4605,11 @@ class HistoriqueStockInitialCreateView(GroupRequiredMixin, View):
         if stock_initial_at > date.today():
             return _echec('La date de mise à jour ne peut pas être postérieure à la date du jour.')
 
-        dernier_hist = (
-            HistoriqueStockInitial.objects.filter(user_id=commercial_id).order_by('-stock_initial_at').first()
-        )
-        if dernier_hist is not None and stock_initial_at < dernier_hist.stock_initial_at:
+        derniere_date_maj = _derniere_date_maj_stock(commercial_id)
+        if derniere_date_maj is not None and stock_initial_at < derniere_date_maj:
             return _echec(
                 'La date de mise à jour ne peut pas être antérieure à la dernière mise à jour de stock de ce '
-                f'commercial ({dernier_hist.stock_initial_at.strftime("%d/%m/%Y")}).'
+                f'commercial ({derniere_date_maj.strftime("%d/%m/%Y")}).'
             )
 
         lignes_valides = []
@@ -5320,6 +5341,54 @@ class AchatDeleteView(GroupRequiredMixin, View):
         return redirect('commercial:achat-list')
 
 
+class AchatDetailView(GroupRequiredMixin, View):
+    """Page de visualisation en lecture seule d'un enregistrement Achat —
+    même affichage que AchatDeleteView (informations générales + détails par
+    unité et par pack, paginés) mais sans le formulaire de suppression, et
+    avec en plus le User lié à l'achat (celui de la Transaction caisse liée,
+    table_id=f'Achat_id_{achat.pk}')."""
+    group_required = 'Administration'
+    template_name = 'commercial/achat/detail.html'
+    PAGINATE_DETAILS = 4
+
+    def get(self, request, pk):
+        achat = get_object_or_404(
+            Achat.objects.select_related('achat_code__fournisseur'), pk=pk,
+        )
+        fournisseurs_list = (
+            Fournisseur.objects
+            .filter(type_fournisseur=FOURNISSEUR_TYPE_ACHAT)
+            .order_by('raison_sociale')
+        )
+
+        unite_qs = achat.details.filter(pack=False).select_related('matiere_premiere').order_by('pk')
+        pack_qs  = achat.details.filter(pack=True).select_related('matiere_premiere').order_by('pk')
+
+        unite_paginator = Paginator(unite_qs, self.PAGINATE_DETAILS)
+        pack_paginator  = Paginator(pack_qs, self.PAGINATE_DETAILS)
+        unite_page_obj = unite_paginator.get_page(request.GET.get('page_unite', 1))
+        pack_page_obj  = pack_paginator.get_page(request.GET.get('page_pack', 1))
+
+        transaction_liee = (
+            Transaction.objects
+            .select_related('user')
+            .filter(table_id=f'Achat_id_{achat.pk}')
+            .first()
+        )
+
+        return render(request, self.template_name, {
+            'achat':                 achat,
+            'achat_code':            achat.achat_code,
+            'user_lie':              transaction_liee.user if transaction_liee else None,
+            'fournisseurs_list':     fournisseurs_list,
+            'mode_paiement_choices': MODE_PAIEMENT_CHOICES,
+            'unite_page_obj':        unite_page_obj,
+            'pack_page_obj':         pack_page_obj,
+            'unite_is_paginated':    unite_page_obj.has_other_pages(),
+            'pack_is_paginated':     pack_page_obj.has_other_pages(),
+        })
+
+
 def _achat_update_context(request, achat, **overrides):
     achat_code = achat.achat_code
     fournisseurs_list = (
@@ -6010,6 +6079,30 @@ class DepenseCreateView(GroupRequiredMixin, View):
 
 
 LIBELLE_PAIEMENT_DEPENSE_MODIFIEE = 'Paiement dépense modifiée'
+
+
+class DepenseDetailView(GroupRequiredMixin, View):
+    """Page de visualisation en lecture seule d'une dépense — mêmes
+    informations que DepenseUpdateView (Section 1 : informations générales,
+    Section 2 : détails) mais figées sur les valeurs de CET enregistrement
+    (pas de nouveau paiement à saisir), sans les boutons Annuler / Modifier /
+    Supprimer."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/depense/detail.html'
+
+    def get(self, request, pk):
+        depense = get_object_or_404(
+            Depense.objects.select_related('depense_code__fournisseur', 'user'), pk=pk,
+        )
+        if not (_is_administration(request.user) or depense.user_id == request.user.pk):
+            messages.error(request, "Vous n'êtes pas autorisé à visualiser cet enregistrement")
+            return redirect('commercial:depense-list')
+
+        return render(request, self.template_name, {
+            'depense':      depense,
+            'depense_code': depense.depense_code,
+            'details':      depense.details.order_by('pk'),
+        })
 
 
 class DepenseUpdateView(GroupRequiredMixin, View):
