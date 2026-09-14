@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Max, Min, Q, RestrictedError, Sum
+from django.db.models import Count, F, Max, Min, Q, RestrictedError, Sum
 from django.forms.models import model_to_dict
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -1413,9 +1413,11 @@ class BonLivraisonDetailView(GroupRequiredMixin, View):
 
 class BonLivraisonDeleteView(GroupRequiredMixin, View):
     """Suppression d'un bon de livraison (voir _erreur_suppression_bon_livraison
-    pour les conditions bloquantes). Ordre de suppression : Transaction liée,
-    puis BonLivraisonDetaille, puis BonLivraison, puis BonLivraisonCode —
-    entièrement dans une transaction atomique."""
+    pour les conditions bloquantes). Avant la suppression, restitue le stock de
+    chaque produit livré (production_produit.stock += quantité livrée). Ordre de
+    suppression : Transaction liée, restitution du stock, puis BonLivraisonDetaille,
+    puis BonLivraison, puis BonLivraisonCode — entièrement dans une transaction
+    atomique."""
     group_required = ['Administration', 'Commercial']
 
     def post(self, request, pk):
@@ -1447,6 +1449,12 @@ class BonLivraisonDeleteView(GroupRequiredMixin, View):
             with transaction.atomic():
                 if transaction_liee is not None:
                     transaction_liee.delete()
+                # ── Restitution du stock des produits du bon supprimé ──
+                for detail in bl.details.select_related('produit').all():
+                    if detail.produit is not None:
+                        Produit.objects.filter(pk=detail.produit_id).update(
+                            stock=F('stock') + int(detail.quantite)
+                        )
                 bl.details.all().delete()
                 bl.delete()
                 code.delete()

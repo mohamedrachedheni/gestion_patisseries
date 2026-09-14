@@ -234,7 +234,10 @@
   if (googleMapeField) {
     googleMapeField.title = 'Double-cliquer pour ouvrir le lien';
     googleMapeField.addEventListener('dblclick', function () {
-      if (this.value) { window.open(this.value, '_blank'); }
+      if (!this.value) { return; }
+      var v = this.value.trim();
+      var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v);
+      window.open(url, '_blank');
     });
   }
 
