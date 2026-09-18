@@ -1488,7 +1488,7 @@ class RuptureStockView(GroupRequiredMixin, View):
     aux parties 1 et 3).
 
     Lecture seule."""
-    group_required = 'Administration'
+    group_required = ['Administration', 'Production']
     template_name = 'administration/rupture_stock/list.html'
 
     def get(self, request):
@@ -1663,7 +1663,7 @@ class RuptureStockPdfView(GroupRequiredMixin, View):
     choisi, Total ligne = quantité × prix), avec un total général en pied de
     tableau. Renvoyé en « inline » : le lecteur PDF du navigateur fournit
     nativement l'impression et le téléchargement."""
-    group_required = 'Administration'
+    group_required = ['Administration', 'Production']
 
     def get(self, request):
         today = date.today()
@@ -1751,7 +1751,7 @@ class RuptureStockCommandesPdfView(GroupRequiredMixin, View):
     développement récursif des semi-finis, contrairement aux parties 3/4).
     Portrait ; chaque bloc (ligne + tableau) évite d'être coupé entre deux
     pages (page-break-inside: avoid)."""
-    group_required = 'Administration'
+    group_required = ['Administration', 'Production']
 
     def get(self, request):
         today = date.today()

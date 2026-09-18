@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Agenda — Commercial{% endblock %}
 {% block page_title %}Agenda{% endblock %}
@@ -264,6 +264,8 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
   var CLIENTS = {{ row_clients_json|safe }};
   var ZONES = {{ row_zones_json|safe }};
   var CLIENT_USERS = {{ client_users_json|safe }};
+  var PRESELECTED_CLIENT_ID = "{{ client_id }}";
+  var PRESELECTED_COMMERCIAL_ID = "{{ commercial_id }}";
 
   var rowsContainer = document.getElementById('agenda-rows');
 
@@ -317,15 +319,17 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
     return html;
   }
 
-  function addAgendaRow() {
+  function addAgendaRow(selectedClientId, selectedCommercialId) {
     var row = document.createElement('div');
     row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+
+    var rowCommercialId = IS_ADMIN ? (selectedCommercialId || null) : OWN_COMMERCIAL_ID;
 
     var commercialHtml;
     if (IS_ADMIN) {
       commercialHtml =
         '<div style="width:190px;flex:0 0 auto;">' +
-          '<select name="row_commercial_id" class="form-select form-select-sm commercial-select">' + buildCommercialOptions(null) + '</select>' +
+          '<select name="row_commercial_id" class="form-select form-select-sm commercial-select">' + buildCommercialOptions(selectedCommercialId) + '</select>' +
         '</div>';
     } else {
       commercialHtml = '<input type="hidden" name="row_commercial_id" value="' + OWN_COMMERCIAL_ID + '">';
@@ -334,10 +338,10 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
     row.innerHTML =
       commercialHtml +
       '<div style="width:170px;flex:0 0 auto;">' +
-        '<select class="form-select form-select-sm zone-select">' + buildZoneOptions(IS_ADMIN ? null : OWN_COMMERCIAL_ID, null) + '</select>' +
+        '<select class="form-select form-select-sm zone-select">' + buildZoneOptions(rowCommercialId, null) + '</select>' +
       '</div>' +
       '<div style="width:220px;flex:0 0 auto;">' +
-        '<select name="row_client_id" class="form-select form-select-sm client-select">' + buildClientOptions(null, IS_ADMIN ? null : OWN_COMMERCIAL_ID, null) + '</select>' +
+        '<select name="row_client_id" class="form-select form-select-sm client-select">' + buildClientOptions(null, rowCommercialId, selectedClientId) + '</select>' +
       '</div>' +
       '<div style="flex:1 1 220px;min-width:180px;">' +
         '<input type="text" name="row_detaille_action_planifier" class="form-control form-control-sm" value="">' +
@@ -382,7 +386,7 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
 
   document.getElementById('add-agenda-row-btn').addEventListener('click', function () { addAgendaRow(); });
 
-  addAgendaRow();
+  addAgendaRow(PRESELECTED_CLIENT_ID || null, PRESELECTED_COMMERCIAL_ID || null);
 })();
 </script>
 {% endblock %}

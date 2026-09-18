@@ -8,10 +8,6 @@
      class="nav-link {% if request.resolver_match.url_name == 'home' and request.resolver_match.app_name == 'commercial' %}active{% endif %}">
     <i class="bi bi-house-door"></i> Accueil
   </a>
-  <a href="{% url 'commercial:tournee-du-jour' %}"
-     class="nav-link {% if request.resolver_match.url_name == 'tournee-du-jour' %}active{% endif %}">
-    <i class="bi bi-signpost-split"></i> Ma tournée du jour
-  </a>
   {% if is_administration_user %}
   <a href="{% url 'administration:home' %}" class="nav-link">
     <i class="bi bi-gear-wide-connected"></i> Administration
@@ -20,66 +16,94 @@
     <i class="bi bi-gear"></i> Production
   </a>
   {% endif %}
-
-  <div class="sidebar-section">Clients & Secteur</div>
-  <a href="{% url 'commercial:client-list' %}"
-     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-people"></i> Clients
+  <a href="{% url 'commercial:tournee-du-jour' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'tournee-du-jour' %}active{% endif %}">
+    <i class="bi bi-signpost-split"></i> Ma tournée du jour
   </a>
-  <a href="{% url 'commercial:client-sans-bl-list' %}"
-     class="nav-link {% if 'sans-bl' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-person-x"></i> Clients sans BL
-  </a>
-  <a href="{% url 'commercial:client-impayes-list' %}"
-     class="nav-link {% if 'impayes' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cash-coin"></i> Suivi des impayés
-  </a>
-  <a href="{% url 'commercial:client-derive-list' %}"
-     class="nav-link {% if 'derive' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-graph-down-arrow"></i> Clients en dérive
-  </a>
-  <a href="{% url 'commercial:client-adherence-visites' %}"
-     class="nav-link {% if request.resolver_match.url_name == 'client-adherence-visites' %}active{% endif %}">
-    <i class="bi bi-calendar-check"></i> Adhérence visites
+  <a href="{% url 'commercial:bon-livraison-list' %}"
+     class="nav-link {% if 'bon-livraison' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-truck"></i> Bons de livraison
   </a>
   <a href="{% url 'commercial:agenda-list' %}"
      class="nav-link {% if 'agenda' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-calendar-event"></i> Agenda
   </a>
 
-  <div class="sidebar-section">Ventes</div>
-  <a href="{% url 'commercial:vente-list' %}"
-     class="nav-link {% if 'vente' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-receipt"></i> Ventes
-  </a>
-  <a href="{% url 'commercial:bon-livraison-list' %}"
-     class="nav-link {% if 'bon-livraison' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-truck"></i> Bons de livraison
-  </a>
-  <a href="{% url 'commercial:bon-sortie-list' %}"
-     class="nav-link {% if 'bon-sortie' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-box-seam"></i> Bons de sortie
-  </a>
-  <a href="{% url 'commercial:bon-restitution-list' %}"
-     class="nav-link {% if 'bon-restitution' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-arrow-return-left"></i> Bons de restitution
-  </a>
-  <a href="{% url 'commercial:historique-stock-initial-list' %}"
-     class="nav-link {% if 'historique-stock-initial' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-boxes"></i> Stocks commerciaux
-  </a>
-  <a href="{% url 'commercial:stock-commercial-actuel' %}"
-     class="nav-link {% if 'stock-commercial-actuel' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-clipboard-data"></i> Stock commercial actuel
-  </a>
+  <div class="sidebar-group {% if 'sans-bl' in request.resolver_match.url_name or 'impayes' in request.resolver_match.url_name or 'stock-commercial-actuel' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-binoculars"></i> Suivi
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'commercial:client-sans-bl-list' %}"
+         class="nav-link {% if 'sans-bl' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-x"></i> Clients sans BL
+      </a>
+      <a href="{% url 'commercial:client-impayes-list' %}"
+         class="nav-link {% if 'impayes' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-cash-coin"></i> Suivi des impayés
+      </a>
+      <a href="{% url 'commercial:stock-commercial-actuel' %}"
+         class="nav-link {% if 'stock-commercial-actuel' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-clipboard-data"></i> Stock commercial actuel
+      </a>
+    </div>
+  </div>
 
-  <div class="sidebar-section">Dépenses</div>
-  <a href="{% url 'commercial:depense-list' %}"
-     class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cash-stack"></i> Dépenses
-  </a>
-  <a href="{% url 'commercial:fournisseur-list' %}"
-     class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-building"></i> Fournisseurs
-  </a>
+  <div class="sidebar-group {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name or 'bon-sortie' in request.resolver_match.url_name or 'bon-restitution' in request.resolver_match.url_name or 'depense' in request.resolver_match.url_name or 'fournisseur' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-collection"></i> Autres
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'commercial:client-list' %}"
+         class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-people"></i> Clients
+      </a>
+      <a href="{% url 'commercial:bon-sortie-list' %}"
+         class="nav-link {% if 'bon-sortie' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-box-seam"></i> Bons de sortie
+      </a>
+      <a href="{% url 'commercial:bon-restitution-list' %}"
+         class="nav-link {% if 'bon-restitution' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-arrow-return-left"></i> Bons de restitution
+      </a>
+      <a href="{% url 'commercial:depense-list' %}"
+         class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-cash-stack"></i> Dépenses
+      </a>
+      <a href="{% url 'commercial:fournisseur-list' %}"
+         class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-building"></i> Fournisseurs
+      </a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_css %}
+.sidebar-group { position: relative; }
+.sidebar-group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sidebar-group-chevron { transition: transform .2s ease; font-size: .75rem; }
+.sidebar-submenu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease;
+}
+.sidebar-submenu .nav-link {
+  padding-left: 2.75rem;
+  font-size: .82rem;
+}
+.sidebar-group:focus-within .sidebar-submenu,
+.sidebar-group.sidebar-group-active .sidebar-submenu {
+  max-height: 24rem;
+}
+.sidebar-group:focus-within .sidebar-group-chevron,
+.sidebar-group.sidebar-group-active .sidebar-group-chevron {
+  transform: rotate(180deg);
+}
 {% endblock %}

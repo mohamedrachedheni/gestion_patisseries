@@ -1,4 +1,4 @@
-{% extends "administration/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,production/base.html" %}
 
 {% block title %}Rupture stock — Administration{% endblock %}
 {% block page_title %}Contrôle de rupture de stock par période{% endblock %}

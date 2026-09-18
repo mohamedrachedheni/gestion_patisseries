@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends "administration/base.html" %}
 
 {% block title %}Clients en dérive — Commercial{% endblock %}
 {% block page_title %}Clients en dérive{% endblock %}
@@ -118,7 +118,8 @@
             <th class="text-center" style="width:130px;">Intervalle habituel</th>
             <th class="text-end" style="width:120px;">Montant 30j</th>
             <th class="text-end" style="width:120px;">Montant attendu</th>
-            <th class="text-center pe-3" style="width:160px;">Alertes</th>
+            <th class="text-center" style="width:160px;">Alertes</th>
+            <th class="text-center pe-3" style="width:100px;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -135,7 +136,7 @@
             </td>
             <td class="text-end font-monospace">{{ l.montant_recent|stringformat:'.3f' }}</td>
             <td class="text-end font-monospace">{{ l.montant_attendu_recent|stringformat:'.3f' }}</td>
-            <td class="text-center pe-3">
+            <td class="text-center">
               {% if l.en_retard %}
               <span class="badge text-bg-warning text-dark d-block d-inline-block mb-1" title="Ratio : {{ l.ratio_retard }}×">
                 En retard ({{ l.ratio_retard }}×)
@@ -146,6 +147,12 @@
                 Volume {{ l.ratio_volume_pct }}%
               </span>
               {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
+                 class="btn btn-sm btn-outline-info" title="Voir l'agenda">
+                Agenda
+              </a>
             </td>
           </tr>
           {% endfor %}

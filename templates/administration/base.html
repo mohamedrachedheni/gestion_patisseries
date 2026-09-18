@@ -16,92 +16,106 @@
     <i class="bi bi-gear"></i> Production
   </a>
 
-  <div class="sidebar-section">Ressources humaines</div>
-  <a href="{% url 'administration:employe-list' %}"
-     class="nav-link {% if 'employe' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-person-badge"></i> Employés
-  </a>
-  <a href="{% url 'commercial:fournisseur-list' %}"
-     class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-truck"></i> Fournisseurs
-  </a>
-  <a href="{% url 'commercial:client-list' %}"
-     class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-people"></i> Clients
-  </a>
-  <a href="{% url 'commercial:tournee-du-jour' %}"
-     class="nav-link {% if request.resolver_match.url_name == 'tournee-du-jour' %}active{% endif %}">
-    <i class="bi bi-signpost-split"></i> Tournée du jour
-  </a>
-  <a href="{% url 'commercial:client-impayes-list' %}"
-     class="nav-link {% if 'impayes' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cash-coin"></i> Suivi des impayés
-  </a>
-  <a href="{% url 'commercial:client-derive-list' %}"
-     class="nav-link {% if 'derive' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-graph-down-arrow"></i> Clients en dérive
-  </a>
-  <a href="{% url 'commercial:client-adherence-graphique' %}"
-     class="nav-link {% if request.resolver_match.url_name == 'client-adherence-graphique' %}active{% endif %}">
-    <i class="bi bi-graph-up"></i> Courbes d'adhérence
-  </a>
-  <a href="{% url 'administration:tableau-bord-commerciaux-list' %}"
-     class="nav-link {% if 'tableau-bord-commerciaux' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-bar-chart-steps"></i> Tableau de bord commerciaux
-  </a>
+  <div class="sidebar-group {% if 'employe' in request.resolver_match.url_name or 'fournisseur' in request.resolver_match.url_name or 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name or 'jour-non-ouvre' in request.resolver_match.url_name or 'absence-commercial' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-person-badge"></i> Ressources humaines
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'administration:employe-list' %}"
+         class="nav-link {% if 'employe' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-badge"></i> Employés
+      </a>
+      <a href="{% url 'commercial:fournisseur-list' %}"
+         class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-truck"></i> Fournisseurs
+      </a>
+      <a href="{% url 'commercial:client-list' %}"
+         class="nav-link {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-people"></i> Clients
+      </a>
+      <a href="{% url 'administration:jour-non-ouvre-list' %}"
+         class="nav-link {% if 'jour-non-ouvre' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-calendar-x"></i> Jours non ouvrés
+      </a>
+      <a href="{% url 'administration:absence-commercial-list' %}"
+         class="nav-link {% if 'absence-commercial' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-dash"></i> Absences commerciaux
+      </a>
+    </div>
+  </div>
 
-  <div class="sidebar-section">Finance</div>
-  <a href="{% url 'administration:solde-caisse-list' %}"
-     class="nav-link {% if 'solde-caisse' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-wallet2"></i> Soldes comptes
-  </a>
-  <a href="{% url 'administration:transaction-list' %}"
-     class="nav-link {% if 'transaction' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-arrow-left-right"></i> Transactions
-  </a>
-  <a href="{% url 'administration:transfere-list' %}"
-     class="nav-link {% if 'transfere' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-bank"></i> Transferts
-  </a>
-  <a href="{% url 'commercial:achat-list' %}"
-     class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cart3"></i> Achats
-  </a>
-  <a href="{% url 'commercial:depense-list' %}"
-     class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cash-stack"></i> Dépense
-  </a>
+  <div class="sidebar-group {% if request.resolver_match.url_name == 'tournee-du-jour' or 'tableau-bord-commerciaux' in request.resolver_match.url_name or 'impayes' in request.resolver_match.url_name or 'historique-stock-initial' in request.resolver_match.url_name or 'derive' in request.resolver_match.url_name or request.resolver_match.url_name == 'client-adherence-visites' or request.resolver_match.url_name == 'client-adherence-graphique' %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-bar-chart-steps"></i> Suivi commercial
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'commercial:tournee-du-jour' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'tournee-du-jour' %}active{% endif %}">
+        <i class="bi bi-signpost-split"></i> Tournée du jour
+      </a>
+      <a href="{% url 'administration:tableau-bord-commerciaux-list' %}"
+         class="nav-link {% if 'tableau-bord-commerciaux' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-bar-chart-steps"></i> Tableau de bord commerciaux
+      </a>
+      <a href="{% url 'commercial:client-impayes-list' %}"
+         class="nav-link {% if 'impayes' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-cash-coin"></i> Suivi des impayés
+      </a>
+      <a href="{% url 'commercial:historique-stock-initial-list' %}"
+         class="nav-link {% if 'historique-stock-initial' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-boxes"></i> Stocks commerciaux
+      </a>
+      <a href="{% url 'commercial:client-derive-list' %}"
+         class="nav-link {% if 'derive' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-graph-down-arrow"></i> Clients en dérive
+      </a>
+      <a href="{% url 'commercial:client-adherence-visites' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'client-adherence-visites' %}active{% endif %}">
+        <i class="bi bi-calendar-check"></i> Adhérence visites
+      </a>
+      <a href="{% url 'commercial:client-adherence-graphique' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'client-adherence-graphique' %}active{% endif %}">
+        <i class="bi bi-graph-up"></i> Courbes d'adhérence
+      </a>
+    </div>
+  </div>
 
-  <div class="sidebar-section">Stock</div>
-  <a href="{% url 'administration:rupture-stock-list' %}"
-     class="nav-link {% if 'rupture-stock' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-exclamation-triangle"></i> Rupture stock
-  </a>
+  <div class="sidebar-group {% if 'rupture-stock' in request.resolver_match.url_name or 'demande-reference-produits' in request.resolver_match.url_name or 'cout-production' in request.resolver_match.url_name or 'chiffre-affaire-produit' in request.resolver_match.url_name or 'chiffre-affaire-commercial' in request.resolver_match.url_name or 'chiffre-affaire-zone' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-bar-chart-line"></i> Analyse
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'administration:rupture-stock-list' %}"
+         class="nav-link {% if 'rupture-stock' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i> Rupture stock
+      </a>
+      <a href="{% url 'administration:demande-reference-produits-list' %}"
+         class="nav-link {% if 'demande-reference-produits' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-clipboard-data"></i> Demande de référence produits
+      </a>
+      <a href="{% url 'administration:cout-production-list' %}"
+         class="nav-link {% if 'cout-production' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-calculator"></i> Coût de production
+      </a>
+      <a href="{% url 'administration:chiffre-affaire-produit-list' %}"
+         class="nav-link {% if 'chiffre-affaire-produit' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-graph-up-arrow"></i> Chiffre d'affaires par produit
+      </a>
+      <a href="{% url 'administration:chiffre-affaire-commercial-list' %}"
+         class="nav-link {% if 'chiffre-affaire-commercial' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-person-lines-fill"></i> Chiffre d'affaires par commercial
+      </a>
+      <a href="{% url 'administration:chiffre-affaire-zone-list' %}"
+         class="nav-link {% if 'chiffre-affaire-zone' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-pin-map"></i> Chiffre d'affaires par zone
+      </a>
+    </div>
+  </div>
 
-  <div class="sidebar-section">Production</div>
-  <a href="{% url 'administration:demande-reference-produits-list' %}"
-     class="nav-link {% if 'demande-reference-produits' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-clipboard-data"></i> Demande de référence produits
-  </a>
-  <a href="{% url 'administration:cout-production-list' %}"
-     class="nav-link {% if 'cout-production' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-calculator"></i> Coût de production
-  </a>
-  <a href="{% url 'administration:chiffre-affaire-produit-list' %}"
-     class="nav-link {% if 'chiffre-affaire-produit' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-graph-up-arrow"></i> Chiffre d'affaires par produit
-  </a>
-  <a href="{% url 'administration:chiffre-affaire-commercial-list' %}"
-     class="nav-link {% if 'chiffre-affaire-commercial' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-person-lines-fill"></i> Chiffre d'affaires par commercial
-  </a>
-  <a href="{% url 'administration:chiffre-affaire-zone-list' %}"
-     class="nav-link {% if 'chiffre-affaire-zone' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-pin-map"></i> Chiffre d'affaires par zone
-  </a>
-
-  <div class="sidebar-section">Localisation</div>
-  <div class="sidebar-group {% if 'gouvernorat' in request.resolver_match.url_name or 'delegation' in request.resolver_match.url_name or 'zone' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+  <div class="sidebar-group {% if 'gouvernorat' in request.resolver_match.url_name or 'delegation' in request.resolver_match.url_name or 'zone' in request.resolver_match.url_name and 'chiffre-affaire' not in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
     <button type="button" class="nav-link sidebar-group-toggle">
       <i class="bi bi-map"></i> Localisation
       <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
@@ -116,25 +130,48 @@
         <i class="bi bi-signpost-2"></i> Délégations
       </a>
       <a href="{% url 'administration:zone-list' %}"
-         class="nav-link {% if 'zone' in request.resolver_match.url_name %}active{% endif %}">
+         class="nav-link {% if 'zone' in request.resolver_match.url_name and 'chiffre-affaire' not in request.resolver_match.url_name %}active{% endif %}">
         <i class="bi bi-pin-map"></i> Zones
       </a>
     </div>
   </div>
 
-  <div class="sidebar-section">Système</div>
-  <a href="{% url 'administration:jour-non-ouvre-list' %}"
-     class="nav-link {% if 'jour-non-ouvre' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-calendar-x"></i> Jours non ouvrés
-  </a>
-  <a href="{% url 'administration:absence-commercial-list' %}"
-     class="nav-link {% if 'absence-commercial' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-person-dash"></i> Absences commerciaux
-  </a>
-  <a href="{% url 'backups:sauvegarde-list' %}"
-     class="nav-link {% if request.resolver_match.app_name == 'backups' %}active{% endif %}">
-    <i class="bi bi-hdd-stack"></i> Sauvegardes
-  </a>
+  <div class="sidebar-group {% if 'solde-caisse' in request.resolver_match.url_name or 'transaction' in request.resolver_match.url_name or 'transfere' in request.resolver_match.url_name or 'vente' in request.resolver_match.url_name or 'achat' in request.resolver_match.url_name or 'depense' in request.resolver_match.url_name or request.resolver_match.app_name == 'backups' %}sidebar-group-active{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle">
+      <i class="bi bi-wallet2"></i> Finance
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu">
+      <a href="{% url 'administration:solde-caisse-list' %}"
+         class="nav-link {% if 'solde-caisse' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-wallet2"></i> Soldes comptes
+      </a>
+      <a href="{% url 'administration:transaction-list' %}"
+         class="nav-link {% if 'transaction' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-arrow-left-right"></i> Transactions
+      </a>
+      <a href="{% url 'administration:transfere-list' %}"
+         class="nav-link {% if 'transfere' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-bank"></i> Transferts
+      </a>
+      <a href="{% url 'commercial:vente-list' %}"
+         class="nav-link {% if 'vente' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-receipt"></i> Ventes
+      </a>
+      <a href="{% url 'commercial:achat-list' %}"
+         class="nav-link {% if 'achat' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-cart3"></i> Achats
+      </a>
+      <a href="{% url 'commercial:depense-list' %}"
+         class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-cash-stack"></i> Dépense
+      </a>
+      <a href="{% url 'backups:sauvegarde-list' %}"
+         class="nav-link {% if request.resolver_match.app_name == 'backups' %}active{% endif %}">
+        <i class="bi bi-hdd-stack"></i> Sauvegardes
+      </a>
+    </div>
+  </div>
 {% endblock %}
 
 {% block extra_css %}
@@ -157,7 +194,7 @@
 }
 .sidebar-group:focus-within .sidebar-submenu,
 .sidebar-group.sidebar-group-active .sidebar-submenu {
-  max-height: 12rem;
+  max-height: 24rem;
 }
 .sidebar-group:focus-within .sidebar-group-chevron,
 .sidebar-group.sidebar-group-active .sidebar-group-chevron {

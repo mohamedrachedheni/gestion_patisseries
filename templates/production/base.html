@@ -44,4 +44,8 @@
      class="nav-link {% if 'commande-interne' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-clipboard-check"></i> Commandes internes
   </a>
+  <a href="{% url 'administration:rupture-stock-list' %}"
+     class="nav-link {% if 'rupture-stock' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-exclamation-triangle"></i> Rupture stock
+  </a>
 {% endblock %}

@@ -87,6 +87,7 @@ class TourneeDuJourView(GroupRequiredMixin, View):
     planifiée ce jour-là — avec leur statut (déjà livré aujourd'hui ou non)."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/tournee_jour.html'
+    NB_BL_JOURS = 180
 
     def get(self, request):
         is_admin = _is_administration(request.user)
@@ -156,6 +157,8 @@ class TourneeDuJourView(GroupRequiredMixin, View):
             'nb_clients':          len(lignes),
             'nb_deja_livres':      sum(1 for l in lignes if l['deja_livre']),
             'nb_restants':         sum(1 for l in lignes if not l['deja_livre']),
+            'bl_agenda_date_debut': (date.today() - timedelta(days=self.NB_BL_JOURS)).isoformat(),
+            'bl_agenda_date_fin':   date.today().isoformat(),
         })
 
 
@@ -253,8 +256,10 @@ class ClientImpayesListView(GroupRequiredMixin, View):
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/client/impayes_list.html'
     PAGINATE_BY = 15
+    NB_BL_JOURS = 180
 
     def get(self, request):
+        today = date.today()
         is_admin = _is_administration(request.user)
         commercial_id = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
 
@@ -324,6 +329,8 @@ class ClientImpayesListView(GroupRequiredMixin, View):
             'montant_min':           montant_min_s,
             'commerciaux_list':      _agenda_commerciaux_list() if is_admin else None,
             'montant_total_global':  montant_total_global,
+            'bl_agenda_date_debut':  (today - timedelta(days=self.NB_BL_JOURS)).isoformat(),
+            'bl_agenda_date_fin':    today.isoformat(),
         })
 
 
@@ -383,8 +390,10 @@ class ClientDeriveListView(GroupRequiredMixin, View):
     FENETRE_HISTORIQUE_JOURS = 90
     SEUIL_RETARD = 1.5
     SEUIL_BAISSE = 0.5
+    NB_BL_JOURS = 180
 
     def get(self, request):
+        today = date.today()
         is_admin = _is_administration(request.user)
         commercial_id = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
 
@@ -394,7 +403,7 @@ class ClientDeriveListView(GroupRequiredMixin, View):
         clients_qs = clients_qs.distinct()
 
         lignes = detecter_clients_en_derive(
-            clients_qs, date.today(),
+            clients_qs, today,
             nb_livraisons_min=self.NB_LIVRAISONS_MIN,
             fenetre_recente_jours=self.FENETRE_RECENTE_JOURS,
             fenetre_historique_jours=self.FENETRE_HISTORIQUE_JOURS,
@@ -420,6 +429,8 @@ class ClientDeriveListView(GroupRequiredMixin, View):
             'fenetre_historique_jours':   self.FENETRE_HISTORIQUE_JOURS,
             'seuil_retard':               self.SEUIL_RETARD,
             'seuil_baisse_pct':           round(self.SEUIL_BAISSE * 100),
+            'bl_agenda_date_debut':       (today - timedelta(days=self.NB_BL_JOURS)).isoformat(),
+            'bl_agenda_date_fin':         today.isoformat(),
         })
 
 
@@ -1016,6 +1027,7 @@ class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
     template_name = 'commercial/client/adherence_visites.html'
     PAGINATE_BY = 30
     NB_JOURS_DEFAUT = 6
+    NB_BL_JOURS = 180
 
     def get(self, request):
         today = date.today()
@@ -1080,6 +1092,8 @@ class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
             'nb_absentes':       nb_absentes,
             'taux_adherence':    taux_adherence,
             'tolerance_jours':   TOLERANCE_JOURS,
+            'bl_agenda_date_debut': (today - timedelta(days=self.NB_BL_JOURS)).isoformat(),
+            'bl_agenda_date_fin':   today.isoformat(),
         })
 
 
@@ -6349,6 +6363,16 @@ class AgendaListView(GroupRequiredMixin, View):
         client_id       = request.GET.get('client_id', '').strip()
         statut          = request.GET.get('statut', '').strip()
         commercial_id   = request.GET.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
+
+        # Un admin arrivant via un bouton « Agenda » (client_id renseigné, sans
+        # commercial_id explicite) voit le premier commercial actif rattaché à
+        # ce client présélectionné, en Section 1 comme en Section 3.
+        if is_admin and not commercial_id and client_id:
+            premier_client_user = (
+                ClientUser.objects.filter(client_id=client_id, user__is_active=True).order_by('id').first()
+            )
+            if premier_client_user:
+                commercial_id = str(premier_client_user.user_id)
 
         try:
             date_debut = date.fromisoformat(date_debut_str)

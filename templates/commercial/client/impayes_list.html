@@ -1,4 +1,4 @@
-{% extends "commercial/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Suivi des impayés — Commercial{% endblock %}
 {% block page_title %}Suivi des impayés{% endblock %}
@@ -87,7 +87,7 @@
             <th class="text-end" style="min-width:150px;">Montant impayé (TND)</th>
             <th class="text-center" style="width:130px;">Bons impayés</th>
             <th style="min-width:160px;">Impayé depuis</th>
-            <th class="text-center pe-3" style="width:100px;">Actions</th>
+            <th class="text-center pe-3" style="width:220px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -109,6 +109,10 @@
                       title="Détail des bons de livraison">
                 <i class="bi bi-box-arrow-up-right"></i>
               </button>
+              <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
+                 class="btn btn-sm btn-outline-info ms-1" title="Voir l'agenda">
+                Agenda
+              </a>
             </td>
           </tr>
           {% endfor %}
