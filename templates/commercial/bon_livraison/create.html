@@ -133,7 +133,7 @@
   </div>
 </div>
 
-<div class="d-flex gap-2 justify-content-end">
+<div class="d-flex gap-2 justify-content-end bl-actions-bar">
   <a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-outline-secondary">
     <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
   </a>
@@ -161,10 +161,10 @@
       <i class="bi bi-funnel me-2 text-primary"></i>Filtres
     </div>
     <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+      <div class="bl-filter-row">
 
         {% if is_administration %}
-        <div style="width:220px;flex:0 0 auto;">
+        <div class="bl-filter-field" style="--field-width:220px;">
           <label class="form-label small mb-1">Commercial</label>
           <select id="bl-commercial-select" name="commercial_id" class="form-select form-select-sm">
             <option value="">— Choisir —</option>
@@ -177,14 +177,14 @@
         <input type="hidden" id="bl-commercial-select" name="commercial_id" value="{{ request.user.pk }}">
         {% endif %}
 
-        <div style="width:200px;flex:0 0 auto;">
+        <div class="bl-filter-field" style="--field-width:200px;">
           <label class="form-label small mb-1">Zone</label>
           <select id="bl-zone-select" class="form-select form-select-sm">
             <option value="">— Toutes les zones —</option>
           </select>
         </div>
 
-        <div style="width:260px;flex:0 0 auto;">
+        <div class="bl-filter-field" style="--field-width:260px;">
           <label class="form-label small mb-1">Client</label>
           <select id="bl-client-select" name="client_id" class="form-select form-select-sm">
             <option value="">— Choisir —</option>
@@ -198,13 +198,13 @@
   {# ── Section 2 : Date et numéro ───────────────────────────────────────────── #}
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2">
-        <div style="width:180px;flex:0 0 auto;">
+      <div class="bl-filter-row">
+        <div class="bl-filter-field" style="--field-width:180px;">
           <label class="form-label small mb-1">Date bon de livraison</label>
           <input type="date" id="bl-date-input" name="bon_livraison_at" value="{{ bon_livraison_at_value }}"
                  class="form-control form-control-sm">
         </div>
-        <div style="width:170px;flex:0 0 auto;">
+        <div class="bl-filter-field" style="--field-width:170px;">
           <label class="form-label small mb-1">Numéro bon de livraison</label>
           <input type="text" id="bl-numero-input" value="{{ numero_initial }}"
                  class="form-control form-control-sm" disabled>
@@ -304,7 +304,7 @@
   </div>
 
   {# ── Actions ───────────────────────────────────────────────────────────────── #}
-  <div class="d-flex gap-2 justify-content-end">
+  <div class="d-flex gap-2 justify-content-end bl-actions-bar">
     <a href="{% url 'commercial:bon-livraison-create' %}" id="bl-new-btn" class="btn btn-outline-secondary" tabindex="-1" style="display:none;">
       <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
     </a>
@@ -320,6 +320,52 @@
   </div>
 </form>
 {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Sections Filtres / Date-Numéro : empilées en pleine largeur sur écran
+   réduit, alignées sur une seule ligne à largeurs fixes à partir de 992px
+   (même seuil que le repli de la sidebar) ────────────────────────────── */
+.bl-filter-row {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.bl-filter-field { width: 100%; }
+
+@media (min-width: 992px) {
+  .bl-filter-row {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    overflow-x: auto;
+    gap: .5rem;
+  }
+  .bl-filter-field {
+    width: var(--field-width, auto);
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 991.98px) {
+  /* Barre d'actions collée en bas de l'écran, toujours accessible sans
+     avoir à faire défiler un long formulaire. */
+  .bl-actions-bar {
+    position: sticky;
+    bottom: 0;
+    background: #f5f6fa;
+    padding: .75rem 0;
+    box-shadow: 0 -2px 8px rgba(0,0,0,.1);
+    z-index: 5;
+  }
+  /* Champs plus grands, plus faciles à toucher au doigt. */
+  #bl-create-form .form-control-sm,
+  #bl-create-form .form-select-sm {
+    font-size: 1rem;
+    padding: .5rem .75rem;
+  }
+}
 {% endblock %}
 
 {% block extra_js %}
