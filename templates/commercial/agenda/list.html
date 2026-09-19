@@ -20,10 +20,10 @@
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+      <div class="agenda-filter-row">
 
         {% if is_administration %}
-        <div style="width:190px;flex:0 0 auto;">
+        <div class="agenda-filter-field" style="--field-width:190px;">
           <label class="form-label small mb-1">Commercial</label>
           <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Tous les commerciaux —</option>
@@ -38,19 +38,19 @@
         <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
         {% endif %}
 
-        <div style="width:135px;flex:0 0 auto;">
+        <div class="agenda-filter-field" style="--field-width:135px;">
           <label class="form-label small mb-1">Date début</label>
           <input type="date" name="date_debut" value="{{ date_debut }}"
                  class="form-control form-control-sm" data-autosubmit>
         </div>
 
-        <div style="width:135px;flex:0 0 auto;">
+        <div class="agenda-filter-field" style="--field-width:135px;">
           <label class="form-label small mb-1">Date fin</label>
           <input type="date" name="date_fin" value="{{ date_fin }}"
                  class="form-control form-control-sm" data-autosubmit>
         </div>
 
-        <div style="width:220px;flex:0 0 auto;">
+        <div class="agenda-filter-field" style="--field-width:220px;">
           <label class="form-label small mb-1">Client</label>
           <select name="client_id" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Tous les clients —</option>
@@ -60,7 +60,7 @@
           </select>
         </div>
 
-        <div style="width:170px;flex:0 0 auto;">
+        <div class="agenda-filter-field" style="--field-width:170px;">
           <label class="form-label small mb-1">Statut</label>
           <select name="statut" class="form-select form-select-sm" data-autosubmit>
             <option value="">— Tous les statuts —</option>
@@ -70,7 +70,7 @@
           </select>
         </div>
 
-        <div style="flex:0 0 auto;">
+        <div class="agenda-filter-field">
           <a href="{% url 'commercial:agenda-list' %}"
              class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
             <i class="bi bi-x-circle"></i> Réinitialiser
@@ -215,7 +215,7 @@
       {% csrf_token %}
 
       <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
+        <div class="d-none d-lg-flex flex-nowrap gap-2 mb-1">
           {% if is_administration %}
           <div style="width:190px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Commercial</span></div>
           {% endif %}
@@ -244,6 +244,42 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Section Filtres / Section « Ajouter d'autres actions » : empilées en
+   pleine largeur sur écran réduit, alignées sur une seule ligne à largeurs
+   fixes à partir de 992px (même seuil que le repli de la sidebar) ────────── */
+.agenda-filter-row, .agenda-row {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.agenda-filter-field, .agenda-field { width: 100%; }
+.agenda-field-action {
+  align-self: flex-end;
+  text-align: end;
+}
+
+@media (min-width: 992px) {
+  .agenda-filter-row, .agenda-row {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    overflow-x: auto;
+  }
+  .agenda-filter-field, .agenda-field {
+    width: var(--field-width, auto);
+    flex: 0 0 auto;
+  }
+  .agenda-field.agenda-field-grow {
+    width: auto;
+    flex: 1 1 220px;
+    min-width: 180px;
+  }
+  .agenda-field-action { width: 44px; flex: 0 0 auto; }
+}
 {% endblock %}
 
 {% block extra_js %}
@@ -321,14 +357,15 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
 
   function addAgendaRow(selectedClientId, selectedCommercialId) {
     var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.className = 'agenda-row mb-2';
 
     var rowCommercialId = IS_ADMIN ? (selectedCommercialId || null) : OWN_COMMERCIAL_ID;
 
     var commercialHtml;
     if (IS_ADMIN) {
       commercialHtml =
-        '<div style="width:190px;flex:0 0 auto;">' +
+        '<div class="agenda-field" style="--field-width:190px;">' +
+          '<label class="form-label small text-muted mb-0 d-lg-none">Commercial</label>' +
           '<select name="row_commercial_id" class="form-select form-select-sm commercial-select">' + buildCommercialOptions(selectedCommercialId) + '</select>' +
         '</div>';
     } else {
@@ -337,24 +374,29 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
 
     row.innerHTML =
       commercialHtml +
-      '<div style="width:170px;flex:0 0 auto;">' +
+      '<div class="agenda-field" style="--field-width:170px;">' +
+        '<label class="form-label small text-muted mb-0 d-lg-none">Zone</label>' +
         '<select class="form-select form-select-sm zone-select">' + buildZoneOptions(rowCommercialId, null) + '</select>' +
       '</div>' +
-      '<div style="width:220px;flex:0 0 auto;">' +
+      '<div class="agenda-field" style="--field-width:220px;">' +
+        '<label class="form-label small text-muted mb-0 d-lg-none">Client</label>' +
         '<select name="row_client_id" class="form-select form-select-sm client-select">' + buildClientOptions(null, rowCommercialId, selectedClientId) + '</select>' +
       '</div>' +
-      '<div style="flex:1 1 220px;min-width:180px;">' +
+      '<div class="agenda-field agenda-field-grow">' +
+        '<label class="form-label small text-muted mb-0 d-lg-none">Action planifiée</label>' +
         '<input type="text" name="row_detaille_action_planifier" class="form-control form-control-sm" value="">' +
       '</div>' +
-      '<div style="width:150px;flex:0 0 auto;">' +
+      '<div class="agenda-field" style="--field-width:150px;">' +
+        '<label class="form-label small text-muted mb-0 d-lg-none">Échéance</label>' +
         '<input type="date" name="row_echeance_at" class="form-control form-control-sm" value="{{ today_iso }}">' +
       '</div>' +
-      '<div style="width:170px;flex:0 0 auto;">' +
+      '<div class="agenda-field" style="--field-width:170px;">' +
+        '<label class="form-label small text-muted mb-0 d-lg-none">Statut</label>' +
         '<select name="row_status" class="form-select form-select-sm">' +
           '{% for value, label in statut_choices %}<option value="{{ value }}" {% if value == "En attente" %}selected{% endif %}>{{ label }}</option>{% endfor %}' +
         '</select>' +
       '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
+      '<div class="agenda-field-action">' +
         '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
       '</div>';
 
