@@ -131,13 +131,13 @@
               <form id="agenda-modifier-{{ a.pk }}" method="post"
                     action="{% url 'commercial:agenda-update' a.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-primary" title="Modifier">
+                <button type="submit" class="btn btn-sm btn-outline-primary" tabindex="-1" title="Modifier">
                   <i class="bi bi-check-lg"></i>
                 </button>
               </form>
               <form method="post" action="{% url 'commercial:agenda-delete' a.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
+                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" tabindex="-1" title="Supprimer"
                         onclick="return confirm('Supprimer cette action planifiée ?');">
                   <i class="bi bi-trash"></i>
                 </button>
@@ -230,13 +230,13 @@
       </div>
 
       <div class="d-flex justify-content-end gap-2 mt-2">
-        <button type="button" id="add-agenda-row-btn" class="btn btn-outline-primary btn-sm">
+        <button type="button" id="add-agenda-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
           <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
         </button>
       </div>
 
       <div class="d-flex justify-content-end gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" id="agenda-save-btn" class="btn btn-primary">
           <i class="bi bi-check-lg me-1"></i>Enregistrer
         </button>
       </div>
@@ -355,12 +355,13 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
         '</select>' +
       '</div>' +
       '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
       '</div>';
 
     var commercialSelect = row.querySelector('.commercial-select');
     var zoneSelect = row.querySelector('.zone-select');
     var clientSelect = row.querySelector('.client-select');
+    var actionInput = row.querySelector('[name="row_detaille_action_planifier"]');
 
     function currentCommercialId() {
       return commercialSelect ? commercialSelect.value : OWN_COMMERCIAL_ID;
@@ -375,6 +376,11 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
 
     zoneSelect.addEventListener('change', function () {
       clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
+      clientSelect.focus();
+    });
+
+    clientSelect.addEventListener('change', function () {
+      actionInput.focus();
     });
 
     row.querySelector('.remove-row').addEventListener('click', function () {
@@ -382,11 +388,42 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
     });
 
     rowsContainer.appendChild(row);
+    return row;
   }
 
-  document.getElementById('add-agenda-row-btn').addEventListener('click', function () { addAgendaRow(); });
+  var addRowBtn = document.getElementById('add-agenda-row-btn');
+  var saveBtn = document.getElementById('agenda-save-btn');
 
-  addAgendaRow(PRESELECTED_CLIENT_ID || null, PRESELECTED_COMMERCIAL_ID || null);
+  addRowBtn.addEventListener('click', function () {
+    var row = addAgendaRow();
+    var newZoneSelect = row.querySelector('.zone-select');
+    if (newZoneSelect) { newZoneSelect.focus(); }
+  });
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — sauf lorsque c'est le bouton Enregistrer lui-même qui a le
+  // focus (Entrée déclenche alors son clic natif, comme la souris).
+  document.getElementById('agenda-add-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target !== saveBtn) { e.preventDefault(); }
+  });
+
+  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Zone de la
+  // première ligne de la section « Ajouter d'autres actions ».
+  saveBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      var firstZoneSelect = rowsContainer.querySelector('.zone-select');
+      if (firstZoneSelect) {
+        e.preventDefault();
+        firstZoneSelect.focus();
+      }
+    }
+  });
+
+  // À l'ouverture de la page, le focus se place sur le champ Zone de la
+  // première ligne de la section « Ajouter d'autres actions ».
+  var firstRow = addAgendaRow(PRESELECTED_CLIENT_ID || null, PRESELECTED_COMMERCIAL_ID || null);
+  var firstRowZoneSelect = firstRow.querySelector('.zone-select');
+  if (firstRowZoneSelect) { firstRowZoneSelect.focus(); }
 })();
 </script>
 {% endblock %}
