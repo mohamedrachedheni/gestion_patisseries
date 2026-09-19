@@ -246,7 +246,7 @@
         <div id="bl-extra-rows"></div>
       </div>
       <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="bl-add-extra-row-btn" class="btn btn-outline-primary btn-sm">
+        <button type="button" id="bl-add-extra-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
           <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
         </button>
       </div>
@@ -302,13 +302,13 @@
 
   {# ── Actions ───────────────────────────────────────────────────────────────── #}
   <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary" tabindex="-1">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
     <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
       <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
     </a>
-    <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;">
+    <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;" tabindex="-1">
       <i class="bi bi-check-lg me-1"></i>Enregistrer
     </button>
   </div>
@@ -439,11 +439,12 @@
     clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
     updateClientDependentVisibility();
     refreshDefaults();
+    clientSelect.focus();
   });
 
   clientSelect.addEventListener('change', function () {
     updateClientDependentVisibility();
-    refreshDefaults();
+    refreshDefaults(true);
   });
 
   // Initialisation des listes déroulantes Zone / Client — si un client a été
@@ -516,7 +517,7 @@
         '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
       '</div>' +
       '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
       '</div>';
 
     var produitSelect = row.querySelector('.produit-select');
@@ -562,7 +563,10 @@
       }
     });
 
-    produitSelect.addEventListener('change', autoPrixSurChoixProduit);
+    produitSelect.addEventListener('change', function () {
+      autoPrixSurChoixProduit();
+      qteInput.focus();
+    });
     prixInput.addEventListener('input', syncTotal);
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
@@ -577,7 +581,12 @@
     container.appendChild(row);
   }
 
-  function refreshDefaults() {
+  function focusFirstProduitSelect() {
+    var first = document.querySelector('.produit-select');
+    if (first) { first.focus(); }
+  }
+
+  function refreshDefaults(focusFirstProduitAfterLoad) {
     var clientId = clientSelect.value;
     if (!clientId) {
       DERNIERS_PRIX = {};
@@ -599,6 +608,7 @@
         lignes.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
       }
       recalcMontantTotal();
+      if (focusFirstProduitAfterLoad) { focusFirstProduitSelect(); }
     });
   }
 
