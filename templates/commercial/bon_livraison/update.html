@@ -188,10 +188,10 @@
   var saveBtn = document.getElementById('blu-save-btn');
 
   // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — sauf lorsque c'est le bouton Enregistrer lui-même qui a le
-  // focus (Entrée déclenche alors son clic natif, comme la souris).
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris).
   document.getElementById('blu-form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target !== saveBtn) { e.preventDefault(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
   });
 
   // Le champ Nouveau montant payé sélectionne tout son contenu dès qu'il reçoit le focus.

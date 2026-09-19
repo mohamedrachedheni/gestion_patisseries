@@ -137,10 +137,10 @@
   </div>
 
   <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary">
+    <a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary" tabindex="-1">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
-    <button type="submit" class="btn btn-primary">
+    <button type="submit" id="depense-save-btn" class="btn btn-primary">
       <i class="bi bi-check-lg me-1"></i>Enregistrer
     </button>
   </div>
@@ -155,11 +155,37 @@
 
   var detailRowsContainer = document.getElementById('detail-rows');
 
+  var fournisseurSelect  = document.getElementById('id_fournisseur_id');
   var montantPayeInput   = document.getElementById('id_nouveau_acompte');
   var totalMontantInput  = document.getElementById('id_total_montant');
   var totalAcompteInput  = document.getElementById('id_total_acompte');
   var resteInput         = document.getElementById('id_reste_a_payer');
   var statutInput        = document.getElementById('id_statut');
+  var addRowBtn          = document.getElementById('add-detail-row-btn');
+  var saveBtn            = document.getElementById('depense-save-btn');
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris — Enregistrer, Ajouter une autre ligne, Supprimer la ligne…).
+  document.getElementById('depense-update-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Fournisseur
+  // (le champ Date dépense n'est pas modifiable sur cette page).
+  saveBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      fournisseurSelect.focus();
+    }
+  });
+
+  // Fournisseur sélectionné : le focus passe au champ Montant payé, avec
+  // tout son contenu sélectionné.
+  fournisseurSelect.addEventListener('change', function () {
+    montantPayeInput.focus();
+    montantPayeInput.select();
+  });
 
   function num(el) {
     var v = parseFloat(el.value);
@@ -221,7 +247,7 @@
         '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
       '</div>' +
       '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
       '</div>';
 
     var libelleInput = row.querySelector('.libelle-input');
@@ -236,9 +262,24 @@
 
     qteInput.addEventListener('input', syncTotal);
     prixInput.addEventListener('input', syncTotal);
+
+    // Quantité et Valeur unitaire sélectionnent tout leur contenu dès qu'ils
+    // reçoivent le focus.
+    qteInput.addEventListener('focus', function () { qteInput.select(); });
+    prixInput.addEventListener('focus', function () { prixInput.select(); });
+
     row.querySelector('.remove-row').addEventListener('click', function () {
+      var nextRow = row.nextElementSibling;
+      var prevRow = row.previousElementSibling;
       row.remove();
       recalcMontantTotal();
+      var targetRow = nextRow || prevRow;
+      var targetLibelleInput = targetRow ? targetRow.querySelector('.libelle-input') : null;
+      if (targetLibelleInput) {
+        targetLibelleInput.focus();
+      } else {
+        addRowBtn.focus();
+      }
     });
 
     if (prefill.libelle !== undefined) { libelleInput.value = prefill.libelle; }
@@ -247,9 +288,14 @@
     syncTotal();
 
     detailRowsContainer.appendChild(row);
+    return row;
   }
 
-  document.getElementById('add-detail-row-btn').addEventListener('click', function () { addDetailRow(); });
+  addRowBtn.addEventListener('click', function () {
+    var row = addDetailRow();
+    var newLibelleInput = row.querySelector('.libelle-input');
+    if (newLibelleInput) { newLibelleInput.focus(); }
+  });
 
   // ── Initialisation : lignes existantes (ou reçues du serveur après échec), ─
   // sinon une ligne vide, puis premier calcul.
@@ -259,6 +305,9 @@
     addDetailRow();
   }
   recalcMontantTotal();
+
+  // À l'ouverture de la page, le focus se place sur le champ Fournisseur.
+  fournisseurSelect.focus();
 })();
 </script>
 {% endblock %}

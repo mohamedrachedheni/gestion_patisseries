@@ -355,10 +355,10 @@
   var statutInput          = document.getElementById('bl-statut');
 
   // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — sauf lorsque c'est le bouton Enregistrer lui-même qui a le
-  // focus (Entrée déclenche alors son clic natif, comme la souris).
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris — Enregistrer, Ajouter un produit, Supprimer la ligne…).
   document.getElementById('bl-create-form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target !== saveBtn) { e.preventDefault(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
   });
 
   // ── Sections 4/5 et bouton Enregistrer : masqués tant qu'aucun client n'est

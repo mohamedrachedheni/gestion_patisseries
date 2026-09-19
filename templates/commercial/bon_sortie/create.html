@@ -72,10 +72,10 @@
       </div>
 
       <div class="d-flex justify-content-end gap-2 mt-2">
-        <button type="button" id="bs-add-row-btn" class="btn btn-outline-primary btn-sm">
+        <button type="button" id="bs-add-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
           <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
         </button>
-        <button type="submit" class="btn btn-primary btn-sm">
+        <button type="submit" id="bs-save-btn" class="btn btn-primary btn-sm">
           <i class="bi bi-check-lg me-1"></i>Enregistrer tous
         </button>
       </div>
@@ -96,6 +96,25 @@
   var commercialEl        = document.getElementById('bs-commercial-select');
   var dateInput            = document.getElementById('bs-date-input');
   var sortieRowsContainer  = document.getElementById('bs-sortie-rows');
+  var saveBtn              = document.getElementById('bs-save-btn');
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris — Enregistrer, Ajouter une autre ligne, Supprimer la ligne…).
+  document.getElementById('bs-create-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Date.
+  saveBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      dateInput.focus();
+    }
+  });
+
+  // À l'ouverture de la page, le focus se place sur le champ Date.
+  dateInput.focus();
 
   function buildProduitOptions() {
     var html = '<option value="">-Choisir-</option>';
@@ -117,7 +136,7 @@
         '<input type="number" step="1" min="0" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="">' +
       '</div>' +
       '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
       '</div>';
 
     var produitSelect = row.querySelector('.produit-select');

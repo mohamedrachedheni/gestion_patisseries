@@ -86,10 +86,10 @@
       </div>
 
       <div class="d-flex justify-content-end gap-2 mt-2">
-        <button type="button" id="br-add-row-btn" class="btn btn-outline-primary btn-sm">
+        <button type="button" id="br-add-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
           <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
         </button>
-        <button type="submit" class="btn btn-primary btn-sm">
+        <button type="submit" id="br-save-btn" class="btn btn-primary btn-sm">
           <i class="bi bi-check-lg me-1"></i>Enregistrer les modifications
         </button>
       </div>
@@ -109,6 +109,24 @@
 
   var section2Rows = document.getElementById('br-section2-rows');
   var section3Rows = document.getElementById('br-section3-rows');
+  var dateInput = document.getElementById('br-date-input');
+  var saveBtn = document.getElementById('br-save-btn');
+  var addRowBtn = document.getElementById('br-add-row-btn');
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris — Enregistrer, Ajouter un produit, Supprimer la ligne…).
+  document.getElementById('br-update-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Date.
+  saveBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      dateInput.focus();
+    }
+  });
 
   function num(el) {
     var v = parseFloat(el.value);
@@ -150,15 +168,42 @@
       qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) < 0);
     });
 
+    // Produit sélectionné : le focus passe au champ Quantité, avec tout son
+    // contenu sélectionné.
+    produitSelect.addEventListener('change', function () {
+      qteInput.focus();
+      qteInput.select();
+    });
+
+    // Depuis Quantité, Tab passe au bouton Ajouter un produit.
+    qteInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        addRowBtn.focus();
+      }
+    });
+
     row.querySelector('.remove-row').addEventListener('click', function () {
+      var nextRow = row.nextElementSibling;
+      var prevRow = row.previousElementSibling;
       row.remove();
+      var targetRow = nextRow || prevRow;
+      var targetProduitSelect = targetRow ? targetRow.querySelector('.produit-select') : null;
+      if (targetProduitSelect) {
+        targetProduitSelect.focus();
+      } else {
+        addRowBtn.focus();
+      }
     });
 
     container.appendChild(row);
+    return row;
   }
 
-  document.getElementById('br-add-row-btn').addEventListener('click', function () {
-    addRow(section3Rows);
+  addRowBtn.addEventListener('click', function () {
+    var row = addRow(section3Rows);
+    var newProduitSelect = row.querySelector('.produit-select');
+    if (newProduitSelect) { newProduitSelect.focus(); }
   });
 
   // En cas de réaffichage après échec de validation, toutes les lignes
@@ -173,6 +218,9 @@
     EXISTING_ROWS.forEach(function (l) { addRow(section2Rows, l); });
     addRow(section3Rows);
   }
+
+  // À l'ouverture de la page, le focus se place sur le champ Date.
+  dateInput.focus();
 })();
 </script>
 {% endblock %}
