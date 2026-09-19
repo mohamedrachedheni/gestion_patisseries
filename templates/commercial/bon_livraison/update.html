@@ -157,10 +157,10 @@
 
   {# ── Actions ───────────────────────────────────────────────────────────────── #}
   <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary" tabindex="-1">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
-    <button type="submit" class="btn btn-primary">
+    <button type="submit" id="blu-save-btn" class="btn btn-primary">
       <i class="bi bi-check-lg me-1"></i>Enregistrer
     </button>
   </div>
@@ -185,6 +185,23 @@
   var totalAcompteInput = document.getElementById('blu-total-acompte');
   var resteInput        = document.getElementById('blu-reste');
   var statutPaiementInput = document.getElementById('blu-statut-paiement');
+  var saveBtn = document.getElementById('blu-save-btn');
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — sauf lorsque c'est le bouton Enregistrer lui-même qui a le
+  // focus (Entrée déclenche alors son clic natif, comme la souris).
+  document.getElementById('blu-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target !== saveBtn) { e.preventDefault(); }
+  });
+
+  // Le champ Nouveau montant payé sélectionne tout son contenu dès qu'il reçoit le focus.
+  nouveauAcompteInput.addEventListener('focus', function () {
+    nouveauAcompteInput.select();
+  });
+
+  // À l'ouverture de la page, le focus se place sur le champ Nouveau montant
+  // payé — ce qui déclenche aussi la sélection de son contenu ci-dessus.
+  nouveauAcompteInput.focus();
 
   function num(el) {
     var v = parseFloat(el.value);
@@ -300,6 +317,15 @@
     statutPaiementInput.value = statutPaiement;
   }
   nouveauAcompteInput.addEventListener('input', recalcResteAPayer);
+
+  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Nouveau
+  // montant payé plutôt que de quitter le formulaire.
+  saveBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      nouveauAcompteInput.focus();
+    }
+  });
 
   recalcMontantTotal();
 })();

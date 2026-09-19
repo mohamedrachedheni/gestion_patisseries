@@ -706,6 +706,20 @@
 
   nouveauAcompteInput.addEventListener('input', recalcResteEtStatut);
 
+  // Le champ Montant payé sélectionne tout son contenu dès qu'il reçoit le focus.
+  nouveauAcompteInput.addEventListener('focus', function () {
+    nouveauAcompteInput.select();
+  });
+
+  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Montant payé
+  // plutôt que de quitter le formulaire.
+  saveBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab' && !e.shiftKey) {
+      e.preventDefault();
+      nouveauAcompteInput.focus();
+    }
+  });
+
   recalcMontantTotal();
 })();
 </script>
