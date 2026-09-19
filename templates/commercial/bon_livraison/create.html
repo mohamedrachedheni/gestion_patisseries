@@ -134,6 +134,9 @@
 </div>
 
 <div class="d-flex gap-2 justify-content-end">
+  <a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
+  </a>
   <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
     <i class="bi bi-x-lg me-1"></i>Fermer
   </a>
@@ -302,13 +305,16 @@
 
   {# ── Actions ───────────────────────────────────────────────────────────────── #}
   <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'commercial:bon-livraison-create' %}" id="bl-new-btn" class="btn btn-outline-secondary" tabindex="-1" style="display:none;">
+      <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
+    </a>
     <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary" tabindex="-1">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
     <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
       <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
     </a>
-    <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;" tabindex="-1">
+    <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;">
       <i class="bi bi-check-lg me-1"></i>Enregistrer
     </button>
   </div>
@@ -339,6 +345,7 @@
   var section4Card    = document.getElementById('bl-section4-card');
   var section5Card    = document.getElementById('bl-section5-card');
   var saveBtn         = document.getElementById('bl-save-btn');
+  var newBlBtn        = document.getElementById('bl-new-btn');
   var defaultRowsContainer = document.getElementById('bl-default-rows');
   var extraRowsContainer   = document.getElementById('bl-extra-rows');
   var nouveauAcompteInput  = document.getElementById('bl-nouveau-acompte');
@@ -347,11 +354,11 @@
   var resteInput           = document.getElementById('bl-reste');
   var statutInput          = document.getElementById('bl-statut');
 
-  // Le bouton Enregistrer ne doit être activé que par un clic souris — la
-  // touche Entrée (dans n'importe quel champ, y compris le bouton lui-même
-  // une fois focus par tabulation) ne doit jamais soumettre le formulaire.
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — sauf lorsque c'est le bouton Enregistrer lui-même qui a le
+  // focus (Entrée déclenche alors son clic natif, comme la souris).
   document.getElementById('bl-create-form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); }
+    if (e.key === 'Enter' && e.target !== saveBtn) { e.preventDefault(); }
   });
 
   // ── Sections 4/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
@@ -361,6 +368,7 @@
     section4Card.style.display = visible ? '' : 'none';
     section5Card.style.display = visible ? '' : 'none';
     saveBtn.style.display = visible ? '' : 'none';
+    newBlBtn.style.display = visible ? '' : 'none';
   }
 
   function num(el) {
@@ -425,6 +433,25 @@
     clientSelect.disabled = IS_ADMINISTRATION && !currentCommercialId();
   }
 
+  // ── Ouverture automatique de la liste déroulante native d'un <select> ─────
+  // Dès qu'il reçoit le focus, le champ ouvre sa liste — sauf quand ce focus
+  // provient d'un clic souris (le clic a déjà ouvert/va ouvrir la liste
+  // nativement ; simuler un second clic la refermerait aussitôt). Best-effort
+  // : fonctionne sur les navigateurs à moteur Chromium (Google Chrome, Edge…).
+  function wireDropdownAutoOpenOnFocus(select) {
+    var focusedByMouse = false;
+    select.addEventListener('mousedown', function () {
+      focusedByMouse = true;
+    });
+    select.addEventListener('focus', function () {
+      if (!focusedByMouse && !select.disabled) { select.click(); }
+      focusedByMouse = false;
+    });
+  }
+
+  wireDropdownAutoOpenOnFocus(zoneSelect);
+  wireDropdownAutoOpenOnFocus(clientSelect);
+
   if (commercialEl && commercialEl.tagName === 'SELECT') {
     commercialEl.addEventListener('change', function () {
       zoneSelect.innerHTML = buildZoneOptions(commercialEl.value, null);
@@ -459,6 +486,9 @@
   clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
   updateCommercialClientLock();
   updateClientDependentVisibility();
+  // À l'ouverture de la page, le focus se place sur le champ Zone — ce qui
+  // déclenche l'ouverture de sa liste déroulante (voir wireDropdownAutoOpenOnFocus).
+  zoneSelect.focus();
   // Un client déjà présélectionné au chargement (lien direct ?client_id=..., ou
   // ré-affichage après échec de validation) doit aussi déclencher le
   // préremplissage de la section 3 — sinon elle reste vide tant que
@@ -525,6 +555,12 @@
     var prixInput      = row.querySelector('.prix-input');
     var totalInput     = row.querySelector('.total-ligne-input');
 
+    // Le champ Produit de la section « Ajouter d'autres produits » ouvre sa
+    // liste déroulante dès qu'il reçoit le focus (voir wireDropdownAutoOpenOnFocus).
+    if (container === extraRowsContainer) {
+      wireDropdownAutoOpenOnFocus(produitSelect);
+    }
+
     function syncTotal() {
       var produitId = produitSelect.value;
       var qte = num(qteInput);
@@ -555,6 +591,11 @@
       syncTotal();
     }
     qteInput.addEventListener('input', onQteInput);
+    // Le champ Quantité sélectionne tout son contenu dès qu'il reçoit le
+    // focus, pour permettre une saisie directe sans effacer manuellement.
+    qteInput.addEventListener('focus', function () {
+      qteInput.select();
+    });
     qteInput.addEventListener('blur', function () {
       if (num(qteInput) <= 0) {
         qteInput.value = '1';
