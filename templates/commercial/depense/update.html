@@ -24,11 +24,10 @@
     </div>
     <div class="card-body">
 
-      <div class="overflow-auto">
       {# ── Ligne 1 : champs modifiables ──────────────────────────────── #}
-      <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
+      <div class="dep-info-row mb-3">
         {% if is_administration %}
-        <div style="width:200px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:200px;">
           <label class="form-label small mb-1">Employé</label>
           <select name="employe_id" id="id_employe_id" class="form-select form-select-sm">
             {% for u in employes_list %}
@@ -42,12 +41,12 @@
         <input type="hidden" name="employe_id" id="id_employe_id" value="{{ employe_id }}">
         {% endif %}
 
-        <div style="width:150px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:150px;">
           <label class="form-label small mb-1">Date dépense</label>
           <input type="date" value="{{ depense_at }}" class="form-control form-control-sm" disabled>
         </div>
 
-        <div style="width:220px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:220px;">
           <label class="form-label small mb-1">Fournisseur</label>
           <select name="fournisseur_id" id="id_fournisseur_id" class="form-select form-select-sm">
             {% for f in fournisseurs_list %}
@@ -56,13 +55,13 @@
           </select>
         </div>
 
-        <div style="width:140px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:140px;">
           <label class="form-label small mb-1">Montant payé</label>
           <input type="number" step="0.001" min="0" name="nouveau_acompte" id="id_nouveau_acompte"
                  value="{{ nouveau_acompte }}" class="form-control form-control-sm no-spinner">
         </div>
 
-        <div style="width:150px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:150px;">
           <label class="form-label small mb-1">Mode paiement</label>
           <select name="mode_paiement" id="id_mode_paiement" class="form-select form-select-sm">
             {% for value, label in mode_paiement_choices %}
@@ -71,42 +70,41 @@
           </select>
         </div>
 
-        <div style="flex:1 1 auto;min-width:200px;">
+        <div class="dep-info-field dep-info-field-grow">
           <label class="form-label small mb-1">Observation</label>
           <input type="text" name="observation" value="{{ observation }}" class="form-control form-control-sm">
         </div>
       </div>
 
       {# ── Ligne 2 : champs auto-définis, non modifiables ────────────── #}
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
-        <div style="width:150px;flex:0 0 auto;">
+      <div class="dep-info-row dep-info-row-spread">
+        <div class="dep-info-field" style="--field-width:150px;">
           <label class="form-label small mb-1">Numéro dépense</label>
           <input type="text" value="{{ depense_numero }}" class="form-control form-control-sm" disabled>
         </div>
 
-        <div style="width:150px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:150px;">
           <label class="form-label small mb-1">Montant total</label>
           <input type="number" step="0.001" id="id_total_montant" value="0.000"
                  class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
         </div>
 
-        <div style="width:150px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:150px;">
           <label class="form-label small mb-1">Total acompte</label>
           <input type="number" step="0.001" id="id_total_acompte" value="{{ ancien_total_acompte }}"
                  class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
         </div>
 
-        <div style="width:150px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:150px;">
           <label class="form-label small mb-1">Reste à payer</label>
           <input type="number" step="0.001" id="id_reste_a_payer" value="0.000"
                  class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
         </div>
 
-        <div style="width:180px;flex:0 0 auto;">
+        <div class="dep-info-field" style="--field-width:180px;">
           <label class="form-label small mb-1">Statut paiement</label>
           <input type="text" id="id_statut" value="" class="form-control form-control-sm" disabled>
         </div>
-      </div>
       </div>
 
     </div>
@@ -145,6 +143,37 @@
     </button>
   </div>
 </form>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Section « Information de la dépense à modifier » : empilée en pleine
+   largeur sur écran réduit, alignée sur une ligne à largeurs fixes à partir
+   de 992px (même seuil que le repli de la sidebar) ──────────────────────── */
+.dep-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.dep-info-field { width: 100%; }
+
+@media (min-width: 992px) {
+  .dep-info-row {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+  }
+  .dep-info-row-spread { justify-content: space-between; }
+  .dep-info-field {
+    width: var(--field-width, auto);
+    flex: 0 0 auto;
+  }
+  .dep-info-field.dep-info-field-grow {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 200px;
+  }
+}
 {% endblock %}
 
 {% block extra_js %}
