@@ -128,7 +128,12 @@ class TourneeDuJourView(GroupRequiredMixin, View):
             agenda_par_client.setdefault(a.client_id, []).append(a)
 
         client_ids = clients_recurrents_ids | set(agenda_par_client.keys())
-        clients = clients_qs.filter(pk__in=client_ids).select_related('zone').order_by('zone__nom', 'raison_sociale')
+        clients = (
+            clients_qs.filter(pk__in=client_ids)
+            .select_related('zone')
+            .prefetch_related('client_users__user')
+            .order_by('zone__nom', 'raison_sociale')
+        )
 
         clients_livres_ids = set(
             BonLivraisonCode.objects.filter(
@@ -136,12 +141,31 @@ class TourneeDuJourView(GroupRequiredMixin, View):
             ).values_list('client_id', flat=True)
         )
 
+        # Colonne Commercial (Administration uniquement) : si un commercial précis
+        # est filtré, toutes les lignes affichent ce même commercial (sans requête
+        # supplémentaire) ; sinon (« tous les commerciaux »), chaque ligne affiche
+        # le ou les commerciaux réellement rattachés à ce client (client partagé).
+        commercial_filtre_label = ''
+        commercial_par_client = {}
+        if is_admin and commercial_id:
+            commercial_obj = User.objects.filter(pk=commercial_id).first()
+            if commercial_obj:
+                commercial_filtre_label = commercial_obj.get_full_name() or commercial_obj.username
+        elif is_admin:
+            for client in clients:
+                noms = sorted({
+                    cu.user.get_full_name() or cu.user.username
+                    for cu in client.client_users.all()
+                })
+                commercial_par_client[client.pk] = ', '.join(noms)
+
         lignes = [
             {
                 'client': client,
                 'est_recurrent': client.pk in clients_recurrents_ids,
                 'actions_agenda': agenda_par_client.get(client.pk, []),
                 'deja_livre': client.pk in clients_livres_ids,
+                'commercial': commercial_filtre_label if commercial_id else commercial_par_client.get(client.pk, ''),
             }
             for client in clients
         ]
@@ -301,14 +325,36 @@ class ClientImpayesListView(GroupRequiredMixin, View):
             c.pk: c for c in
             Client.objects.filter(
                 pk__in=[g['bon_livraison_code__client_id'] for g in impayes_par_client],
-            ).select_related('zone')
+            ).select_related('zone').prefetch_related('client_users__user')
         }
+
+        # Colonne Commercial (Administration uniquement) : si un commercial précis
+        # est filtré, toutes les lignes affichent ce même commercial (sans requête
+        # supplémentaire) ; sinon (« tous les commerciaux »), chaque ligne affiche
+        # le ou les commerciaux réellement rattachés à ce client (client partagé).
+        commercial_filtre_label = ''
+        commercial_par_client = {}
+        if is_admin and commercial_id:
+            commercial_obj = User.objects.filter(pk=commercial_id).first()
+            if commercial_obj:
+                commercial_filtre_label = commercial_obj.get_full_name() or commercial_obj.username
+        elif is_admin:
+            for client in clients_par_id.values():
+                noms = sorted({
+                    cu.user.get_full_name() or cu.user.username
+                    for cu in client.client_users.all()
+                })
+                commercial_par_client[client.pk] = ', '.join(noms)
+
         lignes = [
             {
                 'client':         clients_par_id[g['bon_livraison_code__client_id']],
                 'montant_total':  g['montant_total'],
                 'plus_ancien':    g['plus_ancien'],
                 'nb_bl_impayes':  g['nb_bl_impayes'],
+                'commercial':     commercial_filtre_label if commercial_id else commercial_par_client.get(
+                    g['bon_livraison_code__client_id'], '',
+                ),
             }
             for g in impayes_par_client
             if g['bon_livraison_code__client_id'] in clients_par_id

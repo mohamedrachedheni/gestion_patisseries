@@ -181,7 +181,7 @@
   <div class="card-body">
     <form method="post" action="{% url 'administration:zone-create' %}">
       {% csrf_token %}
-      <div class="row g-2 align-items-end zone-gouv-deleg-group">
+      <div class="row g-2 align-items-end zone-gouv-deleg-group" id="zone-create-group">
         <div class="col-sm-4">
           <label class="form-label small mb-1">Gouvernorat</label>
           <select name="gouvernorat" class="form-select zone-gouvernorat-select">
@@ -199,7 +199,9 @@
         </div>
         <div class="col-sm-3">
           <label class="form-label small mb-1">Zone</label>
-          <input type="text" name="nom" value="" class="form-control">
+          <input type="text" name="nom" value="" class="form-control" id="zone-create-nom-input"
+                 list="zone-create-nom-datalist" autocomplete="off">
+          <datalist id="zone-create-nom-datalist"></datalist>
         </div>
         <div class="col-sm-1">
           <button type="submit" class="btn btn-primary w-100">
@@ -214,6 +216,7 @@
 <script>
 (function () {
   var DELEGATIONS = {{ delegations_json|safe }};
+  var ZONES = {{ zones_json|safe }};
 
   function buildDelegationOptions(gouvernoratId, selectedId) {
     var html = '<option value="">— Choisir —</option>';
@@ -225,18 +228,36 @@
     return html;
   }
 
+  // ── Section « Ajouter une zone » : le champ Zone suggère (sans l'imposer)
+  // les noms des zones déjà enregistrées sous la délégation sélectionnée.
+  var zoneCreateNomDatalist = document.getElementById('zone-create-nom-datalist');
+
+  function refreshZoneNomOptions(delegationId) {
+    if (!zoneCreateNomDatalist) { return; }
+    zoneCreateNomDatalist.innerHTML = '';
+    ZONES.forEach(function (z) {
+      if (!delegationId || String(z.delegation_id) !== String(delegationId)) { return; }
+      var option = document.createElement('option');
+      option.value = z.nom;
+      zoneCreateNomDatalist.appendChild(option);
+    });
+  }
+
   document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
     var gouvSelect = group.querySelector('.zone-gouvernorat-select');
     var delegSelect = group.querySelector('.zone-delegation-select');
     if (!gouvSelect || !delegSelect) { return; }
+    var isCreateGroup = group.id === 'zone-create-group';
 
     gouvSelect.addEventListener('change', function () {
       delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
+      if (isCreateGroup) { refreshZoneNomOptions(null); }
     });
 
     delegSelect.addEventListener('change', function () {
       var match = DELEGATIONS.find(function (d) { return String(d.id) === String(delegSelect.value); });
       if (match) { gouvSelect.value = String(match.gouvernorat_id); }
+      if (isCreateGroup) { refreshZoneNomOptions(delegSelect.value); }
     });
   });
 })();

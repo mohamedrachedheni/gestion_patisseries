@@ -322,9 +322,10 @@ def generer_graphique_adherence(series_par_commercial):
 
 
 def calculer_demande_reference_produits(date_debut, date_fin, produit_ids=None, jours_semaine=None):
-    """Phase 3 : quantité de référence moyenne livrée par produit et par jour
-    de semaine sur la période [date_debut, date_fin], pour programmer les
-    commandes internes de production.
+    """Phase 3 : quantité de référence demandée par produit sur la période
+    [date_debut, date_fin], pour programmer les commandes internes de
+    production — somme, pour chaque jour de semaine sélectionné, de la
+    quantité moyenne livrée de ce produit ce jour-là.
 
     - Ne retient que le DERNIER BonLivraison de chaque BonLivraisonCode (un
       bon révisé plusieurs fois ne doit être compté qu'une fois — même
@@ -336,8 +337,8 @@ def calculer_demande_reference_produits(date_debut, date_fin, produit_ids=None, 
     - `jours_semaine` : ensemble des jours de semaine à retenir, 0=Lundi..6=Dimanche
       (None = tous les 7 jours).
 
-    Retourne une liste de dicts triés par jour de semaine puis nom de produit :
-    {'jour_semaine', 'produit', 'quantite_reference', 'stock_disponible'}
+    Retourne une liste de dicts triés par nom de produit :
+    {'produit', 'quantite_reference', 'stock_disponible'}
     """
     jours_non_ouvres = _jours_non_ouvres_livraison(date_debut, date_fin)
 
@@ -378,25 +379,30 @@ def calculer_demande_reference_produits(date_debut, date_fin, produit_ids=None, 
         totaux[cle] = totaux.get(cle, 0) + detail.quantite
         produits_par_id[detail.produit_id] = detail.produit
 
-    libelle_jour = dict(JOUR_SEMAINE_CHOICES)
-
-    resultats = []
+    # Quantité de référence par produit = somme, sur chaque jour de semaine
+    # sélectionné, de la quantité moyenne livrée ce jour-là (chaque moyenne
+    # journalière est arrondie au supérieur avant sommation — mieux vaut
+    # prévoir légèrement plus que d'être en rupture sur la quantité de
+    # référence).
+    par_produit = {}
     for (jour_semaine, produit_id), quantite_totale in totaux.items():
         nb_jours = nb_jours_par_semaine.get(jour_semaine, 0)
         if not nb_jours:
             continue
         produit = produits_par_id[produit_id]
-        resultats.append({
-            'jour_semaine': jour_semaine,
-            'jour_semaine_label': libelle_jour[jour_semaine],
-            'produit': produit,
-            # Arrondi au supérieur : mieux vaut prévoir légèrement plus que
-            # d'être en rupture sur la quantité de référence.
-            'quantite_reference': math.ceil(quantite_totale / nb_jours),
-            'stock_disponible': produit.stock,
-        })
+        quantite_reference_jour = math.ceil(quantite_totale / nb_jours)
+        ligne = par_produit.setdefault(produit_id, {'produit': produit, 'quantite_reference': 0})
+        ligne['quantite_reference'] += quantite_reference_jour
 
-    resultats.sort(key=lambda r: (r['jour_semaine'], r['produit'].nom))
+    resultats = [
+        {
+            'produit': ligne['produit'],
+            'quantite_reference': ligne['quantite_reference'],
+            'stock_disponible': ligne['produit'].stock,
+        }
+        for ligne in par_produit.values()
+    ]
+    resultats.sort(key=lambda r: r['produit'].nom)
     return resultats
 
 

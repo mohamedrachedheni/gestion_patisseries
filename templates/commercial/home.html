@@ -25,45 +25,113 @@
     </div>
   </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:tournee-du-jour' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-signpost-split fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Ma tournée du jour</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-truck fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Bons de livraison</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:agenda-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-calendar-event fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Agenda</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:client-sans-bl-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-person-x fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Clients sans BL</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:client-impayes-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-cash-coin fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Suivi des impayés</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:stock-commercial-actuel' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-clipboard-data fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Stock commercial actuel</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:client-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-people fs-2 text-primary mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Clients actifs</div>
+        <div class="text-muted small">Clients</div>
       </div>
-    </div>
+    </a>
   </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:bon-sortie-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
-        <i class="bi bi-receipt fs-2 text-success mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Ventes du mois</div>
+        <i class="bi bi-box-seam fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Bons de sortie</div>
       </div>
-    </div>
+    </a>
   </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:bon-restitution-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
-        <i class="bi bi-truck fs-2 text-warning mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">BL en attente</div>
+        <i class="bi bi-arrow-return-left fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Bons de restitution</div>
       </div>
-    </div>
+    </a>
   </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:depense-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
-        <i class="bi bi-exclamation-triangle fs-2 text-danger mb-2 d-block"></i>
-        <div class="fw-bold fs-4">—</div>
-        <div class="text-muted small">Impayés</div>
+        <i class="bi bi-cash-stack fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Dépenses</div>
       </div>
-    </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:fournisseur-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-building fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Fournisseurs</div>
+      </div>
+    </a>
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+.row a.card:hover {
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.1) !important;
+  transform: translateY(-2px);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
 {% endblock %}

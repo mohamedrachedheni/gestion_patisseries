@@ -18,8 +18,9 @@
   Demande de référence par produit et jour de semaine
 </h4>
 <p class="text-muted small mb-4">
-  Quantité moyenne livrée par produit sur chaque jour de semaine, calculée sur la période de référence
-  (les jours non ouvrés sont exclus du calcul) — sert à programmer les commandes internes de production.
+  Pour chaque produit, somme des quantités moyennes livrées sur chaque jour de semaine sélectionné, calculées sur
+  la période de référence (les jours non ouvrés sont exclus du calcul) — sert à programmer les commandes internes
+  de production.
 </p>
 
 {# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
@@ -81,8 +82,7 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th class="ps-3" style="min-width:120px;">Jour de la semaine</th>
-            <th style="min-width:200px;">Produit</th>
+            <th class="ps-3" style="min-width:200px;">Produit</th>
             <th class="text-end" style="min-width:170px;">Quantité de référence demandée</th>
             <th class="text-end pe-3" style="min-width:150px;">Stock disponible actuel</th>
           </tr>
@@ -91,9 +91,6 @@
           {% for l in lignes %}
           <tr>
             <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" value="{{ l.jour_semaine_label }}" disabled>
-            </td>
-            <td>
               <input type="text" class="form-control form-control-sm" style="min-width:190px;" value="{{ l.produit }}" disabled>
             </td>
             <td class="text-end">

@@ -366,6 +366,10 @@ class ZoneListView(GroupRequiredMixin, View):
                 {'id': d.pk, 'nom': d.nom_delegation, 'gouvernorat_id': d.gouvernorat_id}
                 for d in delegations_list
             ]),
+            'zones_json': json.dumps([
+                {'id': z.pk, 'nom': z.nom, 'delegation_id': z.delegation_id}
+                for z in Zone.objects.only('pk', 'nom', 'delegation_id')
+            ]),
         })
 
 
