@@ -635,6 +635,7 @@
     function onQteInput() {
       qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) <= 0);
       syncTotal();
+      syncMontantPayeAvecMontantTotal();
     }
     qteInput.addEventListener('input', onQteInput);
     // Le champ Quantité sélectionne tout son contenu dès qu'il reçoit le
@@ -654,7 +655,10 @@
       autoPrixSurChoixProduit();
       qteInput.focus();
     });
-    prixInput.addEventListener('input', syncTotal);
+    prixInput.addEventListener('input', function () {
+      syncTotal();
+      syncMontantPayeAvecMontantTotal();
+    });
     // Le champ Prix unitaire sélectionne tout son contenu dès qu'il reçoit le focus.
     prixInput.addEventListener('focus', function () {
       prixInput.select();
@@ -754,6 +758,14 @@
       total += num(el);
     });
     totalMontantInput.value = round3(total).toFixed(3);
+    recalcResteEtStatut();
+  }
+
+  // Sur changement du Prix unitaire ou de la Quantité d'une ligne, Montant
+  // payé reprend la valeur de Montant total (voir onQteInput / le listener
+  // du champ Prix unitaire dans addProduitRow).
+  function syncMontantPayeAvecMontantTotal() {
+    nouveauAcompteInput.value = totalMontantInput.value;
     recalcResteEtStatut();
   }
 
