@@ -319,6 +319,21 @@
     </button>
   </div>
 </form>
+
+{# ── Pop-up de confirmation « Reste à payer = 0 » ─────────────────────────── #}
+<div class="modal fade" id="bl-confirm-paye-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body py-4 text-center">
+        Le bon de livraison est totalement payé.
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" id="bl-confirm-paye-non" class="btn btn-outline-secondary">Non</button>
+        <button type="button" id="bl-confirm-paye-oui" class="btn btn-primary">Oui</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
 
@@ -403,8 +418,36 @@
   // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
   // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
   // son clic natif, comme la souris — Enregistrer, Ajouter un produit, Supprimer la ligne…).
-  document.getElementById('bl-create-form').addEventListener('keydown', function (e) {
+  var blCreateForm = document.getElementById('bl-create-form');
+
+  blCreateForm.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // ── Pop-up de confirmation si le bon est totalement payé (Reste à payer = 0) ──
+  var confirmPayeModalEl = document.getElementById('bl-confirm-paye-modal');
+  var confirmPayeModal = new bootstrap.Modal(confirmPayeModalEl);
+  var paiementTotalConfirme = false;
+
+  blCreateForm.addEventListener('submit', function (e) {
+    if (!paiementTotalConfirme && num(resteInput) === 0) {
+      e.preventDefault();
+      confirmPayeModal.show();
+    }
+  });
+
+  document.getElementById('bl-confirm-paye-oui').addEventListener('click', function () {
+    paiementTotalConfirme = true;
+    confirmPayeModal.hide();
+    blCreateForm.submit();
+  });
+
+  document.getElementById('bl-confirm-paye-non').addEventListener('click', function () {
+    confirmPayeModal.hide();
+  });
+
+  confirmPayeModalEl.addEventListener('hidden.bs.modal', function () {
+    if (!paiementTotalConfirme) { nouveauAcompteInput.focus(); }
   });
 
   // ── Sections 4/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
