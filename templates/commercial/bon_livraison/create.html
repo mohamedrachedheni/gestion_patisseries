@@ -655,6 +655,10 @@
       qteInput.focus();
     });
     prixInput.addEventListener('input', syncTotal);
+    // Le champ Prix unitaire sélectionne tout son contenu dès qu'il reçoit le focus.
+    prixInput.addEventListener('focus', function () {
+      prixInput.select();
+    });
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
       recalcMontantTotal();
@@ -666,6 +670,7 @@
     syncTotal();
 
     container.appendChild(row);
+    return row;
   }
 
   function focusFirstProduitSelect() {
@@ -701,7 +706,9 @@
 
   // ── Section 4 : ajouter d'autres produits ─────────────────────────────────
   document.getElementById('bl-add-extra-row-btn').addEventListener('click', function () {
-    addProduitRow(extraRowsContainer, null);
+    var row = addProduitRow(extraRowsContainer, null);
+    var newProduitSelect = row.querySelector('.produit-select');
+    if (newProduitSelect) { newProduitSelect.focus(); }
   });
   if (PRESERVED_LIGNES.length) {
     // Après un échec de validation, toutes les lignes précédemment saisies
