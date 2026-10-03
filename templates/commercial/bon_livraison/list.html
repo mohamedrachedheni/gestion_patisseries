@@ -166,7 +166,7 @@
                   {% csrf_token %}
                   <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
                           data-can-delete="{% if bl.erreur_suppression %}0{% else %}1{% endif %}"
-                          data-refus-message="{{ bl.erreur_suppression|escapejs }}"
+                          data-refus-message="{{ bl.erreur_suppression }}"
                           onclick="return blConfirmDelete(this);">
                     <i class="bi bi-trash"></i>
                   </button>
