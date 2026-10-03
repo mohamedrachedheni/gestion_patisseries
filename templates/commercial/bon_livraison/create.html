@@ -517,7 +517,7 @@
 
   clientSelect.addEventListener('change', function () {
     updateClientDependentVisibility();
-    refreshDefaults(true);
+    refreshDefaults(true, true);
   });
 
   // Initialisation des listes déroulantes Zone / Client — si un client a été
@@ -682,7 +682,7 @@
     if (first) { first.focus(); }
   }
 
-  function refreshDefaults(focusFirstProduitAfterLoad) {
+  function refreshDefaults(focusFirstProduitAfterLoad, syncMontantPayeIfPopulated) {
     var clientId = clientSelect.value;
     if (!clientId) {
       DERNIERS_PRIX = {};
@@ -705,6 +705,9 @@
       }
       recalcMontantTotal();
       if (focusFirstProduitAfterLoad) { focusFirstProduitSelect(); }
+      // À la sélection du client, si le bon de livraison contient des produits
+      // par défaut, Montant payé prend directement la valeur de Montant total.
+      if (syncMontantPayeIfPopulated && lignes.length) { syncMontantPayeAvecMontantTotal(); }
     });
   }
 
