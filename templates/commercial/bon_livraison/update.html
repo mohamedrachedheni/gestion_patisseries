@@ -199,10 +199,6 @@
     nouveauAcompteInput.select();
   });
 
-  // À l'ouverture de la page, le focus se place sur le champ Nouveau montant
-  // payé — ce qui déclenche aussi la sélection de son contenu ci-dessus.
-  nouveauAcompteInput.focus();
-
   function num(el) {
     var v = parseFloat(el.value);
     return isNaN(v) ? 0 : v;
@@ -292,8 +288,26 @@
     recalcResteAPayer();
   }
 
-  document.querySelectorAll('.blu-prix-input').forEach(function (prixInput) {
-    prixInput.addEventListener('input', recalcMontantTotal);
+  var prixInputs = document.querySelectorAll('.blu-prix-input');
+  prixInputs.forEach(function (prixInput, idx) {
+    prixInput.addEventListener('input', function () {
+      recalcMontantTotal();
+      syncNouveauMontantPayeAvecReste();
+    });
+    // Le champ Prix unitaire sélectionne tout son contenu dès qu'il reçoit le focus.
+    prixInput.addEventListener('focus', function () {
+      prixInput.select();
+    });
+    // Depuis le Prix unitaire de la dernière ligne, Tab renvoie le focus au
+    // champ Nouveau montant payé plutôt que de passer par Enregistrer.
+    if (idx === prixInputs.length - 1) {
+      prixInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab' && !e.shiftKey) {
+          e.preventDefault();
+          nouveauAcompteInput.focus();
+        }
+      });
+    }
   });
 
   // ── Section 1 : Montant total payé, Reste à payer et Status paiement ──────
@@ -318,6 +332,15 @@
   }
   nouveauAcompteInput.addEventListener('input', recalcResteAPayer);
 
+  // Au changement d'un Prix unitaire, Nouveau montant payé reprend le reste
+  // à payer encore dû (Montant total − Montant total déjà payé hors cette
+  // saisie), pour régler d'un coup le solde actualisé.
+  function syncNouveauMontantPayeAvecReste() {
+    var resteAvantNouveauPaiement = round3(num(totalMontantInput) - ANCIEN_TOTAL_ACOMPTE);
+    nouveauAcompteInput.value = (resteAvantNouveauPaiement > 0 ? resteAvantNouveauPaiement : 0).toFixed(3);
+    recalcResteAPayer();
+  }
+
   // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Nouveau
   // montant payé plutôt que de quitter le formulaire.
   saveBtn.addEventListener('keydown', function (e) {
@@ -328,6 +351,17 @@
   });
 
   recalcMontantTotal();
+
+  // À l'ouverture de la page : s'il reste un montant à payer, Nouveau montant
+  // payé en reprend la valeur (et se sélectionne, via le focus ci-dessus) ;
+  // sinon le focus part directement sur le Prix unitaire de la première ligne.
+  if (num(resteInput) > 0) {
+    nouveauAcompteInput.value = resteInput.value;
+    nouveauAcompteInput.focus();
+  } else {
+    var firstPrixInput = document.querySelector('.blu-prix-input');
+    if (firstPrixInput) { firstPrixInput.focus(); }
+  }
 })();
 </script>
 {% endblock %}
