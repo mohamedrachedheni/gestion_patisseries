@@ -1391,7 +1391,7 @@ class BonLivraisonListView(GroupRequiredMixin, View):
         if statut:
             qs = qs.filter(statut=statut)
 
-        qs = qs.order_by('-bon_livraison_code__bon_livraison_at', 'bon_livraison_code__bon_livraison_numero')
+        qs = qs.order_by('-bon_livraison_code__bon_livraison_at', '-bon_livraison_code__bon_livraison_numero')
 
         # ── Données pour les listes déroulantes ───────────────────
         if is_admin:

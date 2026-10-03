@@ -106,7 +106,8 @@
             {% if is_administration %}
             <th class="ps-3" style="min-width:170px;">Commercial</th>
             {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">Date</th>
+            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">Date B.L.</th>
+            <th style="min-width:130px;">Numéro B.L.</th>
             <th style="min-width:180px;">Client</th>
             <th style="min-width:140px;">Zone</th>
             <th class="text-end" style="min-width:130px;">Montant (TND)</th>
@@ -127,13 +128,17 @@
               <input type="date" class="form-control form-control-sm" style="min-width:100px;"
                      value="{{ bl.bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}" disabled>
             </td>
+            <td style="min-width:130px;">
+              <input type="text" class="form-control form-control-sm" style="min-width:110px;"
+                     value="{{ bl.bon_livraison_code.bon_livraison_numero }}" disabled>
+            </td>
             <td style="min-width:180px;">
               <input type="text" class="form-control form-control-sm" style="min-width:160px;"
                      value="{{ bl.bon_livraison_code.client }}" disabled>
             </td>
             <td style="min-width:140px;">
               <input type="text" class="form-control form-control-sm" style="min-width:120px;"
-                     value="{{ bl.bon_livraison_code.client.zone|default:'' }}" disabled>
+                     value="{{ bl.bon_livraison_code.client.zone.nom|default:'' }}" disabled>
             </td>
             <td class="text-end" style="min-width:130px;">
               <input type="number" step="0.001"
