@@ -1,0 +1,103 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Nouvelle zone — Commercial{% endblock %}
+{% block page_title %}Nouvelle zone{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
+    <li class="breadcrumb-item active">Nouvelle zone</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent fw-semibold py-3">
+      <i class="bi bi-pin-map me-2 text-primary"></i>Nouvelle zone
+    </div>
+    <div class="card-body">
+      <div class="row g-3 zone-create-group">
+
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Gouvernorat</label>
+          <select name="gouvernorat" class="form-select zone-gouvernorat-select">
+            <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
+            {% for g in gouvernorats_list %}
+            <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Délégation</label>
+          <select name="delegation" class="form-select zone-delegation-select">
+            <option value="" {% if not selected_delegation_id %}selected{% endif %}>— Choisir —</option>
+            {% for d in delegations_list %}
+            {% if selected_gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
+            <option value="{{ d.pk }}" {% if selected_delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Zone</label>
+          <input type="text" name="nom" value="{{ nom_value|default:'' }}" class="form-control"
+                 placeholder="Nom de la nouvelle zone">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2">
+    <a href="{% url 'commercial:home' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var DELEGATIONS = {{ delegations_json|safe }};
+
+  function buildDelegationOptions(gouvernoratId, selectedId) {
+    var html = '<option value="">— Choisir —</option>';
+    DELEGATIONS.forEach(function (d) {
+      if (!gouvernoratId || String(d.gouvernorat_id) !== String(gouvernoratId)) { return; }
+      var sel = (selectedId && String(d.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + d.id + '"' + sel + '>' + d.nom + '</option>';
+    });
+    return html;
+  }
+
+  var group = document.querySelector('.zone-create-group');
+  var gouvSelect = group.querySelector('.zone-gouvernorat-select');
+  var delegSelect = group.querySelector('.zone-delegation-select');
+  var zoneInput = group.querySelector('[name="nom"]');
+
+  gouvSelect.addEventListener('change', function () {
+    delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
+    delegSelect.focus();
+  });
+
+  delegSelect.addEventListener('change', function () {
+    var match = DELEGATIONS.find(function (d) { return String(d.id) === String(delegSelect.value); });
+    if (match) { gouvSelect.value = String(match.gouvernorat_id); }
+    zoneInput.focus();
+  });
+
+  gouvSelect.focus();
+})();
+</script>
+{% endblock %}

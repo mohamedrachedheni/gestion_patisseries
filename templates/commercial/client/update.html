@@ -53,12 +53,12 @@
                 </select>
               </td>
               <td class="pe-3">
-                <input type="text" name="zone_nom" list="zone-datalist" autocomplete="off"
-                       value="{{ zone_nom_value|default:'' }}"
-                       class="form-control combobox-input"
-                       style="min-width:190px;"
-                       placeholder="Sélectionner ou saisir une nouvelle zone…">
-                <datalist id="zone-datalist"></datalist>
+                <select name="zone_id" class="form-select zone-select" style="min-width:190px;">
+                  <option value="">— Choisir —</option>
+                </select>
+                <a href="{% url 'commercial:zone-create' %}" target="_blank" class="small">
+                  <i class="bi bi-plus-lg"></i> Créer une nouvelle zone
+                </a>
               </td>
             </tr>
           </tbody>
@@ -185,6 +185,7 @@
 (function () {
   var DELEGATIONS = {{ delegations_json|safe }};
   var ZONES = {{ zones_json|safe }};
+  var SELECTED_ZONE_ID = "{{ selected_zone_id|default:'' }}";
   var COMMERCIAUX = {{ commerciaux_json|safe }};
   var SELECTED_COMMERCIAL_IDS = {{ selected_commercial_ids_json|default:"[]"|safe }};
 
@@ -198,11 +199,12 @@
     return html;
   }
 
-  function buildZoneOptions(delegationId) {
-    var html = '';
+  function buildZoneSelectOptions(delegationId, selectedId) {
+    var html = '<option value="">— Choisir —</option>';
     ZONES.forEach(function (z) {
       if (!delegationId || String(z.delegation_id) !== String(delegationId)) { return; }
-      html += '<option value="' + z.nom + '">';
+      var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
     });
     return html;
   }
@@ -210,22 +212,22 @@
   document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
     var gouvSelect = group.querySelector('.zone-gouvernorat-select');
     var delegSelect = group.querySelector('.zone-delegation-select');
-    var zoneDatalist = document.getElementById('zone-datalist');
+    var zoneSelect = group.querySelector('.zone-select');
     if (!gouvSelect || !delegSelect) { return; }
 
     gouvSelect.addEventListener('change', function () {
       delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
-      if (zoneDatalist) { zoneDatalist.innerHTML = ''; }
+      if (zoneSelect) { zoneSelect.innerHTML = '<option value="">— Choisir —</option>'; }
     });
 
     delegSelect.addEventListener('change', function () {
-      if (zoneDatalist) { zoneDatalist.innerHTML = buildZoneOptions(delegSelect.value); }
+      if (zoneSelect) { zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, null); }
     });
 
-    // Pré-remplissage de la datalist selon la délégation déjà sélectionnée
+    // Pré-remplissage de la liste Zone selon la délégation déjà sélectionnée
     // (zone actuelle du client, ou ré-affichage après échec de validation).
-    if (delegSelect.value && zoneDatalist) {
-      zoneDatalist.innerHTML = buildZoneOptions(delegSelect.value);
+    if (delegSelect.value && zoneSelect) {
+      zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, SELECTED_ZONE_ID);
     }
   });
 

@@ -581,7 +581,7 @@ class ClientCreateView(GroupRequiredMixin, View):
             ]),
             'selected_gouvernorat_id': '',
             'selected_delegation_id': '',
-            'zone_nom_value': '',
+            'selected_zone_id': '',
             'selected_commercial_ids_json': '[]',
             'jours_semaine_choices': JOUR_SEMAINE_CHOICES,
             # Lundi à Samedi cochés par défaut à la création (Dimanche = jour non travaillé).
@@ -607,7 +607,7 @@ class ClientCreateView(GroupRequiredMixin, View):
         photo = request.FILES.get('photo')
 
         delegation_id = request.POST.get('delegation', '').strip()
-        zone_nom = request.POST.get('zone_nom', '').strip()
+        zone_id = request.POST.get('zone_id', '').strip()
         commercial_ids = list(dict.fromkeys(
             v.strip() for v in request.POST.getlist('commercial_id') if v.strip()
         ))
@@ -632,7 +632,7 @@ class ClientCreateView(GroupRequiredMixin, View):
                 request, form=form,
                 selected_gouvernorat_id=gouvernorat_id_preserve,
                 selected_delegation_id=delegation_id,
-                zone_nom_value=zone_nom,
+                selected_zone_id=zone_id,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
                 selected_jours_visite=jours_visite,
             ))
@@ -640,7 +640,7 @@ class ClientCreateView(GroupRequiredMixin, View):
         # ── Validations ─────────────────────────────────────────────────────
         if not raison_sociale:
             return _echec('La raison sociale est obligatoire.')
-        if not zone_nom:
+        if not zone_id:
             return _echec('La zone est obligatoire.')
         if Client.objects.filter(raison_sociale=raison_sociale).exists():
             return _echec(f'Un client avec la raison sociale « {raison_sociale} » existe déjà.')
@@ -650,11 +650,9 @@ class ClientCreateView(GroupRequiredMixin, View):
                 '« Ajout autres Commerciaux ».'
             )
 
-        zone_existante = Zone.objects.filter(nom=zone_nom).first()
-        if zone_existante is None and not delegation_id:
-            return _echec('La délégation est obligatoire pour créer une nouvelle zone.')
-        if zone_existante is None and delegation_obj is None:
-            return _echec('La délégation sélectionnée est introuvable.')
+        zone_obj = Zone.objects.filter(pk=zone_id).first()
+        if zone_obj is None:
+            return _echec('Zone introuvable.')
 
         created_at_val = None
         if created_at_s:
@@ -667,8 +665,6 @@ class ClientCreateView(GroupRequiredMixin, View):
 
         try:
             with transaction.atomic():
-                zone_obj = zone_existante or Zone.objects.create(delegation=delegation_obj, nom=zone_nom)
-
                 client = Client.objects.create(
                     raison_sociale=raison_sociale,
                     nom_client=nom_client or None,
@@ -701,7 +697,7 @@ class ClientCreateView(GroupRequiredMixin, View):
                 request,
                 selected_gouvernorat_id=gouvernorat_id_preserve,
                 selected_delegation_id=delegation_id,
-                zone_nom_value=zone_nom,
+                selected_zone_id=zone_id,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
                 selected_jours_visite=jours_visite,
             ))
@@ -820,7 +816,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
             ]),
             'selected_gouvernorat_id': str(client.zone.delegation.gouvernorat_id) if client.zone_id else '',
             'selected_delegation_id': str(client.zone.delegation_id) if client.zone_id else '',
-            'zone_nom_value': client.zone.nom if client.zone_id else '',
+            'selected_zone_id': str(client.zone_id) if client.zone_id else '',
             'selected_commercial_ids_json': json.dumps([
                 str(uid) for uid in client.client_users.values_list('user_id', flat=True)
             ]),
@@ -845,7 +841,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
         is_admin = _is_administration(request.user)
 
         delegation_id = request.POST.get('delegation', '').strip()
-        zone_nom = request.POST.get('zone_nom', '').strip()
+        zone_id = request.POST.get('zone_id', '').strip()
         commercial_ids = list(dict.fromkeys(
             v.strip() for v in request.POST.getlist('commercial_id') if v.strip()
         ))
@@ -863,14 +859,14 @@ class ClientUpdateView(GroupRequiredMixin, View):
                 request, client, form=form,
                 selected_gouvernorat_id=gouvernorat_id_preserve,
                 selected_delegation_id=delegation_id,
-                zone_nom_value=zone_nom,
+                selected_zone_id=zone_id,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
                 selected_jours_visite=jours_visite,
             ))
 
         if not form.is_valid():
             return _echec(_form_errors_text(form))
-        if not zone_nom:
+        if not zone_id:
             return _echec('La zone est obligatoire.')
         if is_admin and not commercial_ids:
             return _echec(
@@ -878,15 +874,12 @@ class ClientUpdateView(GroupRequiredMixin, View):
                 '« Liste des commerciaux ».'
             )
 
-        zone_existante = Zone.objects.filter(nom=zone_nom).first()
-        if zone_existante is None and not delegation_id:
-            return _echec('La délégation est obligatoire pour créer une nouvelle zone.')
-        if zone_existante is None and delegation_obj is None:
-            return _echec('La délégation sélectionnée est introuvable.')
+        zone_obj = Zone.objects.filter(pk=zone_id).first()
+        if zone_obj is None:
+            return _echec('Zone introuvable.')
 
         try:
             with transaction.atomic():
-                zone_obj = zone_existante or Zone.objects.create(delegation=delegation_obj, nom=zone_nom)
                 client.zone = zone_obj
                 client = form.save()
 
@@ -909,7 +902,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
                 request, client,
                 selected_gouvernorat_id=gouvernorat_id_preserve,
                 selected_delegation_id=delegation_id,
-                zone_nom_value=zone_nom,
+                selected_zone_id=zone_id,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
                 selected_jours_visite=jours_visite,
             ))
@@ -965,6 +958,68 @@ class ClientDeleteView(GroupRequiredMixin, View):
             )
             messages.success(request, f'Client « {nom} » supprimé avec succès.')
         return redirect('commercial:client-list')
+
+
+class ZoneCreateView(GroupRequiredMixin, View):
+    """Page « Nouvelle zone » accessible depuis le sidebar Commercial : les
+    champs Zone des pages Client (création/modification) n'acceptent plus que
+    des zones déjà enregistrées (liste déroulante liée à la délégation
+    choisie) — cette page permet d'en créer une nouvelle sans passer par
+    l'administration. Même logique de validation qu'administration.views.ZoneCreateView."""
+    group_required = ['Administration', 'Commercial']
+    template_name = 'commercial/zone/create.html'
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(request))
+
+    def _context(self, request, **overrides):
+        delegations_list = Delegation.objects.select_related('gouvernorat').order_by(
+            'gouvernorat__nom', 'nom_delegation',
+        )
+        context = {
+            'gouvernorats_list': Gouvernorat.objects.order_by('nom'),
+            'delegations_json': json.dumps([
+                {'id': d.pk, 'nom': d.nom_delegation, 'gouvernorat_id': d.gouvernorat_id}
+                for d in delegations_list
+            ]),
+            'selected_gouvernorat_id': '',
+            'selected_delegation_id': '',
+            'nom_value': '',
+        }
+        context.update(overrides)
+        return context
+
+    def post(self, request):
+        gouvernorat_id = request.POST.get('gouvernorat', '').strip()
+        delegation_id = request.POST.get('delegation', '').strip()
+        nom = request.POST.get('nom', '').strip()
+
+        def _echec(message):
+            messages.error(request, message)
+            return render(request, self.template_name, self._context(request))
+
+        if not gouvernorat_id:
+            return _echec('Le champ gouvernorat est obligatoire.')
+        if not delegation_id:
+            return _echec('Le champ délégation est obligatoire.')
+        if not nom:
+            return _echec('Le champ zone est obligatoire.')
+
+        delegation = Delegation.objects.filter(pk=delegation_id).first()
+        if delegation is None:
+            return _echec('Délégation introuvable.')
+        if str(delegation.gouvernorat_id) != gouvernorat_id:
+            return _echec("La délégation sélectionnée n'appartient pas au gouvernorat choisi.")
+        if Zone.objects.filter(nom=nom).exists():
+            return _echec(f'Une zone nommée « {nom} » existe déjà.')
+
+        zone = Zone.objects.create(delegation=delegation, nom=nom)
+        log_audit(
+            AuditAction.CREATE, f'Création zone « {zone.nom} »',
+            table='Zone', record_id=zone.pk, new_value=model_to_dict(zone),
+        )
+        messages.success(request, f'Zone « {zone.nom} » ajoutée avec succès.')
+        return redirect('commercial:home')
 
 
 class ClientSansBLListView(GroupRequiredMixin, View):

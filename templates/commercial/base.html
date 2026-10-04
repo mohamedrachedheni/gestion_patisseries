@@ -50,7 +50,7 @@
     </div>
   </div>
 
-  <div class="sidebar-group {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name or 'bon-sortie' in request.resolver_match.url_name or 'bon-restitution' in request.resolver_match.url_name or 'depense' in request.resolver_match.url_name or 'fournisseur' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
+  <div class="sidebar-group {% if 'client' in request.resolver_match.url_name and 'sans-bl' not in request.resolver_match.url_name and 'adherence' not in request.resolver_match.url_name and 'impayes' not in request.resolver_match.url_name and 'derive' not in request.resolver_match.url_name or 'bon-sortie' in request.resolver_match.url_name or 'bon-restitution' in request.resolver_match.url_name or 'depense' in request.resolver_match.url_name or 'fournisseur' in request.resolver_match.url_name or 'zone-create' in request.resolver_match.url_name %}sidebar-group-active{% endif %}">
     <button type="button" class="nav-link sidebar-group-toggle">
       <i class="bi bi-collection"></i> Autres
       <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
@@ -75,6 +75,10 @@
       <a href="{% url 'commercial:fournisseur-list' %}"
          class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
         <i class="bi bi-building"></i> Fournisseurs
+      </a>
+      <a href="{% url 'commercial:zone-create' %}"
+         class="nav-link {% if 'zone-create' in request.resolver_match.url_name %}active{% endif %}">
+        <i class="bi bi-pin-map"></i> Nouvelle zone
       </a>
     </div>
   </div>

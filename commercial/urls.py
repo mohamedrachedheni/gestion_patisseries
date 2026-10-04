@@ -24,6 +24,9 @@ urlpatterns = [
     path('clients/<hashid:pk>/modifier/',     views.ClientUpdateView.as_view(),      name='client-update'),
     path('clients/<hashid:pk>/supprimer/',    views.ClientDeleteView.as_view(),      name='client-delete'),
 
+    # Zones
+    path('zones/nouveau/', views.ZoneCreateView.as_view(), name='zone-create'),
+
     # Bons de livraison
     path('bons-livraison/',                     views.BonLivraisonListView.as_view(),         name='bon-livraison-list'),
     path('bons-livraison/nouveau/',             views.BonLivraisonCreateView.as_view(),       name='bon-livraison-create'),
