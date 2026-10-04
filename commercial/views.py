@@ -558,7 +558,7 @@ class ClientCreateView(GroupRequiredMixin, View):
         )
         is_admin = _is_administration(request.user)
 
-        form = overrides.pop('form', None) or ClientForm()
+        form = overrides.pop('form', None) or ClientForm(initial={'created_at': date.today()})
         if not is_admin:
             form.fields['is_active'].widget.attrs['disabled'] = 'disabled'
 

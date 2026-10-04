@@ -210,17 +210,27 @@
   document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
     var gouvSelect = group.querySelector('.zone-gouvernorat-select');
     var delegSelect = group.querySelector('.zone-delegation-select');
+    var zoneInput = group.querySelector('.combobox-input');
     var zoneDatalist = document.getElementById('zone-datalist');
     if (!gouvSelect || !delegSelect) { return; }
 
     gouvSelect.addEventListener('change', function () {
       delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
       if (zoneDatalist) { zoneDatalist.innerHTML = ''; }
+      delegSelect.focus();
     });
 
     delegSelect.addEventListener('change', function () {
       if (zoneDatalist) { zoneDatalist.innerHTML = buildZoneOptions(delegSelect.value); }
+      if (zoneInput) { zoneInput.focus(); }
     });
+
+    if (zoneInput) {
+      zoneInput.addEventListener('change', function () {
+        var raisonSocialeInput = document.getElementById('id_raison_sociale');
+        if (raisonSocialeInput) { raisonSocialeInput.focus(); }
+      });
+    }
 
     // Pré-remplissage de la datalist si une délégation est déjà sélectionnée
     // (ré-affichage de la page après échec de validation).
@@ -228,6 +238,15 @@
       zoneDatalist.innerHTML = buildZoneOptions(delegSelect.value);
     }
   });
+
+  // Photo sélectionnée : le focus passe au champ Observation.
+  var photoInput = document.getElementById('id_photo');
+  var observationInput = document.getElementById('id_observation');
+  if (photoInput && observationInput) {
+    photoInput.addEventListener('change', function () {
+      observationInput.focus();
+    });
+  }
 
   // ── Section Ajout autres Commerciaux ────────────────────────────────────────
   var commerciauxRowsContainer = document.getElementById('commerciaux-rows');
