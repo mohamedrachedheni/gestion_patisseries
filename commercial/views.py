@@ -1,10 +1,12 @@
 import json
+import uuid
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, F, Max, Min, Q, RestrictedError, Sum
@@ -586,6 +588,8 @@ class ClientCreateView(GroupRequiredMixin, View):
             'jours_semaine_choices': JOUR_SEMAINE_CHOICES,
             # Lundi à Samedi cochés par défaut à la création (Dimanche = jour non travaillé).
             'selected_jours_visite': [j for j, _ in JOUR_SEMAINE_CHOICES if j != 6],
+            'photo_temp_path': '',
+            'photo_temp_url': '',
         }
         context.update(overrides)
         return context
@@ -604,7 +608,8 @@ class ClientCreateView(GroupRequiredMixin, View):
         observation = request.POST.get('observation', '').strip()
         created_at_s = request.POST.get('created_at', '').strip()
         is_active = ('is_active' in request.POST) if is_admin else True
-        photo = request.FILES.get('photo')
+        uploaded_photo = request.FILES.get('photo')
+        previous_photo_temp_path = request.POST.get('photo_temp_path', '').strip()
 
         delegation_id = request.POST.get('delegation', '').strip()
         zone_id = request.POST.get('zone_id', '').strip()
@@ -615,6 +620,23 @@ class ClientCreateView(GroupRequiredMixin, View):
 
         delegation_obj = Delegation.objects.filter(pk=delegation_id).first() if delegation_id else None
         gouvernorat_id_preserve = str(delegation_obj.gouvernorat_id) if delegation_obj else ''
+
+        # ── Persistance de la Photo à travers un ré-affichage après échec ──
+        # Un <input type="file"> ne peut jamais être pré-rempli par le
+        # navigateur : le fichier reçu est donc sauvegardé dès maintenant (au
+        # même emplacement que les photos clients définitives) et son chemin
+        # relatif est reporté d'une tentative à l'autre via un champ caché,
+        # pour ne jamais obliger l'utilisateur à le resélectionner. Un nouveau
+        # fichier remplace et supprime le précédent resté orphelin.
+        if uploaded_photo:
+            if previous_photo_temp_path:
+                default_storage.delete(previous_photo_temp_path)
+            photo_temp_path = default_storage.save(
+                f'clients/{uuid.uuid4().hex}_{uploaded_photo.name}', uploaded_photo,
+            )
+        else:
+            photo_temp_path = previous_photo_temp_path
+        photo_temp_url = default_storage.url(photo_temp_path) if photo_temp_path else ''
 
         def _echec(message):
             messages.error(request, message)
@@ -635,6 +657,8 @@ class ClientCreateView(GroupRequiredMixin, View):
                 selected_zone_id=zone_id,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
                 selected_jours_visite=jours_visite,
+                photo_temp_path=photo_temp_path,
+                photo_temp_url=photo_temp_url,
             ))
 
         # ── Validations ─────────────────────────────────────────────────────
@@ -671,7 +695,7 @@ class ClientCreateView(GroupRequiredMixin, View):
                     adresse=adresse or None,
                     zone=zone_obj,
                     telephone=telephone or None,
-                    photo=photo,
+                    photo=(uploaded_photo or photo_temp_path or None),
                     google_mape=google_mape or None,
                     observation=observation or None,
                     is_active=is_active,
@@ -700,6 +724,8 @@ class ClientCreateView(GroupRequiredMixin, View):
                 selected_zone_id=zone_id,
                 selected_commercial_ids_json=json.dumps(commercial_ids),
                 selected_jours_visite=jours_visite,
+                photo_temp_path=photo_temp_path,
+                photo_temp_url=photo_temp_url,
             ))
 
         log_audit(

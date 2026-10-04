@@ -117,6 +117,16 @@
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Photo</label>
+          {% if photo_temp_url %}
+          <div class="mb-2">
+            <img src="{{ photo_temp_url }}" alt="Photo sélectionnée"
+                 style="width:72px;height:72px;border-radius:50%;object-fit:cover;">
+            <div class="form-text">
+              Photo déjà sélectionnée — choisissez un autre fichier uniquement pour la remplacer.
+            </div>
+          </div>
+          <input type="hidden" name="photo_temp_path" value="{{ photo_temp_path }}">
+          {% endif %}
           {{ form.photo }}
         </div>
 

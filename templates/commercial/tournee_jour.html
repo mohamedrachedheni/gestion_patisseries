@@ -137,7 +137,7 @@
             <td class="ps-3">{{ l.commercial|default:'—' }}</td>
             {% endif %}
             <td {% if not is_administration %}class="ps-3"{% endif %}>{{ l.client }}</td>
-            <td>{{ l.client.zone|default:'—' }}</td>
+            <td>{{ l.client.zone.nom|default:'—' }}</td>
             <td>{{ l.client.telephone|default:'—' }}</td>
             <td>
               {% if l.est_recurrent %}
