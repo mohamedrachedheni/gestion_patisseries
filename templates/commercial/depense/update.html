@@ -309,6 +309,11 @@
 
   montantPayeInput.addEventListener('input', recalcResteEtStatut);
 
+  // Le champ Montant payé sélectionne tout son contenu dès qu'il reçoit le focus.
+  montantPayeInput.addEventListener('focus', function () {
+    montantPayeInput.select();
+  });
+
   // ── Section 2 : lignes de détail ────────────────────────────────────────────
   function addDetailRow(prefill) {
     prefill = prefill || {};
@@ -406,8 +411,9 @@
   }
   recalcMontantTotal();
 
-  // À l'ouverture de la page, le focus se place sur le champ Fournisseur.
-  fournisseurSelect.focus();
+  // À l'ouverture de la page, le focus se place sur le champ Montant payé
+  // (ce qui déclenche aussi la sélection de son contenu ci-dessus).
+  montantPayeInput.focus();
 })();
 </script>
 {% endblock %}

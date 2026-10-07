@@ -302,6 +302,11 @@
 
   montantPayeInput.addEventListener('input', recalcResteEtStatut);
 
+  // Le champ Montant payé sélectionne tout son contenu dès qu'il reçoit le focus.
+  montantPayeInput.addEventListener('focus', function () {
+    montantPayeInput.select();
+  });
+
   // ── Numéro dépense : recalculé côté serveur à chaque changement de date ──
   depenseAtInput.addEventListener('change', function () {
     var url = NUMERO_URL + '?depense_at=' + encodeURIComponent(depenseAtInput.value);
