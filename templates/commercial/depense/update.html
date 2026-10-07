@@ -143,6 +143,21 @@
     </button>
   </div>
 </form>
+
+{# ── Pop-up de confirmation « Reste à payer = 0 » ─────────────────────────── #}
+<div class="modal fade" id="dep-confirm-paye-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body py-4 text-center">
+        La dépense est totalement payée.
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" id="dep-confirm-paye-non" class="btn btn-outline-secondary">Non</button>
+        <button type="button" id="dep-confirm-paye-oui" class="btn btn-primary">Oui</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_css %}
@@ -193,11 +208,39 @@
   var addRowBtn          = document.getElementById('add-detail-row-btn');
   var saveBtn            = document.getElementById('depense-save-btn');
 
+  var depenseForm = document.getElementById('depense-update-form');
+
   // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
   // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
   // son clic natif, comme la souris — Enregistrer, Ajouter une autre ligne, Supprimer la ligne…).
-  document.getElementById('depense-update-form').addEventListener('keydown', function (e) {
+  depenseForm.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // ── Pop-up de confirmation si la dépense est totalement payée (Reste à payer = 0) ──
+  var confirmPayeModalEl = document.getElementById('dep-confirm-paye-modal');
+  var confirmPayeModal = new bootstrap.Modal(confirmPayeModalEl);
+  var paiementTotalConfirme = false;
+
+  depenseForm.addEventListener('submit', function (e) {
+    if (!paiementTotalConfirme && num(resteInput) === 0) {
+      e.preventDefault();
+      confirmPayeModal.show();
+    }
+  });
+
+  document.getElementById('dep-confirm-paye-oui').addEventListener('click', function () {
+    paiementTotalConfirme = true;
+    confirmPayeModal.hide();
+    depenseForm.submit();
+  });
+
+  document.getElementById('dep-confirm-paye-non').addEventListener('click', function () {
+    confirmPayeModal.hide();
+  });
+
+  confirmPayeModalEl.addEventListener('hidden.bs.modal', function () {
+    if (!paiementTotalConfirme) { montantPayeInput.focus(); }
   });
 
   // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Fournisseur
@@ -255,6 +298,15 @@
     recalcResteEtStatut();
   }
 
+  // Sur changement de Quantité ou de Valeur unitaire, Montant payé reprend le
+  // solde restant dû (Montant total − montant déjà payé hors cette saisie) —
+  // Reste à payer retombe donc à zéro.
+  function syncMontantPayeAvecMontantTotal() {
+    var resteAvantNouveauPaiement = round3(num(totalMontantInput) - ANCIEN_TOTAL_ACOMPTE);
+    montantPayeInput.value = (resteAvantNouveauPaiement > 0 ? resteAvantNouveauPaiement : 0).toFixed(3);
+    recalcResteEtStatut();
+  }
+
   montantPayeInput.addEventListener('input', recalcResteEtStatut);
 
   // ── Section 2 : lignes de détail ────────────────────────────────────────────
@@ -289,13 +341,32 @@
       recalcMontantTotal();
     }
 
-    qteInput.addEventListener('input', syncTotal);
-    prixInput.addEventListener('input', syncTotal);
+    qteInput.addEventListener('input', function () {
+      syncTotal();
+      syncMontantPayeAvecMontantTotal();
+    });
+    prixInput.addEventListener('input', function () {
+      syncTotal();
+      syncMontantPayeAvecMontantTotal();
+    });
 
     // Quantité et Valeur unitaire sélectionnent tout leur contenu dès qu'ils
     // reçoivent le focus.
     qteInput.addEventListener('focus', function () { qteInput.select(); });
     prixInput.addEventListener('focus', function () { prixInput.select(); });
+
+    // Depuis la Valeur unitaire de la dernière ligne, Tab ou Entrée renvoie
+    // le focus au champ Montant payé (la « dernière ligne » est réévaluée à
+    // chaque pression, les lignes pouvant être ajoutées/supprimées).
+    prixInput.addEventListener('keydown', function (e) {
+      if ((e.key === 'Tab' && !e.shiftKey) || e.key === 'Enter') {
+        var allPrixInputs = document.querySelectorAll('.prix-input');
+        if (allPrixInputs[allPrixInputs.length - 1] === prixInput) {
+          e.preventDefault();
+          montantPayeInput.focus();
+        }
+      }
+    });
 
     row.querySelector('.remove-row').addEventListener('click', function () {
       var nextRow = row.nextElementSibling;

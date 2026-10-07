@@ -90,7 +90,7 @@
             <th class="text-end" style="min-width:150px;">Montant impayé (TND)</th>
             <th class="text-center" style="width:130px;">Bons impayés</th>
             <th style="min-width:160px;">Impayé depuis</th>
-            <th class="text-center pe-3" style="width:220px;">Actions</th>
+            <th class="text-center pe-3" style="width:280px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -100,11 +100,11 @@
             <td class="ps-3">{{ l.commercial|default:'—' }}</td>
             {% endif %}
             <td {% if not is_administration %}class="ps-3"{% endif %}>{{ l.client }}</td>
-            <td>{{ l.client.zone|default:'—' }}</td>
+            <td>{{ l.client.zone.nom|default:'—' }}</td>
             <td class="text-end font-monospace">{{ l.montant_total|stringformat:'.3f' }}</td>
             <td class="text-center">{{ l.nb_bl_impayes }}</td>
             <td>{{ l.plus_ancien|date:'d/m/Y' }} <span class="text-muted small">({{ l.plus_ancien|timesince }})</span></td>
-            <td class="text-center pe-3">
+            <td class="text-center pe-3 text-nowrap">
               <a href="{% url 'commercial:client-detail' l.client.pk %}"
                  class="btn btn-sm btn-outline-secondary" title="Voir le client">
                 <i class="bi bi-eye"></i>
@@ -115,6 +115,10 @@
                       title="Détail des bons de livraison">
                 <i class="bi bi-box-arrow-up-right"></i>
               </button>
+              <a href="{% url 'commercial:bon-livraison-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}&impaye=1"
+                 class="btn btn-sm btn-outline-primary ms-1" title="Voir les bons de livraison impayés">
+                Bon livraison
+              </a>
               <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
                  class="btn btn-sm btn-outline-info ms-1" title="Voir l'agenda">
                 Agenda

@@ -197,7 +197,7 @@
           {% if page_obj.has_previous %}
           <li class="page-item">
             <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&impaye={{ impaye }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
               <i class="bi bi-chevron-left"></i>
             </a>
           </li>
@@ -209,7 +209,7 @@
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
             <li class="page-item">
               <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}&page={{ num }}">
+                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&impaye={{ impaye }}&commercial_id={{ commercial_id }}&page={{ num }}">
                 {{ num }}
               </a>
             </li>
@@ -219,7 +219,7 @@
           {% if page_obj.has_next %}
           <li class="page-item">
             <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
+               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&impaye={{ impaye }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
               <i class="bi bi-chevron-right"></i>
             </a>
           </li>

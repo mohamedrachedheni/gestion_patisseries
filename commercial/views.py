@@ -281,7 +281,7 @@ class ClientImpayesListView(GroupRequiredMixin, View):
     Trié par ancienneté du plus vieux bon impayé (priorité de relance)."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/client/impayes_list.html'
-    PAGINATE_BY = 15
+    PAGINATE_BY = 8
     NB_BL_JOURS = 180
 
     def get(self, request):
@@ -1054,7 +1054,7 @@ class ClientSansBLListView(GroupRequiredMixin, View):
     livraison dont la date tombe dans [date_debut, date_fin]."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/client/sans_bl_list.html'
-    PAGINATE_BY = 6
+    PAGINATE_BY = 8
     NB_BL_JOURS = 180
 
     def get(self, request):
@@ -1421,6 +1421,7 @@ class BonLivraisonListView(GroupRequiredMixin, View):
         zone_id        = request.GET.get('zone_id', '').strip()
         statut         = request.GET.get('statut', '').strip()
         commercial_id  = request.GET.get('commercial_id', '').strip() if is_admin else ''
+        impaye         = request.GET.get('impaye', '').strip()
 
         try:
             date_debut = date.fromisoformat(date_debut_str)
@@ -1471,6 +1472,8 @@ class BonLivraisonListView(GroupRequiredMixin, View):
             qs = qs.filter(bon_livraison_code__client__zone_id=zone_id)
         if statut:
             qs = qs.filter(statut=statut)
+        if impaye:
+            qs = qs.filter(reste_a_payer__gt=0)
 
         qs = qs.order_by('-bon_livraison_code__bon_livraison_at', '-bon_livraison_code__bon_livraison_numero')
 
@@ -1524,6 +1527,7 @@ class BonLivraisonListView(GroupRequiredMixin, View):
             'client_id':         client_id,
             'zone_id':           zone_id,
             'statut':            statut,
+            'impaye':            impaye,
             'commercial_id':     commercial_id,
             'clients_list':      clients_list,
             'zones_list':        zones_list,

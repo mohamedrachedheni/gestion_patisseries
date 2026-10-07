@@ -129,19 +129,19 @@
               <input type="text" class="form-control form-control-sm" style="min-width:190px;" value="{{ c }}" disabled>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:150px;" value="{{ c.zone|default:'' }}" disabled>
+              <input type="text" class="form-control form-control-sm" style="min-width:150px;" value="{{ c.zone.nom|default:'' }}" disabled>
             </td>
             <td class="text-end">
               <input type="number" class="form-control form-control-sm text-end font-monospace no-spinner"
                      style="min-width:120px;"
                      value="{{ c.nb_bl }}" disabled>
             </td>
-            <td class="text-center pe-3">
+            <td class="text-center pe-3 text-nowrap">
               <a href="{% url 'commercial:client-detail' c.pk %}" class="btn btn-sm btn-outline-secondary" title="Voir le client">
                 Client
               </a>
-              <a href="{% url 'commercial:bon-livraison-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ c.pk }}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Voir les bons de livraison">
+              <a href="{% url 'commercial:bon-livraison-create' %}?client_id={{ c.pk }}"
+                 class="btn btn-sm btn-outline-primary ms-1" title="Nouveau bon de livraison">
                 Bon livraison
               </a>
               <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ c.pk }}"

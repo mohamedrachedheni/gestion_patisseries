@@ -72,9 +72,9 @@
          class="nav-link {% if 'depense' in request.resolver_match.url_name %}active{% endif %}">
         <i class="bi bi-cash-stack"></i> Dépenses
       </a>
-      <a href="{% url 'commercial:fournisseur-list' %}"
+      <a href="{% url 'commercial:fournisseur-create' %}"
          class="nav-link {% if 'fournisseur' in request.resolver_match.url_name %}active{% endif %}">
-        <i class="bi bi-building"></i> Fournisseurs
+        <i class="bi bi-building"></i> Nouveau fournisseur
       </a>
       <a href="{% url 'commercial:zone-create' %}"
          class="nav-link {% if 'zone-create' in request.resolver_match.url_name %}active{% endif %}">
