@@ -6729,3 +6729,121 @@ class AgendaCreateView(GroupRequiredMixin, View):
         else:
             messages.success(request, f'{nb_valides} enregistrement(s) ajouté(s) avec succès.')
         return redirect('commercial:agenda-list')
+
+
+class AgendaSaveAllView(GroupRequiredMixin, View):
+    """Bouton « Tout enregistrer » de la Section 1 : applique en une seule
+    transaction les modifications de toutes les lignes de la Section 2
+    (mêmes champs modifiables que AgendaUpdateView) et ajoute les lignes de
+    la Section 3 (mêmes règles que AgendaCreateView — les lignes sans Action
+    planifiée sont ignorées en silence, les lignes incomplètes sont comptées
+    comme ignorées). Les filtres en cours sont conservés au retour."""
+    group_required = ['Administration', 'Commercial']
+
+    def _redirect(self, request):
+        next_qs = request.POST.get('next_qs', '')
+        url = reverse('commercial:agenda-list')
+        if next_qs.startswith('?') and '\n' not in next_qs and '\r' not in next_qs:
+            url += next_qs
+        return redirect(url)
+
+    def post(self, request):
+        is_admin = _is_administration(request.user)
+
+        # ── Section 2 : modifications ──
+        upd_ids       = request.POST.getlist('upd_id')
+        upd_details   = request.POST.getlist('upd_detaille_action_planifier')
+        upd_echeances = request.POST.getlist('upd_echeance_at')
+        upd_statuts   = request.POST.getlist('upd_status')
+
+        qs = Agenda.objects.filter(pk__in=[i for i in upd_ids if i.isdigit()])
+        if not is_admin:
+            qs = qs.filter(user=request.user)
+        agendas_par_id = {str(a.pk): a for a in qs}
+        statuts_valides = {v for v, _ in Agenda.STATUS_CHOICES}
+
+        modifies = []  # (avant, agenda)
+        for pk, detail, ech_str, statut in zip(upd_ids, upd_details, upd_echeances, upd_statuts):
+            agenda = agendas_par_id.get(pk)
+            if agenda is None:
+                continue
+            avant = model_to_dict(agenda)
+            agenda.detaille_action_planifier = (detail or '').strip() or None
+            ech_str = (ech_str or '').strip()
+            if _is_iso_date(ech_str):
+                agenda.echeance_at = date.fromisoformat(ech_str)
+            statut = (statut or '').strip()
+            if statut in statuts_valides:
+                agenda.status = statut
+            if model_to_dict(agenda) != avant:
+                modifies.append((avant, agenda))
+
+        # ── Section 3 : ajouts ──
+        commercial_ids = request.POST.getlist('row_commercial_id')
+        client_ids     = request.POST.getlist('row_client_id')
+        details        = request.POST.getlist('row_detaille_action_planifier')
+        echeances      = request.POST.getlist('row_echeance_at')
+        statuts        = request.POST.getlist('row_status')
+
+        lignes_valides = []
+        nb_invalides = 0
+        for com_id, cli_id, detail, ech_str, statut in zip(commercial_ids, client_ids, details, echeances, statuts):
+            com_id = (com_id or '').strip() if is_admin else str(request.user.pk)
+            cli_id = (cli_id or '').strip()
+            detail = (detail or '').strip()
+            ech_str = (ech_str or '').strip()
+            statut = (statut or '').strip() or 'En attente'
+
+            if not detail:
+                continue
+            if not com_id or not cli_id or not ech_str or not _is_iso_date(ech_str):
+                nb_invalides += 1
+                continue
+
+            lignes_valides.append({
+                'user_id': com_id,
+                'client_id': cli_id,
+                'detaille_action_planifier': detail,
+                'echeance_at': date.fromisoformat(ech_str),
+                'status': statut,
+            })
+
+        if not modifies and not lignes_valides:
+            if nb_invalides:
+                messages.error(
+                    request,
+                    f'Aucun enregistrement effectué : {nb_invalides} ligne(s) à ajouter incomplète(s) '
+                    "(Commercial, Client, Action planifiée et Échéance obligatoires).",
+                )
+            else:
+                messages.info(request, 'Aucune modification à enregistrer.')
+            return self._redirect(request)
+
+        try:
+            with transaction.atomic():
+                for _, agenda in modifies:
+                    agenda.save(update_fields=['detaille_action_planifier', 'echeance_at', 'status'])
+                crees = [Agenda.objects.create(**l) for l in lignes_valides]
+        except Exception:
+            messages.error(
+                request,
+                "Échec de l'enregistrement des actions planifiées : aucune donnée n'a été modifiée.",
+            )
+            return self._redirect(request)
+
+        for avant, agenda in modifies:
+            log_audit(
+                AuditAction.UPDATE, "Modification d'une action planifiée (Agenda)",
+                table='Agenda', record_id=agenda.pk, old_value=avant, new_value=model_to_dict(agenda),
+            )
+        if crees:
+            log_audit(
+                AuditAction.CREATE, f'Ajout de {len(crees)} action(s) planifiée(s) (Agenda)',
+                table='Agenda', new_value=[model_to_dict(a) for a in crees],
+            )
+
+        msg = f'{len(modifies)} action(s) modifiée(s), {len(crees)} action(s) ajoutée(s) avec succès.'
+        if nb_invalides:
+            msg += f' {nb_invalides} ligne(s) ignorée(s) (champs manquants).'
+        messages.success(request, msg)
+        return self._redirect(request)

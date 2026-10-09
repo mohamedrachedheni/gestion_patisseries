@@ -77,7 +77,17 @@
           </a>
         </div>
 
+        <div class="agenda-filter-field agenda-filter-field-end">
+          <button type="button" id="agenda-save-all-btn" class="btn btn-success btn-sm text-nowrap"
+                  title="Enregistrer les modifications des actions planifiées et les nouvelles actions">
+            <i class="bi bi-save me-1"></i>Tout enregistrer
+          </button>
+        </div>
+
       </div>
+    </form>
+    <form method="post" id="agenda-save-all-form" action="{% url 'commercial:agenda-save-all' %}" class="d-none">
+      {% csrf_token %}
     </form>
   </div>
 </div>
@@ -102,7 +112,7 @@
         </thead>
         <tbody>
           {% for a in agendas %}
-          <tr>
+          <tr class="agenda-existing-row" data-agenda-id="{{ a.pk }}">
             {% if is_administration %}
             <td class="ps-3">
               <input type="text" class="form-control form-control-sm"
@@ -279,6 +289,7 @@
     min-width: 180px;
   }
   .agenda-field-action { width: 44px; flex: 0 0 auto; }
+  .agenda-filter-field-end { margin-left: auto; }
 }
 {% endblock %}
 
@@ -459,6 +470,42 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
         firstZoneSelect.focus();
       }
     }
+  });
+
+  // « Tout enregistrer » (Section 1) : recopie dans un formulaire caché les
+  // champs modifiables de chaque ligne de la Section 2 (upd_*) et toutes les
+  // lignes de la Section 3 (row_*), puis l'envoie en une seule requête.
+  document.getElementById('agenda-save-all-btn').addEventListener('click', function () {
+    var form = document.getElementById('agenda-save-all-form');
+    form.querySelectorAll('input:not([name="csrfmiddlewaretoken"])').forEach(function (el) { el.remove(); });
+
+    function addHidden(name, value) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value == null ? '' : value;
+      form.appendChild(input);
+    }
+
+    document.querySelectorAll('.agenda-existing-row').forEach(function (tr) {
+      var formId = 'agenda-modifier-' + tr.dataset.agendaId;
+      addHidden('upd_id', tr.dataset.agendaId);
+      ['detaille_action_planifier', 'echeance_at', 'status'].forEach(function (name) {
+        var field = document.querySelector('[form="' + formId + '"][name="' + name + '"]');
+        addHidden('upd_' + name, field ? field.value : '');
+      });
+    });
+
+    rowsContainer.querySelectorAll('.agenda-row').forEach(function (row) {
+      ['row_commercial_id', 'row_client_id', 'row_detaille_action_planifier', 'row_echeance_at', 'row_status'].forEach(function (name) {
+        var field = row.querySelector('[name="' + name + '"]');
+        addHidden(name, field ? field.value : '');
+      });
+    });
+
+    addHidden('next_qs', window.location.search);
+    this.disabled = true;
+    form.submit();
   });
 
   // À l'ouverture de la page, le focus se place sur le champ Zone de la

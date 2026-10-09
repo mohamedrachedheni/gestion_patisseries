@@ -101,6 +101,7 @@ urlpatterns = [
     # Agenda
     path('agenda/',                     views.AgendaListView.as_view(),   name='agenda-list'),
     path('agenda/ajouter/',             views.AgendaCreateView.as_view(), name='agenda-create'),
+    path('agenda/tout-enregistrer/',    views.AgendaSaveAllView.as_view(), name='agenda-save-all'),
     path('agenda/<hashid:pk>/modifier/', views.AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<hashid:pk>/supprimer/', views.AgendaDeleteView.as_view(), name='agenda-delete'),
 ]
