@@ -26,6 +26,7 @@
     <form method="get" id="filter-form">
       <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
 
+        {% if is_administration %}
         <div style="width:240px;flex:0 0 auto;">
           <label class="form-label small mb-1">Raison sociale</label>
           <select name="client_id" class="form-select form-select-sm" data-autosubmit>
@@ -37,6 +38,7 @@
             {% endfor %}
           </select>
         </div>
+        {% endif %}
 
         <div style="width:200px;flex:0 0 auto;">
           <label class="form-label small mb-1">Zone</label>
@@ -100,14 +102,17 @@
                      class="form-control form-control-sm" style="min-width:150px;" disabled>
             </td>
             <td class="text-center pe-3">
+              {% if is_administration %}
               <a href="{% url 'commercial:client-detail' c.pk %}"
-                 class="btn btn-sm btn-outline-secondary" title="Visualiser">
+                 class="btn btn-sm btn-outline-secondary me-1" title="Visualiser">
                 <i class="bi bi-eye"></i>
               </a>
+              {% endif %}
               <a href="{% url 'commercial:client-update' c.pk %}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
+                 class="btn btn-sm btn-outline-primary" title="Modifier">
                 <i class="bi bi-pencil"></i>
               </a>
+              {% if is_administration %}
               <form id="client-delete-{{ c.pk }}" method="post"
                     action="{% url 'commercial:client-delete' c.pk %}" class="d-inline">
                 {% csrf_token %}
@@ -116,6 +121,7 @@
                   <i class="bi bi-trash"></i>
                 </button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

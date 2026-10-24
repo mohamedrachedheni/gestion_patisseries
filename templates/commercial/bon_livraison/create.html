@@ -134,15 +134,19 @@
 </div>
 
 <div class="d-flex gap-2 justify-content-end bl-actions-bar">
+  {% if is_administration %}
   <a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-outline-secondary">
     <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
   </a>
+  {% endif %}
   <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
     <i class="bi bi-x-lg me-1"></i>Fermer
   </a>
+  {% if is_administration %}
   <a href="{% url 'commercial:bon-livraison-pdf' saved_bon_livraison.pk %}" target="_blank" class="btn btn-outline-primary">
     <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
   </a>
+  {% endif %}
   <button type="button" class="btn btn-primary" disabled>
     <i class="bi bi-check-lg me-1"></i>Enregistrer
   </button>
@@ -229,27 +233,8 @@
         </div>
         <div id="bl-default-rows"></div>
       </div>
-    </div>
-  </div>
-
-  {# ── Section 4 : ajouter d'autres produits ────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4" id="bl-section4-card" style="display:none;">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="bl-extra-rows"></div>
-      </div>
       <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="bl-add-extra-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
+        <button type="button" id="bl-add-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
           <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
         </button>
       </div>
@@ -305,15 +290,19 @@
 
   {# ── Actions ───────────────────────────────────────────────────────────────── #}
   <div class="d-flex gap-2 justify-content-end bl-actions-bar">
+    {% if is_administration %}
     <a href="{% url 'commercial:bon-livraison-create' %}" id="bl-new-btn" class="btn btn-outline-secondary" tabindex="-1" style="display:none;">
       <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
     </a>
+    {% endif %}
     <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary" tabindex="-1">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
+    {% if is_administration %}
     <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
       <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
     </a>
+    {% endif %}
     <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;">
       <i class="bi bi-check-lg me-1"></i>Enregistrer
     </button>
@@ -403,12 +392,10 @@
   var dateInput      = document.getElementById('bl-date-input');
   var numeroInput    = document.getElementById('bl-numero-input');
   var section3Card   = document.getElementById('bl-section3-card');
-  var section4Card    = document.getElementById('bl-section4-card');
   var section5Card    = document.getElementById('bl-section5-card');
   var saveBtn         = document.getElementById('bl-save-btn');
   var newBlBtn        = document.getElementById('bl-new-btn');
   var defaultRowsContainer = document.getElementById('bl-default-rows');
-  var extraRowsContainer   = document.getElementById('bl-extra-rows');
   var nouveauAcompteInput  = document.getElementById('bl-nouveau-acompte');
   var totalMontantInput    = document.getElementById('bl-total-montant');
   var totalAcompteInput    = document.getElementById('bl-total-acompte');
@@ -450,14 +437,15 @@
     if (!paiementTotalConfirme) { nouveauAcompteInput.focus(); }
   });
 
-  // ── Sections 4/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
+  // ── Sections 3/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
   // sélectionné dans la section 1 ────────────────────────────────────────────
   function updateClientDependentVisibility() {
     var visible = !!clientSelect.value;
-    section4Card.style.display = visible ? '' : 'none';
+    section3Card.style.display = visible ? '' : 'none';
     section5Card.style.display = visible ? '' : 'none';
     saveBtn.style.display = visible ? '' : 'none';
-    newBlBtn.style.display = visible ? '' : 'none';
+    // Bouton absent pour un utilisateur Commercial.
+    if (newBlBtn) { newBlBtn.style.display = visible ? '' : 'none'; }
   }
 
   function num(el) {
@@ -600,8 +588,7 @@
   // Table { produit_id: dernier prix_unitaire pratiqué pour le client
   // sélectionné }, rafraîchie à chaque appel de refreshDefaults() — utilisée
   // pour préremplir automatiquement le prix unitaire dès qu'un produit est
-  // choisi dans la section 4 (et, côté serveur, pour recalculer les prix des
-  // lignes par défaut de la section 3).
+  // choisi sur une ligne de la section 3.
   var DERNIERS_PRIX = {};
 
   // Prix de base de chaque produit (table production_produit), utilisé en
@@ -644,9 +631,9 @@
     var prixInput      = row.querySelector('.prix-input');
     var totalInput     = row.querySelector('.total-ligne-input');
 
-    // Le champ Produit de la section « Ajouter d'autres produits » ouvre sa
+    // Le champ Produit d'une ligne vide (sans produit par défaut) ouvre sa
     // liste déroulante dès qu'il reçoit le focus (voir wireDropdownAutoOpenOnFocus).
-    if (container === extraRowsContainer) {
+    if (!prefill.produit_id) {
       wireDropdownAutoOpenOnFocus(produitSelect);
     }
 
@@ -740,10 +727,10 @@
       DERNIERS_PRIX = data.derniers_prix || {};
       defaultRowsContainer.innerHTML = '';
       var lignes = data.lignes || [];
+      // Sans produit par défaut pour ce client, une ligne vide est proposée.
       if (!lignes.length) {
-        section3Card.style.display = 'none';
+        addProduitRow(defaultRowsContainer, null);
       } else {
-        section3Card.style.display = '';
         lignes.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
       }
       recalcMontantTotal();
@@ -754,23 +741,17 @@
     });
   }
 
-  // ── Section 4 : ajouter d'autres produits ─────────────────────────────────
-  document.getElementById('bl-add-extra-row-btn').addEventListener('click', function () {
-    var row = addProduitRow(extraRowsContainer, null);
+  // ── Section 3 : bouton « Ajouter un produit » (ligne vide) ────────────────
+  document.getElementById('bl-add-row-btn').addEventListener('click', function () {
+    var row = addProduitRow(defaultRowsContainer, null);
     var newProduitSelect = row.querySelector('.produit-select');
     if (newProduitSelect) { newProduitSelect.focus(); }
   });
   if (PRESERVED_LIGNES.length) {
     // Après un échec de validation, toutes les lignes précédemment saisies
-    // (issues des sections 3 et 4 réunies) sont restituées dans la section
-    // « Détail bon de livraison par défaut » — la section « Ajouter d'autres
-    // produits » repart vide, plutôt que de dupliquer l'ensemble des lignes
-    // ici pendant que la section 3 réaffiche (via AJAX) les produits
-    // habituels du client, sans rapport avec ce qui vient d'être saisi.
+    // sont restituées dans la section « Détail bon de livraison par défaut ».
     PRESERVED_LIGNES.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
-    section3Card.style.display = '';
   }
-  addProduitRow(extraRowsContainer, null);
 
   // ── Section 5 : récapitulatif paiement ────────────────────────────────────
   function recalcResteEtStatut() {

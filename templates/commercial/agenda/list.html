@@ -50,6 +50,7 @@
                  class="form-control form-control-sm" data-autosubmit>
         </div>
 
+        {% if is_administration %}
         <div class="agenda-filter-field" style="--field-width:220px;">
           <label class="form-label small mb-1">Client</label>
           <select name="client_id" class="form-select form-select-sm" data-autosubmit>
@@ -69,6 +70,11 @@
             {% endfor %}
           </select>
         </div>
+        {% else %}
+        {# Filtres Client/Statut masqués pour un commercial : conservés en champs cachés (filtre transmis par lien). #}
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <input type="hidden" name="statut" value="{{ statut }}">
+        {% endif %}
 
         <div class="agenda-filter-field">
           <a href="{% url 'commercial:agenda-list' %}"
@@ -138,6 +144,7 @@
               </select>
             </td>
             <td class="text-center pe-3">
+              {% if is_administration %}
               <form id="agenda-modifier-{{ a.pk }}" method="post"
                     action="{% url 'commercial:agenda-update' a.pk %}" class="d-inline">
                 {% csrf_token %}
@@ -145,6 +152,7 @@
                   <i class="bi bi-check-lg"></i>
                 </button>
               </form>
+              {% endif %}
               <form method="post" action="{% url 'commercial:agenda-delete' a.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline-danger ms-1" tabindex="-1" title="Supprimer"
@@ -245,11 +253,13 @@
         </button>
       </div>
 
+      {% if is_administration %}
       <div class="d-flex justify-content-end gap-2 mt-3">
         <button type="submit" id="agenda-save-btn" class="btn btn-primary">
           <i class="bi bi-check-lg me-1"></i>Enregistrer
         </button>
       </div>
+      {% endif %}
     </form>
   </div>
 </div>
@@ -461,16 +471,19 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
   });
 
   // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Zone de la
-  // première ligne de la section « Ajouter d'autres actions ».
-  saveBtn.addEventListener('keydown', function (e) {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      var firstZoneSelect = rowsContainer.querySelector('.zone-select');
-      if (firstZoneSelect) {
-        e.preventDefault();
-        firstZoneSelect.focus();
+  // première ligne de la section « Ajouter d'autres actions » (bouton absent
+  // pour un utilisateur Commercial).
+  if (saveBtn) {
+    saveBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab' && !e.shiftKey) {
+        var firstZoneSelect = rowsContainer.querySelector('.zone-select');
+        if (firstZoneSelect) {
+          e.preventDefault();
+          firstZoneSelect.focus();
+        }
       }
-    }
-  });
+    });
+  }
 
   // « Tout enregistrer » (Section 1) : recopie dans un formulaire caché les
   // champs modifiables de chaque ligne de la Section 2 (upd_*) et toutes les

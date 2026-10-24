@@ -54,7 +54,8 @@
   </div>
 </div>
 
-{# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
+{# ── Section 2 : résumé (Administration uniquement) ──────────────────────── #}
+{% if is_administration %}
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-4">
     <div class="card border-0 shadow-sm h-100">
@@ -81,6 +82,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 {% if is_administration and not commercial_id %}
 <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
@@ -125,7 +127,9 @@
             <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:200px;">Client</th>
             <th style="min-width:90px;">Zone</th>
             <th style="min-width:130px;">Téléphone</th>
+            {% if is_administration %}
             <th style="min-width:200px;">Motif de la visite</th>
+            {% endif %}
             <th class="text-center" style="width:150px;">Statut</th>
             <th class="text-center pe-3" style="width:280px;">Actions</th>
           </tr>
@@ -139,6 +143,7 @@
             <td {% if not is_administration %}class="ps-3"{% endif %}>{{ l.client }}</td>
             <td>{{ l.client.zone.nom|default:'—' }}</td>
             <td>{{ l.client.telephone|default:'—' }}</td>
+            {% if is_administration %}
             <td>
               {% if l.est_recurrent %}
               <span class="badge text-bg-light border d-block d-inline-block mb-1">
@@ -151,6 +156,7 @@
               </span>
               {% endfor %}
             </td>
+            {% endif %}
             <td class="text-center">
               {% if l.deja_livre %}
               <span class="badge text-bg-success">Livré aujourd'hui</span>
@@ -159,11 +165,13 @@
               {% endif %}
             </td>
             <td class="text-center pe-3 text-nowrap">
+              {% if is_administration %}
               <a href="{% url 'commercial:client-detail' l.client.pk %}"
                  class="btn btn-sm btn-outline-secondary" title="Voir le client">
                 <i class="bi bi-eye"></i>
               </a>
-              {% if l.client.google_mape %}
+              {% endif %}
+              {% if is_administration and l.client.google_mape %}
               <a href="#" onclick="var v='{{ l.client.google_mape|escapejs }}'.trim(); var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v); window.open(url, '_blank'); return false;"
                  class="btn btn-sm btn-outline-secondary ms-1" title="Ouvrir dans Google Maps">
                 <i class="bi bi-geo-alt"></i>
@@ -175,7 +183,7 @@
                 <i class="bi bi-truck"></i>
               </a>
               {% endif %}
-              {% if commercial_id %}
+              {% if is_administration and commercial_id %}
               <button type="button"
                       class="btn btn-sm btn-outline-secondary ms-1 compte-rendu-btn"
                       data-client-id="{{ l.client.pk }}" data-client-label="{{ l.client }}"
@@ -183,10 +191,12 @@
                 <i class="bi bi-journal-text"></i>
               </button>
               {% endif %}
+              {% if is_administration %}
               <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
                  class="btn btn-sm btn-outline-info ms-1" title="Voir l'agenda">
                 Agenda
               </a>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

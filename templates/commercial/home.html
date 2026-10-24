@@ -26,6 +26,15 @@
   </div>
 
   <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:bon-livraison-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-plus-square fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Nouveau bon de livraison</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
     <a href="{% url 'commercial:tournee-du-jour' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-signpost-split fs-2 text-primary mb-2 d-block"></i>
@@ -38,7 +47,7 @@
     <a href="{% url 'commercial:bon-livraison-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-truck fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Bons de livraison</div>
+        <div class="text-muted small">Liste des bons de livraison</div>
       </div>
     </a>
   </div>
@@ -53,6 +62,43 @@
   </div>
 
   <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:client-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-person-plus fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Nouveau client</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:bon-sortie-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-box-arrow-right fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Nouveau bon de sortie</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:bon-restitution-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-box-arrow-in-left fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Nouveau bon de restitution</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <a href="{% url 'commercial:depense-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-receipt fs-2 text-primary mb-2 d-block"></i>
+        <div class="text-muted small">Nouvelle dépense</div>
+      </div>
+    </a>
+  </div>
+
+  {% if is_administration_user %}
+  <div class="col-sm-6 col-lg-4 col-xl-3">
     <a href="{% url 'commercial:client-sans-bl-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-person-x fs-2 text-primary mb-2 d-block"></i>
@@ -60,6 +106,7 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
   <div class="col-sm-6 col-lg-4 col-xl-3">
     <a href="{% url 'commercial:client-impayes-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
@@ -70,6 +117,8 @@
     </a>
   </div>
 
+  {# Boutons suivants : Administration uniquement (masqués pour un commercial). #}
+  {% if is_administration_user %}
   <div class="col-sm-6 col-lg-4 col-xl-3">
     <a href="{% url 'commercial:stock-commercial-actuel' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
@@ -83,7 +132,7 @@
     <a href="{% url 'commercial:client-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-people fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Clients</div>
+        <div class="text-muted small">Liste des clients</div>
       </div>
     </a>
   </div>
@@ -92,7 +141,7 @@
     <a href="{% url 'commercial:bon-sortie-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-box-seam fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Bons de sortie</div>
+        <div class="text-muted small">Liste des bons de sortie</div>
       </div>
     </a>
   </div>
@@ -101,7 +150,7 @@
     <a href="{% url 'commercial:bon-restitution-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-arrow-return-left fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Bons de restitution</div>
+        <div class="text-muted small">Liste des bons de restitution</div>
       </div>
     </a>
   </div>
@@ -110,7 +159,7 @@
     <a href="{% url 'commercial:depense-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
       <div class="card-body text-center py-4">
         <i class="bi bi-cash-stack fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Dépenses</div>
+        <div class="text-muted small">Liste des dépenses</div>
       </div>
     </a>
   </div>
@@ -132,6 +181,7 @@
       </div>
     </a>
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}

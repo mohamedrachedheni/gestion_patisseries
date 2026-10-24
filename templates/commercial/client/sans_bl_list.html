@@ -54,6 +54,7 @@
 
       {# ── Ligne 2 : cascade Gouvernorat → Délégation → Zone ──────────────── #}
       <div class="sbl-filter-row">
+        {% if is_administration %}
         <div class="sbl-filter-field" style="--field-width:190px;">
           <label class="form-label small mb-1">Gouvernorat</label>
           <select name="gouvernorat" id="sbl-gouvernorat-select" class="form-select form-select-sm" data-autosubmit>
@@ -95,6 +96,7 @@
             {% endfor %}
           </select>
         </div>
+        {% endif %}
 
         <div class="sbl-filter-field">
           <a href="{% url 'commercial:client-sans-bl-list' %}"
@@ -137,17 +139,21 @@
                      value="{{ c.nb_bl }}" disabled>
             </td>
             <td class="text-center pe-3 text-nowrap">
-              <a href="{% url 'commercial:client-detail' c.pk %}" class="btn btn-sm btn-outline-secondary" title="Voir le client">
+              {% if is_administration %}
+              <a href="{% url 'commercial:client-detail' c.pk %}" class="btn btn-sm btn-outline-secondary me-1" title="Voir le client">
                 Client
               </a>
+              {% endif %}
               <a href="{% url 'commercial:bon-livraison-create' %}?client_id={{ c.pk }}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Nouveau bon de livraison">
+                 class="btn btn-sm btn-outline-primary" title="Nouveau bon de livraison">
                 Bon livraison
               </a>
+              {% if is_administration %}
               <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ c.pk }}"
                  class="btn btn-sm btn-outline-info ms-1" title="Voir l'agenda">
                 Agenda
               </a>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

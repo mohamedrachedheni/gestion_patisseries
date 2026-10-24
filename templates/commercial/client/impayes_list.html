@@ -16,12 +16,12 @@
 
 <h4 class="mb-4 fw-bold">Clients avec un solde impayé</h4>
 
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
+{# ── Section 1 : filtres (Administration uniquement) ─────────────────────── #}
+{% if is_administration %}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body py-3">
     <form method="get" id="filter-form">
       <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        {% if is_administration %}
         <div style="width:220px;flex:0 0 auto;">
           <label class="form-label small mb-1">Commercial</label>
           <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
@@ -33,9 +33,6 @@
             {% endfor %}
           </select>
         </div>
-        {% else %}
-        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
 
         <div style="width:170px;flex:0 0 auto;">
           <label class="form-label small mb-1">Montant minimum (TND)</label>
@@ -54,7 +51,10 @@
   </div>
 </div>
 
-{# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
+{% endif %}
+
+{# ── Section 2 : résumé (Administration uniquement) ──────────────────────── #}
+{% if is_administration %}
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-4">
     <div class="card border-0 shadow-sm h-100">
@@ -73,6 +73,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 {# ── Section 3 : liste des clients ────────────────────────────────────────── #}
 <div class="card border-0 shadow-sm">
@@ -105,24 +106,28 @@
             <td class="text-center">{{ l.nb_bl_impayes }}</td>
             <td>{{ l.plus_ancien|date:'d/m/Y' }} <span class="text-muted small">({{ l.plus_ancien|timesince }})</span></td>
             <td class="text-center pe-3 text-nowrap">
+              {% if is_administration %}
               <a href="{% url 'commercial:client-detail' l.client.pk %}"
                  class="btn btn-sm btn-outline-secondary" title="Voir le client">
                 <i class="bi bi-eye"></i>
               </a>
               <button type="button"
-                      class="btn btn-sm btn-outline-secondary ms-1 impayes-detail-btn"
+                      class="btn btn-sm btn-outline-secondary ms-1 me-1 impayes-detail-btn"
                       data-url="{% url 'commercial:client-impayes-detail-popup' l.client.pk %}"
                       title="Détail des bons de livraison">
                 <i class="bi bi-box-arrow-up-right"></i>
               </button>
+              {% endif %}
               <a href="{% url 'commercial:bon-livraison-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}&impaye=1"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Voir les bons de livraison impayés">
+                 class="btn btn-sm btn-outline-primary" title="Voir les bons de livraison impayés">
                 Bon livraison
               </a>
+              {% if is_administration %}
               <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
                  class="btn btn-sm btn-outline-info ms-1" title="Voir l'agenda">
                 Agenda
               </a>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

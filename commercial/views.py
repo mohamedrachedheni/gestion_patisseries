@@ -1967,7 +1967,7 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
         if not commercial_id:
             return _echec('Le commercial est obligatoire.')
 
-        # ── Étape 2 : lignes valides (sections 3 + 4 réunies) ─────────────────
+        # ── Étape 2 : lignes valides (section « Détail bon de livraison ») ────
         # Ignorées silencieusement : produit absent, quantité ou prix ≤ 0.
         lignes_valides = []
         for p, q, pu in zip(produit_ids, quantites, prix_unitaires):

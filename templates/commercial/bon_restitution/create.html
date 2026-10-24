@@ -65,23 +65,19 @@
       <div class="overflow-auto">
         <div class="d-flex flex-nowrap gap-2 mb-1">
           <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Dernière MAJ Stock</span></div>
-          <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
-          <div style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
+          <div class="br-col-admin" style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Dernière MAJ Stock</span></div>
+          <div class="br-col-admin" style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
+          <div class="br-col-admin" style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
+          <div class="br-col-admin" style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
           <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
           <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté à restituer</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Solde</span></div>
+          <div class="br-col-admin" style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Solde</span></div>
           <div style="width:44px;flex:0 0 auto;"></div>
         </div>
         <div id="br-section2-rows">
           <div class="text-muted small py-2" id="br-section2-empty">Sélectionnez un commercial pour afficher les produits à restituer.</div>
         </div>
       </div>
-
-      <nav class="d-flex justify-content-end mt-2" id="br-section2-pagination" style="display:none;">
-        <ul class="pagination pagination-sm mb-0"></ul>
-      </nav>
     </div>
   </div>
 
@@ -118,20 +114,26 @@
 
 {% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+{% if is_commercial %}
+/* Colonnes de détail masquées pour un utilisateur Commercial (gardées dans le
+   DOM : le calcul du Solde en JS continue de s'appuyer dessus). */
+.br-col-admin { display: none !important; }
+{% endif %}
+{% endblock %}
+
 {% block extra_js %}
 <script>
 (function () {
   var PRODUITS = {{ produits_json|safe }};
   var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
   var DEFAULTS_URL = "{% url 'commercial:bon-restitution-defaults' %}";
-  var PAGE_SIZE = 8;
 
   var commercialEl   = document.getElementById('br-commercial-select');
   var dateInput       = document.getElementById('br-date-input');
   var section2Rows    = document.getElementById('br-section2-rows');
-  var section2Pager   = document.getElementById('br-section2-pagination');
   var section3Rows    = document.getElementById('br-section3-rows');
-  var section2Page    = 1;
   var saveBtn          = document.getElementById('br-save-btn');
   var addRowBtn        = document.getElementById('br-add-row-btn');
 
@@ -180,16 +182,16 @@
         '<input type="hidden" name="detail_produit_id" value="' + l.produit_id + '">' +
         '<input type="text" class="form-control form-control-sm" value="" disabled>' +
       '</div>' +
-      '<div style="width:140px;flex:0 0 auto;">' +
+      '<div class="br-col-admin" style="width:140px;flex:0 0 auto;">' +
         '<input type="number" class="form-control form-control-sm no-spinner" value="' + qi + '" disabled>' +
       '</div>' +
-      '<div style="width:140px;flex:0 0 auto;">' +
+      '<div class="br-col-admin" style="width:140px;flex:0 0 auto;">' +
         '<input type="number" class="form-control form-control-sm no-spinner" value="' + qs + '" disabled>' +
       '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
+      '<div class="br-col-admin" style="width:120px;flex:0 0 auto;">' +
         '<input type="number" class="form-control form-control-sm no-spinner" value="' + ql + '" disabled>' +
       '</div>' +
-      '<div style="width:140px;flex:0 0 auto;">' +
+      '<div class="br-col-admin" style="width:140px;flex:0 0 auto;">' +
         '<input type="number" class="form-control form-control-sm no-spinner" value="' + qr + '" disabled>' +
       '</div>' +
       '<div style="width:120px;flex:0 0 auto;">' +
@@ -200,7 +202,7 @@
           'class="form-control form-control-sm no-spinner qte-restituee-input" value="' + valeurParDefaut + '">' +
         '<div class="invalid-feedback">La quantité ne doit pas être négative.</div>' +
       '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
+      '<div class="br-col-admin" style="width:120px;flex:0 0 auto;">' +
         '<input type="number" class="form-control form-control-sm no-spinner solde-input" value="" disabled>' +
       '</div>' +
       '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
@@ -225,72 +227,18 @@
 
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
-      renderSection2Pagination();
     });
 
     section2Rows.appendChild(row);
   }
 
-  function renderSection2Pagination() {
-    var rows = Array.prototype.slice.call(section2Rows.querySelectorAll('.br-section2-row'));
-    var totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    if (section2Page > totalPages) { section2Page = totalPages; }
-
-    rows.forEach(function (row, idx) {
-      var page = Math.floor(idx / PAGE_SIZE) + 1;
-      var visible = page === section2Page;
-      // Bootstrap's .d-flex est marquée !important : une simple bascule de
-      // style.display='none' ne peut pas la surclasser (la ligne resterait
-      // visible sur toutes les pages). On retire donc la classe .d-flex à la
-      // place, pour que .d-none (également !important) fasse foi seule.
-      row.classList.toggle('d-flex', visible);
-      row.classList.toggle('d-none', !visible);
-    });
-
-    var ul = section2Pager.querySelector('ul');
-    ul.innerHTML = '';
-    if (!rows.length || totalPages <= 1) {
-      section2Pager.style.display = 'none';
-      return;
-    }
-    section2Pager.style.display = '';
-
-    function addPageItem(label, page, disabled, active) {
-      var li = document.createElement('li');
-      li.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
-      var a = document.createElement('a');
-      a.className = 'page-link';
-      a.href = '#';
-      a.innerHTML = label;
-      if (!disabled && !active) {
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          section2Page = page;
-          renderSection2Pagination();
-        });
-      }
-      li.appendChild(a);
-      ul.appendChild(li);
-    }
-
-    addPageItem('<i class="bi bi-chevron-left"></i>', section2Page - 1, section2Page <= 1, false);
-    for (var p = 1; p <= totalPages; p++) {
-      if (p === section2Page || (p > section2Page - 3 && p < section2Page + 3)) {
-        addPageItem(String(p), p, false, p === section2Page);
-      }
-    }
-    addPageItem('<i class="bi bi-chevron-right"></i>', section2Page + 1, section2Page >= totalPages, false);
-  }
-
   function refreshSection2() {
     section2Rows.innerHTML = '';
-    section2Page = 1;
     var commercialId = commercialEl.value;
 
     if (!commercialId) {
       section2Rows.innerHTML =
         '<div class="text-muted small py-2">Sélectionnez un commercial pour afficher les produits à restituer.</div>';
-      renderSection2Pagination();
       return;
     }
 
@@ -304,7 +252,6 @@
       } else {
         lignes.forEach(function (l) { addSection2Row(l); });
       }
-      renderSection2Pagination();
     });
   }
 
