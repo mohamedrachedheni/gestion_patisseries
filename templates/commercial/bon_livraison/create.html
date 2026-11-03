@@ -14,361 +14,518 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Nouveau bon de livraison</h4>
-</div>
+<div class="blx">
 
 {% if is_locked %}
 {% comment %}
    État verrouillé : affiché juste après un enregistrement réussi. Plus aucun
    champ n'est modifiable ; seuls Fermer et Etat PDF restent actifs. Le message
    de confirmation est déjà affiché par le framework messages de Django
-   (voir base_global.html) — pas de bannière redondante ici.
+   (voir base_global.html).
 {% endcomment %}
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-truck me-2 text-primary"></i>Informations du bon de livraison
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
-
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Commercial</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.user.get_full_name|default:saved_bon_livraison.user.username }}">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Zone</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.bon_livraison_code.client.zone|default:'' }}">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Client</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.bon_livraison_code.client|default:'' }}">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Date bon de livraison</label>
-        <input type="date" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}">
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Numéro bon de livraison</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.bon_livraison_code.bon_livraison_numero }}">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Montant payé</label>
-        <input type="number" step="0.001" class="form-control form-control-sm no-spinner" disabled
-               value="{{ saved_bon_livraison.nouveau_acompte|stringformat:'s' }}">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Mode de paiement</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.mode_paiement }}">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Montant total</label>
-        <input type="number" step="0.001" class="form-control form-control-sm no-spinner text-end font-monospace" disabled
-               value="{{ saved_bon_livraison.total_montant|stringformat:'s' }}">
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Reste à payer</label>
-        <input type="number" step="0.001"
-               class="form-control form-control-sm no-spinner text-end font-monospace {% if saved_bon_livraison.reste_a_payer < 0 %}text-danger{% endif %}"
-               disabled value="{{ saved_bon_livraison.reste_a_payer|stringformat:'s' }}">
-      </div>
-      <div class="col-md-9">
-        <label class="form-label small mb-1">Observation</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ saved_bon_livraison.observation|default:'' }}">
-      </div>
-
+<div class="blx-card blx-success">
+  <div class="blx-success-icon"><i class="bi bi-check-lg"></i></div>
+  <div>
+    <div class="blx-success-title">Bon de livraison enregistré</div>
+    <div class="text-muted">
+      N° <strong>{{ saved_bon_livraison.bon_livraison_code.bon_livraison_numero }}</strong>
+      du {{ saved_bon_livraison.bon_livraison_code.bon_livraison_at|date:'d/m/Y' }}
     </div>
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-box-seam me-2 text-primary"></i>Détails produits
-  </div>
-  <div class="card-body p-0">
-    {% if saved_details %}
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:220px;">Produit</th>
-            <th style="min-width:120px;">Quantité</th>
-            <th style="min-width:140px;">Prix unitaire</th>
-            <th class="pe-3" style="min-width:140px;">Total ligne</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in saved_details %}
-          <tr>
-            <td class="ps-3" style="min-width:220px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:200px;" value="{{ d.produit|default:'' }}" disabled>
-            </td>
-            <td style="min-width:120px;">
-              <input type="number" step="1" class="form-control form-control-sm no-spinner" style="min-width:100px;" value="{{ d.quantite|stringformat:'s' }}" disabled>
-            </td>
-            <td style="min-width:140px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" style="min-width:120px;" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
-            </td>
-            <td class="pe-3" style="min-width:140px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" style="min-width:120px;" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="blx-card">
+  <div class="blx-card-title"><i class="bi bi-person"></i> Client</div>
+  <dl class="blx-dl">
+    <div><dt>Client</dt><dd>{{ saved_bon_livraison.bon_livraison_code.client|default:'—' }}</dd></div>
+    <div><dt>Zone</dt><dd>{{ saved_bon_livraison.bon_livraison_code.client.zone|default:'—' }}</dd></div>
+    <div><dt>Commercial</dt><dd>{{ saved_bon_livraison.user.get_full_name|default:saved_bon_livraison.user.username }}</dd></div>
+  </dl>
+</div>
+
+<div class="blx-card">
+  <div class="blx-card-title"><i class="bi bi-basket"></i> Produits</div>
+  {% if saved_details %}
+  <ul class="blx-recap-list">
+    {% for d in saved_details %}
+    <li>
+      <div class="blx-recap-name">{{ d.produit|default:'' }}</div>
+      <div class="blx-recap-calc">{{ d.quantite|stringformat:'s' }} × {{ d.prix_unitaire|stringformat:'s' }}</div>
+      <div class="blx-recap-amount">{{ d.total_ligne|stringformat:'s' }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="text-muted">Aucun détail produit pour ce bon de livraison.</div>
+  {% endif %}
+</div>
+
+<div class="blx-card">
+  <div class="blx-card-title"><i class="bi bi-cash-coin"></i> Paiement</div>
+  <dl class="blx-dl">
+    <div><dt>Montant total</dt><dd class="blx-money">{{ saved_bon_livraison.total_montant|stringformat:'s' }} TND</dd></div>
+    <div><dt>Montant payé</dt><dd class="blx-money">{{ saved_bon_livraison.nouveau_acompte|stringformat:'s' }} TND</dd></div>
+    <div><dt>Mode de paiement</dt><dd>{{ saved_bon_livraison.mode_paiement }}</dd></div>
+    <div><dt>Reste à payer</dt>
+      <dd class="blx-money {% if saved_bon_livraison.reste_a_payer > 0 %}text-danger{% else %}text-success{% endif %}">
+        {{ saved_bon_livraison.reste_a_payer|stringformat:'s' }} TND
+      </dd>
     </div>
-    {% else %}
-    <div class="text-center py-4 text-muted">Aucun détail produit pour ce bon de livraison.</div>
+    {% if saved_bon_livraison.observation %}
+    <div><dt>Remarque</dt><dd>{{ saved_bon_livraison.observation }}</dd></div>
     {% endif %}
-  </div>
+  </dl>
 </div>
 
-<div class="d-flex gap-2 justify-content-end bl-actions-bar">
+<div class="blx-actions">
   {% if is_administration %}
-  <a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-outline-secondary">
+  <a href="{% url 'commercial:bon-livraison-pdf' saved_bon_livraison.pk %}" target="_blank" class="btn btn-outline-primary blx-btn">
+    <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
+  </a>
+  <a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-outline-secondary blx-btn">
     <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
   </a>
   {% endif %}
-  <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary">
+  <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-primary blx-btn">
     <i class="bi bi-x-lg me-1"></i>Fermer
   </a>
-  {% if is_administration %}
-  <a href="{% url 'commercial:bon-livraison-pdf' saved_bon_livraison.pk %}" target="_blank" class="btn btn-outline-primary">
-    <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
-  </a>
-  {% endif %}
-  <button type="button" class="btn btn-primary" disabled>
-    <i class="bi bi-check-lg me-1"></i>Enregistrer
-  </button>
 </div>
 
 {% else %}
 {% comment %}
-   État éditable : formulaire habituel de saisie.
+   État éditable. Les noms des champs envoyés (commercial_id, client_id,
+   bon_livraison_at, detail_*, nouveau_acompte, mode_paiement, observation,
+   total_acompte, statut) sont ceux attendus par BonLivraisonCreateView.post().
 {% endcomment %}
 <form method="post" id="bl-create-form" novalidate>
   {% csrf_token %}
 
-  {# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-funnel me-2 text-primary"></i>Filtres
-    </div>
-    <div class="card-body py-3">
-      <div class="bl-filter-row">
-
-        {% if is_administration %}
-        <div class="bl-filter-field" style="--field-width:220px;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select id="bl-commercial-select" name="commercial_id" class="form-select form-select-sm">
-            <option value="">— Choisir —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" id="bl-commercial-select" name="commercial_id" value="{{ request.user.pk }}">
-        {% endif %}
-
-        <div class="bl-filter-field" style="--field-width:200px;">
-          <label class="form-label small mb-1">Zone</label>
-          <select id="bl-zone-select" class="form-select form-select-sm">
-            <option value="">— Toutes les zones —</option>
-          </select>
-        </div>
-
-        <div class="bl-filter-field" style="--field-width:260px;">
-          <label class="form-label small mb-1">Client</label>
-          <select id="bl-client-select" name="client_id" class="form-select form-select-sm">
-            <option value="">— Choisir —</option>
-          </select>
-        </div>
-
+  {# ── Étape 1 : client et date ─────────────────────────────────────────────── #}
+  <section class="blx-card" id="blx-step-client">
+    <div class="blx-step-head">
+      <span class="blx-step-num">1</span>
+      <div>
+        <div class="blx-step-title">Choisir le client</div>
+        <div class="blx-step-help">Choisissez la zone pour trouver le client plus vite.</div>
       </div>
     </div>
+
+    <div class="blx-alert d-none" id="blx-client-error" role="alert"></div>
+
+    {% if is_administration %}
+    <div class="blx-field">
+      <label class="blx-label" for="bl-commercial-select">Commercial <span class="blx-req">*</span></label>
+      <select id="bl-commercial-select" name="commercial_id" class="form-select blx-input">
+        <option value="">— Choisir —</option>
+        {% for u in commerciaux_list %}
+        <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% else %}
+    <input type="hidden" id="bl-commercial-select" name="commercial_id" value="{{ request.user.pk }}">
+    {% endif %}
+
+    <div class="blx-grid-2">
+      <div class="blx-field">
+        <label class="blx-label" for="bl-zone-select">Zone</label>
+        <select id="bl-zone-select" class="form-select blx-input">
+          <option value="">— Toutes les zones —</option>
+        </select>
+      </div>
+
+      <div class="blx-field">
+        <label class="blx-label" for="bl-client-select">Client <span class="blx-req">*</span></label>
+        <select id="bl-client-select" name="client_id" class="form-select blx-input">
+          <option value="">— Choisir —</option>
+        </select>
+        <div class="blx-hint d-none" id="blx-client-lock-hint">
+          <i class="bi bi-info-circle"></i> Choisissez d'abord le commercial.
+        </div>
+      </div>
+    </div>
+
+    <div class="blx-grid-2 blx-date-row">
+      <div class="blx-field">
+        <label class="blx-label" for="bl-date-input">Date du bon <span class="blx-req">*</span></label>
+        <input type="date" id="bl-date-input" name="bon_livraison_at" value="{{ bon_livraison_at_value }}"
+               class="form-control blx-input">
+      </div>
+      <div class="blx-field">
+        <label class="blx-label" for="bl-numero-input">N° du bon</label>
+        <input type="text" id="bl-numero-input" value="{{ numero_initial }}"
+               class="form-control blx-input blx-readonly" disabled>
+      </div>
+    </div>
+  </section>
+
+  {# Message d'attente tant qu'aucun client n'est choisi #}
+  <div class="blx-wait" id="blx-wait">
+    <i class="bi bi-arrow-up-circle"></i>
+    Choisissez un client pour ajouter les produits.
   </div>
 
-  {# ── Section 2 : Date et numéro ───────────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-      <div class="bl-filter-row">
-        <div class="bl-filter-field" style="--field-width:180px;">
-          <label class="form-label small mb-1">Date bon de livraison</label>
-          <input type="date" id="bl-date-input" name="bon_livraison_at" value="{{ bon_livraison_at_value }}"
-                 class="form-control form-control-sm">
+  {# ── Étape 2 : produits ───────────────────────────────────────────────────── #}
+  <section class="blx-card" id="bl-section3-card" style="display:none;">
+    <div class="blx-step-head">
+      <span class="blx-step-num">2</span>
+      <div class="flex-grow-1">
+        <div class="blx-step-title">
+          Produits livrés
+          <span class="blx-count" id="blx-items-count">0</span>
         </div>
-        <div class="bl-filter-field" style="--field-width:170px;">
-          <label class="form-label small mb-1">Numéro bon de livraison</label>
-          <input type="text" id="bl-numero-input" value="{{ numero_initial }}"
-                 class="form-control form-control-sm" disabled>
-        </div>
+        <div class="blx-step-help" id="blx-products-help">Vérifiez les quantités, puis ajoutez d'autres produits si besoin.</div>
       </div>
     </div>
-  </div>
 
-  {# ── Section 3 : détail par défaut ────────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4" id="bl-section3-card" style="display:none;">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-clock-history me-2 text-primary"></i>Détail bon de livraison par défaut
+    <div class="blx-alert d-none" id="blx-products-error" role="alert"></div>
+    <div class="blx-loading d-none" id="blx-products-loading">
+      <span class="spinner-border spinner-border-sm"></span> Chargement des produits habituels du client…
     </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="bl-default-rows"></div>
+
+    <div id="bl-default-rows"></div>
+
+    <button type="button" id="bl-add-row-btn" class="blx-add-btn" tabindex="-1">
+      <i class="bi bi-plus-circle"></i> Ajouter un produit
+    </button>
+  </section>
+
+  {# ── Étape 3 : paiement ───────────────────────────────────────────────────── #}
+  <section class="blx-card" id="bl-section5-card" style="display:none;">
+    <div class="blx-step-head">
+      <span class="blx-step-num">3</span>
+      <div>
+        <div class="blx-step-title">Paiement</div>
+        <div class="blx-step-help">Indiquez combien le client a payé aujourd'hui.</div>
       </div>
-      <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="bl-add-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
+    </div>
+
+    <div class="blx-total-box">
+      <span>Montant total</span>
+      <div>
+        <input type="number" step="0.001" id="bl-total-montant" value="0.000"
+               class="blx-total-value no-spinner" disabled aria-label="Montant total">
+        <span class="blx-currency">TND</span>
+      </div>
+    </div>
+
+    <div class="blx-field">
+      <label class="blx-label" for="bl-nouveau-acompte">Montant payé par le client</label>
+      <div class="blx-money-input">
+        <input type="number" step="0.001" min="0" id="bl-nouveau-acompte" name="nouveau_acompte"
+               value="{{ nouveau_acompte_value }}" class="form-control blx-input no-spinner" inputmode="decimal">
+        <span class="blx-currency">TND</span>
+      </div>
+      <div class="blx-quick">
+        <button type="button" class="btn btn-outline-success" id="blx-pay-all" tabindex="-1">
+          <i class="bi bi-check2-all me-1"></i>Tout est payé
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="blx-pay-none" tabindex="-1">
+          <i class="bi bi-x-circle me-1"></i>Rien payé
         </button>
       </div>
     </div>
-  </div>
 
-  {# ── Section 5 : paiement ─────────────────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4" id="bl-section5-card" style="display:none;">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-cash-coin me-2 text-primary"></i>Paiement
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Montant payé</label>
-          <input type="number" step="0.001" min="0" id="bl-nouveau-acompte" name="nouveau_acompte"
-                 value="{{ nouveau_acompte_value }}" class="form-control form-control-sm no-spinner">
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Mode de paiement</label>
-          <select id="bl-mode-paiement" name="mode_paiement" class="form-select form-select-sm">
-            {% for value, label in mode_paiement_choices %}
-            <option value="{{ value }}" {% if value == mode_paiement_value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Montant total</label>
-          <input type="number" step="0.001" id="bl-total-montant" value="0.000"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Reste à payer</label>
-          <input type="number" step="0.001" id="bl-reste" value="0.000"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-        </div>
-
-        <input type="hidden" id="bl-total-acompte" name="total_acompte" value="0">
-        <input type="hidden" id="bl-statut" name="statut" value="">
-
-        <div class="col-12">
-          <label class="form-label small mb-1">Observation</label>
-          <input type="text" name="observation" value="{{ observation_value }}" class="form-control form-control-sm">
-        </div>
-
+    <div class="blx-field">
+      <span class="blx-label">Mode de paiement</span>
+      <div class="blx-choices" role="radiogroup" aria-label="Mode de paiement">
+        {% for value, label in mode_paiement_choices %}
+        <label class="blx-choice">
+          <input type="radio" name="mode_paiement" value="{{ value }}" {% if value == mode_paiement_value %}checked{% endif %}>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
       </div>
     </div>
-  </div>
 
-  {# ── Actions ───────────────────────────────────────────────────────────────── #}
-  <div class="d-flex gap-2 justify-content-end bl-actions-bar">
-    {% if is_administration %}
-    <a href="{% url 'commercial:bon-livraison-create' %}" id="bl-new-btn" class="btn btn-outline-secondary" tabindex="-1" style="display:none;">
-      <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
-    </a>
-    {% endif %}
-    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-outline-secondary" tabindex="-1">
+    <div class="blx-reste-box" id="blx-reste-box">
+      <span>Reste à payer</span>
+      <div>
+        <input type="number" step="0.001" id="bl-reste" value="0.000"
+               class="blx-reste-value no-spinner" disabled aria-label="Reste à payer">
+        <span class="blx-currency">TND</span>
+      </div>
+      <span class="blx-status" id="blx-status-badge"></span>
+    </div>
+
+    <input type="hidden" id="bl-total-acompte" name="total_acompte" value="0">
+    <input type="hidden" id="bl-statut" name="statut" value="">
+
+    <div class="blx-field mb-0">
+      <label class="blx-label" for="bl-observation">Remarque <span class="text-muted fw-normal">(facultatif)</span></label>
+      <input type="text" id="bl-observation" name="observation" value="{{ observation_value }}" class="form-control blx-input">
+    </div>
+  </section>
+
+  {# ── Actions secondaires ──────────────────────────────────────────────────── #}
+  <div class="blx-secondary-actions">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-link text-secondary" tabindex="-1">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
     {% if is_administration %}
-    <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
+    <a href="{% url 'commercial:bon-livraison-create' %}" id="bl-new-btn" class="btn btn-link text-secondary" tabindex="-1" style="display:none;">
+      <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
+    </a>
+    <a href="#" class="btn btn-link disabled" tabindex="-1" aria-disabled="true">
       <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
     </a>
     {% endif %}
-    <button type="submit" id="bl-save-btn" class="btn btn-primary" style="display:none;">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
+  </div>
+
+  {# ── Barre d'action principale, toujours visible en bas de l'écran ─────────── #}
+  <div class="blx-bar" id="blx-bar" style="display:none;">
+    <div class="blx-bar-total">
+      <span>Total</span>
+      <strong id="blx-bar-total">0,000 TND</strong>
+    </div>
+    <button type="submit" id="bl-save-btn" class="btn btn-primary blx-bar-btn">
+      <i class="bi bi-check-lg me-1"></i>Vérifier et enregistrer
     </button>
   </div>
 </form>
 
-{# ── Pop-up de confirmation « Reste à payer = 0 » ─────────────────────────── #}
-<div class="modal fade" id="bl-confirm-paye-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+{# ── Récapitulatif avant enregistrement (remplace l'ancienne pop-up « totalement payé ») ── #}
+<div class="modal fade" id="blx-recap-modal" tabindex="-1" aria-hidden="true" aria-labelledby="blx-recap-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
     <div class="modal-content">
-      <div class="modal-body py-4 text-center">
-        Le bon de livraison est totalement payé.
+      <div class="modal-header">
+        <h5 class="modal-title" id="blx-recap-title"><i class="bi bi-clipboard-check me-2"></i>Vérifiez le bon</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-      <div class="modal-footer justify-content-center">
-        <button type="button" id="bl-confirm-paye-non" class="btn btn-outline-secondary">Non</button>
-        <button type="button" id="bl-confirm-paye-oui" class="btn btn-primary">Oui</button>
+      <div class="modal-body" id="blx-recap-body"></div>
+      <div class="modal-footer blx-recap-footer">
+        <button type="button" class="btn btn-outline-secondary blx-btn" data-bs-dismiss="modal">
+          <i class="bi bi-pencil me-1"></i>Modifier
+        </button>
+        <button type="button" class="btn btn-success blx-btn" id="blx-recap-confirm">
+          <i class="bi bi-check-lg me-1"></i>Confirmer et enregistrer
+        </button>
       </div>
     </div>
   </div>
 </div>
+
+<div class="blx-toast" id="blx-toast" role="status" aria-live="polite"></div>
 {% endif %}
+
+</div>{# /.blx #}
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
-/* ── Sections Filtres / Date-Numéro : empilées en pleine largeur sur écran
-   réduit, alignées sur une seule ligne à largeurs fixes à partir de 992px
-   (même seuil que le repli de la sidebar) ────────────────────────────── */
-.bl-filter-row {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
+/* ── Page « Nouveau bon de livraison » : interface mobile d'abord ─────────── */
+.blx {
+  --blx-radius: .9rem;
+  --blx-primary: #2c7be5;
+  --blx-border: #e3e6ec;
+  --blx-muted: #6c757d;
+  max-width: 860px;
+  margin: 0 auto;
 }
-.bl-filter-field { width: 100%; }
+.blx-card {
+  background: #fff;
+  border-radius: var(--blx-radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  padding: 1.1rem;
+  margin-bottom: 1rem;
+}
+.blx-card-title { font-weight: 600; margin-bottom: .75rem; }
+.blx-card-title i { color: var(--blx-primary); margin-right: .35rem; }
 
-@media (min-width: 992px) {
-  .bl-filter-row {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: flex-end;
-    overflow-x: auto;
-    gap: .5rem;
-  }
-  .bl-filter-field {
-    width: var(--field-width, auto);
-    flex: 0 0 auto;
-  }
+/* En-tête d'étape numérotée */
+.blx-step-head { display: flex; gap: .75rem; align-items: flex-start; margin-bottom: 1rem; }
+.blx-step-num {
+  flex: 0 0 auto; width: 2rem; height: 2rem; border-radius: 50%;
+  background: var(--blx-primary); color: #fff; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.blx-step-title { font-size: 1.1rem; font-weight: 700; line-height: 1.3; display: flex; align-items: center; gap: .5rem; }
+.blx-step-help { color: var(--blx-muted); font-size: .9rem; }
+.blx-count {
+  background: #e8f0fe; color: var(--blx-primary); font-size: .8rem; font-weight: 700;
+  border-radius: 1rem; padding: .1rem .55rem;
 }
 
-@media (max-width: 991.98px) {
-  /* Barre d'actions collée en bas de l'écran, toujours accessible sans
-     avoir à faire défiler un long formulaire. */
-  .bl-actions-bar {
-    position: sticky;
-    bottom: 0;
-    background: #f5f6fa;
-    padding: .75rem 0;
-    box-shadow: 0 -2px 8px rgba(0,0,0,.1);
-    z-index: 5;
-  }
-  /* Champs plus grands, plus faciles à toucher au doigt. */
-  #bl-create-form .form-control-sm,
-  #bl-create-form .form-select-sm {
-    font-size: 1rem;
-    padding: .5rem .75rem;
-  }
+/* Champs : grands, faciles à toucher, 16px minimum (évite le zoom iOS) */
+.blx-field { margin-bottom: 1rem; }
+.blx-label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: .35rem; }
+.blx-req { color: #dc3545; }
+.blx-input { font-size: 1rem; min-height: 3rem; border-radius: .6rem; }
+.blx-readonly { background: #f5f6fa; font-weight: 700; }
+.blx-hint { color: var(--blx-muted); font-size: .85rem; margin-top: .35rem; }
+.blx-grid-2 { display: grid; grid-template-columns: 1fr; gap: 0 1rem; }
+.blx-date-row { grid-template-columns: 1fr 7rem; }
+@media (min-width: 768px) {
+  .blx-grid-2 { grid-template-columns: 1fr 1fr; }
+  .blx-date-row { grid-template-columns: 1fr 10rem; }
+}
+
+.blx-alert {
+  background: #fdecea; color: #b02a37; border-radius: .6rem;
+  padding: .7rem .9rem; margin-bottom: 1rem; font-weight: 500;
+}
+.blx-loading { color: var(--blx-muted); padding: .5rem 0 1rem; }
+.blx-wait {
+  text-align: center; color: var(--blx-muted); padding: 1.5rem 1rem;
+  border: 2px dashed var(--blx-border); border-radius: var(--blx-radius); margin-bottom: 1rem;
+}
+.blx-wait i { display: block; font-size: 1.8rem; margin-bottom: .25rem; }
+
+/* Carte produit */
+.blx-item {
+  border: 1px solid var(--blx-border); border-radius: .75rem;
+  padding: .85rem; margin-bottom: .75rem; background: #fff;
+  transition: border-color .2s, box-shadow .2s;
+}
+.blx-item.blx-item-new { animation: blx-flash 1.2s ease; }
+@keyframes blx-flash { 0% { box-shadow: 0 0 0 3px rgba(44,123,229,.35); } 100% { box-shadow: none; } }
+.blx-item.blx-item-incomplete { border-color: #f0ad4e; background: #fffaf0; }
+.blx-item-head { display: flex; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+.blx-item-num {
+  flex: 0 0 auto; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: #f1f3f7; color: #495057; font-size: .8rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.blx-item-head select { flex: 1 1 auto; min-width: 0; }
+.blx-remove {
+  flex: 0 0 auto; width: 3rem; height: 3rem; border-radius: .6rem;
+  display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+}
+.blx-item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; align-items: end; }
+.blx-item-grid .blx-sub-label { display: block; font-size: .8rem; color: var(--blx-muted); font-weight: 600; margin-bottom: .25rem; }
+.blx-item-qty { grid-column: 1 / -1; }
+@media (min-width: 576px) {
+  .blx-item-grid { grid-template-columns: 11rem 1fr 1fr; }
+  .blx-item-qty { grid-column: auto; }
+}
+.blx-stepper { display: flex; align-items: stretch; }
+.blx-stepper button {
+  flex: 0 0 3rem; font-size: 1.4rem; line-height: 1; border: 1px solid #ced4da;
+  background: #f8f9fa; color: #212529;
+}
+.blx-stepper button:first-child { border-radius: .6rem 0 0 .6rem; }
+.blx-stepper button:last-child { border-radius: 0 .6rem .6rem 0; }
+.blx-stepper button:active { background: #e2e6ea; }
+.blx-stepper input { border-radius: 0; text-align: center; font-weight: 700; font-size: 1.15rem; border-left: 0; border-right: 0; }
+.blx-line-total {
+  border: 0; background: transparent; width: 100%; text-align: right;
+  font-weight: 700; font-size: 1.1rem; padding: .6rem 0; color: #212529;
+}
+.blx-item-warning { color: #9a6700; font-size: .85rem; margin-top: .6rem; display: none; }
+.blx-item-incomplete .blx-item-warning { display: block; }
+
+.blx-add-btn {
+  width: 100%; min-height: 3.25rem; border: 2px dashed #9ec1f3; background: #f4f8fe;
+  color: var(--blx-primary); font-weight: 600; font-size: 1rem; border-radius: .75rem;
+}
+.blx-add-btn:hover, .blx-add-btn:focus { background: #e8f0fe; }
+.blx-add-btn:disabled { opacity: .5; }
+.blx-add-btn i { font-size: 1.2rem; margin-right: .35rem; vertical-align: -2px; }
+
+/* Paiement */
+.blx-total-box, .blx-reste-box {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem .75rem;
+  border-radius: .75rem; padding: .85rem 1rem; margin-bottom: 1rem;
+}
+.blx-total-box { background: #f1f6fd; }
+.blx-total-box > span, .blx-reste-box > span:first-child { font-weight: 600; }
+.blx-total-value, .blx-reste-value {
+  border: 0; background: transparent; text-align: right; font-weight: 800;
+  width: 9rem; padding: 0; color: #212529;
+}
+.blx-total-value { font-size: 1.5rem; }
+.blx-reste-value { font-size: 1.25rem; }
+.blx-reste-box { background: #f8f9fa; }
+.blx-reste-box.blx-reste-due { background: #fdecea; }
+.blx-reste-box.blx-reste-due .blx-reste-value { color: #b02a37; }
+.blx-reste-box.blx-reste-ok { background: #e8f6ee; }
+.blx-reste-box.blx-reste-ok .blx-reste-value { color: #198754; }
+.blx-currency { color: var(--blx-muted); font-weight: 600; margin-left: .25rem; }
+.blx-status { flex-basis: 100%; text-align: right; font-size: .85rem; font-weight: 600; }
+.blx-money-input { display: flex; align-items: center; gap: .5rem; }
+.blx-money-input input { font-size: 1.25rem; font-weight: 700; }
+.blx-quick { display: flex; gap: .5rem; margin-top: .5rem; }
+.blx-quick .btn { flex: 1 1 0; min-height: 2.75rem; border-radius: .6rem; }
+.blx-choices { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+@media (min-width: 576px) { .blx-choices { grid-template-columns: repeat(4, 1fr); } }
+.blx-choice { position: relative; margin: 0; }
+.blx-choice input { position: absolute; opacity: 0; inset: 0; }
+.blx-choice span {
+  display: flex; align-items: center; justify-content: center; min-height: 3rem;
+  border: 1px solid #ced4da; border-radius: .6rem; font-weight: 600; cursor: pointer; background: #fff;
+}
+.blx-choice input:checked + span { border-color: var(--blx-primary); background: #e8f0fe; color: var(--blx-primary); box-shadow: inset 0 0 0 1px var(--blx-primary); }
+.blx-choice input:focus-visible + span { outline: 2px solid var(--blx-primary); outline-offset: 2px; }
+
+/* Actions */
+.blx-secondary-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem; margin-bottom: 1rem; }
+.blx-bar {
+  position: sticky; bottom: 0; z-index: 20;
+  display: flex; align-items: center; gap: .75rem;
+  background: #fff; border-top: 1px solid var(--blx-border);
+  box-shadow: 0 -4px 12px rgba(0,0,0,.08);
+  margin: 0 -1.5rem -1.5rem; padding: .75rem 1.5rem calc(.75rem + env(safe-area-inset-bottom));
+}
+.blx-bar-total { display: flex; flex-direction: column; line-height: 1.2; }
+.blx-bar-total span { font-size: .8rem; color: var(--blx-muted); }
+.blx-bar-total strong { font-size: 1.15rem; white-space: nowrap; }
+.blx-bar-btn { flex: 1 1 auto; min-height: 3.25rem; font-size: 1.05rem; font-weight: 600; border-radius: .75rem; }
+@media (min-width: 768px) {
+  .blx-bar { margin: 0 0 -1.5rem; border-radius: var(--blx-radius) var(--blx-radius) 0 0; border: 1px solid var(--blx-border); border-bottom: 0; }
+  .blx-bar-btn { flex: 0 0 auto; margin-left: auto; padding-left: 2rem; padding-right: 2rem; }
+}
+.blx-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+.blx-btn { min-height: 3rem; border-radius: .7rem; font-weight: 600; }
+@media (max-width: 575.98px) { .blx-actions .blx-btn, .blx-recap-footer .blx-btn { flex: 1 1 100%; } }
+
+/* Récapitulatif */
+.blx-recap-section { margin-bottom: 1rem; }
+.blx-recap-section h6 { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--blx-muted); margin-bottom: .4rem; }
+.blx-recap-list { list-style: none; padding: 0; margin: 0; }
+.blx-recap-list li {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 .75rem;
+  padding: .55rem 0; border-bottom: 1px solid #f0f1f4;
+}
+.blx-recap-list li:last-child { border-bottom: 0; }
+.blx-recap-name { font-weight: 600; }
+.blx-recap-calc { grid-column: 1; color: var(--blx-muted); font-size: .9rem; }
+.blx-recap-amount { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 700; white-space: nowrap; }
+.blx-recap-row { display: flex; justify-content: space-between; gap: 1rem; padding: .3rem 0; }
+.blx-recap-row strong { white-space: nowrap; }
+.blx-recap-big { font-size: 1.15rem; }
+.blx-note { border-radius: .6rem; padding: .7rem .9rem; margin-bottom: 1rem; font-weight: 500; }
+.blx-note-ok { background: #e8f6ee; color: #146c43; }
+.blx-note-warn { background: #fff4e0; color: #8a5300; }
+
+/* Écran « enregistré » */
+.blx-success { display: flex; align-items: center; gap: 1rem; border-left: 5px solid #198754; }
+.blx-success-icon {
+  flex: 0 0 auto; width: 3rem; height: 3rem; border-radius: 50%; background: #198754; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+}
+.blx-success-title { font-size: 1.15rem; font-weight: 700; }
+.blx-dl { margin: 0; }
+.blx-dl > div { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem 0; border-bottom: 1px solid #f0f1f4; }
+.blx-dl > div:last-child { border-bottom: 0; }
+.blx-dl dt { font-weight: 500; color: var(--blx-muted); }
+.blx-dl dd { margin: 0; text-align: right; font-weight: 600; }
+.blx-money { white-space: nowrap; }
+
+/* Retour visuel après une action */
+.blx-toast {
+  position: fixed; left: 50%; bottom: 6.5rem; transform: translate(-50%, 1rem);
+  background: #212529; color: #fff; padding: .6rem 1.1rem; border-radius: 2rem;
+  font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 1080;
+  max-width: calc(100% - 2rem); text-align: center;
+}
+.blx-toast.blx-toast-show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 575.98px) {
+  .blx-card { padding: .95rem; }
+  /* Marges latérales réduites sur téléphone (cette page uniquement). */
+  #main-content { padding: 1rem .75rem; }
+  .blx-bar { margin: 0 -.75rem -1rem; padding-left: .75rem; padding-right: .75rem; }
 }
 {% endblock %}
 
@@ -386,15 +543,16 @@
   var NUMERO_URL = "{% url 'commercial:bon-livraison-numero-suivant' %}";
   var DEFAULTS_URL = "{% url 'commercial:bon-livraison-defaults' %}";
 
+  var blCreateForm   = document.getElementById('bl-create-form');
   var commercialEl   = document.getElementById('bl-commercial-select');
   var zoneSelect     = document.getElementById('bl-zone-select');
   var clientSelect   = document.getElementById('bl-client-select');
   var dateInput      = document.getElementById('bl-date-input');
   var numeroInput    = document.getElementById('bl-numero-input');
   var section3Card   = document.getElementById('bl-section3-card');
-  var section5Card    = document.getElementById('bl-section5-card');
-  var saveBtn         = document.getElementById('bl-save-btn');
-  var newBlBtn        = document.getElementById('bl-new-btn');
+  var section5Card   = document.getElementById('bl-section5-card');
+  var saveBtn        = document.getElementById('bl-save-btn');
+  var newBlBtn       = document.getElementById('bl-new-btn');
   var defaultRowsContainer = document.getElementById('bl-default-rows');
   var nouveauAcompteInput  = document.getElementById('bl-nouveau-acompte');
   var totalMontantInput    = document.getElementById('bl-total-montant');
@@ -402,52 +560,20 @@
   var resteInput           = document.getElementById('bl-reste');
   var statutInput          = document.getElementById('bl-statut');
 
-  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
-  // son clic natif, comme la souris — Enregistrer, Ajouter un produit, Supprimer la ligne…).
-  var blCreateForm = document.getElementById('bl-create-form');
+  var waitBox        = document.getElementById('blx-wait');
+  var actionBar      = document.getElementById('blx-bar');
+  var barTotal       = document.getElementById('blx-bar-total');
+  var itemsCount     = document.getElementById('blx-items-count');
+  var productsHelp   = document.getElementById('blx-products-help');
+  var productsLoading = document.getElementById('blx-products-loading');
+  var productsError  = document.getElementById('blx-products-error');
+  var clientError    = document.getElementById('blx-client-error');
+  var clientLockHint = document.getElementById('blx-client-lock-hint');
+  var resteBox       = document.getElementById('blx-reste-box');
+  var statusBadge    = document.getElementById('blx-status-badge');
+  var toastEl        = document.getElementById('blx-toast');
 
-  blCreateForm.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
-  });
-
-  // ── Pop-up de confirmation si le bon est totalement payé (Reste à payer = 0) ──
-  var confirmPayeModalEl = document.getElementById('bl-confirm-paye-modal');
-  var confirmPayeModal = new bootstrap.Modal(confirmPayeModalEl);
-  var paiementTotalConfirme = false;
-
-  blCreateForm.addEventListener('submit', function (e) {
-    if (!paiementTotalConfirme && num(resteInput) === 0) {
-      e.preventDefault();
-      confirmPayeModal.show();
-    }
-  });
-
-  document.getElementById('bl-confirm-paye-oui').addEventListener('click', function () {
-    paiementTotalConfirme = true;
-    confirmPayeModal.hide();
-    blCreateForm.submit();
-  });
-
-  document.getElementById('bl-confirm-paye-non').addEventListener('click', function () {
-    confirmPayeModal.hide();
-  });
-
-  confirmPayeModalEl.addEventListener('hidden.bs.modal', function () {
-    if (!paiementTotalConfirme) { nouveauAcompteInput.focus(); }
-  });
-
-  // ── Sections 3/5 et bouton Enregistrer : masqués tant qu'aucun client n'est
-  // sélectionné dans la section 1 ────────────────────────────────────────────
-  function updateClientDependentVisibility() {
-    var visible = !!clientSelect.value;
-    section3Card.style.display = visible ? '' : 'none';
-    section5Card.style.display = visible ? '' : 'none';
-    saveBtn.style.display = visible ? '' : 'none';
-    // Bouton absent pour un utilisateur Commercial.
-    if (newBlBtn) { newBlBtn.style.display = visible ? '' : 'none'; }
-  }
-
+  // ── Utilitaires ──────────────────────────────────────────────────────────
   function num(el) {
     var v = parseFloat(el.value);
     return isNaN(v) ? 0 : v;
@@ -455,6 +581,75 @@
 
   function round3(v) {
     return Math.round(v * 1000) / 1000;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function formatMontant(v) {
+    return Number(v || 0).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' TND';
+  }
+
+  function formatDate(iso) {
+    var p = (iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+
+  var toastTimer = null;
+  function toast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add('blx-toast-show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('blx-toast-show'); }, 1800);
+  }
+
+  function showError(box, message) {
+    if (!message) { box.classList.add('d-none'); box.textContent = ''; return; }
+    box.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>' + esc(message);
+    box.classList.remove('d-none');
+  }
+
+  // ── Protection contre la perte de saisie ─────────────────────────────────
+  // « dirty » : des produits/quantités/prix ont été modifiés à la main depuis
+  // le dernier chargement des produits habituels du client.
+  var dirty = false;
+  var enregistrementEnCours = false;
+  function markDirty() { dirty = true; }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty && !enregistrementEnCours) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // Avant un rechargement des produits habituels qui écraserait la saisie.
+  function confirmerRemplacementProduits() {
+    if (!dirty) { return true; }
+    return window.confirm(
+      'Les produits que vous avez saisis vont être remplacés par les produits habituels du client. Continuer ?'
+    );
+  }
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris).
+  blCreateForm.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // ── Étapes 2/3 et barre d'enregistrement : visibles dès qu'un client est choisi ──
+  function updateClientDependentVisibility() {
+    var visible = !!clientSelect.value;
+    section5Card.style.display = visible ? '' : 'none';
+    actionBar.style.display = visible ? '' : 'none';
+    waitBox.style.display = (visible || section3Card.style.display !== 'none') ? 'none' : '';
+    // Bouton absent pour un utilisateur Commercial.
+    if (newBlBtn) { newBlBtn.style.display = visible ? '' : 'none'; }
+    if (visible) { showError(clientError, ''); }
   }
 
   // ── Cascade Commercial → Zone → Client ────────────────────────────────────
@@ -478,7 +673,7 @@
     ZONES.forEach(function (z) {
       if (allowed && !zoneIdsAllowed.has(String(z.id))) { return; }
       var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
+      html += '<option value="' + z.id + '"' + sel + '>' + esc(z.nom) + '</option>';
     });
     return html;
   }
@@ -493,7 +688,7 @@
         if (!allowed.has(String(c.id))) { return; }
       }
       var sel = (selectedId && String(c.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + c.id + '"' + sel + '>' + c.label + '</option>';
+      html += '<option value="' + c.id + '"' + sel + '>' + esc(c.label) + '</option>';
     });
     return html;
   }
@@ -502,19 +697,17 @@
     return commercialEl ? commercialEl.value : '';
   }
 
-  // ── Verrouillage du champ Client tant qu'aucun commercial n'est choisi ────
   // Un utilisateur Administration doit d'abord choisir un commercial avant de
-  // pouvoir sélectionner un client ; un utilisateur Commercial (champ
-  // Commercial figé sur lui-même) a le champ Client actif dès l'ouverture.
+  // pouvoir sélectionner un client ; un utilisateur Commercial a le champ
+  // Client actif dès l'ouverture.
   function updateCommercialClientLock() {
-    clientSelect.disabled = IS_ADMINISTRATION && !currentCommercialId();
+    var locked = IS_ADMINISTRATION && !currentCommercialId();
+    clientSelect.disabled = locked;
+    clientLockHint.classList.toggle('d-none', !locked);
   }
 
-  // ── Ouverture automatique de la liste déroulante native d'un <select> ─────
-  // Dès qu'il reçoit le focus, le champ ouvre sa liste — sauf quand ce focus
-  // provient d'un clic souris (le clic a déjà ouvert/va ouvrir la liste
-  // nativement ; simuler un second clic la refermerait aussitôt). Best-effort
-  // : fonctionne sur les navigateurs à moteur Chromium (Google Chrome, Edge…).
+  // Dès qu'il reçoit le focus, le <select> ouvre sa liste — sauf quand ce
+  // focus provient d'un clic souris. Best-effort (navigateurs Chromium).
   function wireDropdownAutoOpenOnFocus(select) {
     var focusedByMouse = false;
     select.addEventListener('mousedown', function () {
@@ -529,10 +722,21 @@
   wireDropdownAutoOpenOnFocus(zoneSelect);
   wireDropdownAutoOpenOnFocus(clientSelect);
 
+  // Valeurs précédentes, pour annuler un changement si l'utilisateur refuse
+  // de perdre ses produits saisis.
+  var prevCommercial = currentCommercialId();
+  var prevZone = '';
+  var prevClient = '';
+  var prevDate = dateInput.value;
+
   if (commercialEl && commercialEl.tagName === 'SELECT') {
     commercialEl.addEventListener('change', function () {
+      if (commercialEl.value === prevCommercial) { return; }
+      if (!confirmerRemplacementProduits()) { commercialEl.value = prevCommercial; return; }
+      prevCommercial = commercialEl.value;
       zoneSelect.innerHTML = buildZoneOptions(commercialEl.value, null);
       clientSelect.innerHTML = buildClientOptions(null, commercialEl.value, null);
+      prevZone = zoneSelect.value; prevClient = clientSelect.value;
       updateCommercialClientLock();
       updateClientDependentVisibility();
       refreshDefaults();
@@ -540,43 +744,29 @@
   }
 
   zoneSelect.addEventListener('change', function () {
+    if (zoneSelect.value === prevZone) { return; }
+    if (!confirmerRemplacementProduits()) { zoneSelect.value = prevZone; return; }
+    prevZone = zoneSelect.value;
     clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
+    prevClient = clientSelect.value;
     updateClientDependentVisibility();
     refreshDefaults();
     clientSelect.focus();
   });
 
   clientSelect.addEventListener('change', function () {
+    if (clientSelect.value === prevClient) { return; }
+    if (!confirmerRemplacementProduits()) { clientSelect.value = prevClient; return; }
+    prevClient = clientSelect.value;
     updateClientDependentVisibility();
     refreshDefaults(true, true);
   });
 
-  // Initialisation des listes déroulantes Zone / Client — si un client a été
-  // préservé (ré-affichage après échec de validation), on retrouve sa zone
-  // pour garder les listes Gouvernorat → Zone → Client cohérentes.
-  var initialZoneId = null;
-  if (SELECTED_CLIENT_ID) {
-    var preservedClient = CLIENTS.find(function (c) { return String(c.id) === String(SELECTED_CLIENT_ID); });
-    if (preservedClient && preservedClient.zone_id) { initialZoneId = String(preservedClient.zone_id); }
-  }
-  zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), initialZoneId);
-  clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
-  updateCommercialClientLock();
-  updateClientDependentVisibility();
-  // À l'ouverture de la page, le focus se place sur le champ Zone — ce qui
-  // déclenche l'ouverture de sa liste déroulante (voir wireDropdownAutoOpenOnFocus).
-  zoneSelect.focus();
-  // Un client déjà présélectionné au chargement (lien direct ?client_id=..., ou
-  // ré-affichage après échec de validation) doit aussi déclencher le
-  // préremplissage de la section 3 — sinon elle reste vide tant que
-  // l'utilisateur ne retouche pas la zone/le client manuellement. Sauf en cas
-  // de ré-affichage après échec : les lignes préservées (voir plus bas)
-  // remplissent déjà la section 3, un refreshDefaults() les écraserait avec
-  // les produits habituels du client au lieu de ce qui a été saisi.
-  if (SELECTED_CLIENT_ID && !PRESERVED_LIGNES.length) { refreshDefaults(); }
-
-  // ── Numéro bon de livraison (recalculé côté serveur à chaque changement de date) ──
+  // ── Numéro du bon (recalculé côté serveur à chaque changement de date) ───
   dateInput.addEventListener('change', function () {
+    if (dateInput.value === prevDate) { return; }
+    if (clientSelect.value && !confirmerRemplacementProduits()) { dateInput.value = prevDate; return; }
+    prevDate = dateInput.value;
     var url = NUMERO_URL + '?bon_livraison_at=' + encodeURIComponent(dateInput.value);
     fetch(url).then(function (r) { return r.json(); }).then(function (data) {
       numeroInput.value = data.bon_livraison_numero;
@@ -584,57 +774,85 @@
     refreshDefaults();
   });
 
-  // ── Section 3 : détail par défaut (préremplie via AJAX) ───────────────────
+  // ── Étape 2 : produits ───────────────────────────────────────────────────
   // Table { produit_id: dernier prix_unitaire pratiqué pour le client
-  // sélectionné }, rafraîchie à chaque appel de refreshDefaults() — utilisée
-  // pour préremplir automatiquement le prix unitaire dès qu'un produit est
-  // choisi sur une ligne de la section 3.
+  // sélectionné }, rafraîchie à chaque appel de refreshDefaults() — sert à
+  // préremplir le prix unitaire dès qu'un produit est choisi.
   var DERNIERS_PRIX = {};
 
-  // Prix de base de chaque produit (table production_produit), utilisé en
-  // repli lorsque le produit n'a aucun historique de bon de livraison pour
-  // le client sélectionné.
+  // Prix de base de chaque produit, utilisé en repli lorsque le produit n'a
+  // aucun historique de bon de livraison pour le client sélectionné.
   var PRIX_BASE_PRODUIT = {};
-  PRODUITS.forEach(function (p) { PRIX_BASE_PRODUIT[p.id] = p.prix_unitaire; });
+  var NOM_PRODUIT = {};
+  PRODUITS.forEach(function (p) {
+    PRIX_BASE_PRODUIT[p.id] = p.prix_unitaire;
+    NOM_PRODUIT[p.id] = p.nom;
+  });
 
   function buildProduitOptions() {
-    var html = '<option value="">— Choisir —</option>';
+    var html = '<option value="">— Choisir un produit —</option>';
     PRODUITS.forEach(function (p) {
-      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+      html += '<option value="' + p.id + '">' + esc(p.nom) + '</option>';
     });
     return html;
+  }
+
+  function rows() {
+    return Array.prototype.slice.call(defaultRowsContainer.querySelectorAll('.blx-item'));
+  }
+
+  // Numérotation des cartes + compteur dans l'en-tête de l'étape 2.
+  function renumberRows() {
+    var list = rows();
+    list.forEach(function (row, i) { row.querySelector('.blx-item-num').textContent = i + 1; });
+    itemsCount.textContent = list.length;
   }
 
   function addProduitRow(container, prefill) {
     prefill = prefill || {};
     var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.className = 'blx-item';
     row.innerHTML =
-      '<div style="flex:1 1 220px;min-width:180px;">' +
-        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '<div class="blx-item-head">' +
+        '<span class="blx-item-num"></span>' +
+        '<select name="detail_produit_id" class="form-select blx-input produit-select" aria-label="Produit">' + buildProduitOptions() + '</select>' +
+        '<button type="button" class="btn btn-outline-danger blx-remove remove-row" tabindex="-1" title="Retirer ce produit" aria-label="Retirer ce produit"><i class="bi bi-trash"></i></button>' +
       '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="1" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="0">' +
+      '<div class="blx-item-grid">' +
+        '<div class="blx-item-qty">' +
+          '<span class="blx-sub-label">Quantité</span>' +
+          '<div class="blx-stepper">' +
+            '<button type="button" class="qte-moins" tabindex="-1" aria-label="Diminuer la quantité">−</button>' +
+            '<input type="number" step="1" min="1" name="detail_quantite" class="form-control blx-input no-spinner qte-input" value="0" inputmode="numeric" aria-label="Quantité">' +
+            '<button type="button" class="qte-plus" tabindex="-1" aria-label="Augmenter la quantité">+</button>' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<span class="blx-sub-label">Prix unitaire (TND)</span>' +
+          '<input type="number" step="0.001" min="0" name="detail_prix_unitaire" class="form-control blx-input no-spinner prix-input" value="0" inputmode="decimal" aria-label="Prix unitaire">' +
+        '</div>' +
+        '<div>' +
+          '<span class="blx-sub-label text-end">Total</span>' +
+          '<input type="number" step="0.001" class="blx-line-total no-spinner total-ligne-input" value="0.000" disabled aria-label="Total de la ligne">' +
+        '</div>' +
       '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" min="0" name="detail_prix_unitaire" class="form-control form-control-sm no-spinner prix-input" value="0">' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
+      '<div class="blx-item-warning"><i class="bi bi-exclamation-triangle me-1"></i>Indiquez une quantité et un prix, sinon ce produit ne sera pas enregistré.</div>';
 
     var produitSelect = row.querySelector('.produit-select');
-    var qteInput       = row.querySelector('.qte-input');
-    var prixInput      = row.querySelector('.prix-input');
-    var totalInput     = row.querySelector('.total-ligne-input');
+    var qteInput      = row.querySelector('.qte-input');
+    var prixInput     = row.querySelector('.prix-input');
+    var totalInput    = row.querySelector('.total-ligne-input');
 
-    // Le champ Produit d'une ligne vide (sans produit par défaut) ouvre sa
-    // liste déroulante dès qu'il reçoit le focus (voir wireDropdownAutoOpenOnFocus).
+    // Le champ Produit d'une ligne vide ouvre sa liste dès qu'il reçoit le focus.
     if (!prefill.produit_id) {
       wireDropdownAutoOpenOnFocus(produitSelect);
+    }
+
+    // Une ligne avec un produit mais sans quantité ou prix valide est ignorée
+    // par le serveur : on le signale directement sur la carte.
+    function syncWarning() {
+      var incomplete = !!produitSelect.value && (num(qteInput) <= 0 || num(prixInput) <= 0);
+      row.classList.toggle('blx-item-incomplete', incomplete);
     }
 
     function syncTotal() {
@@ -646,6 +864,7 @@
       } else {
         totalInput.value = round3(qte * prix).toFixed(3);
       }
+      syncWarning();
       recalcMontantTotal();
     }
 
@@ -666,13 +885,10 @@
       qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) <= 0);
       syncTotal();
       syncMontantPayeAvecMontantTotal();
+      markDirty();
     }
     qteInput.addEventListener('input', onQteInput);
-    // Le champ Quantité sélectionne tout son contenu dès qu'il reçoit le
-    // focus, pour permettre une saisie directe sans effacer manuellement.
-    qteInput.addEventListener('focus', function () {
-      qteInput.select();
-    });
+    qteInput.addEventListener('focus', function () { qteInput.select(); });
     qteInput.addEventListener('blur', function () {
       if (num(qteInput) <= 0) {
         qteInput.value = '1';
@@ -681,21 +897,39 @@
       }
     });
 
+    // Boutons − / + : la quantité ne descend jamais sous 1.
+    row.querySelector('.qte-moins').addEventListener('click', function () {
+      qteInput.value = String(Math.max(1, Math.round(num(qteInput)) - 1));
+      onQteInput();
+    });
+    row.querySelector('.qte-plus').addEventListener('click', function () {
+      qteInput.value = String(Math.max(1, Math.round(num(qteInput)) + 1));
+      onQteInput();
+    });
+
     produitSelect.addEventListener('change', function () {
       autoPrixSurChoixProduit();
+      markDirty();
       qteInput.focus();
     });
     prixInput.addEventListener('input', function () {
       syncTotal();
       syncMontantPayeAvecMontantTotal();
+      markDirty();
     });
-    // Le champ Prix unitaire sélectionne tout son contenu dès qu'il reçoit le focus.
-    prixInput.addEventListener('focus', function () {
-      prixInput.select();
-    });
+    prixInput.addEventListener('focus', function () { prixInput.select(); });
+
     row.querySelector('.remove-row').addEventListener('click', function () {
+      var produitId = produitSelect.value;
+      if (produitId) {
+        var nom = NOM_PRODUIT[produitId] || 'ce produit';
+        if (!window.confirm('Retirer « ' + nom + ' » du bon ?')) { return; }
+      }
       row.remove();
+      renumberRows();
       recalcMontantTotal();
+      markDirty();
+      toast('Produit retiré');
     });
 
     if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
@@ -704,6 +938,7 @@
     syncTotal();
 
     container.appendChild(row);
+    renumberRows();
     return row;
   }
 
@@ -712,52 +947,92 @@
     if (first) { first.focus(); }
   }
 
+  // Les réponses AJAX arrivées dans le désordre (changements rapides de zone,
+  // client ou date) sont ignorées : seule la dernière demande compte.
+  var defaultsRequestId = 0;
+  var addRowBtn = document.getElementById('bl-add-row-btn');
+
+  // Pendant le chargement, les lignes sont vidées et l'ajout de produit est
+  // bloqué : un produit ajouté à ce moment serait écrasé par la réponse.
+  function setProductsLoading(loading) {
+    productsLoading.classList.toggle('d-none', !loading);
+    addRowBtn.disabled = loading;
+  }
+
   function refreshDefaults(focusFirstProduitAfterLoad, syncMontantPayeIfPopulated) {
     var clientId = clientSelect.value;
+    var requestId = ++defaultsRequestId;
+    showError(productsError, '');
+    defaultRowsContainer.innerHTML = '';
+    renumberRows();
+    dirty = false;
+    recalcMontantTotal();
     if (!clientId) {
       DERNIERS_PRIX = {};
-      defaultRowsContainer.innerHTML = '';
       section3Card.style.display = 'none';
-      recalcMontantTotal();
+      setProductsLoading(false);
+      updateClientDependentVisibility();
       return;
     }
+    section3Card.style.display = '';
+    setProductsLoading(true);
+    updateClientDependentVisibility();
+
     var url = DEFAULTS_URL + '?client_id=' + encodeURIComponent(clientId) +
       '&bon_livraison_at=' + encodeURIComponent(dateInput.value);
-    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+    fetch(url).then(function (r) {
+      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+      return r.json();
+    }).then(function (data) {
+      if (requestId !== defaultsRequestId) { return; }
+      setProductsLoading(false);
       DERNIERS_PRIX = data.derniers_prix || {};
       defaultRowsContainer.innerHTML = '';
       var lignes = data.lignes || [];
-      // Sans produit par défaut pour ce client, une ligne vide est proposée.
+      // Sans produit habituel pour ce client, une ligne vide est proposée.
       if (!lignes.length) {
         addProduitRow(defaultRowsContainer, null);
+        productsHelp.textContent = 'Choisissez un produit et indiquez la quantité.';
       } else {
         lignes.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
+        productsHelp.textContent = 'Produits habituels de ce client : vérifiez les quantités, puis ajoutez d\'autres produits si besoin.';
       }
+      renumberRows();
+      dirty = false;
       recalcMontantTotal();
       if (focusFirstProduitAfterLoad) { focusFirstProduitSelect(); }
-      // À la sélection du client, si le bon de livraison contient des produits
-      // par défaut, Montant payé prend directement la valeur de Montant total.
+      // À la sélection du client, si le bon contient des produits par défaut,
+      // Montant payé prend directement la valeur de Montant total.
       if (syncMontantPayeIfPopulated && lignes.length) { syncMontantPayeAvecMontantTotal(); }
+    }).catch(function () {
+      if (requestId !== defaultsRequestId) { return; }
+      setProductsLoading(false);
+      showError(productsError, 'Impossible de charger les produits habituels du client. Vérifiez votre connexion, puis ajoutez les produits avec le bouton ci-dessous.');
+      if (!rows().length) { addProduitRow(defaultRowsContainer, null); }
     });
   }
 
-  // ── Section 3 : bouton « Ajouter un produit » (ligne vide) ────────────────
-  document.getElementById('bl-add-row-btn').addEventListener('click', function () {
+  addRowBtn.addEventListener('click', function () {
     var row = addProduitRow(defaultRowsContainer, null);
+    row.classList.add('blx-item-new');
+    markDirty();
+    showError(productsError, '');
+    toast('Produit ajouté');
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     var newProduitSelect = row.querySelector('.produit-select');
-    if (newProduitSelect) { newProduitSelect.focus(); }
+    if (newProduitSelect) { newProduitSelect.focus({ preventScroll: true }); }
   });
-  if (PRESERVED_LIGNES.length) {
-    // Après un échec de validation, toutes les lignes précédemment saisies
-    // sont restituées dans la section « Détail bon de livraison par défaut ».
-    PRESERVED_LIGNES.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
-  }
 
-  // ── Section 5 : récapitulatif paiement ────────────────────────────────────
+  // ── Étape 3 : paiement ───────────────────────────────────────────────────
+  var STATUT_AFFICHAGE = {
+    'Payé': { texte: 'Payé', classe: 'text-success' },
+    'Partiellement payé': { texte: 'Partiellement payé', classe: 'text-warning' },
+    'Non payé': { texte: 'Non payé', classe: 'text-danger' }
+  };
+
   function recalcResteEtStatut() {
     var total = num(totalMontantInput);
-    // Le montant payé ne doit jamais dépasser le reste à payer avant
-    // paiement (= le montant total) : on le ramène au total si dépassé.
+    // Le montant payé ne doit jamais dépasser le montant total.
     if (num(nouveauAcompteInput) > total) {
       nouveauAcompteInput.value = total.toFixed(3);
     }
@@ -766,7 +1041,6 @@
 
     totalAcompteInput.value = paye.toFixed(3);
     resteInput.value = reste.toFixed(3);
-    resteInput.style.color = reste < 0 ? 'red' : '';
 
     var statut = '';
     if (reste === 0) {
@@ -777,6 +1051,12 @@
       statut = 'Non payé';
     }
     statutInput.value = statut;
+
+    resteBox.classList.toggle('blx-reste-due', reste > 0);
+    resteBox.classList.toggle('blx-reste-ok', reste === 0 && total > 0);
+    var aff = STATUT_AFFICHAGE[statut];
+    statusBadge.className = 'blx-status ' + (aff ? aff.classe : '');
+    statusBadge.textContent = aff ? aff.texte : '';
   }
 
   function recalcMontantTotal() {
@@ -785,32 +1065,182 @@
       total += num(el);
     });
     totalMontantInput.value = round3(total).toFixed(3);
+    barTotal.textContent = formatMontant(total);
     recalcResteEtStatut();
   }
 
-  // Sur changement du Prix unitaire ou de la Quantité d'une ligne, Montant
-  // payé reprend la valeur de Montant total (voir onQteInput / le listener
-  // du champ Prix unitaire dans addProduitRow).
+  // Sur changement du prix ou de la quantité d'une ligne, Montant payé
+  // reprend la valeur de Montant total.
   function syncMontantPayeAvecMontantTotal() {
     nouveauAcompteInput.value = totalMontantInput.value;
     recalcResteEtStatut();
   }
 
   nouveauAcompteInput.addEventListener('input', recalcResteEtStatut);
+  nouveauAcompteInput.addEventListener('focus', function () { nouveauAcompteInput.select(); });
 
-  // Le champ Montant payé sélectionne tout son contenu dès qu'il reçoit le focus.
-  nouveauAcompteInput.addEventListener('focus', function () {
-    nouveauAcompteInput.select();
+  document.getElementById('blx-pay-all').addEventListener('click', function () {
+    syncMontantPayeAvecMontantTotal();
+    toast('Montant payé : ' + formatMontant(num(nouveauAcompteInput)));
+  });
+  document.getElementById('blx-pay-none').addEventListener('click', function () {
+    nouveauAcompteInput.value = '0';
+    recalcResteEtStatut();
+    toast('Montant payé : 0 TND');
   });
 
-  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Montant payé
-  // plutôt que de quitter le formulaire.
+  // Depuis le bouton d'enregistrement, Tab renvoie le focus au Montant payé.
   saveBtn.addEventListener('keydown', function (e) {
     if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       nouveauAcompteInput.focus();
     }
   });
+
+  // ── Vérification puis récapitulatif avant l'enregistrement ───────────────
+  var recapModalEl = document.getElementById('blx-recap-modal');
+  var recapModal = new bootstrap.Modal(recapModalEl);
+  var recapBody = document.getElementById('blx-recap-body');
+  var recapConfirmBtn = document.getElementById('blx-recap-confirm');
+  var recapConfirme = false;
+
+  function lignesSaisies() {
+    var valides = [], ignorees = 0;
+    rows().forEach(function (row) {
+      var produitId = row.querySelector('.produit-select').value;
+      var qte = num(row.querySelector('.qte-input'));
+      var prix = num(row.querySelector('.prix-input'));
+      if (!produitId) { return; }
+      if (qte <= 0 || prix <= 0) { ignorees += 1; return; }
+      valides.push({ nom: NOM_PRODUIT[produitId] || '', qte: qte, prix: prix, total: round3(qte * prix) });
+    });
+    return { valides: valides, ignorees: ignorees };
+  }
+
+  function selectedText(select) {
+    var opt = select.options[select.selectedIndex];
+    return opt ? opt.textContent : '';
+  }
+
+  // Contrôles avant récapitulatif — mêmes exigences que le serveur
+  // (BonLivraisonCreateView.post), affichées en langage simple.
+  function verifier() {
+    if (IS_ADMINISTRATION && !currentCommercialId()) {
+      showError(clientError, 'Choisissez le commercial.');
+      document.getElementById('blx-step-client').scrollIntoView({ behavior: 'smooth' });
+      return null;
+    }
+    if (!clientSelect.value) {
+      showError(clientError, 'Choisissez le client.');
+      document.getElementById('blx-step-client').scrollIntoView({ behavior: 'smooth' });
+      return null;
+    }
+    if (!dateInput.value) {
+      showError(clientError, 'Indiquez la date du bon.');
+      document.getElementById('blx-step-client').scrollIntoView({ behavior: 'smooth' });
+      return null;
+    }
+    var lignes = lignesSaisies();
+    if (!lignes.valides.length) {
+      showError(productsError, 'Ajoutez au moins un produit avec une quantité et un prix.');
+      section3Card.scrollIntoView({ behavior: 'smooth' });
+      return null;
+    }
+    return lignes;
+  }
+
+  function construireRecap(lignes) {
+    var total = num(totalMontantInput);
+    var paye = num(nouveauAcompteInput);
+    var reste = num(resteInput);
+    var modeEl = blCreateForm.querySelector('input[name="mode_paiement"]:checked');
+    var observation = document.getElementById('bl-observation').value.trim();
+
+    var html = '';
+    if (lignes.ignorees) {
+      html += '<div class="blx-note blx-note-warn"><i class="bi bi-exclamation-triangle me-1"></i>' +
+        lignes.ignorees + ' produit' + (lignes.ignorees > 1 ? 's' : '') +
+        ' sans quantité ou sans prix ne ser' + (lignes.ignorees > 1 ? 'ont' : 'a') + ' pas enregistré' +
+        (lignes.ignorees > 1 ? 's' : '') + '.</div>';
+    }
+    if (reste === 0) {
+      html += '<div class="blx-note blx-note-ok"><i class="bi bi-check-circle me-1"></i>Le bon de livraison est totalement payé.</div>';
+    }
+
+    html += '<div class="blx-recap-section"><h6>Client</h6>' +
+      '<div class="fw-semibold">' + esc(selectedText(clientSelect)) + '</div>' +
+      '<div class="text-muted small">Bon n° ' + esc(numeroInput.value) + ' du ' + esc(formatDate(dateInput.value)) +
+      (IS_ADMINISTRATION ? ' — ' + esc(selectedText(commercialEl)) : '') + '</div></div>';
+
+    html += '<div class="blx-recap-section"><h6>Produits (' + lignes.valides.length + ')</h6><ul class="blx-recap-list">';
+    lignes.valides.forEach(function (l) {
+      html += '<li><div class="blx-recap-name">' + esc(l.nom) + '</div>' +
+        '<div class="blx-recap-calc">' + l.qte + ' × ' + l.prix.toFixed(3) + '</div>' +
+        '<div class="blx-recap-amount">' + formatMontant(l.total) + '</div></li>';
+    });
+    html += '</ul></div>';
+
+    html += '<div class="blx-recap-section"><h6>Paiement</h6>' +
+      '<div class="blx-recap-row blx-recap-big"><span>Montant total</span><strong>' + formatMontant(total) + '</strong></div>' +
+      '<div class="blx-recap-row"><span>Montant payé' + (modeEl ? ' (' + esc(modeEl.value) + ')' : '') + '</span><strong>' + formatMontant(paye) + '</strong></div>' +
+      '<div class="blx-recap-row"><span>Reste à payer</span><strong class="' + (reste > 0 ? 'text-danger' : 'text-success') + '">' + formatMontant(reste) + '</strong></div>' +
+      '</div>';
+
+    if (observation) {
+      html += '<div class="blx-recap-section"><h6>Remarque</h6><div>' + esc(observation) + '</div></div>';
+    }
+    recapBody.innerHTML = html;
+  }
+
+  blCreateForm.addEventListener('submit', function (e) {
+    if (recapConfirme) { return; }
+    e.preventDefault();
+    var lignes = verifier();
+    if (!lignes) { return; }
+    construireRecap(lignes);
+    toastEl.classList.remove('blx-toast-show');
+    recapModal.show();
+  });
+
+  recapConfirmBtn.addEventListener('click', function () {
+    recapConfirme = true;
+    enregistrementEnCours = true;
+    // Évite un double enregistrement en cas de double appui.
+    recapConfirmBtn.disabled = true;
+    saveBtn.disabled = true;
+    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    blCreateForm.submit();
+  });
+
+  // ── Initialisation ───────────────────────────────────────────────────────
+  // Si un client a été préservé (lien direct ?client_id=..., ou ré-affichage
+  // après échec de validation), on retrouve sa zone pour garder les listes
+  // Zone → Client cohérentes.
+  var initialZoneId = null;
+  if (SELECTED_CLIENT_ID) {
+    var preservedClient = CLIENTS.find(function (c) { return String(c.id) === String(SELECTED_CLIENT_ID); });
+    if (preservedClient && preservedClient.zone_id) { initialZoneId = String(preservedClient.zone_id); }
+  }
+  zoneSelect.innerHTML = buildZoneOptions(currentCommercialId(), initialZoneId);
+  clientSelect.innerHTML = buildClientOptions(initialZoneId, currentCommercialId(), SELECTED_CLIENT_ID);
+  prevZone = zoneSelect.value;
+  prevClient = clientSelect.value;
+  updateCommercialClientLock();
+  updateClientDependentVisibility();
+  // À l'ouverture de la page, le focus se place sur le champ Zone.
+  zoneSelect.focus();
+
+  if (PRESERVED_LIGNES.length) {
+    // Après un échec de validation, toutes les lignes précédemment saisies
+    // sont restituées (sans les écraser par les produits habituels).
+    section3Card.style.display = '';
+    PRESERVED_LIGNES.forEach(function (ligne) { addProduitRow(defaultRowsContainer, ligne); });
+    dirty = true;
+    updateClientDependentVisibility();
+  } else if (SELECTED_CLIENT_ID) {
+    // Client présélectionné : préremplissage des produits habituels.
+    refreshDefaults();
+  }
 
   recalcMontantTotal();
 })();
