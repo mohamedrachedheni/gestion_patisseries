@@ -1,196 +1,96 @@
 {% extends "commercial/base.html" %}
 
 {% block title %}Accueil — Commercial{% endblock %}
-{% block page_title %}Tableau de bord — Commercial{% endblock %}
+{% block page_title %}Accueil{% endblock %}
 
 {% block content %}
-<div class="row g-4">
+<div class="blx">
 
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body d-flex align-items-center gap-3 p-4">
-        <div style="width:56px;height:56px;border-radius:.75rem;background:#00a651;
-                    display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <i class="bi bi-graph-up-arrow fs-3 text-white"></i>
-        </div>
-        <div>
-          <h5 class="mb-1 fw-bold">
-            Bienvenue, {{ request.user.get_full_name|default:request.user.username }} !
-          </h5>
-          <p class="text-muted mb-0 small">
-            Espace <strong>Commercial</strong> — ventes, livraisons, achats et agenda.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
+{# ── Bienvenue ─────────────────────────────────────────────────────────────── #}
+<section class="hm-hello">
+  <div class="hm-hello-title">Bonjour {{ request.user.first_name|default:request.user.username }} !</div>
+  {% now "l j F Y" as aujourdhui %}
+  <div class="hm-hello-date"><i class="bi bi-calendar3 me-1"></i>{{ aujourdhui|capfirst }}</div>
+</section>
 
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:bon-livraison-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-plus-square fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouveau bon de livraison</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:tournee-du-jour' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-signpost-split fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Ma tournée du jour</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:bon-livraison-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-truck fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Liste des bons de livraison</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:agenda-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-calendar-event fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Agenda</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:client-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-person-plus fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouveau client</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:bon-sortie-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-box-arrow-right fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouveau bon de sortie</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:bon-restitution-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-box-arrow-in-left fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouveau bon de restitution</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:depense-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-receipt fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouvelle dépense</div>
-      </div>
-    </a>
-  </div>
-
-  {% if is_administration_user %}
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:client-sans-bl-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-person-x fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Clients sans BL</div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:client-impayes-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-cash-coin fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Suivi des impayés</div>
-      </div>
-    </a>
-  </div>
-
-  {# Boutons suivants : Administration uniquement (masqués pour un commercial). #}
-  {% if is_administration_user %}
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:stock-commercial-actuel' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-clipboard-data fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Stock commercial actuel</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:client-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-people fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Liste des clients</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:bon-sortie-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-box-seam fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Liste des bons de sortie</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:bon-restitution-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-arrow-return-left fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Liste des bons de restitution</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:depense-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-cash-stack fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Liste des dépenses</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:fournisseur-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-building fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouveau Fournisseur</div>
-      </div>
-    </a>
-  </div>
-
-  <div class="col-sm-6 col-lg-4 col-xl-3">
-    <a href="{% url 'commercial:zone-create' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-pin-map fs-2 text-primary mb-2 d-block"></i>
-        <div class="text-muted small">Nouvelle zone</div>
-      </div>
-    </a>
-  </div>
-  {% endif %}
-
+{# ── Actions principales de la journée ─────────────────────────────────────── #}
+<div class="hm-main">
+  <a href="{% url 'commercial:tournee-du-jour' %}" class="hm-main-tile hm-main-tile-primary">
+    <i class="bi bi-signpost-split"></i>
+    <span>
+      <strong>Ma tournée du jour</strong>
+      <small>Les clients à visiter aujourd'hui</small>
+    </span>
+    <i class="bi bi-chevron-right hm-chevron"></i>
+  </a>
+  <a href="{% url 'commercial:bon-livraison-create' %}" class="hm-main-tile">
+    <i class="bi bi-truck"></i>
+    <span>
+      <strong>Nouveau bon de livraison</strong>
+      <small>Livrer un client et noter le paiement</small>
+    </span>
+    <i class="bi bi-chevron-right hm-chevron"></i>
+  </a>
 </div>
+
+{# ── Autres raccourcis (ordre voulu : impayés [Administration uniquement], sortie, restitution, liste BL, client, puis le reste) ── #}
+<div class="hm-grid mt-3">
+  {% if is_administration_user %}
+  <a href="{% url 'commercial:client-impayes-list' %}" class="hm-tile">
+    <i class="bi bi-cash-coin"></i><strong>Suivi des impayés</strong><small>Clients qui doivent encore</small>
+  </a>
+  {% endif %}
+  <a href="{% url 'commercial:bon-sortie-create' %}" class="hm-tile">
+    <i class="bi bi-box-arrow-right"></i><strong>Nouveau bon de sortie</strong><small>Produits reçus de la société</small>
+  </a>
+  <a href="{% url 'commercial:bon-restitution-create' %}" class="hm-tile">
+    <i class="bi bi-box-arrow-in-left"></i><strong>Nouveau bon de restitution</strong><small>Produits rendus à la société</small>
+  </a>
+  <a href="{% url 'commercial:bon-livraison-list' %}" class="hm-tile">
+    <i class="bi bi-list-check"></i><strong>Liste des bons de livraison</strong><small>Voir et modifier</small>
+  </a>
+  <a href="{% url 'commercial:client-create' %}" class="hm-tile">
+    <i class="bi bi-person-plus"></i><strong>Nouveau client</strong><small>Ajouter un commerce</small>
+  </a>
+  {# Liens suivants : Administration uniquement (masqués pour un commercial). #}
+  {% if is_administration_user %}
+  <a href="{% url 'commercial:agenda-list' %}" class="hm-tile">
+    <i class="bi bi-calendar-event"></i><strong>Agenda</strong><small>Visites et relances prévues</small>
+  </a>
+  <a href="{% url 'commercial:depense-create' %}" class="hm-tile">
+    <i class="bi bi-receipt"></i><strong>Nouvelle dépense</strong><small>Carburant, réparation…</small>
+  </a>
+  <a href="{% url 'commercial:fournisseur-create' %}" class="hm-tile">
+    <i class="bi bi-building"></i><strong>Nouveau fournisseur</strong><small>Ajouter un fournisseur</small>
+  </a>
+  <a href="{% url 'commercial:zone-create' %}" class="hm-tile">
+    <i class="bi bi-pin-map"></i><strong>Nouvelle zone</strong><small>Ajouter une zone</small>
+  </a>
+  <a href="{% url 'commercial:client-sans-bl-list' %}" class="hm-tile">
+    <i class="bi bi-person-x"></i><strong>Clients sans BL</strong><small>Clients non livrés</small>
+  </a>
+  <a href="{% url 'commercial:stock-commercial-actuel' %}" class="hm-tile">
+    <i class="bi bi-clipboard-data"></i><strong>Stock commercial actuel</strong><small>Stock chez les commerciaux</small>
+  </a>
+  <a href="{% url 'commercial:client-list' %}" class="hm-tile">
+    <i class="bi bi-people"></i><strong>Liste des clients</strong><small>Tous les clients</small>
+  </a>
+  <a href="{% url 'commercial:bon-sortie-list' %}" class="hm-tile">
+    <i class="bi bi-box-seam"></i><strong>Liste des bons de sortie</strong><small>Historique des sorties</small>
+  </a>
+  <a href="{% url 'commercial:bon-restitution-list' %}" class="hm-tile">
+    <i class="bi bi-arrow-return-left"></i><strong>Liste des bons de restitution</strong><small>Historique des retours</small>
+  </a>
+  <a href="{% url 'commercial:depense-list' %}" class="hm-tile">
+    <i class="bi bi-cash-stack"></i><strong>Liste des dépenses</strong><small>Historique des dépenses</small>
+  </a>
+  {% endif %}
+</div>
+
+</div>{# /.blx #}
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
-.row a.card:hover {
-  box-shadow: 0 .5rem 1rem rgba(0,0,0,.1) !important;
-  transform: translateY(-2px);
-  transition: transform .15s ease, box-shadow .15s ease;
-}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}

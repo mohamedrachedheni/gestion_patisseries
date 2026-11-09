@@ -1,0 +1,45 @@
+{% extends "commercial/base.html" %}
+
+{% block title %}Zone ajoutée — Commercial{% endblock %}
+{% block page_title %}Zone ajoutée{% endblock %}
+
+{% block content %}
+{% comment %}
+   Affichée après la création d'une zone dans la fenêtre ouverte depuis une
+   page client (ZoneCreateView, mode popup) : transmet la nouvelle zone à la
+   page client (voir commercial/zone/_zone_live_refresh.html), puis se ferme.
+   Si la fenêtre ne peut pas se fermer, retour à la page précédente.
+{% endcomment %}
+<div class="blx">
+  <section class="blx-card blx-empty">
+    <i class="bi bi-check-circle text-success"></i>
+    Zone « <strong>{{ zone_data.nom }}</strong> » ajoutée.
+    <div class="small mt-1">Retour à la fiche du client…</div>
+    <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'commercial:home' %}{% endif %}" class="btn btn-primary blx-btn mt-3" id="zp-retour">
+      Revenir à la page précédente
+    </a>
+  </section>
+</div>
+{{ zone_data|json_script:"zone-creee-data" }}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var zone = JSON.parse(document.getElementById('zone-creee-data').textContent);
+  var message = { type: 'zone-creee', zone: zone };
+  // Transmission à la page client : fenêtre d'origine + autres onglets du site.
+  try { if (window.opener && !window.opener.closed) { window.opener.postMessage(message, window.location.origin); } } catch (e) {}
+  try { new BroadcastChannel('commercial-zones').postMessage(message); } catch (e) {}
+
+  window.close();
+  // Fenêtre non fermable (ouverte autrement que par la page client) : retour à la page précédente.
+  setTimeout(function () { window.location.replace(document.getElementById('zp-retour').href); }, 600);
+})();
+</script>
+{% endblock %}

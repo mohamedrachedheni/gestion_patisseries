@@ -24,18 +24,20 @@
      class="nav-link {% if request.resolver_match.url_name == 'bon-livraison-create' %}active{% endif %}">
     <i class="bi bi-truck"></i> Nouveau bon de livraison
   </a>
+  {% if is_administration_user %}
   <a href="{% url 'commercial:agenda-list' %}"
      class="nav-link {% if 'agenda' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-calendar-event"></i> Agenda
   </a>
+  {% endif %}
 
   {% with url_name=request.resolver_match.url_name %}
-  <div class="sidebar-group {% if url_name == 'client-create' or url_name == 'bon-sortie-create' or url_name == 'bon-restitution-create' or url_name == 'depense-create' or 'fournisseur' in url_name or 'zone-create' in url_name %}sidebar-group-active{% endif %}">
-    <button type="button" class="nav-link sidebar-group-toggle">
+  <div class="sidebar-group {% if url_name == 'client-create' or url_name == 'bon-sortie-create' or url_name == 'bon-restitution-create' or url_name == 'depense-create' or 'fournisseur' in url_name or 'zone-create' in url_name %}sidebar-group-active sidebar-group-open{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle" aria-controls="sidebar-submenu-nouveau">
       <i class="bi bi-plus-circle"></i> Nouveau
       <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
     </button>
-    <div class="sidebar-submenu">
+    <div class="sidebar-submenu" id="sidebar-submenu-nouveau">
       <a href="{% url 'commercial:client-create' %}"
          class="nav-link {% if url_name == 'client-create' %}active{% endif %}">
         <i class="bi bi-person-plus"></i> Nouveau client
@@ -48,11 +50,11 @@
          class="nav-link {% if url_name == 'bon-restitution-create' %}active{% endif %}">
         <i class="bi bi-box-arrow-in-left"></i> Nouveau bon de restitution
       </a>
+      {% if is_administration_user %}
       <a href="{% url 'commercial:depense-create' %}"
          class="nav-link {% if url_name == 'depense-create' %}active{% endif %}">
         <i class="bi bi-receipt"></i> Nouvelle dépense
       </a>
-      {% if is_administration_user %}
       <a href="{% url 'commercial:fournisseur-create' %}"
          class="nav-link {% if 'fournisseur' in url_name %}active{% endif %}">
         <i class="bi bi-building"></i> Nouveau fournisseur
@@ -65,12 +67,12 @@
     </div>
   </div>
 
-  <div class="sidebar-group {% if 'sans-bl' in url_name or 'impayes' in url_name or 'stock-commercial-actuel' in url_name or 'client' in url_name and url_name != 'client-create' and 'adherence' not in url_name and 'derive' not in url_name or 'bon-livraison' in url_name and url_name != 'bon-livraison-create' or 'bon-sortie' in url_name and url_name != 'bon-sortie-create' or 'bon-restitution' in url_name and url_name != 'bon-restitution-create' or 'depense' in url_name and url_name != 'depense-create' %}sidebar-group-active{% endif %}">
-    <button type="button" class="nav-link sidebar-group-toggle">
+  <div class="sidebar-group {% if 'sans-bl' in url_name or 'impayes' in url_name or 'stock-commercial-actuel' in url_name or 'client' in url_name and url_name != 'client-create' and 'adherence' not in url_name and 'derive' not in url_name or 'bon-livraison' in url_name and url_name != 'bon-livraison-create' or 'bon-sortie' in url_name and url_name != 'bon-sortie-create' or 'bon-restitution' in url_name and url_name != 'bon-restitution-create' or 'depense' in url_name and url_name != 'depense-create' %}sidebar-group-active sidebar-group-open{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle" aria-controls="sidebar-submenu-suivi">
       <i class="bi bi-binoculars"></i> Suivi
       <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
     </button>
-    <div class="sidebar-submenu">
+    <div class="sidebar-submenu" id="sidebar-submenu-suivi">
       {% if is_administration_user %}
       <a href="{% url 'commercial:client-sans-bl-list' %}"
          class="nav-link {% if 'sans-bl' in url_name %}active{% endif %}">
@@ -114,15 +116,60 @@
     </div>
   </div>
   {% endwith %}
+
+  <script>
+  (function () {
+    var sidebar = document.getElementById('sidebar');
+    if (!sidebar) { return; }
+
+    // Page en cours annoncée aux lecteurs d'écran ; libellé en info-bulle
+    // (utile quand le menu est réduit à ses seules icônes sur ordinateur).
+    sidebar.querySelectorAll('.sidebar-nav .nav-link').forEach(function (link) {
+      if (link.classList.contains('active')) { link.setAttribute('aria-current', 'page'); }
+      if (!link.title) { link.title = link.textContent.trim(); }
+    });
+
+    // Groupes « Nouveau » / « Suivi » : ouverture / fermeture au toucher.
+    sidebar.querySelectorAll('.sidebar-group').forEach(function (group) {
+      var toggle = group.querySelector('.sidebar-group-toggle');
+      toggle.setAttribute('aria-expanded', group.classList.contains('sidebar-group-open') ? 'true' : 'false');
+      toggle.addEventListener('click', function () {
+        var open = group.classList.toggle('sidebar-group-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    });
+
+    // Téléphone / tablette : voile sombre derrière le menu ouvert ; un appui
+    // sur le voile ou la touche Échap referme le menu.
+    var backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+    var hamburgerInitial = document.getElementById('sidebarToggle');
+    if (hamburgerInitial) { hamburgerInitial.setAttribute('aria-expanded', 'false'); }
+    function fermer() { sidebar.classList.remove('show'); }
+    backdrop.addEventListener('click', fermer);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && sidebar.classList.contains('show')) { fermer(); }
+    });
+    new MutationObserver(function () {
+      var ouvert = sidebar.classList.contains('show');
+      backdrop.classList.toggle('show', ouvert);
+      var hamburger = document.getElementById('sidebarToggle');
+      if (hamburger) { hamburger.setAttribute('aria-expanded', ouvert ? 'true' : 'false'); }
+    }).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+  })();
+  </script>
 {% endblock %}
 
 {% block extra_css %}
+/* ── Menu commercial ─────────────────────────────────────────────────────── */
 .sidebar-group { position: relative; }
 .sidebar-group-toggle {
   width: 100%;
   border: 0;
   background: transparent;
   cursor: pointer;
+  text-align: left;
 }
 .sidebar-group-chevron { transition: transform .2s ease; font-size: .75rem; }
 .sidebar-submenu {
@@ -132,14 +179,35 @@
 }
 .sidebar-submenu .nav-link {
   padding-left: 2.75rem;
-  font-size: .82rem;
+  font-size: .85rem;
 }
-.sidebar-group:focus-within .sidebar-submenu,
-.sidebar-group.sidebar-group-active .sidebar-submenu {
-  max-height: 40rem;
+.sidebar-group.sidebar-group-open .sidebar-submenu { max-height: 40rem; }
+.sidebar-group.sidebar-group-open .sidebar-group-chevron { transform: rotate(180deg); }
+.sidebar-group.sidebar-group-open > .sidebar-group-toggle { color: #fff; }
+/* Focus clavier bien visible sur fond sombre */
+.sidebar-nav .nav-link:focus-visible { outline: 2px solid #9ec1f3; outline-offset: -2px; color: #fff; }
+
+/* Téléphone / tablette : zones tactiles plus grandes, texte plus lisible */
+@media (max-width: 991.98px) {
+  #sidebar { width: min(85vw, 300px); }
+  .sidebar-nav .nav-link { min-height: 2.9rem; font-size: .95rem; }
+  .sidebar-submenu .nav-link { font-size: .9rem; }
+  .sidebar-footer .btn { min-height: 2.75rem; }
+  #sidebarToggle { min-width: 2.75rem; min-height: 2.75rem; }
 }
-.sidebar-group:focus-within .sidebar-group-chevron,
-.sidebar-group.sidebar-group-active .sidebar-group-chevron {
-  transform: rotate(180deg);
+.sidebar-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 999;
+  opacity: 0; pointer-events: none; transition: opacity .2s ease;
+}
+.sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
+@media (min-width: 992px) { .sidebar-backdrop { display: none; } }
+
+/* Ordinateur, menu réduit aux icônes : sous-menus alignés sur les autres icônes */
+@media (min-width: 992px) {
+  body.sidebar-collapsed .sidebar-submenu .nav-link { padding-left: 1.25rem; background: rgba(255,255,255,.03); }
+  body.sidebar-collapsed .sidebar-group-chevron { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-submenu, .sidebar-group-chevron, .sidebar-backdrop { transition: none; }
 }
 {% endblock %}

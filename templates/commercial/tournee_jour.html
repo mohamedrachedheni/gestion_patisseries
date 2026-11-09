@@ -13,265 +13,269 @@
 {% endblock %}
 
 {% block content %}
+<div class="blx">
 
-<h4 class="mb-4 fw-bold">Clients à visiter</h4>
+{# ── Choix du jour (et du commercial pour l'Administration) ─────────────────── #}
+<section class="blx-card">
+  <form method="get" id="filter-form">
+    <div class="blx-daynav">
+      <button type="button" class="btn btn-outline-secondary" id="tdj-prev" aria-label="Jour précédent" title="Jour précédent">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <div class="blx-daynav-label" id="tdj-label" aria-live="polite">{{ date_jour }}</div>
+      <button type="button" class="btn btn-outline-secondary" id="tdj-next" aria-label="Jour suivant" title="Jour suivant">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
 
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date</label>
-          <input type="date" name="date" value="{{ date_jour }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        {% if is_administration %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:tournee-du-jour' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
+    <div class="blx-grid-2 mt-3">
+      <div class="blx-field {% if not is_administration %}mb-0{% endif %}">
+        <label class="blx-label" for="tdj-date">Autre date</label>
+        <input type="date" name="date" id="tdj-date" value="{{ date_jour }}" class="form-control blx-input" data-autosubmit>
       </div>
-    </form>
-  </div>
-</div>
+      {% if is_administration %}
+      <div class="blx-field mb-0">
+        <label class="blx-label" for="tdj-commercial">Commercial</label>
+        <select name="commercial_id" id="tdj-commercial" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous les commerciaux —</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+      {% endif %}
+    </div>
 
-{# ── Section 2 : résumé (Administration uniquement) ──────────────────────── #}
+    <div class="text-center mt-2 d-none" id="tdj-today-wrap">
+      <button type="button" class="btn btn-link" id="tdj-today"><i class="bi bi-calendar-check me-1"></i>Revenir à aujourd'hui</button>
+    </div>
+  </form>
+</section>
+
+{# ── Résumé (Administration uniquement) ─────────────────────────────────────── #}
 {% if is_administration %}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-4">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold">{{ nb_clients }}</div>
-        <div class="text-muted small">Client{{ nb_clients|pluralize }} à voir</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-4">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-success">{{ nb_deja_livres }}</div>
-        <div class="text-muted small">Déjà livré{{ nb_deja_livres|pluralize }} aujourd'hui</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-4">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-warning">{{ nb_restants }}</div>
-        <div class="text-muted small">Restant{{ nb_restants|pluralize }} à faire</div>
-      </div>
-    </div>
-  </div>
+<div class="blx-kpis">
+  <div class="blx-kpi"><strong>{{ nb_clients }}</strong><span>Client{{ nb_clients|pluralize }} à voir</span></div>
+  <div class="blx-kpi"><strong class="text-success">{{ nb_deja_livres }}</strong><span>Déjà livré{{ nb_deja_livres|pluralize }}</span></div>
+  <div class="blx-kpi"><strong class="blx-status-partiel">{{ nb_restants }}</strong><span>Restant{{ nb_restants|pluralize }}</span></div>
 </div>
 {% endif %}
 
 {% if is_administration and not commercial_id %}
-<div class="alert alert-info d-flex align-items-center gap-2 mb-4">
-  <i class="bi bi-info-circle-fill"></i>
-  <div>Filtrez sur un commercial précis pour pouvoir ajouter un compte-rendu de visite.</div>
-</div>
+<div class="blx-note blx-note-info"><i class="bi bi-info-circle me-1"></i>Choisissez un commercial pour pouvoir ajouter un compte-rendu de visite.</div>
 {% endif %}
 
 {% if jour_non_ouvre %}
-<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
-  <i class="bi bi-exclamation-triangle-fill"></i>
-  <div>
-    <strong>{{ jour_non_ouvre.libelle }}</strong> — ce jour est un jour non ouvré ({{ jour_non_ouvre.type_jour }}).
-    Aucune visite récurrente n'est prévue ; seules les actions planifiées manuellement ci-dessous restent affichées.
-  </div>
+<div class="blx-note blx-note-warn">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  <strong>{{ jour_non_ouvre.libelle }}</strong> : jour non travaillé ({{ jour_non_ouvre.type_jour }}).
+  Pas de visite habituelle ce jour ; seules les visites planifiées dans l'agenda sont affichées.
 </div>
 {% endif %}
 
 {% if absence_commercial %}
-<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
-  <i class="bi bi-person-dash-fill"></i>
-  <div>
-    <strong>{{ absence_commercial.user.get_full_name|default:absence_commercial.user.username }}</strong> est
-    enregistré absent ce jour{% if absence_commercial.motif %} ({{ absence_commercial.motif }}){% endif %}. Ce jour
-    ne comptera pas comme « manqué » dans le rapport d'adhérence, sauf s'il est couvert par une livraison, un
-    compte-rendu, ou un collègue.
-  </div>
+<div class="blx-note blx-note-warn">
+  <i class="bi bi-person-dash me-1"></i>
+  <strong>{{ absence_commercial.user.get_full_name|default:absence_commercial.user.username }}</strong> est
+  noté absent ce jour{% if absence_commercial.motif %} ({{ absence_commercial.motif }}){% endif %}. Ce jour
+  ne comptera pas comme « manqué », sauf s'il y a une livraison, un compte-rendu ou le passage d'un collègue.
 </div>
 {% endif %}
 
-{# ── Section 3 : liste des clients à visiter ──────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if lignes %}
-    <div class="table-responsive" style="max-height:65vh;overflow-y:auto;">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light" style="position:sticky;top:0;z-index:1;">
-          <tr>
-            {% if is_administration %}
-            <th class="ps-3" style="min-width:150px;">Commercial</th>
-            {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:200px;">Client</th>
-            <th style="min-width:90px;">Zone</th>
-            <th style="min-width:130px;">Téléphone</th>
-            {% if is_administration %}
-            <th style="min-width:200px;">Motif de la visite</th>
-            {% endif %}
-            <th class="text-center" style="width:150px;">Statut</th>
-            <th class="text-center pe-3" style="width:280px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr class="{% if l.deja_livre %}table-success{% endif %}">
-            {% if is_administration %}
-            <td class="ps-3">{{ l.commercial|default:'—' }}</td>
-            {% endif %}
-            <td {% if not is_administration %}class="ps-3"{% endif %}>{{ l.client }}</td>
-            <td>{{ l.client.zone.nom|default:'—' }}</td>
-            <td>{{ l.client.telephone|default:'—' }}</td>
-            {% if is_administration %}
-            <td>
-              {% if l.est_recurrent %}
-              <span class="badge text-bg-light border d-block d-inline-block mb-1">
-                <i class="bi bi-calendar-week"></i> Visite récurrente
-              </span>
-              {% endif %}
-              {% for a in l.actions_agenda %}
-              <span class="badge text-bg-light border d-block d-inline-block mb-1">
-                <i class="bi bi-calendar-event"></i> {{ a.detaille_action_planifier|default:'Action planifiée' }}
-              </span>
-              {% endfor %}
-            </td>
-            {% endif %}
-            <td class="text-center">
-              {% if l.deja_livre %}
-              <span class="badge text-bg-success">Livré aujourd'hui</span>
-              {% else %}
-              <span class="badge text-bg-warning text-dark">À faire</span>
-              {% endif %}
-            </td>
-            <td class="text-center pe-3 text-nowrap">
-              {% if is_administration %}
-              <a href="{% url 'commercial:client-detail' l.client.pk %}"
-                 class="btn btn-sm btn-outline-secondary" title="Voir le client">
-                <i class="bi bi-eye"></i>
-              </a>
-              {% endif %}
-              {% if is_administration and l.client.google_mape %}
-              <a href="#" onclick="var v='{{ l.client.google_mape|escapejs }}'.trim(); var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v); window.open(url, '_blank'); return false;"
-                 class="btn btn-sm btn-outline-secondary ms-1" title="Ouvrir dans Google Maps">
-                <i class="bi bi-geo-alt"></i>
-              </a>
-              {% endif %}
-              {% if not l.deja_livre %}
-              <a href="{% url 'commercial:bon-livraison-create' %}?client_id={{ l.client.pk }}&commercial_id={{ commercial_id }}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Nouveau bon de livraison">
-                <i class="bi bi-truck"></i>
-              </a>
-              {% endif %}
-              {% if is_administration and commercial_id %}
-              <button type="button"
-                      class="btn btn-sm btn-outline-secondary ms-1 compte-rendu-btn"
-                      data-client-id="{{ l.client.pk }}" data-client-label="{{ l.client }}"
-                      title="Compte-rendu de visite">
-                <i class="bi bi-journal-text"></i>
-              </button>
-              {% endif %}
-              {% if is_administration %}
-              <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
-                 class="btn btn-sm btn-outline-info ms-1" title="Voir l'agenda">
-                Agenda
-              </a>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+{# ── Clients à visiter, regroupés par zone ────────────────────────────────────── #}
+{% if lignes %}
+{% regroup lignes by client.zone.nom as zones %}
+{% for zone in zones %}
+<h2 class="blx-zone-title"><i class="bi bi-geo"></i> {{ zone.grouper|default:'Sans zone' }} · {{ zone.list|length }}</h2>
+{% for l in zone.list %}
+<article class="blx-visit {% if l.deja_livre %}blx-visit-done{% endif %}">
+  <div class="blx-visit-head">
+    <div class="blx-visit-name">{{ l.client }}</div>
+    {% if l.deja_livre %}
+    <span class="blx-pill blx-pill-paye flex-shrink-0"><i class="bi bi-check-circle"></i> Livré</span>
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-calendar-check fs-1 d-block mb-2 opacity-25"></i>
-      Aucun client à visiter ce jour.
-    </div>
+    <span class="blx-pill blx-pill-afaire flex-shrink-0"><i class="bi bi-hourglass-split"></i> À faire</span>
     {% endif %}
   </div>
-</div>
 
-{# ── Pop-up « Compte-rendu de visite » ────────────────────────────────────── #}
-<div class="modal fade" id="compte-rendu-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <form method="post" action="{% url 'commercial:compte-rendu-visite-create' %}">
+  <div class="blx-visit-meta">
+    {% if l.client.telephone %}
+    <a href="tel:{{ l.client.telephone }}"><i class="bi bi-telephone me-1"></i>{{ l.client.telephone }}</a>
+    {% else %}
+    <span><i class="bi bi-telephone me-1"></i>Pas de téléphone</span>
+    {% endif %}
+    {% if is_administration %}
+    <span><i class="bi bi-person me-1"></i>{{ l.commercial|default:'—' }}</span>
+    {% endif %}
+  </div>
+
+  {% if is_administration %}
+  <div class="blx-visit-motifs">
+    {% if l.est_recurrent %}<span><i class="bi bi-calendar-week me-1"></i>Visite habituelle</span>{% endif %}
+    {% for a in l.actions_agenda %}
+    <span><i class="bi bi-calendar-event me-1"></i>{{ a.detaille_action_planifier|default:'Action planifiée' }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not l.deja_livre or is_administration %}
+  <div class="blx-visit-actions">
+    {% if not l.deja_livre %}
+    <a href="{% url 'commercial:bon-livraison-create' %}?client_id={{ l.client.pk }}&commercial_id={{ commercial_id }}"
+       class="btn btn-primary blx-visit-main">
+      <i class="bi bi-truck"></i> Faire le bon de livraison
+    </a>
+    {% endif %}
+    {% if is_administration %}
+    <a href="{% url 'commercial:client-detail' l.client.pk %}" class="btn btn-outline-secondary">
+      <i class="bi bi-eye"></i> Client
+    </a>
+    {% if l.client.google_mape %}
+    <button type="button" class="btn btn-outline-secondary tdj-maps-btn" data-maps="{{ l.client.google_mape }}">
+      <i class="bi bi-geo-alt"></i> Itinéraire
+    </button>
+    {% endif %}
+    {% if commercial_id %}
+    <button type="button" class="btn btn-outline-secondary compte-rendu-btn"
+            data-client-id="{{ l.client.pk }}" data-client-label="{{ l.client }}">
+      <i class="bi bi-journal-text"></i> Compte-rendu
+    </button>
+    {% endif %}
+    <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-calendar3"></i> Agenda
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>
+{% endfor %}
+{% endfor %}
+{% else %}
+<section class="blx-card blx-empty">
+  <i class="bi bi-calendar-check"></i>
+  Aucun client à visiter ce jour.
+  <div class="small mt-1">Utilisez les flèches pour voir un autre jour.</div>
+</section>
+{% endif %}
+
+{# ── Pop-up « Compte-rendu de visite » (Administration, commercial choisi) ───── #}
+{% if is_administration and commercial_id %}
+<div class="modal fade" id="compte-rendu-modal" tabindex="-1" aria-hidden="true" aria-labelledby="compte-rendu-title">
+  <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <form method="post" action="{% url 'commercial:compte-rendu-visite-create' %}" class="modal-content" id="compte-rendu-form" novalidate>
       {% csrf_token %}
       <input type="hidden" name="client_id" id="compte-rendu-client-id">
       <input type="hidden" name="date_jour" value="{{ date_jour }}">
       <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Compte-rendu de visite — <span id="compte-rendu-client-label"></span></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      <div class="modal-header">
+        <h5 class="modal-title" id="compte-rendu-title">
+          <i class="bi bi-journal-text me-2"></i>Compte-rendu — <span id="compte-rendu-client-label"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <span class="blx-label">Motifs rapides</span>
+        <div class="blx-chips mb-3">
+          <button type="button" class="btn btn-outline-secondary motif-btn" data-motif="Client absent">Client absent</button>
+          <button type="button" class="btn btn-outline-secondary motif-btn" data-motif="Fermé">Fermé</button>
+          <button type="button" class="btn btn-outline-secondary motif-btn" data-motif="Refus de livraison">Refus de livraison</button>
+          <button type="button" class="btn btn-outline-secondary motif-btn" data-motif="Rien à signaler">Rien à signaler</button>
+          <button type="button" class="btn btn-outline-secondary motif-btn" data-motif="Autre">Autre</button>
         </div>
-        <div class="modal-body">
-          <label class="form-label small mb-1">Motifs rapides</label>
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Client absent">Client absent</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Fermé">Fermé</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Refus de livraison">Refus de livraison</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Rien à signaler">RAS</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary motif-btn" data-motif="Autre">Autre</button>
-          </div>
-          <label class="form-label small mb-1">Note</label>
-          <textarea name="note" id="compte-rendu-note" class="form-control" rows="4" required></textarea>
+        <label class="blx-label" for="compte-rendu-note">Note <span class="blx-req">*</span></label>
+        <textarea name="note" id="compte-rendu-note" class="form-control" rows="4" required></textarea>
+        <div class="blx-invalid-msg d-none" id="compte-rendu-error" style="display:block;">
+          <i class="bi bi-exclamation-circle me-1"></i>Écrivez une note ou touchez un motif rapide.
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-lg me-1"></i>Enregistrer
-          </button>
-        </div>
+      </div>
+      <div class="modal-footer blx-recap-footer">
+        <button type="button" class="btn btn-outline-secondary blx-btn" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-primary blx-btn" id="compte-rendu-submit">
+          <i class="bi bi-check-lg me-1"></i>Enregistrer le compte-rendu
+        </button>
       </div>
     </form>
   </div>
 </div>
+{% endif %}
 
+</div>{# /.blx #}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    this.closest('form').submit();
-  });
-});
-
-// ── Pop-up « Compte-rendu de visite » ───────────────────────────────────────
 (function () {
+  var form = document.getElementById('filter-form');
+  var dateInput = document.getElementById('tdj-date');
+  var label = document.getElementById('tdj-label');
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function toIso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function fromIso(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+
+  // Le changement de date ou de commercial recharge la liste.
+  form.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+    el.addEventListener('change', function () { if (el.value || el.tagName === 'SELECT') { form.submit(); } });
+  });
+
+  // ── Jour affiché en toutes lettres + navigation jour par jour ────────────
+  var today = toIso(new Date());
+  if (dateInput.value) {
+    var d = fromIso(dateInput.value);
+    var texte = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    texte = texte.charAt(0).toUpperCase() + texte.slice(1);
+    var diff = Math.round((d - fromIso(today)) / 86400000);
+    var relatif = diff === 0 ? "Aujourd'hui" : diff === -1 ? 'Hier' : diff === 1 ? 'Demain' : '';
+    label.innerHTML = texte + (relatif ? '<small>' + relatif + '</small>' : '');
+    document.getElementById('tdj-today-wrap').classList.toggle('d-none', diff === 0);
+  }
+
+  function allerA(iso) { dateInput.value = iso; form.submit(); }
+  function decaler(nbJours) {
+    var d = dateInput.value ? fromIso(dateInput.value) : new Date();
+    d.setDate(d.getDate() + nbJours);
+    allerA(toIso(d));
+  }
+  document.getElementById('tdj-prev').addEventListener('click', function () { decaler(-1); });
+  document.getElementById('tdj-next').addEventListener('click', function () { decaler(1); });
+  document.getElementById('tdj-today').addEventListener('click', function () { allerA(today); });
+
+  // ── Itinéraire Google Maps (Administration) ──────────────────────────────
+  document.querySelectorAll('.tdj-maps-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var v = (btn.getAttribute('data-maps') || '').trim();
+      var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v);
+      window.open(url, '_blank', 'noopener');
+    });
+  });
+
+  // ── Pop-up « Compte-rendu de visite » ────────────────────────────────────
   var modalEl = document.getElementById('compte-rendu-modal');
   if (!modalEl) { return; }
   var modal = new bootstrap.Modal(modalEl);
+  var crForm = document.getElementById('compte-rendu-form');
   var clientIdInput = document.getElementById('compte-rendu-client-id');
   var clientLabelEl = document.getElementById('compte-rendu-client-label');
   var noteInput = document.getElementById('compte-rendu-note');
+  var errorEl = document.getElementById('compte-rendu-error');
+  var submitBtn = document.getElementById('compte-rendu-submit');
 
   document.querySelectorAll('.compte-rendu-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       clientIdInput.value = btn.getAttribute('data-client-id');
       clientLabelEl.textContent = btn.getAttribute('data-client-label');
       noteInput.value = '';
+      errorEl.classList.add('d-none');
       modal.show();
     });
   });
@@ -280,8 +284,23 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
     btn.addEventListener('click', function () {
       var motif = btn.getAttribute('data-motif');
       noteInput.value = noteInput.value ? (noteInput.value.trim() + ' ' + motif) : motif;
+      errorEl.classList.add('d-none');
       noteInput.focus();
     });
+  });
+
+  noteInput.addEventListener('input', function () { if (noteInput.value.trim()) { errorEl.classList.add('d-none'); } });
+
+  crForm.addEventListener('submit', function (e) {
+    if (!noteInput.value.trim()) {
+      e.preventDefault();
+      errorEl.classList.remove('d-none');
+      noteInput.focus();
+      return;
+    }
+    // Évite un double enregistrement en cas de double appui.
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
   });
 })();
 </script>

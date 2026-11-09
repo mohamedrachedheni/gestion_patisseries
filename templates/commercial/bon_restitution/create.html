@@ -14,113 +14,128 @@
 {% endblock %}
 
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Nouveau bon de restitution</h4>
-</div>
-<p class="text-muted mb-4">
-  Cette page permet d'enregistrer les quantités des produits nouvellement restitués par le commercial à la société.
-  Seules les quantités effectivement retournées sont prises en compte ; les produits demeurant en stock chez le
-  commercial ne sont pas inclus dans cet enregistrement.
-</p>
-
+<div class="blx">
+{% comment %}
+   Les noms des champs envoyés (commercial_id, restitution_at,
+   detail_produit_id, detail_quantite_restituee) sont ceux attendus par
+   BonRestitutionCreateView.post().
+{% endcomment %}
 <form id="br-create-form" method="post" novalidate>
   {% csrf_token %}
 
-  {# ── Section 1 : Commercial + Date ─────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+  <p class="text-muted mb-3">
+    <i class="bi bi-info-circle me-1"></i>Notez les produits que le commercial rend à la société.
+    Les produits qu'il garde ne sont pas comptés ici.
+  </p>
 
-        {% if not is_commercial %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select id="br-commercial-select" name="commercial_id" class="form-select form-select-sm">
-            <option value="">-Choisir-</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" id="br-commercial-select" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date</label>
-          <input type="date" id="br-date-input" name="restitution_at" value="{{ restitution_at }}" max="{{ today }}"
-                 class="form-control form-control-sm">
-        </div>
-
+  {# ── Étape 1 : commercial et date ─────────────────────────────────────────── #}
+  <section class="blx-card" id="br-step-infos">
+    <div class="blx-step-head">
+      <span class="blx-step-num">1</span>
+      <div>
+        <div class="blx-step-title">{% if is_commercial %}Date de restitution{% else %}Commercial et date{% endif %}</div>
+        <div class="blx-step-help">Par défaut, la date du jour.</div>
       </div>
     </div>
+
+    <div class="blx-alert d-none" id="br-infos-error" role="alert"></div>
+
+    <div class="{% if not is_commercial %}blx-grid-2{% endif %}">
+      {% if not is_commercial %}
+      <div class="blx-field mb-md-0">
+        <label class="blx-label" for="br-commercial-select">Commercial <span class="blx-req">*</span></label>
+        <select id="br-commercial-select" name="commercial_id" class="form-select blx-input">
+          <option value="">— Choisir —</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" id="br-commercial-select" name="commercial_id" value="{{ commercial_id }}">
+      {% endif %}
+
+      <div class="blx-field mb-0">
+        <label class="blx-label" for="br-date-input">Date <span class="blx-req">*</span></label>
+        <input type="date" id="br-date-input" name="restitution_at" value="{{ restitution_at }}" max="{{ today }}"
+               class="form-control blx-input">
+        <div class="blx-hint">La date ne peut pas être dans le futur.</div>
+      </div>
+    </div>
+  </section>
+
+  {# ── Étape 2 : produits rendus ────────────────────────────────────────────── #}
+  <section class="blx-card" id="br-step-produits">
+    <div class="blx-step-head">
+      <span class="blx-step-num">2</span>
+      <div class="flex-grow-1">
+        <div class="blx-step-title">
+          Produits rendus
+          <span class="blx-count" id="br-items-count">0</span>
+        </div>
+        <div class="blx-step-help">Pour chaque produit, indiquez la quantité réellement rendue.</div>
+      </div>
+    </div>
+
+    <div class="blx-alert d-none" id="br-produits-error" role="alert"></div>
+    <div class="blx-note blx-note-info d-none" id="br-defaults-info" role="status"></div>
+    <div class="blx-loading d-none" id="br-loading">
+      <span class="spinner-border spinner-border-sm"></span> Calcul des produits à rendre…
+    </div>
+
+    <div id="br-rows"></div>
+
+    <button type="button" id="br-add-row-btn" class="blx-add-btn">
+      <i class="bi bi-plus-circle"></i> Ajouter un autre produit
+    </button>
+  </section>
+
+  {# ── Action secondaire ────────────────────────────────────────────────────── #}
+  <div class="blx-secondary-actions">
+    <a href="{% url 'commercial:home' %}" class="btn btn-link text-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
   </div>
 
-  {# ── Section 2 : produits calculés ─────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-arrow-return-left me-2 text-primary"></i>Produits à restituer
+  {# ── Barre d'action principale, toujours visible en bas de l'écran ─────────── #}
+  <div class="blx-bar">
+    <div class="blx-bar-total">
+      <span>À enregistrer</span>
+      <strong id="br-bar-total">0 produit</strong>
     </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div class="br-col-admin" style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Dernière MAJ Stock</span></div>
-          <div class="br-col-admin" style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
-          <div class="br-col-admin" style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
-          <div class="br-col-admin" style="width:140px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste calculé</span></div>
-          <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté à restituer</span></div>
-          <div class="br-col-admin" style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Solde</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="br-section2-rows">
-          <div class="text-muted small py-2" id="br-section2-empty">Sélectionnez un commercial pour afficher les produits à restituer.</div>
-        </div>
-      </div>
-    </div>
+    <button type="submit" id="br-save-btn" class="btn btn-primary blx-bar-btn">
+      <i class="bi bi-check-lg me-1"></i>Vérifier et enregistrer
+    </button>
   </div>
-
-  {# ── Section 3 : ajouter d'autres produits restitués ───────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits restitués
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité réellement restituée</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="br-section3-rows"></div>
-      </div>
-
-      <div class="d-flex justify-content-end gap-2 mt-2">
-        <a href="{% url 'commercial:home' %}" class="btn btn-outline-secondary btn-sm" tabindex="-1">
-          <i class="bi bi-x-lg me-1"></i>Annuler
-        </a>
-        <button type="button" id="br-add-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
-        </button>
-        <button type="submit" id="br-save-btn" class="btn btn-primary btn-sm">
-          <i class="bi bi-check-lg me-1"></i>Enregistrer tous
-        </button>
-      </div>
-    </div>
-  </div>
-
 </form>
 
+{# ── Récapitulatif avant enregistrement ───────────────────────────────────── #}
+<div class="modal fade" id="br-recap-modal" tabindex="-1" aria-hidden="true" aria-labelledby="br-recap-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="br-recap-title"><i class="bi bi-clipboard-check me-2"></i>Vérifiez le bon de restitution</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="br-recap-body"></div>
+      <div class="modal-footer blx-recap-footer">
+        <button type="button" class="btn btn-outline-secondary blx-btn" data-bs-dismiss="modal">
+          <i class="bi bi-pencil me-1"></i>Modifier
+        </button>
+        <button type="button" class="btn btn-success blx-btn" id="br-recap-confirm">
+          <i class="bi bi-check-lg me-1"></i>Confirmer et enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>{# /.blx #}
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
-{% if is_commercial %}
-/* Colonnes de détail masquées pour un utilisateur Commercial (gardées dans le
-   DOM : le calcul du Solde en JS continue de s'appuyer dessus). */
-.br-col-admin { display: none !important; }
-{% endif %}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
@@ -129,222 +144,417 @@
   var PRODUITS = {{ produits_json|safe }};
   var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
   var DEFAULTS_URL = "{% url 'commercial:bon-restitution-defaults' %}";
+  // Commercial : le détail du calcul (stock, sorties, livré, déjà rendu) et
+  // le solde ne sont pas affichés.
+  var IS_COMMERCIAL = {{ is_commercial|yesno:"true,false" }};
+  var TODAY = "{{ today }}";
 
-  var commercialEl   = document.getElementById('br-commercial-select');
+  var form            = document.getElementById('br-create-form');
+  var commercialEl    = document.getElementById('br-commercial-select');
   var dateInput       = document.getElementById('br-date-input');
-  var section2Rows    = document.getElementById('br-section2-rows');
-  var section3Rows    = document.getElementById('br-section3-rows');
-  var saveBtn          = document.getElementById('br-save-btn');
-  var addRowBtn        = document.getElementById('br-add-row-btn');
+  var rowsContainer   = document.getElementById('br-rows');
+  var addRowBtn       = document.getElementById('br-add-row-btn');
+  var saveBtn         = document.getElementById('br-save-btn');
+  var itemsCount      = document.getElementById('br-items-count');
+  var barTotal        = document.getElementById('br-bar-total');
+  var infosError      = document.getElementById('br-infos-error');
+  var produitsError   = document.getElementById('br-produits-error');
+  var defaultsInfo    = document.getElementById('br-defaults-info');
+  var loadingEl       = document.getElementById('br-loading');
+  var recapModal      = new bootstrap.Modal(document.getElementById('br-recap-modal'));
+  var recapBody       = document.getElementById('br-recap-body');
+  var recapConfirmBtn = document.getElementById('br-recap-confirm');
 
-  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
-  // son clic natif, comme la souris — Enregistrer, Ajouter un produit, Supprimer la ligne…).
-  document.getElementById('br-create-form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
-  });
-
-  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Date.
-  saveBtn.addEventListener('keydown', function (e) {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      dateInput.focus();
-    }
-  });
-
+  // ── Utilitaires ──────────────────────────────────────────────────────────
   function num(el) {
     var v = parseFloat(el.value);
     return isNaN(v) ? 0 : v;
   }
 
+  function fmtQ(v) {
+    var n = parseFloat(v);
+    return (isNaN(n) ? 0 : n).toLocaleString('fr-FR', { maximumFractionDigits: 3 });
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function formatDate(iso) {
+    var p = (iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+
+  function selectedText(select) {
+    var opt = select && select.options ? select.options[select.selectedIndex] : null;
+    return opt ? opt.text.trim() : '';
+  }
+
+  function showBox(box, html) {
+    if (!html) { box.classList.add('d-none'); box.innerHTML = ''; return; }
+    box.innerHTML = html;
+    box.classList.remove('d-none');
+  }
+
+  function showError(box, message) {
+    showBox(box, message ? '<i class="bi bi-exclamation-circle me-1"></i>' + esc(message) : '');
+  }
+
+  // ── Protection contre la perte de saisie ─────────────────────────────────
+  var dirty = false;
+  var enregistrementEnCours = false;
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty && !enregistrementEnCours) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris).
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
+  // ── Étape 2 : cartes produit ─────────────────────────────────────────────
   function buildProduitOptions() {
-    var html = '<option value="">-Choisir-</option>';
+    var html = '<option value="">— Choisir un produit —</option>';
     PRODUITS.forEach(function (p) {
-      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+      html += '<option value="' + p.id + '">' + esc(p.nom) + '</option>';
     });
     return html;
   }
 
-  // ── Section 2 : lignes calculées, verrouillées sauf Qté à restituer ──────
-  function addSection2Row(l) {
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 br-section2-row';
+  function rows() {
+    return Array.prototype.slice.call(rowsContainer.querySelectorAll('.blx-item'));
+  }
+
+  function produitIdOf(row) {
+    return row.querySelector('[name="detail_produit_id"]').value;
+  }
+
+  // Numérotation, compteur, avertissements (ligne incomplète, produit en double).
+  function refreshRows() {
+    var vus = {};
+    var valides = 0;
+    rows().forEach(function (row, idx) {
+      row.querySelector('.blx-item-num').textContent = idx + 1;
+      var produitId = produitIdOf(row);
+      var qteInput = row.querySelector('.qte-input');
+      var qte = num(qteInput);
+      var libre = row.classList.contains('br-libre');
+      // Une carte ajoutée à la main avec un produit mais sans quantité est
+      // ignorée par le serveur : on le signale directement sur la carte.
+      row.classList.toggle('blx-item-incomplete', libre && !!produitId && qte <= 0);
+      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && qte < 0);
+      row.classList.toggle('blx-item-dup', !!produitId && !!vus[produitId]);
+      if (produitId) { vus[produitId] = true; }
+      if (produitId && qte > 0) { valides++; }
+    });
+    itemsCount.textContent = rows().length;
+    barTotal.textContent = valides + (valides > 1 ? ' produits' : ' produit');
+    if (valides) { showError(produitsError, ''); }
+  }
+
+  function stepperHtml(valeur) {
+    return '<span class="blx-sub-label">Quantité rendue</span>' +
+      '<div class="blx-stepper">' +
+        '<button type="button" class="qte-moins" tabindex="-1" aria-label="Diminuer la quantité">−</button>' +
+        '<input type="number" step="1" min="0" name="detail_quantite_restituee" class="form-control blx-input no-spinner qte-input" value="' + esc(valeur) + '" inputmode="numeric" aria-label="Quantité rendue">' +
+        '<button type="button" class="qte-plus" tabindex="-1" aria-label="Augmenter la quantité">+</button>' +
+      '</div>';
+  }
+
+  var REMOVE_BTN = '<button type="button" class="btn btn-outline-danger blx-remove remove-row" title="Retirer ce produit" aria-label="Retirer ce produit"><i class="bi bi-trash"></i></button>';
+  var DUP_HTML = '<div class="blx-item-duplicate"><i class="bi bi-info-circle me-1"></i>Ce produit est déjà dans la liste : les quantités seront additionnées.</div>';
+
+  function wireRow(row, onChange) {
+    var qteInput = row.querySelector('.qte-input');
+    function changed() { dirty = true; if (onChange) { onChange(); } refreshRows(); }
+    qteInput.addEventListener('input', changed);
+    qteInput.addEventListener('focus', function () { qteInput.select(); });
+    row.querySelector('.qte-moins').addEventListener('click', function () {
+      qteInput.value = Math.max(0, Math.round(num(qteInput)) - 1);
+      changed();
+    });
+    row.querySelector('.qte-plus').addEventListener('click', function () {
+      qteInput.value = Math.max(0, Math.round(num(qteInput))) + 1;
+      changed();
+    });
+    row.querySelector('.remove-row').addEventListener('click', function () {
+      row.remove();
+      dirty = true;
+      refreshRows();
+    });
+    rowsContainer.appendChild(row);
+    if (onChange) { onChange(); }
+    refreshRows();
+    return row;
+  }
+
+  // Carte calculée : produit fixe, « Reste calculé » proposé comme quantité rendue.
+  function addCalculeRow(l) {
     var qi = parseFloat(l.quantite_initiale) || 0;
     var qs = parseFloat(l.quantite_sortie) || 0;
     var ql = parseFloat(l.quantite_livree) || 0;
     var qr = parseFloat(l.quantite_deja_restituee) || 0;
     var reste = parseFloat(l.reste_calcule);
     if (isNaN(reste)) { reste = qi + qs - ql - qr; }
-    var valeurParDefaut = reste >= 0 ? reste : '';
 
+    var row = document.createElement('div');
+    row.className = 'blx-item';
     row.innerHTML =
-      '<div style="flex:1 1 200px;min-width:160px;">' +
-        '<input type="hidden" name="detail_produit_id" value="' + l.produit_id + '">' +
-        '<input type="text" class="form-control form-control-sm" value="" disabled>' +
+      '<input type="hidden" name="detail_produit_id" value="' + esc(l.produit_id) + '">' +
+      '<div class="blx-item-head">' +
+        '<span class="blx-item-num"></span>' +
+        '<span class="blx-item-name">' + esc(l.produit_nom) + '</span>' +
+        REMOVE_BTN +
       '</div>' +
-      '<div class="br-col-admin" style="width:140px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + qi + '" disabled>' +
+      (IS_COMMERCIAL ? '' :
+        '<div class="blx-stats">' +
+          '<div class="blx-stat"><span>Dernière MAJ stock</span><strong>' + fmtQ(qi) + '</strong></div>' +
+          '<div class="blx-stat"><span>Bons de sortie</span><strong>' + fmtQ(qs) + '</strong></div>' +
+          '<div class="blx-stat"><span>Livré</span><strong>' + fmtQ(ql) + '</strong></div>' +
+          '<div class="blx-stat"><span>Déjà rendu</span><strong>' + fmtQ(qr) + '</strong></div>' +
+        '</div>') +
+      '<div class="blx-ret-grid">' +
+        '<div class="blx-ret-expected"><span class="blx-sub-label">Reste calculé</span>' +
+          '<strong class="' + (reste < 0 ? 'text-danger' : '') + '">' + fmtQ(reste) + '</strong>' +
+          (reste < 0 ? ' <span class="text-danger small">(négatif)</span>' : '') +
+        '</div>' +
+        '<div>' + stepperHtml(reste >= 0 ? reste : '') + '</div>' +
+        (IS_COMMERCIAL ? '' : '<div class="blx-ret-solde"><span class="blx-sub-label">Solde</span><strong class="br-solde"></strong></div>') +
       '</div>' +
-      '<div class="br-col-admin" style="width:140px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + qs + '" disabled>' +
-      '</div>' +
-      '<div class="br-col-admin" style="width:120px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + ql + '" disabled>' +
-      '</div>' +
-      '<div class="br-col-admin" style="width:140px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + qr + '" disabled>' +
-      '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner reste-input' + (reste < 0 ? ' text-danger' : '') + '" value="' + reste + '" disabled>' +
-      '</div>' +
-      '<div style="width:150px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_quantite_restituee" ' +
-          'class="form-control form-control-sm no-spinner qte-restituee-input" value="' + valeurParDefaut + '">' +
-        '<div class="invalid-feedback">La quantité ne doit pas être négative.</div>' +
-      '</div>' +
-      '<div class="br-col-admin" style="width:120px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner solde-input" value="" disabled>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
+      DUP_HTML;
 
-    var nomInput = row.children[0].querySelector('input[type="text"]');
-    nomInput.value = l.produit_nom;
-
-    var qteInput = row.querySelector('.qte-restituee-input');
-    var soldeInput = row.querySelector('.solde-input');
-
-    function syncSolde() {
-      var restituee = num(qteInput);
-      var solde = reste - restituee;
-      soldeInput.value = solde;
-      soldeInput.classList.toggle('text-danger', solde < 0);
-      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && restituee < 0);
-    }
-    qteInput.addEventListener('input', syncSolde);
-    syncSolde();
-
-    row.querySelector('.remove-row').addEventListener('click', function () {
-      row.remove();
-    });
-
-    section2Rows.appendChild(row);
-  }
-
-  function refreshSection2() {
-    section2Rows.innerHTML = '';
-    var commercialId = commercialEl.value;
-
-    if (!commercialId) {
-      section2Rows.innerHTML =
-        '<div class="text-muted small py-2">Sélectionnez un commercial pour afficher les produits à restituer.</div>';
-      return;
-    }
-
-    var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
-      '&restitution_at=' + encodeURIComponent(dateInput.value);
-    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-      var lignes = data.lignes || [];
-      if (!lignes.length) {
-        section2Rows.innerHTML =
-          '<div class="text-muted small py-2">Aucun produit à restituer pour ce commercial.</div>';
-      } else {
-        lignes.forEach(function (l) { addSection2Row(l); });
-      }
+    var qteInput = row.querySelector('.qte-input');
+    var soldeEl = row.querySelector('.br-solde');
+    return wireRow(row, function () {
+      if (!soldeEl) { return; }
+      var solde = Math.round((reste - num(qteInput)) * 1000) / 1000;
+      soldeEl.textContent = fmtQ(solde);
+      soldeEl.classList.toggle('text-danger', solde < 0);
     });
   }
 
-  // ── Section 3 : ajout libre de produits ─────────────────────────────────
-  function addSection3Row(prefill) {
+  // Carte libre : produit à choisir (produits non semi-finis).
+  function addLibreRow(prefill) {
     prefill = prefill || {};
     var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.className = 'blx-item br-libre';
     row.innerHTML =
-      '<div style="flex:1 1 220px;min-width:180px;">' +
-        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '<div class="blx-item-head">' +
+        '<span class="blx-item-num"></span>' +
+        '<select name="detail_produit_id" class="form-select blx-input produit-select" aria-label="Produit">' + buildProduitOptions() + '</select>' +
+        REMOVE_BTN +
       '</div>' +
-      '<div style="width:150px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_quantite_restituee" ' +
-          'class="form-control form-control-sm no-spinner qte-input" value="">' +
-        '<div class="invalid-feedback">La quantité ne doit pas être négative.</div>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
-
+      '<div class="blx-qty-only">' + stepperHtml(prefill.quantite != null ? prefill.quantite : '') + '</div>' +
+      '<div class="blx-item-warning"><i class="bi bi-exclamation-triangle me-1"></i>Indiquez une quantité, sinon ce produit ne sera pas enregistré.</div>' +
+      DUP_HTML;
     var produitSelect = row.querySelector('.produit-select');
-    var qteInput = row.querySelector('.qte-input');
-
-    if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
-    if (prefill.quantite !== undefined) { qteInput.value = prefill.quantite; }
-
-    qteInput.addEventListener('input', function () {
-      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) < 0);
-    });
-
-    // Produit sélectionné : le focus passe au champ Quantité réellement
-    // restituée, avec tout son contenu sélectionné.
-    produitSelect.addEventListener('change', function () {
-      qteInput.focus();
-      qteInput.select();
-    });
-
-    // Depuis Quantité réellement restituée, Tab passe au bouton Ajouter un produit.
-    qteInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Tab' && !e.shiftKey) {
-        e.preventDefault();
-        addRowBtn.focus();
+    if (prefill.produit_id) {
+      produitSelect.value = String(prefill.produit_id);
+      // Produit conservé après un échec mais absent de la liste proposée
+      // (ex. produit semi-fini issu du calcul) : on le garde quand même.
+      if (produitSelect.value !== String(prefill.produit_id)) {
+        var opt = document.createElement('option');
+        opt.value = String(prefill.produit_id);
+        opt.textContent = 'Produit déjà saisi (n° ' + prefill.produit_id + ')';
+        produitSelect.appendChild(opt);
+        produitSelect.value = opt.value;
       }
-    });
-
-    row.querySelector('.remove-row').addEventListener('click', function () {
-      var nextRow = row.nextElementSibling;
-      var prevRow = row.previousElementSibling;
-      row.remove();
-      var targetRow = nextRow || prevRow;
-      var targetProduitSelect = targetRow ? targetRow.querySelector('.produit-select') : null;
-      if (targetProduitSelect) {
-        targetProduitSelect.focus();
-      } else {
-        addRowBtn.focus();
-      }
-    });
-
-    section3Rows.appendChild(row);
-    return row;
+    }
+    produitSelect.addEventListener('change', function () { dirty = true; refreshRows(); });
+    return wireRow(row);
   }
 
   addRowBtn.addEventListener('click', function () {
-    var row = addSection3Row();
-    var newProduitSelect = row.querySelector('.produit-select');
-    if (newProduitSelect) { newProduitSelect.focus(); }
+    var row = addLibreRow();
+    dirty = true;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.querySelector('.produit-select').focus({ preventScroll: true });
+  });
+
+  // ── Calcul des produits à rendre (AJAX) ──────────────────────────────────
+  var defaultsRequestId = 0;
+
+  function setLoading(loading) {
+    loadingEl.classList.toggle('d-none', !loading);
+    addRowBtn.disabled = loading;
+  }
+
+  function refreshDefaults() {
+    var requestId = ++defaultsRequestId;
+    var commercialId = commercialEl.value;
+    rowsContainer.innerHTML = '';
+    showError(produitsError, '');
+    refreshRows();
+    if (!commercialId) {
+      showBox(defaultsInfo, '<i class="bi bi-info-circle me-1"></i>Choisissez d\'abord le commercial pour afficher les produits à rendre.');
+      dirty = false;
+      return;
+    }
+    showBox(defaultsInfo, '');
+    setLoading(true);
+    var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
+      '&restitution_at=' + encodeURIComponent(dateInput.value);
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+      .then(function (data) {
+        if (requestId !== defaultsRequestId) { return; }  // réponse périmée
+        var lignes = data.lignes || [];
+        lignes.forEach(function (l) { addCalculeRow(l); });
+        showBox(defaultsInfo, lignes.length
+          ? '<i class="bi bi-calculator me-1"></i>La quantité proposée est le reste calculé. Corrigez-la si le commercial rend une autre quantité.'
+          : '<i class="bi bi-info-circle me-1"></i>Aucun produit à rendre pour ce commercial. Vous pouvez ajouter un produit à la main.');
+        dirty = false;
+      })
+      .catch(function () {
+        if (requestId !== defaultsRequestId) { return; }
+        showError(produitsError, 'Les produits à rendre n\'ont pas pu être calculés. Ajoutez les produits à la main ou changez la date pour réessayer.');
+      })
+      .then(function () {
+        if (requestId === defaultsRequestId) { setLoading(false); }
+      });
+  }
+
+  // Avant un recalcul qui écraserait la saisie, on demande confirmation.
+  function confirmerRemplacement() {
+    return !dirty || window.confirm('La liste des produits va être recalculée et vos saisies seront perdues. Continuer ?');
+  }
+
+  if (commercialEl.tagName === 'SELECT') {
+    var prevCommercial = commercialEl.value;
+    commercialEl.addEventListener('change', function () {
+      if (commercialEl.value) { showError(infosError, ''); }
+      if (commercialEl.value === prevCommercial) { return; }
+      prevCommercial = commercialEl.value;
+      if (!confirmerRemplacement()) { return; }
+      refreshDefaults();
+    });
+  }
+
+  var prevDate = dateInput.value;
+  dateInput.addEventListener('change', function () {
+    if (dateInput.value && dateInput.value <= TODAY) { showError(infosError, ''); }
+    if (dateInput.value === prevDate) { return; }
+    prevDate = dateInput.value;
+    if (!dateInput.value || !confirmerRemplacement()) { return; }
+    refreshDefaults();
+  });
+
+  // ── Vérification puis récapitulatif avant enregistrement ─────────────────
+  // (les mêmes règles sont de toute façon contrôlées côté serveur)
+  function signaler(box, message, champ) {
+    showError(box, message);
+    box.closest('.blx-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (champ) { champ.focus({ preventScroll: true }); }
+    return null;
+  }
+
+  function nomProduit(row) {
+    var select = row.querySelector('.produit-select');
+    return select ? selectedText(select) : row.querySelector('.blx-item-name').textContent;
+  }
+
+  function verifier() {
+    showError(infosError, '');
+    showError(produitsError, '');
+    if (!commercialEl.value) {
+      return signaler(infosError, 'Choisissez le commercial.', commercialEl);
+    }
+    if (!dateInput.value) {
+      return signaler(infosError, 'Indiquez la date du bon de restitution.', dateInput);
+    }
+    if (dateInput.value > TODAY) {
+      return signaler(infosError, 'La date ne peut pas être dans le futur.', dateInput);
+    }
+    var negatif = rows().filter(function (r) { return num(r.querySelector('.qte-input')) < 0; })[0];
+    if (negatif) {
+      return signaler(produitsError, 'Une quantité ne peut pas être négative.', negatif.querySelector('.qte-input'));
+    }
+    // Regroupement par produit (quantités additionnées), comme côté serveur.
+    var parProduit = {}, ordre = [], ignorees = 0;
+    rows().forEach(function (row) {
+      var produitId = produitIdOf(row);
+      var qte = num(row.querySelector('.qte-input'));
+      if (!produitId || qte <= 0) {
+        if (row.classList.contains('br-libre') && (produitId || qte > 0)) { ignorees++; }
+        return;
+      }
+      if (!parProduit[produitId]) {
+        parProduit[produitId] = { nom: nomProduit(row), qte: 0 };
+        ordre.push(produitId);
+      }
+      parProduit[produitId].qte += qte;
+    });
+    if (!ordre.length) {
+      var premier = rowsContainer.querySelector('.qte-input');
+      return signaler(produitsError, 'Indiquez au moins un produit avec une quantité rendue.', premier);
+    }
+    return { lignes: ordre.map(function (id) { return parProduit[id]; }), ignorees: ignorees };
+  }
+
+  function construireRecap(res) {
+    var html = '';
+    if (res.ignorees) {
+      html += '<div class="blx-note blx-note-warn"><i class="bi bi-exclamation-triangle me-1"></i>' +
+        res.ignorees + ' ligne' + (res.ignorees > 1 ? 's' : '') + ' sans produit ou sans quantité ne ser' +
+        (res.ignorees > 1 ? 'ont' : 'a') + ' pas enregistrée' + (res.ignorees > 1 ? 's' : '') + '.</div>';
+    }
+    html += '<div class="blx-recap-section"><h6>Bon de restitution</h6>' +
+      (IS_COMMERCIAL ? '' : '<div class="fw-semibold">' + esc(selectedText(commercialEl)) + '</div>') +
+      '<div class="' + (IS_COMMERCIAL ? 'fw-semibold' : 'text-muted small') + '">Date : ' + esc(formatDate(dateInput.value)) + '</div></div>';
+    html += '<div class="blx-recap-section"><h6>Produits rendus (' + res.lignes.length + ')</h6><ul class="blx-recap-list">';
+    res.lignes.forEach(function (l) {
+      html += '<li><div class="blx-recap-name">' + esc(l.nom) + '</div>' +
+        '<div class="blx-recap-amount">' + fmtQ(l.qte) + '</div></li>';
+    });
+    html += '</ul></div>';
+    recapBody.innerHTML = html;
+  }
+
+  var recapConfirme = false;
+  form.addEventListener('submit', function (e) {
+    if (recapConfirme) { return; }
+    e.preventDefault();
+    var res = verifier();
+    if (!res) { return; }
+    construireRecap(res);
+    recapModal.show();
+  });
+
+  recapConfirmBtn.addEventListener('click', function () {
+    recapConfirme = true;
+    enregistrementEnCours = true;
+    // Évite un double enregistrement en cas de double appui.
+    recapConfirmBtn.disabled = true;
+    saveBtn.disabled = true;
+    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    form.submit();
   });
 
   // ── Initialisation ───────────────────────────────────────────────────────
-  if (commercialEl.tagName === 'SELECT') {
-    commercialEl.addEventListener('change', refreshSection2);
-  }
-  dateInput.addEventListener('change', refreshSection2);
-
-  // En cas de réaffichage après échec de validation, toutes les lignes
-  // précédemment saisies (Section 2 et Section 3 confondues) sont restaurées
-  // telles quelles dans la Section 3 — la Section 2 n'est PAS recalculée via
-  // AJAX au chargement dans ce cas, pour ne jamais perdre ni compter deux
-  // fois une quantité déjà saisie (un changement ultérieur de commercial ou
-  // de date relance normalement le calcul de la Section 2).
+  // Après un échec d'enregistrement, toutes les lignes saisies sont
+  // restituées telles quelles, sans relancer le calcul, pour ne jamais perdre
+  // ni compter deux fois une quantité (un changement de commercial ou de
+  // date relance normalement le calcul).
   if (PRESERVED_LIGNES.length) {
-    section2Rows.innerHTML =
-      '<div class="text-muted small py-2">' +
-      'Les produits calculés seront réaffichés en changeant de commercial ou de date.</div>';
-    PRESERVED_LIGNES.forEach(function (l) { addSection3Row(l); });
+    PRESERVED_LIGNES.forEach(function (l) { addLibreRow(l); });
+    showBox(defaultsInfo, '<i class="bi bi-info-circle me-1"></i>Vos saisies ont été conservées. Changez la date ou le commercial pour recalculer la liste.');
+    dirty = true;
   } else {
-    refreshSection2();
-    addSection3Row();
+    refreshDefaults();
   }
 
-  // À l'ouverture de la page, le focus se place sur le champ Date.
-  dateInput.focus();
+  // Sur ordinateur, le curseur se place sur le premier champ utile ; sur
+  // téléphone on s'en abstient pour ne pas ouvrir le clavier à l'arrivée.
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    (commercialEl.tagName === 'SELECT' && !commercialEl.value ? commercialEl : dateInput).focus();
+  }
 })();
 </script>
 {% endblock %}

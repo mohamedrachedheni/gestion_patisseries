@@ -14,79 +14,127 @@
 {% endblock %}
 
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Nouveau bon de sortie</h4>
-</div>
-<p class="text-muted mb-4">
-  Cette page permet d'enregistrer les quantités des produits nouvellement livrés au commercial par la société.
-  Elle ne prend en compte que les nouvelles livraisons et n'intègre pas les quantités de produits déjà en stock
-  chez le commercial.
-</p>
-
+<div class="blx">
+{% comment %}
+   Les noms des champs envoyés (commercial_id, sortie_at, detail_produit_id,
+   detail_quantite) sont ceux attendus par BonSortieCreateView.post().
+{% endcomment %}
 <form id="bs-create-form" method="post" novalidate>
   {% csrf_token %}
 
-  {# ── Section 1 : Commercial + Date ─────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+  <p class="text-muted mb-3">
+    <i class="bi bi-info-circle me-1"></i>Notez les produits que la société remet au commercial.
+    Le stock que le commercial a déjà n'est pas compté ici.
+  </p>
 
-        {% if not is_commercial %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select id="bs-commercial-select" name="commercial_id" class="form-select form-select-sm">
-            <option value="">-Choisir-</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" id="bs-commercial-select" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date</label>
-          <input type="date" id="bs-date-input" name="sortie_at" value="{{ sortie_at }}" max="{{ today }}"
-                 class="form-control form-control-sm">
-        </div>
-
+  {# ── Étape 1 : commercial et date ─────────────────────────────────────────── #}
+  <section class="blx-card" id="bs-step-infos">
+    <div class="blx-step-head">
+      <span class="blx-step-num">1</span>
+      <div>
+        <div class="blx-step-title">{% if is_commercial %}Date de sortie{% else %}Commercial et date{% endif %}</div>
+        <div class="blx-step-help">Par défaut, la date du jour.</div>
       </div>
     </div>
+
+    <div class="blx-alert d-none" id="bs-infos-error" role="alert"></div>
+
+    <div class="{% if not is_commercial %}blx-grid-2{% endif %}">
+      {% if not is_commercial %}
+      <div class="blx-field mb-md-0">
+        <label class="blx-label" for="bs-commercial-select">Commercial <span class="blx-req">*</span></label>
+        <select id="bs-commercial-select" name="commercial_id" class="form-select blx-input">
+          <option value="">— Choisir —</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" id="bs-commercial-select" name="commercial_id" value="{{ commercial_id }}">
+      {% endif %}
+
+      <div class="blx-field mb-0">
+        <label class="blx-label" for="bs-date-input">Date <span class="blx-req">*</span></label>
+        <input type="date" id="bs-date-input" name="sortie_at" value="{{ sortie_at }}" max="{{ today }}"
+               class="form-control blx-input">
+        <div class="blx-hint">La date ne peut pas être dans le futur.</div>
+      </div>
+    </div>
+  </section>
+
+  {# ── Étape 2 : produits sortis ────────────────────────────────────────────── #}
+  <section class="blx-card" id="bs-step-produits">
+    <div class="blx-step-head">
+      <span class="blx-step-num">2</span>
+      <div class="flex-grow-1">
+        <div class="blx-step-title">
+          Produits sortis
+          <span class="blx-count" id="bs-items-count">0</span>
+        </div>
+        <div class="blx-step-help">Vérifiez les quantités, puis ajoutez d'autres produits si besoin.</div>
+      </div>
+    </div>
+
+    <div class="blx-alert d-none" id="bs-produits-error" role="alert"></div>
+    <div class="blx-note blx-note-info d-none" id="bs-defaults-info" role="status"></div>
+    <div class="blx-loading d-none" id="bs-loading">
+      <span class="spinner-border spinner-border-sm"></span> Chargement des produits habituels du commercial…
+    </div>
+
+    <div id="bs-sortie-rows"></div>
+
+    <button type="button" id="bs-add-row-btn" class="blx-add-btn">
+      <i class="bi bi-plus-circle"></i> Ajouter un produit
+    </button>
+  </section>
+
+  {# ── Action secondaire ────────────────────────────────────────────────────── #}
+  <div class="blx-secondary-actions">
+    <a href="{% url 'commercial:home' %}" class="btn btn-link text-secondary">
+      <i class="bi bi-x-lg me-1"></i>Annuler
+    </a>
   </div>
 
-  {# ── Section 2 : produits à sortir ─────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-box-arrow-right me-2 text-primary"></i>Liste par défaut les produits nouvellement sorties
+  {# ── Barre d'action principale, toujours visible en bas de l'écran ─────────── #}
+  <div class="blx-bar">
+    <div class="blx-bar-total">
+      <span>À enregistrer</span>
+      <strong id="bs-bar-total">0 produit</strong>
     </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="bs-sortie-rows"></div>
-      </div>
-
-      <div class="d-flex justify-content-end gap-2 mt-2">
-        <a href="{% url 'commercial:home' %}" class="btn btn-outline-secondary btn-sm" tabindex="-1">
-          <i class="bi bi-x-lg me-1"></i>Annuler
-        </a>
-        <button type="button" id="bs-add-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
-        </button>
-        <button type="submit" id="bs-save-btn" class="btn btn-primary btn-sm">
-          <i class="bi bi-check-lg me-1"></i>Enregistrer tous
-        </button>
-      </div>
-    </div>
+    <button type="submit" id="bs-save-btn" class="btn btn-primary blx-bar-btn">
+      <i class="bi bi-check-lg me-1"></i>Vérifier et enregistrer
+    </button>
   </div>
-
 </form>
 
+{# ── Récapitulatif avant enregistrement ───────────────────────────────────── #}
+<div class="modal fade" id="bs-recap-modal" tabindex="-1" aria-hidden="true" aria-labelledby="bs-recap-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bs-recap-title"><i class="bi bi-clipboard-check me-2"></i>Vérifiez le bon de sortie</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body" id="bs-recap-body"></div>
+      <div class="modal-footer blx-recap-footer">
+        <button type="button" class="btn btn-outline-secondary blx-btn" data-bs-dismiss="modal">
+          <i class="bi bi-pencil me-1"></i>Modifier
+        </button>
+        <button type="button" class="btn btn-success blx-btn" id="bs-recap-confirm">
+          <i class="bi bi-check-lg me-1"></i>Confirmer et enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>{# /.blx #}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
@@ -95,101 +143,339 @@
   var PRODUITS = {{ produits_json|safe }};
   var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
   var DEFAULTS_URL = "{% url 'commercial:bon-sortie-defaults' %}";
+  var IS_COMMERCIAL = {{ is_commercial|yesno:"true,false" }};
+  var TODAY = "{{ today }}";
 
-  var commercialEl        = document.getElementById('bs-commercial-select');
-  var dateInput            = document.getElementById('bs-date-input');
-  var sortieRowsContainer  = document.getElementById('bs-sortie-rows');
-  var saveBtn              = document.getElementById('bs-save-btn');
+  var form            = document.getElementById('bs-create-form');
+  var commercialEl    = document.getElementById('bs-commercial-select');
+  var dateInput       = document.getElementById('bs-date-input');
+  var rowsContainer   = document.getElementById('bs-sortie-rows');
+  var addRowBtn       = document.getElementById('bs-add-row-btn');
+  var saveBtn         = document.getElementById('bs-save-btn');
+  var itemsCount      = document.getElementById('bs-items-count');
+  var barTotal        = document.getElementById('bs-bar-total');
+  var infosError      = document.getElementById('bs-infos-error');
+  var produitsError   = document.getElementById('bs-produits-error');
+  var defaultsInfo    = document.getElementById('bs-defaults-info');
+  var loadingEl       = document.getElementById('bs-loading');
+  var recapModal      = new bootstrap.Modal(document.getElementById('bs-recap-modal'));
+  var recapBody       = document.getElementById('bs-recap-body');
+  var recapConfirmBtn = document.getElementById('bs-recap-confirm');
 
-  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
-  // son clic natif, comme la souris — Enregistrer, Ajouter une autre ligne, Supprimer la ligne…).
-  document.getElementById('bs-create-form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
-  });
+  // ── Utilitaires ──────────────────────────────────────────────────────────
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+  }
 
-  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Date.
-  saveBtn.addEventListener('keydown', function (e) {
-    if (e.key === 'Tab' && !e.shiftKey) {
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function formatDate(iso) {
+    var p = (iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+
+  function selectedText(select) {
+    var opt = select && select.options ? select.options[select.selectedIndex] : null;
+    return opt ? opt.text.trim() : '';
+  }
+
+  function showBox(box, html) {
+    if (!html) { box.classList.add('d-none'); box.innerHTML = ''; return; }
+    box.innerHTML = html;
+    box.classList.remove('d-none');
+  }
+
+  function showError(box, message) {
+    showBox(box, message ? '<i class="bi bi-exclamation-circle me-1"></i>' + esc(message) : '');
+  }
+
+  // ── Protection contre la perte de saisie ─────────────────────────────────
+  // « dirty » : la liste des produits a été modifiée à la main depuis le
+  // dernier chargement des produits habituels.
+  var dirty = false;
+  var enregistrementEnCours = false;
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty && !enregistrementEnCours) {
       e.preventDefault();
-      dateInput.focus();
+      e.returnValue = '';
     }
   });
 
-  // À l'ouverture de la page, le focus se place sur le champ Date.
-  dateInput.focus();
+  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
+  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
+  // son clic natif, comme la souris).
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
 
+  // ── Étape 2 : cartes produit ─────────────────────────────────────────────
   function buildProduitOptions() {
-    var html = '<option value="">-Choisir-</option>';
+    var html = '<option value="">— Choisir un produit —</option>';
     PRODUITS.forEach(function (p) {
-      html += '<option value="' + p.id + '">' + p.nom + '</option>';
+      html += '<option value="' + p.id + '">' + esc(p.nom) + '</option>';
     });
     return html;
+  }
+
+  function rows() {
+    return Array.prototype.slice.call(rowsContainer.querySelectorAll('.blx-item'));
+  }
+
+  // Numérotation, compteur, avertissements (ligne incomplète, produit en double).
+  function refreshRows() {
+    var vus = {};
+    var valides = 0;
+    rows().forEach(function (row, idx) {
+      row.querySelector('.blx-item-num').textContent = idx + 1;
+      var produitId = row.querySelector('.produit-select').value;
+      var qte = num(row.querySelector('.qte-input'));
+      row.classList.toggle('blx-item-incomplete', !!produitId && qte <= 0);
+      var doublon = !!produitId && vus[produitId];
+      row.classList.toggle('blx-item-dup', !!doublon);
+      if (produitId) { vus[produitId] = true; }
+      if (produitId && qte > 0) { valides++; }
+    });
+    itemsCount.textContent = rows().length;
+    barTotal.textContent = valides + (valides > 1 ? ' produits' : ' produit');
+    if (valides) { showError(produitsError, ''); }
   }
 
   function addSortieRow(prefill) {
     prefill = prefill || {};
     var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.className = 'blx-item';
     row.innerHTML =
-      '<div style="flex:1 1 220px;min-width:180px;">' +
-        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
+      '<div class="blx-item-head">' +
+        '<span class="blx-item-num"></span>' +
+        '<select name="detail_produit_id" class="form-select blx-input produit-select" aria-label="Produit">' + buildProduitOptions() + '</select>' +
+        '<button type="button" class="btn btn-outline-danger blx-remove remove-row" title="Retirer ce produit" aria-label="Retirer ce produit"><i class="bi bi-trash"></i></button>' +
       '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_quantite" class="form-control form-control-sm no-spinner qte-input" value="">' +
+      '<div class="blx-qty-only">' +
+        '<span class="blx-sub-label">Quantité</span>' +
+        '<div class="blx-stepper">' +
+          '<button type="button" class="qte-moins" tabindex="-1" aria-label="Diminuer la quantité">−</button>' +
+          '<input type="number" step="1" min="0" name="detail_quantite" class="form-control blx-input no-spinner qte-input" value="" inputmode="numeric" aria-label="Quantité">' +
+          '<button type="button" class="qte-plus" tabindex="-1" aria-label="Augmenter la quantité">+</button>' +
+        '</div>' +
       '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
+      '<div class="blx-item-warning"><i class="bi bi-exclamation-triangle me-1"></i>Indiquez une quantité, sinon ce produit ne sera pas enregistré.</div>' +
+      '<div class="blx-item-duplicate"><i class="bi bi-info-circle me-1"></i>Ce produit est déjà dans la liste : les quantités seront additionnées.</div>';
 
     var produitSelect = row.querySelector('.produit-select');
     var qteInput = row.querySelector('.qte-input');
-
     if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
-    if (prefill.quantite !== undefined) { qteInput.value = prefill.quantite; }
+    if (prefill.quantite !== undefined && prefill.quantite !== null) { qteInput.value = prefill.quantite; }
 
+    function changed() { dirty = true; refreshRows(); }
+    produitSelect.addEventListener('change', changed);
+    qteInput.addEventListener('input', changed);
+    qteInput.addEventListener('focus', function () { qteInput.select(); });
+    row.querySelector('.qte-moins').addEventListener('click', function () {
+      qteInput.value = Math.max(0, Math.round(num(qteInput)) - 1);
+      changed();
+    });
+    row.querySelector('.qte-plus').addEventListener('click', function () {
+      qteInput.value = Math.max(0, Math.round(num(qteInput))) + 1;
+      changed();
+    });
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
+      dirty = true;
+      if (!rows().length) { addSortieRow(); }
+      refreshRows();
     });
 
-    sortieRowsContainer.appendChild(row);
+    rowsContainer.appendChild(row);
+    refreshRows();
+    return row;
   }
 
-  document.getElementById('bs-add-row-btn').addEventListener('click', function () {
-    addSortieRow();
+  addRowBtn.addEventListener('click', function () {
+    var row = addSortieRow();
+    dirty = true;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.querySelector('.produit-select').focus({ preventScroll: true });
   });
 
-  function refreshDefaults(usePreserved) {
-    sortieRowsContainer.innerHTML = '';
+  // ── Préremplissage : dernier bon de sortie du même jour de la semaine ────
+  var defaultsRequestId = 0;
+
+  function setLoading(loading) {
+    loadingEl.classList.toggle('d-none', !loading);
+    addRowBtn.disabled = loading;
+  }
+
+  function remplir(lignes) {
+    rowsContainer.innerHTML = '';
+    lignes.forEach(function (l) { addSortieRow(l); });
+    if (!lignes.length) { addSortieRow(); }  // une ligne vide pour commencer
+    refreshRows();
+  }
+
+  function refreshDefaults() {
+    var requestId = ++defaultsRequestId;
     var commercialId = commercialEl.value;
-
-    function remplirSortieRows(lignesParDefaut) {
-      if (usePreserved && PRESERVED_LIGNES.length) {
-        PRESERVED_LIGNES.forEach(function (l) { addSortieRow(l); });
-      } else {
-        lignesParDefaut.forEach(function (l) { addSortieRow(l); });
-      }
-      addSortieRow(); // ligne vide toujours présente à la fin de la liste
-    }
-
+    showError(produitsError, '');
     if (!commercialId) {
-      remplirSortieRows([]);
+      remplir([]);
+      showBox(defaultsInfo, '<i class="bi bi-info-circle me-1"></i>Choisissez d\'abord le commercial pour reprendre ses produits habituels.');
+      dirty = false;
       return;
     }
-
+    rowsContainer.innerHTML = '';
+    showBox(defaultsInfo, '');
+    setLoading(true);
     var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
       '&sortie_at=' + encodeURIComponent(dateInput.value);
-    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-      remplirSortieRows(data.sortie_lignes || []);
-    });
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+      .then(function (data) {
+        if (requestId !== defaultsRequestId) { return; }  // réponse périmée
+        var lignes = data.sortie_lignes || [];
+        remplir(lignes);
+        showBox(defaultsInfo, lignes.length
+          ? '<i class="bi bi-arrow-repeat me-1"></i>' + lignes.length + ' produit' + (lignes.length > 1 ? 's' : '') +
+            ' repris du dernier bon de sortie. Corrigez les quantités si besoin.'
+          : '<i class="bi bi-info-circle me-1"></i>Aucun bon de sortie précédent : ajoutez les produits.');
+        dirty = false;
+      })
+      .catch(function () {
+        if (requestId !== defaultsRequestId) { return; }
+        remplir([]);
+        showError(produitsError, 'Les produits habituels n\'ont pas pu être chargés. Ajoutez les produits à la main ou changez la date pour réessayer.');
+      })
+      .then(function () {
+        if (requestId === defaultsRequestId) { setLoading(false); }
+      });
+  }
+
+  // Avant un rechargement qui écraserait la saisie, on demande confirmation.
+  function confirmerRemplacement() {
+    return !dirty || window.confirm('La liste des produits va être remplacée par les produits habituels. Continuer ?');
   }
 
   if (commercialEl.tagName === 'SELECT') {
-    commercialEl.addEventListener('change', function () { refreshDefaults(false); });
+    var prevCommercial = commercialEl.value;
+    commercialEl.addEventListener('change', function () {
+      if (commercialEl.value) { showError(infosError, ''); }
+      if (commercialEl.value === prevCommercial) { return; }
+      if (!confirmerRemplacement()) { prevCommercial = commercialEl.value; return; }
+      prevCommercial = commercialEl.value;
+      refreshDefaults();
+    });
   }
-  dateInput.addEventListener('change', function () { refreshDefaults(false); });
 
-  refreshDefaults(true);
+  var prevDate = dateInput.value;
+  dateInput.addEventListener('change', function () {
+    if (dateInput.value && dateInput.value <= TODAY) { showError(infosError, ''); }
+    if (dateInput.value === prevDate) { return; }
+    prevDate = dateInput.value;
+    if (!dateInput.value || !confirmerRemplacement()) { return; }
+    refreshDefaults();
+  });
+
+  // ── Vérification puis récapitulatif avant enregistrement ─────────────────
+  // (les mêmes règles sont de toute façon contrôlées côté serveur)
+  function signaler(box, message, champ) {
+    showError(box, message);
+    box.closest('.blx-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (champ) { champ.focus({ preventScroll: true }); }
+    return null;
+  }
+
+  function verifier() {
+    showError(infosError, '');
+    showError(produitsError, '');
+    if (!commercialEl.value) {
+      return signaler(infosError, 'Choisissez le commercial.', commercialEl);
+    }
+    if (!dateInput.value) {
+      return signaler(infosError, 'Indiquez la date du bon de sortie.', dateInput);
+    }
+    if (dateInput.value > TODAY) {
+      return signaler(infosError, 'La date ne peut pas être dans le futur.', dateInput);
+    }
+    // Regroupement par produit (quantités additionnées), comme côté serveur.
+    var parProduit = {}, ordre = [], ignorees = 0;
+    rows().forEach(function (row) {
+      var select = row.querySelector('.produit-select');
+      var qte = num(row.querySelector('.qte-input'));
+      if (!select.value || qte <= 0) {
+        if (select.value || qte > 0) { ignorees++; }
+        return;
+      }
+      if (!parProduit[select.value]) {
+        parProduit[select.value] = { nom: selectedText(select), qte: 0 };
+        ordre.push(select.value);
+      }
+      parProduit[select.value].qte += qte;
+    });
+    if (!ordre.length) {
+      var premier = rowsContainer.querySelector('.produit-select');
+      return signaler(produitsError, 'Ajoutez au moins un produit avec une quantité.', premier);
+    }
+    return { lignes: ordre.map(function (id) { return parProduit[id]; }), ignorees: ignorees };
+  }
+
+  function construireRecap(res) {
+    var html = '';
+    if (res.ignorees) {
+      html += '<div class="blx-note blx-note-warn"><i class="bi bi-exclamation-triangle me-1"></i>' +
+        res.ignorees + ' ligne' + (res.ignorees > 1 ? 's' : '') + ' sans produit ou sans quantité ne ser' +
+        (res.ignorees > 1 ? 'ont' : 'a') + ' pas enregistrée' + (res.ignorees > 1 ? 's' : '') + '.</div>';
+    }
+    html += '<div class="blx-recap-section"><h6>Bon de sortie</h6>' +
+      (IS_COMMERCIAL ? '' : '<div class="fw-semibold">' + esc(selectedText(commercialEl)) + '</div>') +
+      '<div class="' + (IS_COMMERCIAL ? 'fw-semibold' : 'text-muted small') + '">Date : ' + esc(formatDate(dateInput.value)) + '</div></div>';
+    html += '<div class="blx-recap-section"><h6>Produits (' + res.lignes.length + ')</h6><ul class="blx-recap-list">';
+    res.lignes.forEach(function (l) {
+      html += '<li><div class="blx-recap-name">' + esc(l.nom) + '</div>' +
+        '<div class="blx-recap-amount">' + l.qte + '</div></li>';
+    });
+    html += '</ul></div>';
+    recapBody.innerHTML = html;
+  }
+
+  var recapConfirme = false;
+  form.addEventListener('submit', function (e) {
+    if (recapConfirme) { return; }
+    e.preventDefault();
+    var res = verifier();
+    if (!res) { return; }
+    construireRecap(res);
+    recapModal.show();
+  });
+
+  recapConfirmBtn.addEventListener('click', function () {
+    recapConfirme = true;
+    enregistrementEnCours = true;
+    // Évite un double enregistrement en cas de double appui.
+    recapConfirmBtn.disabled = true;
+    saveBtn.disabled = true;
+    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    form.submit();
+  });
+
+  // ── Initialisation ───────────────────────────────────────────────────────
+  if (PRESERVED_LIGNES.length) {
+    // Après un échec d'enregistrement, toutes les lignes saisies sont
+    // restituées telles quelles (sans les écraser par les produits habituels).
+    remplir(PRESERVED_LIGNES);
+    dirty = true;
+  } else {
+    refreshDefaults();
+  }
+
+  // Sur ordinateur, le curseur se place sur le premier champ utile ; sur
+  // téléphone on s'en abstient pour ne pas ouvrir le clavier à l'arrivée.
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    (commercialEl.tagName === 'SELECT' && !commercialEl.value ? commercialEl : dateInput).focus();
+  }
 })();
 </script>
 {% endblock %}

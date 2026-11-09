@@ -56,9 +56,10 @@
                 <select name="zone_id" class="form-select zone-select" style="min-width:190px;">
                   <option value="">— Choisir —</option>
                 </select>
-                <a href="{% url 'commercial:zone-create' %}" target="_blank" class="small">
+                <a href="{% url 'commercial:zone-create' %}" target="_blank" class="small js-zone-create-link">
                   <i class="bi bi-plus-lg"></i> Créer une nouvelle zone
                 </a>
+                <div class="small text-success mt-1 d-none" id="cli-zone-ajoutee" role="status"></div>
               </td>
             </tr>
           </tbody>
@@ -229,6 +230,21 @@
     if (delegSelect.value && zoneSelect) {
       zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, SELECTED_ZONE_ID);
     }
+
+    // Zone créée dans la fenêtre « Nouvelle zone » : ajoutée à la liste et
+    // sélectionnée, sans recharger la page (voir _zone_live_refresh.html).
+    window.addEventListener('zone-creee', function (e) {
+      var z = e.detail;
+      ZONES.push({ id: z.id, nom: z.nom, delegation_id: z.delegation_id });
+      gouvSelect.value = String(z.gouvernorat_id);
+      delegSelect.innerHTML = buildDelegationOptions(z.gouvernorat_id, z.delegation_id);
+      if (zoneSelect) { zoneSelect.innerHTML = buildZoneSelectOptions(z.delegation_id, z.id); }
+      var note = document.getElementById('cli-zone-ajoutee');
+      if (note) {
+        note.textContent = '✓ Zone « ' + z.nom + ' » ajoutée et choisie.';
+        note.classList.remove('d-none');
+      }
+    });
   });
 
   // ── Double-clic sur le lien Google Maps : ouvre l'adresse dans un nouvel onglet ──
@@ -287,4 +303,5 @@
   }
 })();
 </script>
+{% include 'commercial/zone/_zone_live_refresh.html' %}
 {% endblock %}

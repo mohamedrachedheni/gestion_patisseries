@@ -13,91 +13,228 @@
 {% endblock %}
 
 {% block content %}
-<form method="post">
+<div class="blx">
+{% comment %}
+   Champs envoyés (gouvernorat, delegation, nom) inchangés : voir
+   ZoneCreateView.post().
+{% endcomment %}
+<form method="post" id="zone-form" novalidate>
   {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <input type="hidden" name="popup" value="{% if popup %}1{% endif %}">
 
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-pin-map me-2 text-primary"></i>Nouvelle zone
-    </div>
-    <div class="card-body">
-      <div class="row g-3 zone-create-group">
+  {% if popup %}
+  <div class="blx-note blx-note-info">
+    <i class="bi bi-window-stack me-1"></i>Après l'enregistrement, cette fenêtre se fermera et la nouvelle zone sera choisie automatiquement sur la fiche du client.
+  </div>
+  {% endif %}
 
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Gouvernorat</label>
-          <select name="gouvernorat" class="form-select zone-gouvernorat-select">
-            <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
-            {% for g in gouvernorats_list %}
-            <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
-            {% endfor %}
-          </select>
-        </div>
+  <p class="text-muted mb-3">
+    <i class="bi bi-info-circle me-1"></i>Une zone regroupe les clients d'un même secteur (ex. : un quartier). Elle sert ensuite à classer les clients et à organiser la tournée.
+  </p>
 
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Délégation</label>
-          <select name="delegation" class="form-select zone-delegation-select">
-            <option value="" {% if not selected_delegation_id %}selected{% endif %}>— Choisir —</option>
-            {% for d in delegations_list %}
-            {% if selected_gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
-            <option value="{{ d.pk }}" {% if selected_delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
-            {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Zone</label>
-          <input type="text" name="nom" value="{{ nom_value|default:'' }}" class="form-control"
-                 placeholder="Nom de la nouvelle zone">
-        </div>
-
+  <section class="blx-card">
+    <div class="blx-step-head">
+      <span class="blx-step-num">1</span>
+      <div>
+        <div class="blx-step-title">Où se trouve la zone ?</div>
+        <div class="blx-step-help">Choisissez le gouvernorat, puis la délégation.</div>
       </div>
     </div>
+
+    <div class="blx-grid-2">
+      <div class="blx-field" id="zn-field-gouv">
+        <label class="blx-label" for="zn-gouvernorat">Gouvernorat <span class="blx-req">*</span></label>
+        <select name="gouvernorat" id="zn-gouvernorat" class="form-select blx-input">
+          <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
+          {% for g in gouvernorats_list %}
+          <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+          {% endfor %}
+        </select>
+        <div class="blx-invalid-msg"><i class="bi bi-exclamation-circle me-1"></i>Choisissez le gouvernorat.</div>
+      </div>
+      <div class="blx-field mb-0" id="zn-field-deleg">
+        <label class="blx-label" for="zn-delegation">Délégation <span class="blx-req">*</span></label>
+        <select name="delegation" id="zn-delegation" class="form-select blx-input">
+          <option value="">— Choisir —</option>
+        </select>
+        <div class="blx-invalid-msg"><i class="bi bi-exclamation-circle me-1"></i>Choisissez la délégation.</div>
+        <div class="blx-hint" id="zn-deleg-hint">Choisissez d'abord le gouvernorat.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blx-card">
+    <div class="blx-step-head">
+      <span class="blx-step-num">2</span>
+      <div>
+        <div class="blx-step-title">Nom de la zone</div>
+        <div class="blx-step-help">Un nom court et facile à reconnaître.</div>
+      </div>
+    </div>
+
+    <div class="blx-field mb-0" id="zn-field-nom">
+      <label class="blx-label" for="zn-nom">Nom <span class="blx-req">*</span></label>
+      <input type="text" name="nom" id="zn-nom" value="{{ nom_value|default:'' }}" class="form-control blx-input"
+             placeholder="ex. : Ariana centre" autocomplete="off">
+      <div class="blx-invalid-msg" id="zn-nom-error"><i class="bi bi-exclamation-circle me-1"></i><span>Indiquez le nom de la zone.</span></div>
+    </div>
+
+    <div class="mt-3 d-none" id="zn-existantes">
+      <span class="blx-sub-label">Zones déjà enregistrées dans cette délégation</span>
+      <div class="blx-visit-motifs" id="zn-existantes-list"></div>
+    </div>
+  </section>
+
+  <div class="blx-secondary-actions">
+    <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'commercial:home' %}{% endif %}" class="btn btn-link text-secondary" id="zn-cancel"
+       {% if popup %}data-popup="1"{% endif %}>
+      <i class="bi bi-x-lg me-1"></i>{% if popup %}Annuler et fermer{% else %}Annuler et revenir{% endif %}
+    </a>
   </div>
 
-  <div class="d-flex justify-content-end gap-2">
-    <a href="{% url 'commercial:home' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-x-lg me-1"></i>Annuler
-    </a>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
+  <div class="blx-bar">
+    <button type="submit" id="zn-save-btn" class="btn btn-primary blx-bar-btn">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer la zone
     </button>
   </div>
 </form>
+</div>{# /.blx #}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
   var DELEGATIONS = {{ delegations_json|safe }};
+  var ZONES = {{ zones_json|safe }};
+  var SELECTED_DELEGATION_ID = "{{ selected_delegation_id }}";
 
+  var form = document.getElementById('zone-form');
+  var gouvSelect = document.getElementById('zn-gouvernorat');
+  var delegSelect = document.getElementById('zn-delegation');
+  var delegHint = document.getElementById('zn-deleg-hint');
+  var nomInput = document.getElementById('zn-nom');
+  var nomError = document.getElementById('zn-nom-error');
+  var existantes = document.getElementById('zn-existantes');
+  var existantesList = document.getElementById('zn-existantes-list');
+  var saveBtn = document.getElementById('zn-save-btn');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function setError(id, on) { document.getElementById(id).classList.toggle('blx-has-error', on); }
+
+  // ── Cascade Gouvernorat → Délégation ─────────────────────────────────────
   function buildDelegationOptions(gouvernoratId, selectedId) {
     var html = '<option value="">— Choisir —</option>';
     DELEGATIONS.forEach(function (d) {
       if (!gouvernoratId || String(d.gouvernorat_id) !== String(gouvernoratId)) { return; }
       var sel = (selectedId && String(d.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + d.id + '"' + sel + '>' + d.nom + '</option>';
+      html += '<option value="' + d.id + '"' + sel + '>' + esc(d.nom) + '</option>';
     });
     return html;
   }
+  function refreshDelegations(selectedId) {
+    delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, selectedId);
+    delegSelect.disabled = !gouvSelect.value;
+    delegHint.classList.toggle('d-none', !!gouvSelect.value);
+    refreshExistantes();
+  }
 
-  var group = document.querySelector('.zone-create-group');
-  var gouvSelect = group.querySelector('.zone-gouvernorat-select');
-  var delegSelect = group.querySelector('.zone-delegation-select');
-  var zoneInput = group.querySelector('[name="nom"]');
+  // ── Zones existantes de la délégation choisie + contrôle des doublons ────
+  function refreshExistantes() {
+    var noms = ZONES.filter(function (z) { return delegSelect.value && String(z.delegation_id) === delegSelect.value; })
+                    .map(function (z) { return z.nom; });
+    existantes.classList.toggle('d-none', !delegSelect.value);
+    existantesList.innerHTML = noms.length
+      ? noms.map(function (n) { return '<span><i class="bi bi-geo me-1"></i>' + esc(n) + '</span>'; }).join('')
+      : '<span class="text-muted">Aucune pour l\'instant.</span>';
+  }
+  function nomExistant() {
+    var v = nomInput.value.trim().toLowerCase();
+    return v && ZONES.some(function (z) { return z.nom.trim().toLowerCase() === v; });
+  }
+  function checkNom(showEmpty) {
+    var vide = !nomInput.value.trim();
+    var doublon = nomExistant();
+    nomError.querySelector('span').textContent = doublon
+      ? 'Une zone porte déjà ce nom. Choisissez un autre nom.'
+      : 'Indiquez le nom de la zone.';
+    setError('zn-field-nom', doublon || (showEmpty && vide));
+    return !vide && !doublon;
+  }
 
   gouvSelect.addEventListener('change', function () {
-    delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
-    delegSelect.focus();
+    if (gouvSelect.value) { setError('zn-field-gouv', false); }
+    refreshDelegations(null);
   });
-
   delegSelect.addEventListener('change', function () {
-    var match = DELEGATIONS.find(function (d) { return String(d.id) === String(delegSelect.value); });
-    if (match) { gouvSelect.value = String(match.gouvernorat_id); }
-    zoneInput.focus();
+    if (delegSelect.value) { setError('zn-field-deleg', false); }
+    refreshExistantes();
+  });
+  nomInput.addEventListener('input', function () { checkNom(false); });
+
+  // La touche Entrée dans le champ Nom ne soumet pas directement le formulaire.
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); }
   });
 
-  gouvSelect.focus();
+  // ── Protection contre la perte de saisie ─────────────────────────────────
+  var dirty = false, envoi = false;
+  form.addEventListener('input', function () { dirty = true; });
+  form.addEventListener('change', function () { dirty = true; });
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty && !envoi) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // ── Vérification avant envoi (les mêmes règles sont contrôlées côté serveur) ──
+  form.addEventListener('submit', function (e) {
+    var okGouv = !!gouvSelect.value, okDeleg = !!delegSelect.value, okNom = checkNom(true);
+    setError('zn-field-gouv', !okGouv);
+    setError('zn-field-deleg', okGouv && !okDeleg);
+    if (!okGouv || !okDeleg || !okNom) {
+      e.preventDefault();
+      var premier = !okGouv ? gouvSelect : (!okDeleg ? delegSelect : nomInput);
+      premier.closest('.blx-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      premier.focus({ preventScroll: true });
+      return;
+    }
+    envoi = true;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+  });
+
+  // En fenêtre ouverte depuis une page client, « Annuler » ferme la fenêtre.
+  var cancel = document.getElementById('zn-cancel');
+  if (cancel.getAttribute('data-popup') === '1') {
+    cancel.addEventListener('click', function (e) {
+      if (window.opener && !window.opener.closed) {
+        e.preventDefault();
+        envoi = true;
+        window.close();
+      }
+    });
+  }
+
+  // ── Initialisation (ré-affichage après erreur : la saisie est conservée) ──
+  refreshDelegations(SELECTED_DELEGATION_ID);
+  if (nomInput.value) { checkNom(false); }
+  // Gouvernorat et Délégation déjà définis (ré-affichage après erreur, ou
+  // repris de la page d'origine en fenêtre) : le focus va directement au
+  // Nom de la zone, seul champ restant à saisir — y compris sur téléphone,
+  // cette page étant alors ouverte dans une petite fenêtre dédiée.
+  if (gouvSelect.value && delegSelect.value) {
+    nomInput.focus();
+  } else if (window.matchMedia('(min-width: 768px)').matches) {
+    (gouvSelect.value ? delegSelect : gouvSelect).focus();
+  }
 })();
 </script>
 {% endblock %}

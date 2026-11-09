@@ -13,307 +13,255 @@
 {% endblock %}
 
 {% block content %}
+<div class="blx">
+{% comment %}
+   Envois inchangés : filtres (GET commercial_id, date_debut, date_fin,
+   client_id, statut), « Tout enregistrer » (AgendaSaveAllView : upd_*, row_*,
+   next_qs), modification d'une ligne (AgendaUpdateView, Administration),
+   ajout seul (AgendaCreateView, Administration) et suppression
+   (AgendaDeleteView). Les libellés de statut affichés « Réalisée » /
+   « Annulée » correspondent aux valeurs enregistrées « Réaliser » / « Annuler ».
+{% endcomment %}
 
-<h4 class="mb-4 fw-bold">Suivi des actions commerciales planifiées</h4>
+<p class="text-muted mb-3">
+  <i class="bi bi-info-circle me-1"></i>Les actions à faire auprès de vos clients : visites, relances, rendez-vous.
+</p>
 
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="agenda-filter-row">
+{# ── Filtres ─────────────────────────────────────────────────────────────────── #}
+<section class="blx-card">
+  <form method="get" id="filter-form">
+    <span class="blx-label">Période</span>
+    <div class="blx-chips mb-3" role="group" aria-label="Période rapide">
+      <button type="button" class="btn btn-outline-secondary ag-periode" data-avant="0" data-apres="0">Aujourd'hui</button>
+      <button type="button" class="btn btn-outline-secondary ag-periode" data-avant="6" data-apres="0">7 derniers jours</button>
+      <button type="button" class="btn btn-outline-secondary ag-periode" data-avant="0" data-apres="6">7 prochains jours</button>
+    </div>
 
-        {% if is_administration %}
-        <div class="agenda-filter-field" style="--field-width:190px;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
-
-        <div class="agenda-filter-field" style="--field-width:135px;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div class="agenda-filter-field" style="--field-width:135px;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        {% if is_administration %}
-        <div class="agenda-filter-field" style="--field-width:220px;">
-          <label class="form-label small mb-1">Client</label>
-          <select name="client_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les clients —</option>
-            {% for c in clients_filtre_list %}
-            <option value="{{ c.pk }}" {% if client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="agenda-filter-field" style="--field-width:170px;">
-          <label class="form-label small mb-1">Statut</label>
-          <select name="statut" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les statuts —</option>
-            {% for value, label in statut_choices %}
-            <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        {# Filtres Client/Statut masqués pour un commercial : conservés en champs cachés (filtre transmis par lien). #}
-        <input type="hidden" name="client_id" value="{{ client_id }}">
-        <input type="hidden" name="statut" value="{{ statut }}">
-        {% endif %}
-
-        <div class="agenda-filter-field">
-          <a href="{% url 'commercial:agenda-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-        <div class="agenda-filter-field agenda-filter-field-end">
-          <button type="button" id="agenda-save-all-btn" class="btn btn-success btn-sm text-nowrap"
-                  title="Enregistrer les modifications des actions planifiées et les nouvelles actions">
-            <i class="bi bi-save me-1"></i>Tout enregistrer
-          </button>
-        </div>
-
+    <div class="blx-grid-2">
+      <div class="blx-field">
+        <label class="blx-label" for="ag-date-debut">Du</label>
+        <input type="date" name="date_debut" id="ag-date-debut" value="{{ date_debut }}" class="form-control blx-input" data-autosubmit>
       </div>
-    </form>
-    <form method="post" id="agenda-save-all-form" action="{% url 'commercial:agenda-save-all' %}" class="d-none">
-      {% csrf_token %}
-    </form>
-  </div>
-</div>
-
-{# ── Section 2 : liste des actions planifiées ────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body p-0">
-    {% if agendas %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            {% if is_administration %}
-            <th class="ps-3" style="min-width:170px;">Commercial</th>
-            {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:190px;">Client</th>
-            <th style="min-width:260px;">Action planifiée</th>
-            <th style="min-width:150px;">Échéance</th>
-            <th style="min-width:160px;">Statut</th>
-            <th class="text-center pe-3" style="width:110px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in agendas %}
-          <tr class="agenda-existing-row" data-agenda-id="{{ a.pk }}">
-            {% if is_administration %}
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm"
-                     value="{{ a.user.get_full_name|default:a.user.username|default:'' }}" disabled>
-            </td>
-            {% endif %}
-            <td {% if not is_administration %}class="ps-3"{% endif %}>
-              <input type="text" class="form-control form-control-sm" value="{{ a.client|default:'' }}" disabled>
-            </td>
-            <td>
-              <input type="text" form="agenda-modifier-{{ a.pk }}" name="detaille_action_planifier"
-                     value="{{ a.detaille_action_planifier|default:'' }}" class="form-control form-control-sm">
-            </td>
-            <td>
-              <input type="date" form="agenda-modifier-{{ a.pk }}" name="echeance_at"
-                     value="{{ a.echeance_at|date:'Y-m-d' }}" class="form-control form-control-sm">
-            </td>
-            <td>
-              <select form="agenda-modifier-{{ a.pk }}" name="status" class="form-select form-select-sm">
-                {% for value, label in statut_choices %}
-                <option value="{{ value }}" {% if value == a.status %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="text-center pe-3">
-              {% if is_administration %}
-              <form id="agenda-modifier-{{ a.pk }}" method="post"
-                    action="{% url 'commercial:agenda-update' a.pk %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-primary" tabindex="-1" title="Modifier">
-                  <i class="bi bi-check-lg"></i>
-                </button>
-              </form>
-              {% endif %}
-              <form method="post" action="{% url 'commercial:agenda-delete' a.pk %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" tabindex="-1" title="Supprimer"
-                        onclick="return confirm('Supprimer cette action planifiée ?');">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="blx-field {% if not is_administration %}mb-0{% endif %}">
+        <label class="blx-label" for="ag-date-fin">Au</label>
+        <input type="date" name="date_fin" id="ag-date-fin" value="{{ date_fin }}" class="form-control blx-input" data-autosubmit>
+      </div>
     </div>
 
-    {# ── Pagination (Section 2 uniquement) ─────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} action{{ total_count|pluralize }} planifiée{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&statut={{ statut }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&statut={{ statut }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
+    {% if is_administration %}
+    <div class="blx-grid-3">
+      <div class="blx-field mb-md-0">
+        <label class="blx-label" for="ag-commercial">Commercial</label>
+        <select name="commercial_id" id="ag-commercial" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous les commerciaux —</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+          </option>
           {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&statut={{ statut }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
+        </select>
+      </div>
+      <div class="blx-field mb-md-0">
+        <label class="blx-label" for="ag-client">Client</label>
+        <select name="client_id" id="ag-client" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous les clients —</option>
+          {% for c in clients_filtre_list %}
+          <option value="{{ c.pk }}" {% if client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blx-field mb-0">
+        <label class="blx-label" for="ag-statut">État</label>
+        <select name="statut" id="ag-statut" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous —</option>
+          {% for value, label in statut_choices %}
+          <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{% if value == 'Réaliser' %}Réalisée{% elif value == 'Annuler' %}Annulée{% else %}{{ label }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
-    {% endif %}
-
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-calendar-event fs-1 d-block mb-2 opacity-25"></i>
-      Aucune action planifiée sur la période
-      {% if client_id or statut or commercial_id %}avec ces filtres{% endif %}.
+    <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
+    {# Filtres Client/Statut masqués pour un commercial : conservés en champs cachés (filtre transmis par lien). #}
+    <input type="hidden" name="client_id" value="{{ client_id }}">
+    <input type="hidden" name="statut" value="{{ statut }}">
+    {% endif %}
+  </form>
+
+  {% if not is_administration and client_id %}
+  <div class="blx-note blx-note-info mt-3 mb-0">
+    <i class="bi bi-funnel me-1"></i>
+    {% for c in clients_filtre_list %}{% if client_id == c.pk|stringformat:"s" %}Client : <strong>{{ c }}</strong>.{% endif %}{% endfor %}
+    <a href="{% url 'commercial:agenda-list' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}" class="ms-1">Voir tous les clients</a>
+  </div>
+  {% endif %}
+  {% if is_administration and client_id or is_administration and statut or is_administration and commercial_id %}
+  <div class="text-center mt-2">
+    <a href="{% url 'commercial:agenda-list' %}" class="btn btn-link"><i class="bi bi-x-circle me-1"></i>Effacer les filtres</a>
+  </div>
+  {% endif %}
+
+  <form method="post" id="agenda-save-all-form" action="{% url 'commercial:agenda-save-all' %}" class="d-none">
+    {% csrf_token %}
+  </form>
+</section>
+
+{# ── Actions planifiées (modifiables) ───────────────────────────────────────── #}
+<h2 class="blx-zone-title"><i class="bi bi-calendar-event"></i> Actions planifiées · {{ total_count }}</h2>
+
+{% if agendas %}
+{% for a in agendas %}
+<article class="blx-visit agenda-existing-row {% if a.status == 'Réaliser' %}blx-visit-done{% elif a.status == 'Annuler' %}{% elif a.echeance_at|date:'Y-m-d' < today_iso %}blx-visit-due{% endif %}"
+         data-agenda-id="{{ a.pk }}">
+  <div class="blx-visit-head">
+    <div>
+      <div class="blx-visit-name">{{ a.client|default:'—' }}</div>
+      {% if is_administration %}
+      <div class="blx-visit-meta"><span><i class="bi bi-person me-1"></i>{{ a.user.get_full_name|default:a.user.username|default:'—' }}</span></div>
+      {% endif %}
     </div>
+    {% if a.status == 'Réaliser' %}
+    <span class="blx-pill blx-pill-paye flex-shrink-0"><i class="bi bi-check-circle"></i> Réalisée</span>
+    {% elif a.status == 'Annuler' %}
+    <span class="blx-pill blx-pill-neutre flex-shrink-0"><i class="bi bi-x-circle"></i> Annulée</span>
+    {% elif a.echeance_at|date:'Y-m-d' < today_iso %}
+    <span class="blx-pill blx-pill-retard flex-shrink-0"><i class="bi bi-exclamation-circle"></i> En retard</span>
+    {% else %}
+    <span class="blx-pill blx-pill-afaire flex-shrink-0"><i class="bi bi-hourglass-split"></i> {{ a.status }}</span>
     {% endif %}
   </div>
+
+  <div class="mt-2">
+    <div class="blx-field">
+      <label class="blx-sub-label" for="ag-detail-{{ a.pk }}">Action</label>
+      <input type="text" form="agenda-modifier-{{ a.pk }}" name="detaille_action_planifier" id="ag-detail-{{ a.pk }}"
+             value="{{ a.detaille_action_planifier|default:'' }}" class="form-control blx-input ag-edit">
+    </div>
+    <div class="blx-grid-2-always">
+      <div class="blx-field">
+        <label class="blx-sub-label" for="ag-echeance-{{ a.pk }}">Échéance</label>
+        <input type="date" form="agenda-modifier-{{ a.pk }}" name="echeance_at" id="ag-echeance-{{ a.pk }}"
+               value="{{ a.echeance_at|date:'Y-m-d' }}" class="form-control blx-input ag-edit">
+      </div>
+      <div class="blx-field">
+        <label class="blx-sub-label" for="ag-status-{{ a.pk }}">État</label>
+        <select form="agenda-modifier-{{ a.pk }}" name="status" id="ag-status-{{ a.pk }}" class="form-select blx-input ag-edit">
+          {% for value, label in statut_choices %}
+          <option value="{{ value }}" {% if value == a.status %}selected{% endif %}>{% if value == 'Réaliser' %}Réalisée{% elif value == 'Annuler' %}Annulée{% else %}{{ label }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="blx-edit-note"><i class="bi bi-pencil me-1"></i>Modifiée — pensez à enregistrer.</div>
+
+  <div class="blx-visit-actions">
+    {% if is_administration %}
+    <form id="agenda-modifier-{{ a.pk }}" method="post" action="{% url 'commercial:agenda-update' a.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-primary ag-save-one"><i class="bi bi-check-lg"></i> Enregistrer</button>
+    </form>
+    {% endif %}
+    <button type="button" class="btn btn-outline-danger ag-delete-btn"
+            data-url="{% url 'commercial:agenda-delete' a.pk %}"
+            data-label="{{ a.client|default:'—' }} — {{ a.echeance_at|date:'d/m/Y' }}">
+      <i class="bi bi-trash"></i> Supprimer
+    </button>
+  </div>
+</article>
+{% endfor %}
+
+{% if is_paginated %}
+{% with q="commercial_id="|add:commercial_id|add:"&date_debut="|add:date_debut|add:"&date_fin="|add:date_fin|add:"&client_id="|add:client_id|add:"&statut="|add:statut %}
+<nav class="blx-pager" aria-label="Pages">
+  {% if page_obj.has_previous %}
+  <a class="btn btn-outline-secondary" href="?{{ q }}&page={{ page_obj.previous_page_number }}"><i class="bi bi-chevron-left me-1"></i>Précédent</a>
+  {% else %}<span></span>{% endif %}
+  <div class="blx-pager-info">Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</div>
+  {% if page_obj.has_next %}
+  <a class="btn btn-outline-secondary" href="?{{ q }}&page={{ page_obj.next_page_number }}">Suivant<i class="bi bi-chevron-right ms-1"></i></a>
+  {% else %}<span></span>{% endif %}
+</nav>
+{% endwith %}
+{% endif %}
+
+{% else %}
+<section class="blx-card blx-empty">
+  <i class="bi bi-calendar-event"></i>
+  Aucune action planifiée sur cette période{% if client_id or statut %} avec ces filtres{% endif %}.
+  <div class="small mt-1">Essayez une autre période, ou planifiez une action ci-dessous.</div>
+</section>
+{% endif %}
+
+{# ── Planifier de nouvelles actions ──────────────────────────────────────────── #}
+<section class="blx-card mt-3" id="ag-step-ajout">
+  <div class="blx-step-head">
+    <span class="blx-step-num"><i class="bi bi-plus-lg"></i></span>
+    <div>
+      <div class="blx-step-title">Planifier une nouvelle action</div>
+      <div class="blx-step-help">Choisissez le client, décrivez l'action et sa date. Une ligne sans action est ignorée.</div>
+    </div>
+  </div>
+
+  <div class="blx-alert d-none" id="ag-ajout-error" role="alert"></div>
+
+  <form method="post" id="agenda-add-form" action="{% url 'commercial:agenda-create' %}" novalidate>
+    {% csrf_token %}
+    <div id="agenda-rows"></div>
+
+    <button type="button" id="add-agenda-row-btn" class="blx-add-btn">
+      <i class="bi bi-plus-circle"></i> Ajouter une autre action
+    </button>
+
+    {% if is_administration %}
+    <div class="text-end mt-3">
+      <button type="submit" id="agenda-save-btn" class="btn btn-outline-primary blx-btn">
+        <i class="bi bi-check-lg me-1"></i>Enregistrer seulement les nouvelles actions
+      </button>
+    </div>
+    {% endif %}
+  </form>
+</section>
+
+{# ── Barre d'action principale : « Tout enregistrer » ────────────────────────── #}
+<div class="blx-bar">
+  <div class="blx-bar-info" id="ag-bar-info" aria-live="polite">Aucune modification</div>
+  <button type="button" id="agenda-save-all-btn" class="btn btn-success blx-bar-btn">
+    <i class="bi bi-save me-1"></i>Tout enregistrer
+  </button>
 </div>
 
-{# ── Section 3 : ajout d'autres actions ──────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-circle me-2 text-primary"></i>Ajouter d'autres actions
-  </div>
-  <div class="card-body">
-    <form method="post" id="agenda-add-form" action="{% url 'commercial:agenda-create' %}">
+{# ── Confirmation de suppression ──────────────────────────────────────────────── #}
+<div class="modal fade" id="ag-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="ag-delete-title">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="ag-delete-form">
       {% csrf_token %}
-
-      <div class="overflow-auto">
-        <div class="d-none d-lg-flex flex-nowrap gap-2 mb-1">
-          {% if is_administration %}
-          <div style="width:190px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Commercial</span></div>
-          {% endif %}
-          <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Zone</span></div>
-          <div style="width:220px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Client</span></div>
-          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Action planifiée</span></div>
-          <div style="width:150px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Échéance</span></div>
-          <div style="width:170px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Statut</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="agenda-rows"></div>
+      <div class="modal-header">
+        <h5 class="modal-title" id="ag-delete-title"><i class="bi bi-trash me-2"></i>Supprimer cette action ?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-
-      <div class="d-flex justify-content-end gap-2 mt-2">
-        <button type="button" id="add-agenda-row-btn" class="btn btn-outline-primary btn-sm" tabindex="-1">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
-        </button>
+      <div class="modal-body">
+        <p class="fw-semibold mb-2" id="ag-delete-label"></p>
+        <div class="blx-note blx-note-warn mb-0"><i class="bi bi-exclamation-triangle me-1"></i>La suppression est définitive. Les autres modifications non enregistrées de la page seront perdues.</div>
       </div>
-
-      {% if is_administration %}
-      <div class="d-flex justify-content-end gap-2 mt-3">
-        <button type="submit" id="agenda-save-btn" class="btn btn-primary">
-          <i class="bi bi-check-lg me-1"></i>Enregistrer
-        </button>
+      <div class="modal-footer blx-recap-footer">
+        <button type="button" class="btn btn-outline-secondary blx-btn" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-danger blx-btn" id="ag-delete-confirm"><i class="bi bi-trash me-1"></i>Supprimer</button>
       </div>
-      {% endif %}
     </form>
   </div>
 </div>
 
+</div>{# /.blx #}
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
-/* ── Section Filtres / Section « Ajouter d'autres actions » : empilées en
-   pleine largeur sur écran réduit, alignées sur une seule ligne à largeurs
-   fixes à partir de 992px (même seuil que le repli de la sidebar) ────────── */
-.agenda-filter-row, .agenda-row {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-.agenda-filter-field, .agenda-field { width: 100%; }
-.agenda-field-action {
-  align-self: flex-end;
-  text-align: end;
-}
-
-@media (min-width: 992px) {
-  .agenda-filter-row, .agenda-row {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: flex-end;
-    overflow-x: auto;
-  }
-  .agenda-filter-field, .agenda-field {
-    width: var(--field-width, auto);
-    flex: 0 0 auto;
-  }
-  .agenda-field.agenda-field-grow {
-    width: auto;
-    flex: 1 1 220px;
-    min-width: 180px;
-  }
-  .agenda-field-action { width: 44px; flex: 0 0 auto; }
-  .agenda-filter-field-end { margin-left: auto; }
-}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-
 (function () {
   var IS_ADMIN = {{ is_administration|yesno:"true,false" }};
   var OWN_COMMERCIAL_ID = "{{ request.user.pk }}";
@@ -323,19 +271,92 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
   var CLIENT_USERS = {{ client_users_json|safe }};
   var PRESELECTED_CLIENT_ID = "{{ client_id }}";
   var PRESELECTED_COMMERCIAL_ID = "{{ commercial_id }}";
+  var TODAY = "{{ today_iso }}";
+  var STATUTS = [{% for value, label in statut_choices %}{ v: "{{ value|escapejs }}", t: "{% if value == 'Réaliser' %}Réalisée{% elif value == 'Annuler' %}Annulée{% else %}{{ label|escapejs }}{% endif %}" }{% if not forloop.last %}, {% endif %}{% endfor %}];
 
+  var filterForm = document.getElementById('filter-form');
   var rowsContainer = document.getElementById('agenda-rows');
+  var addForm = document.getElementById('agenda-add-form');
+  var ajoutError = document.getElementById('ag-ajout-error');
+  var barInfo = document.getElementById('ag-bar-info');
+  var saveAllBtn = document.getElementById('agenda-save-all-btn');
 
-  function buildCommercialOptions(selectedId) {
-    var html = '<option value="">— Choisir —</option>';
-    COMMERCIAUX.forEach(function (u) {
-      var sel = (selectedId && String(u.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + u.id + '"' + sel + '>' + u.label + '</option>';
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
-    return html;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function toIso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+
+  // ── Filtres et périodes rapides ──────────────────────────────────────────
+  filterForm.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+    el.addEventListener('change', function () { if (el.value || el.tagName === 'SELECT') { filterForm.submit(); } });
+  });
+  var debutInput = document.getElementById('ag-date-debut');
+  var finInput = document.getElementById('ag-date-fin');
+  document.querySelectorAll('.ag-periode').forEach(function (btn) {
+    var debut = new Date(), fin = new Date();
+    debut.setDate(debut.getDate() - parseInt(btn.getAttribute('data-avant'), 10));
+    fin.setDate(fin.getDate() + parseInt(btn.getAttribute('data-apres'), 10));
+    var isoDebut = toIso(debut), isoFin = toIso(fin);
+    if (debutInput.value === isoDebut && finInput.value === isoFin) {
+      btn.classList.replace('btn-outline-secondary', 'btn-secondary');
+      btn.setAttribute('aria-pressed', 'true');
+    }
+    btn.addEventListener('click', function () {
+      debutInput.value = isoDebut;
+      finInput.value = isoFin;
+      filterForm.submit();
+    });
+  });
+
+  // ── Suivi des modifications (actions existantes + nouvelles) ─────────────
+  var enregistrementEnCours = false;
+
+  function nbModifiees() {
+    return document.querySelectorAll('.agenda-existing-row.blx-visit-edited').length;
+  }
+  function nbNouvelles() {
+    return Array.prototype.filter.call(rowsContainer.querySelectorAll('.agenda-row'), function (row) {
+      return row.querySelector('[name="row_detaille_action_planifier"]').value.trim() !== '';
+    }).length;
+  }
+  function refreshBar() {
+    var m = nbModifiees(), n = nbNouvelles(), parts = [];
+    if (m) { parts.push('<strong>' + m + '</strong> modifiée' + (m > 1 ? 's' : '')); }
+    if (n) { parts.push('<strong>' + n + '</strong> nouvelle' + (n > 1 ? 's' : '')); }
+    barInfo.innerHTML = parts.length ? parts.join(' · ') + ' à enregistrer' : 'Aucune modification';
   }
 
-  // ── Cascade Commercial → Zone → Client ────────────────────────────────────
+  window.addEventListener('beforeunload', function (e) {
+    if (!enregistrementEnCours && (nbModifiees() || nbNouvelles())) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  document.querySelectorAll('.agenda-existing-row').forEach(function (card) {
+    var champs = card.querySelectorAll('.ag-edit');
+    var initial = Array.prototype.map.call(champs, function (c) { return c.value; });
+    champs.forEach(function (c) {
+      ['input', 'change'].forEach(function (evt) {
+        c.addEventListener(evt, function () {
+          var change = Array.prototype.some.call(champs, function (x, i) { return x.value !== initial[i]; });
+          card.classList.toggle('blx-visit-edited', change);
+          refreshBar();
+        });
+      });
+    });
+  });
+
+  // Enregistrement d'une seule ligne (Administration) : ne pas bloquer par
+  // l'avertissement de sortie de page.
+  document.querySelectorAll('.ag-save-one').forEach(function (btn) {
+    btn.addEventListener('click', function () { enregistrementEnCours = true; });
+  });
+
+  // ── Nouvelles actions : cascade Commercial → Zone → Client ───────────────
   function clientIdsForCommercial(commercialId) {
     if (!commercialId) { return null; }
     var ids = new Set();
@@ -344,8 +365,15 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
     });
     return ids;
   }
-
-  function buildZoneOptions(commercialId, selectedId) {
+  function buildCommercialOptions(selectedId) {
+    var html = '<option value="">— Choisir —</option>';
+    COMMERCIAUX.forEach(function (u) {
+      var sel = (selectedId && String(u.id) === String(selectedId)) ? ' selected' : '';
+      html += '<option value="' + u.id + '"' + sel + '>' + esc(u.label) + '</option>';
+    });
+    return html;
+  }
+  function buildZoneOptions(commercialId) {
     var allowed = clientIdsForCommercial(commercialId);
     var zoneIdsAllowed = new Set();
     CLIENTS.forEach(function (c) {
@@ -355,12 +383,10 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
     var html = '<option value="">— Toutes les zones —</option>';
     ZONES.forEach(function (z) {
       if (allowed && !zoneIdsAllowed.has(String(z.id))) { return; }
-      var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
+      html += '<option value="' + z.id + '">' + esc(z.nom) + '</option>';
     });
     return html;
   }
-
   function buildClientOptions(zoneId, commercialId, selectedId) {
     var allowed = clientIdsForCommercial(commercialId);
     var html = '<option value="">— Choisir —</option>';
@@ -371,127 +397,122 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
         if (!allowed.has(String(c.id))) { return; }
       }
       var sel = (selectedId && String(c.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + c.id + '"' + sel + '>' + c.label + '</option>';
+      html += '<option value="' + c.id + '"' + sel + '>' + esc(c.label) + '</option>';
     });
     return html;
   }
+  function statutOptions() {
+    return STATUTS.map(function (s) {
+      return '<option value="' + esc(s.v) + '"' + (s.v === 'En attente' ? ' selected' : '') + '>' + esc(s.t) + '</option>';
+    }).join('');
+  }
 
   function addAgendaRow(selectedClientId, selectedCommercialId) {
-    var row = document.createElement('div');
-    row.className = 'agenda-row mb-2';
-
     var rowCommercialId = IS_ADMIN ? (selectedCommercialId || null) : OWN_COMMERCIAL_ID;
-
-    var commercialHtml;
-    if (IS_ADMIN) {
-      commercialHtml =
-        '<div class="agenda-field" style="--field-width:190px;">' +
-          '<label class="form-label small text-muted mb-0 d-lg-none">Commercial</label>' +
-          '<select name="row_commercial_id" class="form-select form-select-sm commercial-select">' + buildCommercialOptions(selectedCommercialId) + '</select>' +
-        '</div>';
-    } else {
-      commercialHtml = '<input type="hidden" name="row_commercial_id" value="' + OWN_COMMERCIAL_ID + '">';
-    }
-
+    var row = document.createElement('div');
+    row.className = 'blx-item agenda-row';
     row.innerHTML =
-      commercialHtml +
-      '<div class="agenda-field" style="--field-width:170px;">' +
-        '<label class="form-label small text-muted mb-0 d-lg-none">Zone</label>' +
-        '<select class="form-select form-select-sm zone-select">' + buildZoneOptions(rowCommercialId, null) + '</select>' +
+      '<div class="d-flex justify-content-end mb-1">' +
+        '<button type="button" class="btn btn-outline-danger blx-remove remove-row" title="Retirer cette action" aria-label="Retirer cette action"><i class="bi bi-trash"></i></button>' +
       '</div>' +
-      '<div class="agenda-field" style="--field-width:220px;">' +
-        '<label class="form-label small text-muted mb-0 d-lg-none">Client</label>' +
-        '<select name="row_client_id" class="form-select form-select-sm client-select">' + buildClientOptions(null, rowCommercialId, selectedClientId) + '</select>' +
+      (IS_ADMIN
+        ? '<div class="blx-field"><label class="blx-sub-label">Commercial</label>' +
+            '<select name="row_commercial_id" class="form-select blx-input commercial-select">' + buildCommercialOptions(selectedCommercialId) + '</select></div>'
+        : '<input type="hidden" name="row_commercial_id" value="' + OWN_COMMERCIAL_ID + '">') +
+      '<div class="blx-grid-2">' +
+        '<div class="blx-field"><label class="blx-sub-label">Zone</label>' +
+          '<select class="form-select blx-input zone-select">' + buildZoneOptions(rowCommercialId) + '</select></div>' +
+        '<div class="blx-field"><label class="blx-sub-label">Client</label>' +
+          '<select name="row_client_id" class="form-select blx-input client-select">' + buildClientOptions(null, rowCommercialId, selectedClientId) + '</select></div>' +
       '</div>' +
-      '<div class="agenda-field agenda-field-grow">' +
-        '<label class="form-label small text-muted mb-0 d-lg-none">Action planifiée</label>' +
-        '<input type="text" name="row_detaille_action_planifier" class="form-control form-control-sm" value="">' +
+      '<div class="blx-field"><label class="blx-sub-label">Action</label>' +
+        '<input type="text" name="row_detaille_action_planifier" class="form-control blx-input" placeholder="ex. : relancer le paiement"></div>' +
+      '<div class="blx-grid-2">' +
+        '<div class="blx-field mb-md-0"><label class="blx-sub-label">Échéance</label>' +
+          '<input type="date" name="row_echeance_at" class="form-control blx-input" value="' + TODAY + '"></div>' +
+        '<div class="blx-field mb-0"><label class="blx-sub-label">État</label>' +
+          '<select name="row_status" class="form-select blx-input">' + statutOptions() + '</select></div>' +
       '</div>' +
-      '<div class="agenda-field" style="--field-width:150px;">' +
-        '<label class="form-label small text-muted mb-0 d-lg-none">Échéance</label>' +
-        '<input type="date" name="row_echeance_at" class="form-control form-control-sm" value="{{ today_iso }}">' +
-      '</div>' +
-      '<div class="agenda-field" style="--field-width:170px;">' +
-        '<label class="form-label small text-muted mb-0 d-lg-none">Statut</label>' +
-        '<select name="row_status" class="form-select form-select-sm">' +
-          '{% for value, label in statut_choices %}<option value="{{ value }}" {% if value == "En attente" %}selected{% endif %}>{{ label }}</option>{% endfor %}' +
-        '</select>' +
-      '</div>' +
-      '<div class="agenda-field-action">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" tabindex="-1" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
+      '<div class="blx-item-warning"><i class="bi bi-exclamation-triangle me-1"></i>Choisissez le client et la date, sinon cette action ne sera pas enregistrée.</div>';
 
     var commercialSelect = row.querySelector('.commercial-select');
     var zoneSelect = row.querySelector('.zone-select');
     var clientSelect = row.querySelector('.client-select');
     var actionInput = row.querySelector('[name="row_detaille_action_planifier"]');
+    var echeanceInput = row.querySelector('[name="row_echeance_at"]');
 
-    function currentCommercialId() {
-      return commercialSelect ? commercialSelect.value : OWN_COMMERCIAL_ID;
+    function currentCommercialId() { return commercialSelect ? commercialSelect.value : OWN_COMMERCIAL_ID; }
+    function syncWarning() {
+      var incomplete = actionInput.value.trim() !== '' &&
+        (!clientSelect.value || !echeanceInput.value || (commercialSelect && !commercialSelect.value));
+      row.classList.toggle('blx-item-incomplete', incomplete);
+      if (!document.querySelector('.agenda-row.blx-item-incomplete')) { ajoutError.classList.add('d-none'); }
+      refreshBar();
     }
 
     if (commercialSelect) {
       commercialSelect.addEventListener('change', function () {
-        zoneSelect.innerHTML = buildZoneOptions(commercialSelect.value, null);
+        zoneSelect.innerHTML = buildZoneOptions(commercialSelect.value);
         clientSelect.innerHTML = buildClientOptions(null, commercialSelect.value, null);
+        syncWarning();
       });
     }
-
     zoneSelect.addEventListener('change', function () {
       clientSelect.innerHTML = buildClientOptions(zoneSelect.value, currentCommercialId(), null);
-      clientSelect.focus();
+      syncWarning();
     });
-
-    clientSelect.addEventListener('change', function () {
-      actionInput.focus();
+    [clientSelect, actionInput, echeanceInput].forEach(function (el) {
+      el.addEventListener('input', syncWarning);
+      el.addEventListener('change', syncWarning);
     });
-
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
+      if (!rowsContainer.children.length) { addAgendaRow(); }
+      refreshBar();
     });
 
     rowsContainer.appendChild(row);
     return row;
   }
 
-  var addRowBtn = document.getElementById('add-agenda-row-btn');
-  var saveBtn = document.getElementById('agenda-save-btn');
-
-  addRowBtn.addEventListener('click', function () {
+  document.getElementById('add-agenda-row-btn').addEventListener('click', function () {
     var row = addAgendaRow();
-    var newZoneSelect = row.querySelector('.zone-select');
-    if (newZoneSelect) { newZoneSelect.focus(); }
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.querySelector('.client-select').focus({ preventScroll: true });
   });
 
-  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
-  // son clic natif, comme la souris — Enregistrer, Ajouter une autre ligne, Supprimer la ligne…).
-  document.getElementById('agenda-add-form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  // La touche Entrée ne soumet jamais un formulaire depuis un champ de saisie.
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && !e.target.closest('#filter-form')) { e.preventDefault(); }
   });
 
-  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Zone de la
-  // première ligne de la section « Ajouter d'autres actions » (bouton absent
-  // pour un utilisateur Commercial).
-  if (saveBtn) {
-    saveBtn.addEventListener('keydown', function (e) {
-      if (e.key === 'Tab' && !e.shiftKey) {
-        var firstZoneSelect = rowsContainer.querySelector('.zone-select');
-        if (firstZoneSelect) {
-          e.preventDefault();
-          firstZoneSelect.focus();
-        }
-      }
+  // Les nouvelles actions incomplètes (action écrite mais client / date
+  // manquants) seraient ignorées par le serveur : on bloque et on les signale.
+  function verifierNouvelles() {
+    var incomplete = document.querySelector('.agenda-row.blx-item-incomplete');
+    if (!incomplete) { return true; }
+    ajoutError.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Une nouvelle action n\'a pas de client ou de date. Complétez-la ou retirez-la.';
+    ajoutError.classList.remove('d-none');
+    incomplete.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  }
+
+  if (addForm) {
+    addForm.addEventListener('submit', function (e) {
+      if (!verifierNouvelles()) { e.preventDefault(); return; }
+      enregistrementEnCours = true;
     });
   }
 
-  // « Tout enregistrer » (Section 1) : recopie dans un formulaire caché les
-  // champs modifiables de chaque ligne de la Section 2 (upd_*) et toutes les
-  // lignes de la Section 3 (row_*), puis l'envoie en une seule requête.
-  document.getElementById('agenda-save-all-btn').addEventListener('click', function () {
+  // ── « Tout enregistrer » : modifications (upd_*) + nouvelles actions (row_*) ──
+  saveAllBtn.addEventListener('click', function () {
+    if (!verifierNouvelles()) { return; }
+    if (!nbModifiees() && !nbNouvelles()) {
+      barInfo.innerHTML = '<strong>Rien à enregistrer</strong> : modifiez une action ou planifiez-en une nouvelle.';
+      return;
+    }
     var form = document.getElementById('agenda-save-all-form');
     form.querySelectorAll('input:not([name="csrfmiddlewaretoken"])').forEach(function (el) { el.remove(); });
-
     function addHidden(name, value) {
       var input = document.createElement('input');
       input.type = 'hidden';
@@ -499,33 +520,47 @@ document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el
       input.value = value == null ? '' : value;
       form.appendChild(input);
     }
-
-    document.querySelectorAll('.agenda-existing-row').forEach(function (tr) {
-      var formId = 'agenda-modifier-' + tr.dataset.agendaId;
-      addHidden('upd_id', tr.dataset.agendaId);
+    document.querySelectorAll('.agenda-existing-row').forEach(function (card) {
+      addHidden('upd_id', card.dataset.agendaId);
       ['detaille_action_planifier', 'echeance_at', 'status'].forEach(function (name) {
-        var field = document.querySelector('[form="' + formId + '"][name="' + name + '"]');
+        var field = card.querySelector('[name="' + name + '"]');
         addHidden('upd_' + name, field ? field.value : '');
       });
     });
-
     rowsContainer.querySelectorAll('.agenda-row').forEach(function (row) {
       ['row_commercial_id', 'row_client_id', 'row_detaille_action_planifier', 'row_echeance_at', 'row_status'].forEach(function (name) {
         var field = row.querySelector('[name="' + name + '"]');
         addHidden(name, field ? field.value : '');
       });
     });
-
     addHidden('next_qs', window.location.search);
-    this.disabled = true;
+    enregistrementEnCours = true;
+    saveAllBtn.disabled = true;
+    saveAllBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
     form.submit();
   });
 
-  // À l'ouverture de la page, le focus se place sur le champ Zone de la
-  // première ligne de la section « Ajouter d'autres actions ».
-  var firstRow = addAgendaRow(PRESELECTED_CLIENT_ID || null, PRESELECTED_COMMERCIAL_ID || null);
-  var firstRowZoneSelect = firstRow.querySelector('.zone-select');
-  if (firstRowZoneSelect) { firstRowZoneSelect.focus(); }
+  // ── Suppression avec confirmation ────────────────────────────────────────
+  var deleteModal = new bootstrap.Modal(document.getElementById('ag-delete-modal'));
+  var deleteForm = document.getElementById('ag-delete-form');
+  document.querySelectorAll('.ag-delete-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      deleteForm.action = btn.getAttribute('data-url');
+      document.getElementById('ag-delete-label').textContent = btn.getAttribute('data-label');
+      deleteModal.show();
+    });
+  });
+  deleteForm.addEventListener('submit', function () {
+    enregistrementEnCours = true;
+    var b = document.getElementById('ag-delete-confirm');
+    b.disabled = true;
+    b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Suppression…';
+  });
+
+  // ── Initialisation : une ligne d'ajout prête (client/commercial présélectionnés
+  // si l'on arrive depuis un bouton « Agenda »). ───────────────────────────
+  addAgendaRow(PRESELECTED_CLIENT_ID || null, PRESELECTED_COMMERCIAL_ID || null);
+  refreshBar();
 })();
 </script>
 {% endblock %}

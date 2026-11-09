@@ -1,0 +1,40 @@
+{% comment %}
+   À inclure dans le bloc extra_js d'une page qui propose une liste de zones
+   (fiche client). Les liens « Créer une nouvelle zone » portant la classe
+   .js-zone-create-link ouvrent la page Nouvelle zone dans une fenêtre ; une
+   fois la zone enregistrée, la page reçoit un évènement « zone-creee »
+   (detail = {id, nom, delegation_id, gouvernorat_id}) pour mettre sa liste à
+   jour sans recharger — la saisie en cours est donc conservée.
+{% endcomment %}
+<script>
+(function () {
+  var dejaRecues = {};
+
+  function recevoir(data) {
+    if (!data || data.type !== 'zone-creee' || !data.zone || dejaRecues[data.zone.id]) { return; }
+    dejaRecues[data.zone.id] = true;
+    window.dispatchEvent(new CustomEvent('zone-creee', { detail: data.zone }));
+  }
+
+  window.addEventListener('message', function (e) {
+    if (e.origin === window.location.origin) { recevoir(e.data); }
+  });
+  try { new BroadcastChannel('commercial-zones').onmessage = function (e) { recevoir(e.data); }; } catch (e) {}
+
+  document.querySelectorAll('.js-zone-create-link').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      var params = 'popup=1&next=' + encodeURIComponent(window.location.pathname + window.location.search);
+      // Gouvernorat/Délégation déjà choisis sur cette page (ex. fiche
+      // client) : repris pour préremplir la fenêtre « Nouvelle zone ».
+      // Recherchés sur la page entière (un seul groupe Zone par page).
+      var gouvSelect = document.querySelector('.zone-gouvernorat-select, #cli-gouvernorat');
+      var delegSelect = document.querySelector('.zone-delegation-select, #cli-delegation');
+      if (gouvSelect && gouvSelect.value) { params += '&gouvernorat=' + encodeURIComponent(gouvSelect.value); }
+      if (delegSelect && delegSelect.value) { params += '&delegation=' + encodeURIComponent(delegSelect.value); }
+      var url = link.href + (link.href.indexOf('?') === -1 ? '?' : '&') + params;
+      var fenetre = window.open(url, 'creerZone', 'width=560,height=800');
+      if (fenetre) { e.preventDefault(); fenetre.focus(); }
+    });
+  });
+})();
+</script>

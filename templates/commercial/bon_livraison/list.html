@@ -13,269 +13,295 @@
 {% endblock %}
 
 {% block content %}
+<div class="blx">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des bons de livraison</h4>
-  <a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouveau bon de livraison
-  </a>
-</div>
+<a href="{% url 'commercial:bon-livraison-create' %}" class="btn btn-primary blx-btn w-100 mb-3">
+  <i class="bi bi-plus-lg me-1"></i>Nouveau bon de livraison
+</a>
 
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+{# ── Filtres ─────────────────────────────────────────────────────────────────── #}
+<section class="blx-card">
+  <form method="get" id="filter-form">
+    <span class="blx-label">Période</span>
+    <div class="blx-chips mb-3" role="group" aria-label="Période rapide">
+      <button type="button" class="btn btn-outline-secondary bll-periode" data-jours="0">Aujourd'hui</button>
+      <button type="button" class="btn btn-outline-secondary bll-periode" data-jours="6">7 derniers jours</button>
+      <button type="button" class="btn btn-outline-secondary bll-periode" data-jours="29">30 derniers jours</button>
+    </div>
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
+    <div class="blx-grid-2">
+      <div class="blx-field">
+        <label class="blx-label" for="bll-date-debut">Du</label>
+        <input type="date" name="date_debut" id="bll-date-debut" value="{{ date_debut }}" class="form-control blx-input" data-autosubmit>
+      </div>
+      <div class="blx-field {% if not is_administration %}mb-0{% endif %}">
+        <label class="blx-label" for="bll-date-fin">Au</label>
+        <input type="date" name="date_fin" id="bll-date-fin" value="{{ date_fin }}" class="form-control blx-input" data-autosubmit>
+      </div>
+    </div>
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
+    {% if is_administration %}
+    <div class="blx-grid-2">
+      <div class="blx-field">
+        <label class="blx-label" for="bll-commercial">Commercial</label>
+        <select name="commercial_id" id="bll-commercial" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous les commerciaux —</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blx-field">
+        <label class="blx-label" for="bll-client">Client</label>
+        <select name="client_id" id="bll-client" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous les clients —</option>
+          {% for c in clients_list %}
+          <option value="{{ c.pk }}" {% if client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blx-field mb-md-0">
+        <label class="blx-label" for="bll-zone">Zone</label>
+        <select name="zone_id" id="bll-zone" class="form-select blx-input" data-autosubmit>
+          <option value="">— Toutes les zones —</option>
+          {% for z in zones_list %}
+          <option value="{{ z.pk }}" {% if zone_id == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blx-field mb-0">
+        <label class="blx-label" for="bll-statut">Paiement</label>
+        <select name="statut" id="bll-statut" class="form-select blx-input" data-autosubmit>
+          <option value="">— Tous —</option>
+          {% for value, label in statut_choices %}
+          <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    {% else %}
+    {% comment %}
+       Filtres masqués pour un commercial : conservés en champs cachés pour ne pas
+       perdre un filtre transmis par lien (ex : « Suivi des impayés »).
+    {% endcomment %}
+    <input type="hidden" name="client_id" value="{{ client_id }}">
+    <input type="hidden" name="zone_id" value="{{ zone_id }}">
+    <input type="hidden" name="statut" value="{{ statut }}">
+    {% endif %}
+    <input type="hidden" name="impaye" value="{{ impaye }}">
+  </form>
 
+  {# Filtres reçus par lien (ex. depuis « Suivi des impayés ») : rendus visibles et faciles à retirer. #}
+  {% if impaye or client_id and not is_administration %}
+  <div class="blx-note blx-note-info mt-3 mb-0">
+    <i class="bi bi-funnel me-1"></i>
+    {% if client_id and not is_administration %}
+      {% for c in clients_list %}{% if client_id == c.pk|stringformat:"s" %}Client : <strong>{{ c }}</strong>. {% endif %}{% endfor %}
+    {% endif %}
+    {% if impaye %}Seuls les bons <strong>non entièrement payés</strong> sont affichés.{% endif %}
+    <a href="{% url 'commercial:bon-livraison-list' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}{% if is_administration %}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&commercial_id={{ commercial_id }}{% endif %}"
+       class="ms-1">Voir tous les bons</a>
+  </div>
+  {% endif %}
+
+  {% if is_administration and client_id or is_administration and zone_id or is_administration and statut or is_administration and commercial_id %}
+  <div class="text-center mt-2">
+    <a href="{% url 'commercial:bon-livraison-list' %}" class="btn btn-link"><i class="bi bi-x-circle me-1"></i>Effacer les filtres</a>
+  </div>
+  {% endif %}
+</section>
+
+{# ── Liste des bons ──────────────────────────────────────────────────────────── #}
+{% if page_obj.object_list %}
+<div class="blx-zone-title"><i class="bi bi-receipt"></i> {{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }} de livraison</div>
+
+{% for bl in page_obj.object_list %}
+<article class="blx-visit {% if bl.statut == 'Payé' %}blx-visit-done{% elif bl.statut == 'Non payé' %}blx-visit-due{% endif %}">
+  <div class="blx-visit-head">
+    <div>
+      <div class="blx-visit-name">{{ bl.bon_livraison_code.client }}</div>
+      <div class="blx-visit-meta">
+        <span><i class="bi bi-hash"></i>BL-{{ bl.bon_livraison_code.bon_livraison_numero }}</span>
+        <span><i class="bi bi-calendar3 me-1"></i>{{ bl.bon_livraison_code.bon_livraison_at|date:'d/m/Y' }}</span>
+        <span><i class="bi bi-geo me-1"></i>{{ bl.bon_livraison_code.client.zone.nom|default:'Sans zone' }}</span>
         {% if is_administration %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Client</label>
-          <select name="client_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les clients —</option>
-            {% for c in clients_list %}
-            <option value="{{ c.pk }}" {% if client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Zone</label>
-          <select name="zone_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Toutes les zones —</option>
-            {% for z in zones_list %}
-            <option value="{{ z.pk }}" {% if zone_id == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.nom }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Statut</label>
-          <select name="statut" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les statuts —</option>
-            {% for value, label in statut_choices %}
-            <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        {% comment %}
-           Filtres masqués pour un commercial : conservés en champs cachés pour ne pas
-           perdre un filtre transmis par lien (ex : « Suivi des impayés »).
-        {% endcomment %}
-        <input type="hidden" name="client_id" value="{{ client_id }}">
-        <input type="hidden" name="zone_id" value="{{ zone_id }}">
-        <input type="hidden" name="statut" value="{{ statut }}">
+        <span><i class="bi bi-person me-1"></i>{{ bl.user.get_full_name|default:bl.user.username }}</span>
         {% endif %}
+      </div>
+    </div>
+    <div class="blx-amount" style="color:#212529;">{{ bl.total_montant|floatformat:3 }} TND<small>montant</small></div>
+  </div>
 
-        {% if is_administration %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
+  <div class="blx-visit-meta align-items-center">
+    {% if bl.statut == 'Payé' %}
+    <span class="blx-pill blx-pill-paye"><i class="bi bi-check-circle"></i> Payé</span>
+    {% elif bl.statut == 'Partiellement payé' %}
+    <span class="blx-pill blx-pill-partiel"><i class="bi bi-hourglass-split"></i> Partiellement payé</span>
+    {% else %}
+    <span class="blx-pill blx-pill-non"><i class="bi bi-x-circle"></i> {{ bl.statut|default:'Non payé' }}</span>
+    {% endif %}
+    {% if bl.reste_a_payer > 0 %}
+    <span class="text-danger fw-semibold">Reste à payer : {{ bl.reste_a_payer|floatformat:3 }} TND</span>
+    {% endif %}
+  </div>
+
+  <div class="blx-visit-actions">
+    <a href="{% url 'commercial:bon-livraison-update' bl.pk %}" class="btn btn-outline-primary">
+      <i class="bi bi-pencil"></i> Modifier
+    </a>
+    {% if is_administration %}
+    <a href="{% url 'commercial:bon-livraison-detail' bl.pk %}" class="btn btn-outline-secondary">
+      <i class="bi bi-eye"></i> Voir
+    </a>
+    <a href="{% url 'commercial:bon-livraison-pdf' bl.pk %}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+      <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+    <button type="button" class="btn btn-outline-danger bll-delete-btn"
+            data-url="{% url 'commercial:bon-livraison-delete' bl.pk %}"
+            data-label="BL-{{ bl.bon_livraison_code.bon_livraison_numero }} du {{ bl.bon_livraison_code.bon_livraison_at|date:'d/m/Y' }} — {{ bl.bon_livraison_code.client }}"
+            data-refus-message="{{ bl.erreur_suppression }}">
+      <i class="bi bi-trash"></i> Supprimer
+    </button>
+    {% endif %}
+  </div>
+</article>
+{% endfor %}
+
+{# ── Pagination ──────────────────────────────────────────────────────────────── #}
+{% if is_paginated %}
+{% with q="date_debut="|add:date_debut|add:"&date_fin="|add:date_fin|add:"&client_id="|add:client_id|add:"&zone_id="|add:zone_id|add:"&statut="|add:statut|add:"&impaye="|add:impaye|add:"&commercial_id="|add:commercial_id %}
+<nav class="blx-pager" aria-label="Pages">
+  {% if page_obj.has_previous %}
+  <a class="btn btn-outline-secondary" href="?{{ q }}&page={{ page_obj.previous_page_number }}"><i class="bi bi-chevron-left me-1"></i>Précédent</a>
+  {% else %}<span></span>{% endif %}
+  <div class="blx-pager-info">Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</div>
+  {% if page_obj.has_next %}
+  <a class="btn btn-outline-secondary" href="?{{ q }}&page={{ page_obj.next_page_number }}">Suivant<i class="bi bi-chevron-right ms-1"></i></a>
+  {% else %}<span></span>{% endif %}
+</nav>
+{% endwith %}
+{% endif %}
+
+{% else %}
+<section class="blx-card blx-empty">
+  <i class="bi bi-truck"></i>
+  Aucun bon de livraison du
+  <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
+  au
+  <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>{% if client_id or zone_id or statut or commercial_id or impaye %} avec ces filtres{% endif %}.
+  <div class="small mt-1">Essayez une période plus longue, par exemple « 30 derniers jours ».</div>
+</section>
+{% endif %}
+
+{# ── Confirmation de suppression (Administration) ─────────────────────────────── #}
+{% if is_administration %}
+<div class="modal fade" id="bll-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="bll-delete-title">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="bll-delete-form">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="bll-delete-title"><i class="bi bi-trash me-2"></i>Supprimer ce bon ?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <p class="fw-semibold mb-2" id="bll-delete-label"></p>
+        <div class="blx-note blx-note-warn mb-0" id="bll-delete-ok">
+          <i class="bi bi-exclamation-triangle me-1"></i>La suppression est définitive : le bon et son paiement seront effacés, et les quantités livrées seront remises en stock.
         </div>
-        {% endif %}
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:bon-livraison-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
+        <div class="blx-alert mb-0 d-none" id="bll-delete-refus"></div>
+      </div>
+      <div class="modal-footer blx-recap-footer">
+        <button type="button" class="btn btn-outline-secondary blx-btn" data-bs-dismiss="modal" id="bll-delete-cancel">Annuler</button>
+        <button type="submit" class="btn btn-danger blx-btn" id="bll-delete-confirm">
+          <i class="bi bi-trash me-1"></i>Supprimer définitivement
+        </button>
       </div>
     </form>
   </div>
 </div>
+{% endif %}
 
-{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            {% if is_administration %}
-            <th class="ps-3" style="min-width:170px;">Commercial</th>
-            {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">Date B.L.</th>
-            <th style="min-width:130px;">Numéro B.L.</th>
-            <th style="min-width:180px;">Client</th>
-            <th style="min-width:140px;">Zone</th>
-            <th class="text-end" style="min-width:130px;">Montant (TND)</th>
-            <th style="min-width:160px;">Statut</th>
-            <th class="text-center pe-3" style="width:180px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for bl in page_obj.object_list %}
-          <tr>
-            {% if is_administration %}
-            <td class="ps-3" style="min-width:170px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:150px;"
-                     value="{{ bl.user.get_full_name|default:bl.user.username }}" disabled>
-            </td>
-            {% endif %}
-            <td {% if not is_administration %}class="ps-3"{% endif %} style="min-width:120px;">
-              <input type="date" class="form-control form-control-sm" style="min-width:100px;"
-                     value="{{ bl.bon_livraison_code.bon_livraison_at|date:'Y-m-d' }}" disabled>
-            </td>
-            <td style="min-width:130px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:110px;"
-                     value="{{ bl.bon_livraison_code.bon_livraison_numero }}" disabled>
-            </td>
-            <td style="min-width:180px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
-                     value="{{ bl.bon_livraison_code.client }}" disabled>
-            </td>
-            <td style="min-width:140px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:120px;"
-                     value="{{ bl.bon_livraison_code.client.zone.nom|default:'' }}" disabled>
-            </td>
-            <td class="text-end" style="min-width:130px;">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner" style="min-width:110px;"
-                     value="{{ bl.total_montant|stringformat:'s' }}" disabled>
-            </td>
-            <td style="min-width:160px;">
-              <select class="form-select form-select-sm" style="min-width:140px;" disabled>
-                {% for value, label in statut_choices %}
-                <option value="{{ value }}" {% if value == bl.statut %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                {% if is_administration %}
-                <a href="{% url 'commercial:bon-livraison-detail' bl.pk %}"
-                   class="btn btn-sm btn-outline-secondary" title="Visualiser">
-                  <i class="bi bi-eye"></i>
-                </a>
-                {% endif %}
-                <a href="{% url 'commercial:bon-livraison-update' bl.pk %}"
-                   class="btn btn-sm btn-outline-primary" title="Modifier">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                {% if is_administration %}
-                <a href="{% url 'commercial:bon-livraison-pdf' bl.pk %}" target="_blank"
-                   class="btn btn-sm btn-outline-primary" title="Etat PDF">
-                  <i class="bi bi-file-earmark-pdf"></i>
-                </a>
-                <form id="bl-delete-{{ bl.pk }}" method="post"
-                      action="{% url 'commercial:bon-livraison-delete' bl.pk %}" class="d-inline">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
-                          data-can-delete="{% if bl.erreur_suppression %}0{% else %}1{% endif %}"
-                          data-refus-message="{{ bl.erreur_suppression }}"
-                          onclick="return blConfirmDelete(this);">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+</div>{# /.blx #}
+{% endblock %}
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }} de livraison
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&impaye={{ impaye }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&impaye={{ impaye }}&commercial_id={{ commercial_id }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&client_id={{ client_id }}&zone_id={{ zone_id }}&statut={{ statut }}&impaye={{ impaye }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-truck fs-1 d-block mb-2 opacity-25"></i>
-      Aucun bon de livraison sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if client_id or zone_id or statut or commercial_id %}avec ces filtres{% endif %}.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
+(function () {
+  var form = document.getElementById('filter-form');
+  var debutInput = document.getElementById('bll-date-debut');
+  var finInput = document.getElementById('bll-date-fin');
 
-function blConfirmDelete(btn) {
-  if (btn.getAttribute('data-can-delete') !== '1') {
-    alert(btn.getAttribute('data-refus-message'));
-    return false;
-  }
-  return confirm('Voulez-vous vraiment supprimer ce bon de livraison ?');
-}
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function toIso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+
+  // Le changement d'un filtre recharge la liste depuis la première page.
+  form.querySelectorAll('[data-autosubmit]').forEach(function (el) {
+    el.addEventListener('change', function () { if (el.value || el.tagName === 'SELECT') { form.submit(); } });
+  });
+
+  // ── Périodes rapides ─────────────────────────────────────────────────────
+  var aujourdhui = new Date();
+  document.querySelectorAll('.bll-periode').forEach(function (btn) {
+    var debut = new Date(aujourdhui);
+    debut.setDate(debut.getDate() - parseInt(btn.getAttribute('data-jours'), 10));
+    var isoDebut = toIso(debut), isoFin = toIso(aujourdhui);
+    // La période actuellement affichée est mise en évidence.
+    if (debutInput.value === isoDebut && finInput.value === isoFin) {
+      btn.classList.replace('btn-outline-secondary', 'btn-secondary');
+      btn.setAttribute('aria-pressed', 'true');
+    }
+    btn.addEventListener('click', function () {
+      debutInput.value = isoDebut;
+      finInput.value = isoFin;
+      form.submit();
+    });
+  });
+
+  // ── Confirmation de suppression ──────────────────────────────────────────
+  var modalEl = document.getElementById('bll-delete-modal');
+  if (!modalEl) { return; }
+  var modal = new bootstrap.Modal(modalEl);
+  var deleteForm = document.getElementById('bll-delete-form');
+  var labelEl = document.getElementById('bll-delete-label');
+  var okEl = document.getElementById('bll-delete-ok');
+  var refusEl = document.getElementById('bll-delete-refus');
+  var titleEl = document.getElementById('bll-delete-title');
+  var confirmBtn = document.getElementById('bll-delete-confirm');
+  var cancelBtn = document.getElementById('bll-delete-cancel');
+
+  document.querySelectorAll('.bll-delete-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var refus = btn.getAttribute('data-refus-message');
+      deleteForm.action = btn.getAttribute('data-url');
+      labelEl.textContent = btn.getAttribute('data-label');
+      okEl.classList.toggle('d-none', !!refus);
+      refusEl.classList.toggle('d-none', !refus);
+      refusEl.innerHTML = '';
+      if (refus) {
+        var icone = document.createElement('i');
+        icone.className = 'bi bi-slash-circle me-1';
+        refusEl.appendChild(icone);
+        refusEl.appendChild(document.createTextNode('Suppression impossible : ' + refus + '.'));
+      }
+      titleEl.innerHTML = refus ? '<i class="bi bi-slash-circle me-2"></i>Suppression impossible' : '<i class="bi bi-trash me-2"></i>Supprimer ce bon ?';
+      confirmBtn.classList.toggle('d-none', !!refus);
+      cancelBtn.textContent = refus ? 'Fermer' : 'Annuler';
+      modal.show();
+    });
+  });
+
+  deleteForm.addEventListener('submit', function () {
+    // Évite une double suppression en cas de double appui.
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Suppression…';
+  });
+})();
 </script>
 {% endblock %}

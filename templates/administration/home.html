@@ -1,160 +1,793 @@
 {% extends "administration/base.html" %}
 
-{% block title %}Accueil — Administration{% endblock %}
-{% block page_title %}Tableau de bord — Administration{% endblock %}
+{% block title %}Tableau de bord — Administration{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
 
 {% block content %}
-<div class="row g-4">
+<div class="adm-dashboard">
 
-  {# Carte de bienvenue #}
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body d-flex align-items-center gap-3 p-4">
-        <div style="width:56px;height:56px;border-radius:.75rem;background:#2c7be5;
-                    display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <i class="bi bi-shield-check fs-3 text-white"></i>
-        </div>
-        <div>
-          <h5 class="mb-1 fw-bold">
-            Bienvenue, {{ request.user.get_full_name|default:request.user.username }} !
-          </h5>
-          <p class="text-muted mb-0 small">
-            Vous êtes connecté en tant qu'<strong>Administrateur</strong>.
-            Utilisez le menu latéral pour naviguer.
-          </p>
-        </div>
+  {# En-tête pensé pour exploiter la largeur d'un poste de travail. #}
+  <header class="adm-hero">
+    <div class="adm-hero-copy">
+      <div class="adm-eyebrow adm-eyebrow-light">
+        <i class="bi bi-shield-check" aria-hidden="true"></i>
+        Centre de pilotage
+      </div>
+      <h1>Bonjour {{ request.user.first_name|default:request.user.username }}</h1>
+      <p>Suivez l'activité commerciale, repérez les priorités et accédez rapidement aux opérations courantes.</p>
+    </div>
+
+    <div class="adm-hero-meta">
+      {% now "l j F Y" as aujourdhui %}
+      <div class="adm-hero-meta-row">
+        <span class="adm-hero-meta-icon"><i class="bi bi-calendar3" aria-hidden="true"></i></span>
+        <span>
+          <small>Aujourd'hui</small>
+          <strong>{{ aujourdhui|capfirst }}</strong>
+        </span>
+      </div>
+      <div class="adm-hero-meta-row">
+        <span class="adm-hero-meta-icon"><i class="bi bi-activity" aria-hidden="true"></i></span>
+        <span>
+          <small>Période analysée</small>
+          <strong>{{ date_debut_resume|date:'d/m/Y' }} au {{ date_fin_resume|date:'d/m/Y' }}</strong>
+        </span>
       </div>
     </div>
-  </div>
+  </header>
 
-  {# ── Section Résumé ──────────────────────────────────────────────────────── #}
-  <div class="col-12">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h5 class="mb-0 fw-bold">
-        Résumé — {{ date_debut_resume|date:'d/m/Y' }} → {{ date_fin_resume|date:'d/m/Y' }}
-      </h5>
-      <a href="{% url 'administration:tableau-bord-commerciaux-list' %}" class="btn btn-outline-secondary btn-sm">
-        Voir le tableau de bord complet <i class="bi bi-arrow-right ms-1"></i>
+  {# Vue d'ensemble #}
+  <section class="adm-section" aria-labelledby="adm-overview-title">
+    <div class="adm-section-head">
+      <div>
+        <div class="adm-eyebrow">Vue d'ensemble</div>
+        <h2 id="adm-overview-title">Les indicateurs à surveiller</h2>
+        <p>Résultats cumulés sur la période affichée ci-dessus.</p>
+      </div>
+      <a href="{% url 'administration:tableau-bord-commerciaux-list' %}" class="btn btn-outline-primary adm-section-action">
+        Tableau de bord détaillé
+        <i class="bi bi-arrow-right" aria-hidden="true"></i>
       </a>
     </div>
-  </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-cash-stack fs-2 text-primary mb-2 d-block"></i>
-        <div class="fw-bold fs-4">{{ ca_total|stringformat:'.3f' }}</div>
-        <div class="text-muted small">CA (TND)</div>
-      </div>
+    <div class="adm-kpi-grid">
+      <a href="{% url 'administration:tableau-bord-commerciaux-list' %}" class="adm-kpi adm-kpi-blue"
+         aria-label="Consulter le chiffre d'affaires détaillé">
+        <span class="adm-kpi-icon"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></span>
+        <span class="adm-kpi-content">
+          <span class="adm-kpi-label">Chiffre d'affaires</span>
+          <strong>{{ ca_total|stringformat:'.3f' }}</strong>
+          <small>TND sur la période</small>
+        </span>
+        <i class="bi bi-arrow-up-right adm-kpi-arrow" aria-hidden="true"></i>
+      </a>
+
+      <a href="{% url 'commercial:client-adherence-visites' %}" class="adm-kpi adm-kpi-green"
+         aria-label="Consulter l'adhérence des visites">
+        <span class="adm-kpi-icon"><i class="bi bi-calendar2-check" aria-hidden="true"></i></span>
+        <span class="adm-kpi-content">
+          <span class="adm-kpi-label">Adhérence des visites</span>
+          <strong>
+            {{ taux_adherence_global|default_if_none:'—' }}{% if taux_adherence_global is not None %}<span class="adm-kpi-unit">%</span>{% endif %}
+          </strong>
+          <small>Visites planifiées honorées</small>
+        </span>
+        <i class="bi bi-arrow-up-right adm-kpi-arrow" aria-hidden="true"></i>
+      </a>
+
+      <a href="{% url 'commercial:client-impayes-list' %}" class="adm-kpi adm-kpi-red"
+         aria-label="Consulter le suivi des impayés">
+        <span class="adm-kpi-icon"><i class="bi bi-cash-coin" aria-hidden="true"></i></span>
+        <span class="adm-kpi-content">
+          <span class="adm-kpi-label">Impayés cumulés</span>
+          <strong>{{ impayes_total|stringformat:'.3f' }}</strong>
+          <small>TND restant à encaisser</small>
+        </span>
+        <i class="bi bi-arrow-up-right adm-kpi-arrow" aria-hidden="true"></i>
+      </a>
+
+      <a href="{% url 'commercial:client-list' %}" class="adm-kpi adm-kpi-violet"
+         aria-label="Consulter la liste des clients actifs">
+        <span class="adm-kpi-icon"><i class="bi bi-people" aria-hidden="true"></i></span>
+        <span class="adm-kpi-content">
+          <span class="adm-kpi-label">Clients actifs</span>
+          <strong>{{ nb_clients_actifs_total }}</strong>
+          <small>Affectations commerciales</small>
+        </span>
+        <i class="bi bi-arrow-up-right adm-kpi-arrow" aria-hidden="true"></i>
+      </a>
     </div>
-  </div>
+  </section>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-calendar-check fs-2 text-success mb-2 d-block"></i>
-        <div class="fw-bold fs-4">
-          {{ taux_adherence_global|default_if_none:'—' }}{% if taux_adherence_global is not None %}%{% endif %}
+  <div class="adm-workspace">
+    {# Alertes métier #}
+    <section class="adm-monitoring" aria-labelledby="adm-alerts-title">
+      <div class="adm-section-head adm-section-head-compact">
+        <div>
+          <div class="adm-eyebrow">À traiter</div>
+          <h2 id="adm-alerts-title">Alertes commerciales</h2>
+          <p>Les situations qui nécessitent votre attention.</p>
         </div>
-        <div class="text-muted small">Taux d'adhérence</div>
       </div>
-    </div>
-  </div>
 
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-cash-coin fs-2 text-danger mb-2 d-block"></i>
-        <div class="fw-bold fs-4">{{ impayes_total|stringformat:'.3f' }}</div>
-        <div class="text-muted small">Impayés cumulés (TND)</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-sm-6 col-xl-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-4">
-        <i class="bi bi-people fs-2 text-info mb-2 d-block"></i>
-        <div class="fw-bold fs-4">{{ nb_clients_actifs_total }}</div>
-        <div class="text-muted small">Clients actifs (affectations)</div>
-      </div>
-    </div>
-  </div>
-
-  {# ── Section Alertes ─────────────────────────────────────────────────────── #}
-  <div class="col-12 mt-2">
-    <h5 class="mb-2 fw-bold">Alertes</h5>
-  </div>
-
-  <div class="col-12 col-xl-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-transparent fw-semibold py-3 d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-graph-down-arrow me-2 text-warning"></i>Clients en dérive</span>
-        {% if nb_clients_en_derive %}
-        <span class="badge text-bg-warning text-dark">{{ nb_clients_en_derive }}</span>
-        {% endif %}
-      </div>
-      <div class="card-body p-0">
-        {% if clients_en_derive %}
-        <ul class="list-group list-group-flush">
-          {% for l in clients_en_derive %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{% url 'commercial:client-detail' l.client.pk %}">{{ l.client }}</a>
-            <span>
-              {% if l.en_retard %}<span class="badge text-bg-warning text-dark ms-1">En retard ({{ l.ratio_retard }}×)</span>{% endif %}
-              {% if l.en_baisse %}<span class="badge text-bg-danger ms-1">Volume {{ l.ratio_volume_pct }}%</span>{% endif %}
+      <div class="adm-alert-grid">
+        <article class="adm-panel">
+          <header class="adm-panel-head">
+            <span class="adm-panel-title-icon adm-panel-title-icon-warning">
+              <i class="bi bi-graph-down-arrow" aria-hidden="true"></i>
             </span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% if nb_clients_en_derive > clients_en_derive|length %}
-        <div class="text-center py-2 border-top">
-          <a href="{% url 'commercial:client-derive-list' %}" class="small">
-            Voir les {{ nb_clients_en_derive }} clients en dérive <i class="bi bi-arrow-right"></i>
+            <span class="adm-panel-heading">
+              <strong>Clients en dérive</strong>
+              <small>Retard ou baisse du volume habituel</small>
+            </span>
+            {% if nb_clients_en_derive %}
+            <span class="adm-count adm-count-warning" aria-label="{{ nb_clients_en_derive }} clients en dérive">
+              {{ nb_clients_en_derive }}
+            </span>
+            {% endif %}
+          </header>
+
+          <div class="adm-panel-body">
+            {% if clients_en_derive %}
+            <ul class="adm-alert-list">
+              {% for l in clients_en_derive %}
+              <li>
+                <a href="{% url 'commercial:client-detail' l.client.pk %}" class="adm-alert-row">
+                  <span class="adm-alert-main">
+                    <span class="adm-alert-name">{{ l.client }}</span>
+                    <span class="adm-alert-hint">Ouvrir la fiche client</span>
+                  </span>
+                  <span class="adm-alert-badges">
+                    {% if l.en_retard %}
+                    <span class="adm-status adm-status-warning">
+                      <i class="bi bi-clock-history" aria-hidden="true"></i>
+                      Retard {{ l.ratio_retard }}×
+                    </span>
+                    {% endif %}
+                    {% if l.en_baisse %}
+                    <span class="adm-status adm-status-danger">
+                      <i class="bi bi-arrow-down" aria-hidden="true"></i>
+                      Volume {{ l.ratio_volume_pct }}%
+                    </span>
+                    {% endif %}
+                  </span>
+                  <i class="bi bi-chevron-right adm-row-chevron" aria-hidden="true"></i>
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+            {% if nb_clients_en_derive > clients_en_derive|length %}
+            <a href="{% url 'commercial:client-derive-list' %}" class="adm-panel-footer-link">
+              Voir les {{ nb_clients_en_derive }} clients concernés
+              <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+            {% else %}
+            <div class="adm-empty">
+              <span class="adm-empty-icon"><i class="bi bi-check2" aria-hidden="true"></i></span>
+              <strong>Aucun client en dérive</strong>
+              <p>Les rythmes de visite et les volumes sont stables.</p>
+            </div>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="adm-panel">
+          <header class="adm-panel-head">
+            <span class="adm-panel-title-icon adm-panel-title-icon-danger">
+              <i class="bi bi-person-exclamation" aria-hidden="true"></i>
+            </span>
+            <span class="adm-panel-heading">
+              <strong>Adhérence en baisse</strong>
+              <small>Recul d'au moins 15 points</small>
+            </span>
+            {% if commerciaux_en_baisse %}
+            <span class="adm-count adm-count-danger" aria-label="{{ commerciaux_en_baisse|length }} commerciaux en baisse">
+              {{ commerciaux_en_baisse|length }}
+            </span>
+            {% endif %}
+          </header>
+
+          <div class="adm-panel-body">
+            {% if commerciaux_en_baisse %}
+            <ul class="adm-alert-list">
+              {% for c in commerciaux_en_baisse %}
+              <li>
+                <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ c.commercial.pk }}" class="adm-alert-row">
+                  <span class="adm-alert-main">
+                    <span class="adm-alert-name">{{ c.commercial.get_full_name|default:c.commercial.username }}</span>
+                    <span class="adm-alert-hint">Comparer les visites réalisées</span>
+                  </span>
+                  <span class="adm-rate">
+                    <span>{{ c.taux_precedent }}%</span>
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                    <strong>{{ c.taux_actuel }}%</strong>
+                    <small>{{ c.ecart }} pts</small>
+                  </span>
+                  <i class="bi bi-chevron-right adm-row-chevron" aria-hidden="true"></i>
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <div class="adm-empty">
+              <span class="adm-empty-icon"><i class="bi bi-check2" aria-hidden="true"></i></span>
+              <strong>Aucune baisse significative</strong>
+              <p>L'adhérence reste stable par rapport à la période précédente.</p>
+            </div>
+            {% endif %}
+          </div>
+        </article>
+      </div>
+    </section>
+
+    {# Raccourcis inspirés de l'accueil commercial. #}
+    <aside class="adm-quick" aria-labelledby="adm-actions-title">
+      <div class="adm-section-head adm-section-head-compact">
+        <div>
+          <div class="adm-eyebrow">Accès direct</div>
+          <h2 id="adm-actions-title">Actions rapides</h2>
+          <p>Lancez les opérations les plus fréquentes.</p>
+        </div>
+      </div>
+
+      <div class="adm-actions-panel">
+        <a href="{% url 'commercial:bon-livraison-create' %}" class="adm-primary-action">
+          <span class="adm-primary-action-icon"><i class="bi bi-truck" aria-hidden="true"></i></span>
+          <span>
+            <strong>Nouveau bon de livraison</strong>
+            <small>Livrer un client et saisir son paiement</small>
+          </span>
+          <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </a>
+
+        <div class="adm-action-grid">
+          <a href="{% url 'administration:transfere-create' %}" class="adm-action-tile">
+            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+            <span><strong>Nouveau transfert</strong><small>Transférer un montant</small></span>
+          </a>
+          <a href="{% url 'administration:employe-create' %}" class="adm-action-tile">
+            <i class="bi bi-person-plus" aria-hidden="true"></i>
+            <span><strong>Nouvel employé</strong><small>Créer un accès</small></span>
+          </a>
+          <a href="{% url 'administration:transaction-list' %}" class="adm-action-tile">
+            <i class="bi bi-receipt-cutoff" aria-hidden="true"></i>
+            <span><strong>Transactions</strong><small>Consulter les mouvements</small></span>
+          </a>
+          <a href="{% url 'administration:rupture-stock-list' %}" class="adm-action-tile">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            <span><strong>Ruptures de stock</strong><small>Voir les besoins</small></span>
           </a>
         </div>
-        {% endif %}
-        {% else %}
-        <div class="text-center py-4 text-muted">
-          <i class="bi bi-check-circle fs-3 d-block mb-2 opacity-25"></i>
-          Aucun client en dérive détecté.
-        </div>
-        {% endif %}
       </div>
-    </div>
-  </div>
-
-  <div class="col-12 col-xl-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-transparent fw-semibold py-3 d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-emoji-frown me-2 text-danger"></i>Commerciaux en baisse d'adhérence</span>
-        {% if commerciaux_en_baisse %}
-        <span class="badge text-bg-danger">{{ commerciaux_en_baisse|length }}</span>
-        {% endif %}
-      </div>
-      <div class="card-body p-0">
-        {% if commerciaux_en_baisse %}
-        <ul class="list-group list-group-flush">
-          {% for c in commerciaux_en_baisse %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ c.commercial.pk }}">
-              {{ c.commercial.get_full_name|default:c.commercial.username }}
-            </a>
-            <span class="text-danger small">
-              {{ c.taux_precedent }}% → {{ c.taux_actuel }}% ({{ c.ecart }} pts)
-            </span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <div class="text-center py-4 text-muted">
-          <i class="bi bi-check-circle fs-3 d-block mb-2 opacity-25"></i>
-          Aucune baisse d'adhérence significative cette semaine.
-        </div>
-        {% endif %}
-      </div>
-    </div>
+    </aside>
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Tableau de bord Administration : ordinateur d'abord ─────────────────── */
+.adm-dashboard {
+  --adm-primary: #2c7be5;
+  --adm-primary-dark: #1a4f9c;
+  --adm-ink: #172033;
+  --adm-muted: #667085;
+  --adm-border: #e3e8ef;
+  --adm-surface: #fff;
+  --adm-radius: 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--adm-ink);
+}
+
+.adm-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  align-items: center;
+  gap: 2rem;
+  min-height: 164px;
+  padding: 1.75rem 2rem;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 58%, #2c7be5 100%);
+  box-shadow: 0 10px 30px rgba(25, 74, 128, .16);
+  color: #fff;
+}
+.adm-hero::after {
+  content: "";
+  position: absolute;
+  right: -5rem;
+  bottom: -8rem;
+  width: 23rem;
+  height: 23rem;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3.5rem rgba(255,255,255,.035), 0 0 0 7rem rgba(255,255,255,.025);
+  pointer-events: none;
+}
+.adm-hero-copy,
+.adm-hero-meta { position: relative; z-index: 1; }
+.adm-hero h1 {
+  margin: .35rem 0 .45rem;
+  font-size: clamp(1.65rem, 2vw, 2.25rem);
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+.adm-hero-copy > p {
+  max-width: 730px;
+  margin: 0;
+  color: rgba(255,255,255,.78);
+  font-size: .98rem;
+  line-height: 1.55;
+}
+.adm-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  color: var(--adm-primary-dark);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.adm-eyebrow-light { color: rgba(255,255,255,.72); }
+.adm-hero-meta {
+  display: grid;
+  gap: .55rem;
+  padding: .35rem;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: .85rem;
+  background: rgba(10, 35, 68, .24);
+  backdrop-filter: blur(4px);
+}
+.adm-hero-meta-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+  padding: .55rem .65rem;
+}
+.adm-hero-meta-row + .adm-hero-meta-row { border-top: 1px solid rgba(255,255,255,.12); }
+.adm-hero-meta-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: .65rem;
+  background: rgba(255,255,255,.13);
+  font-size: 1rem;
+}
+.adm-hero-meta-row > span:last-child { min-width: 0; }
+.adm-hero-meta-row small {
+  display: block;
+  margin-bottom: .05rem;
+  color: rgba(255,255,255,.65);
+  font-size: .72rem;
+}
+.adm-hero-meta-row strong {
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  font-size: .9rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-section { margin-top: 1.75rem; }
+.adm-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+.adm-section-head h2 {
+  margin: .2rem 0 0;
+  color: var(--adm-ink);
+  font-size: 1.18rem;
+  font-weight: 750;
+  letter-spacing: -.01em;
+}
+.adm-section-head p {
+  margin: .25rem 0 0;
+  color: var(--adm-muted);
+  font-size: .86rem;
+}
+.adm-section-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .55rem;
+  min-height: 2.65rem;
+  padding-inline: 1rem;
+  border-radius: .7rem;
+  font-weight: 650;
+}
+.adm-section-head-compact { margin-bottom: .8rem; }
+
+.adm-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+.adm-kpi {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .85rem;
+  min-height: 128px;
+  padding: 1.15rem;
+  overflow: hidden;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  background: var(--adm-surface);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, .035);
+  color: var(--adm-ink);
+  text-decoration: none;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.adm-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--adm-accent);
+}
+.adm-kpi-blue { --adm-accent: #2c7be5; --adm-accent-soft: #eaf2fd; }
+.adm-kpi-green { --adm-accent: #198754; --adm-accent-soft: #e9f6ef; }
+.adm-kpi-red { --adm-accent: #dc3545; --adm-accent-soft: #fdecee; }
+.adm-kpi-violet { --adm-accent: #6f42c1; --adm-accent-soft: #f1ebfb; }
+.adm-kpi-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: .82rem;
+  background: var(--adm-accent-soft);
+  color: var(--adm-accent);
+  font-size: 1.35rem;
+}
+.adm-kpi-content { min-width: 0; }
+.adm-kpi-label {
+  display: block;
+  overflow: hidden;
+  margin-bottom: .12rem;
+  color: var(--adm-muted);
+  font-size: .78rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-kpi-content strong {
+  display: block;
+  overflow: hidden;
+  color: var(--adm-ink);
+  font-size: clamp(1.28rem, 1.65vw, 1.75rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-kpi-unit { margin-left: .08rem; font-size: .7em; }
+.adm-kpi-content small {
+  display: block;
+  overflow: hidden;
+  margin-top: .12rem;
+  color: var(--adm-muted);
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-kpi-arrow { color: #98a2b3; font-size: .85rem; }
+.adm-kpi:hover {
+  border-color: color-mix(in srgb, var(--adm-accent) 35%, var(--adm-border));
+  box-shadow: 0 9px 22px rgba(16, 24, 40, .09);
+  color: var(--adm-ink);
+  transform: translateY(-2px);
+}
+
+.adm-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(330px, .82fr);
+  align-items: start;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+}
+.adm-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.adm-panel,
+.adm-actions-panel {
+  overflow: hidden;
+  border: 1px solid var(--adm-border);
+  border-radius: var(--adm-radius);
+  background: var(--adm-surface);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, .035);
+}
+.adm-panel-head {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 76px;
+  padding: .95rem 1rem;
+  border-bottom: 1px solid #edf0f4;
+}
+.adm-panel-title-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: .72rem;
+  font-size: 1.08rem;
+}
+.adm-panel-title-icon-warning { background: #fff4dd; color: #9a5c00; }
+.adm-panel-title-icon-danger { background: #fdecee; color: #b42332; }
+.adm-panel-heading { flex: 1 1 auto; min-width: 0; }
+.adm-panel-heading strong {
+  display: block;
+  font-size: .94rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.adm-panel-heading small {
+  display: block;
+  overflow: hidden;
+  margin-top: .1rem;
+  color: var(--adm-muted);
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  padding: 0 .5rem;
+  border-radius: 1rem;
+  font-size: .76rem;
+  font-weight: 800;
+}
+.adm-count-warning { background: #fff0cc; color: #7a4800; }
+.adm-count-danger { background: #fde3e6; color: #a01d2b; }
+.adm-panel-body { min-height: 220px; }
+.adm-alert-list { margin: 0; padding: 0; list-style: none; }
+.adm-alert-list li + li { border-top: 1px solid #edf0f4; }
+.adm-alert-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: .65rem;
+  min-height: 66px;
+  padding: .7rem 1rem;
+  color: var(--adm-ink);
+  text-decoration: none;
+  transition: background-color .14s ease;
+}
+.adm-alert-row:hover { background: #f8faff; color: var(--adm-ink); }
+.adm-alert-main { min-width: 0; }
+.adm-alert-name {
+  display: block;
+  overflow: hidden;
+  font-size: .88rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-alert-hint {
+  display: block;
+  overflow: hidden;
+  margin-top: .1rem;
+  color: var(--adm-muted);
+  font-size: .71rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-alert-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .3rem; }
+.adm-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .22rem .48rem;
+  border-radius: 1rem;
+  font-size: .68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.adm-status-warning { background: #fff3d6; color: #7a4800; }
+.adm-status-danger { background: #fde7e9; color: #a61b2a; }
+.adm-row-chevron { color: #98a2b3; font-size: .75rem; }
+.adm-rate {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: .28rem;
+  color: var(--adm-muted);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.adm-rate strong { color: #b42332; }
+.adm-rate small {
+  grid-column: 1 / -1;
+  justify-self: end;
+  color: #b42332;
+  font-size: .64rem;
+  font-weight: 750;
+}
+.adm-panel-footer-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-height: 45px;
+  padding: .6rem 1rem;
+  border-top: 1px solid #edf0f4;
+  color: var(--adm-primary-dark);
+  font-size: .78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.adm-panel-footer-link:hover { background: #f4f8fe; color: var(--adm-primary-dark); }
+.adm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 1.5rem;
+  text-align: center;
+}
+.adm-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  margin-bottom: .6rem;
+  border-radius: 50%;
+  background: #e9f6ef;
+  color: #18794e;
+  font-size: 1.25rem;
+}
+.adm-empty strong { font-size: .9rem; }
+.adm-empty p { max-width: 270px; margin: .25rem 0 0; color: var(--adm-muted); font-size: .76rem; }
+
+.adm-actions-panel { padding: .75rem; }
+.adm-primary-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .8rem;
+  min-height: 78px;
+  padding: .9rem;
+  border-radius: .8rem;
+  background: var(--adm-primary);
+  box-shadow: 0 7px 18px rgba(44, 123, 229, .2);
+  color: #fff;
+  text-decoration: none;
+  transition: background-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.adm-primary-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: .72rem;
+  background: rgba(255,255,255,.18);
+  font-size: 1.25rem;
+}
+.adm-primary-action strong { display: block; font-size: .9rem; line-height: 1.25; }
+.adm-primary-action small { display: block; margin-top: .12rem; color: rgba(255,255,255,.8); font-size: .7rem; line-height: 1.35; }
+.adm-primary-action:hover {
+  background: #226fcf;
+  box-shadow: 0 10px 24px rgba(44, 123, 229, .28);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.adm-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: .65rem;
+}
+.adm-action-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: .55rem;
+  min-height: 78px;
+  padding: .75rem;
+  border: 1px solid var(--adm-border);
+  border-radius: .72rem;
+  background: #fff;
+  color: var(--adm-ink);
+  text-decoration: none;
+  transition: border-color .14s ease, background-color .14s ease;
+}
+.adm-action-tile > i {
+  flex: 0 0 auto;
+  color: var(--adm-primary);
+  font-size: 1.05rem;
+}
+.adm-action-tile span { min-width: 0; }
+.adm-action-tile strong { display: block; font-size: .76rem; line-height: 1.28; }
+.adm-action-tile small { display: block; margin-top: .16rem; color: var(--adm-muted); font-size: .66rem; line-height: 1.3; }
+.adm-action-tile:hover { border-color: #a9c8f2; background: #f7faff; color: var(--adm-ink); }
+
+.adm-dashboard a:focus-visible {
+  outline: 3px solid #174c8f;
+  outline-offset: 3px;
+}
+.adm-primary-action:focus-visible { outline-color: #0e3769; }
+
+/* Écrans intermédiaires : la hiérarchie reste celle du bureau, sur moins de colonnes. */
+@media (max-width: 1199.98px) {
+  .adm-hero { grid-template-columns: minmax(0, 1fr) minmax(280px, 330px); }
+  .adm-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm-workspace { grid-template-columns: 1fr; }
+  .adm-action-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767.98px) {
+  .adm-hero {
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
+    padding: 1.4rem;
+  }
+  .adm-hero-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm-hero-meta-row + .adm-hero-meta-row { border-top: 0; border-left: 1px solid rgba(255,255,255,.12); }
+  .adm-section-head { align-items: flex-start; flex-direction: column; gap: .8rem; }
+  .adm-section-action { width: 100%; justify-content: center; }
+  .adm-alert-grid { grid-template-columns: 1fr; }
+  .adm-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .adm-hero { padding: 1.2rem 1rem; border-radius: .9rem; }
+  .adm-hero-copy > p { font-size: .9rem; }
+  .adm-hero-meta { grid-template-columns: 1fr; }
+  .adm-hero-meta-row + .adm-hero-meta-row { border-top: 1px solid rgba(255,255,255,.12); border-left: 0; }
+  .adm-hero-meta-row strong { white-space: normal; }
+  .adm-section, .adm-workspace { margin-top: 1.35rem; }
+  .adm-kpi-grid { grid-template-columns: 1fr; gap: .7rem; }
+  .adm-kpi { min-height: 104px; padding: .9rem 1rem; }
+  .adm-kpi-content strong { font-size: 1.42rem; }
+  .adm-panel-head { min-height: 72px; padding: .85rem; }
+  .adm-alert-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: .8rem .85rem;
+  }
+  .adm-alert-badges,
+  .adm-rate { grid-column: 1 / -1; justify-self: start; justify-content: flex-start; }
+  .adm-rate small { justify-self: start; }
+  .adm-row-chevron { grid-column: 2; grid-row: 1; }
+  .adm-action-grid { grid-template-columns: 1fr; }
+  .adm-action-tile { min-height: 64px; align-items: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-kpi,
+  .adm-alert-row,
+  .adm-primary-action,
+  .adm-action-tile { transition: none; }
+  .adm-kpi:hover,
+  .adm-primary-action:hover { transform: none; }
+}
 {% endblock %}

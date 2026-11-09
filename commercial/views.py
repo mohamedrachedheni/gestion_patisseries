@@ -15,6 +15,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import TemplateView, View
 from xhtml2pdf import pisa
 
@@ -733,6 +734,9 @@ class ClientCreateView(GroupRequiredMixin, View):
             table='Client', record_id=client.pk, new_value=model_to_dict(client),
         )
         messages.success(request, f'Client « {client} » enregistré avec succès.')
+        # Un utilisateur Commercial revient directement à son accueil.
+        if not is_admin:
+            return redirect('commercial:home')
         return redirect('commercial:client-list')
 
 
@@ -994,9 +998,33 @@ class ZoneCreateView(GroupRequiredMixin, View):
     l'administration. Même logique de validation qu'administration.views.ZoneCreateView."""
     group_required = ['Administration', 'Commercial']
     template_name = 'commercial/zone/create.html'
+    popup_template_name = 'commercial/zone/created_popup.html'
+
+    def _page_precedente(self, request, candidate):
+        """Adresse de retour (page d'où l'on vient) si elle est sûre — même
+        site, et pas cette page elle-même — sinon chaîne vide."""
+        candidate = (candidate or '').strip()
+        if not candidate or not url_has_allowed_host_and_scheme(
+            candidate, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+        ):
+            return ''
+        if reverse('commercial:zone-create') in candidate:
+            return ''
+        return candidate
 
     def get(self, request):
-        return render(request, self.template_name, self._context(request))
+        next_url = self._page_precedente(
+            request, request.GET.get('next') or request.META.get('HTTP_REFERER', ''),
+        )
+        # Pré-remplissage du gouvernorat/de la délégation : repris de la page
+        # d'origine (ex. ses champs Gouvernorat/Délégation déjà choisis),
+        # transmis par _zone_live_refresh.html en paramètres GET.
+        gouvernorat_id = request.GET.get('gouvernorat', '').strip()
+        delegation_id = request.GET.get('delegation', '').strip()
+        return render(request, self.template_name, self._context(
+            request, next_url=next_url, popup=request.GET.get('popup') == '1',
+            selected_gouvernorat_id=gouvernorat_id, selected_delegation_id=delegation_id,
+        ))
 
     def _context(self, request, **overrides):
         delegations_list = Delegation.objects.select_related('gouvernorat').order_by(
@@ -1008,9 +1036,17 @@ class ZoneCreateView(GroupRequiredMixin, View):
                 {'id': d.pk, 'nom': d.nom_delegation, 'gouvernorat_id': d.gouvernorat_id}
                 for d in delegations_list
             ]),
+            # Zones existantes : affichées par délégation et utilisées pour
+            # prévenir un doublon de nom avant l'envoi.
+            'zones_json': json.dumps([
+                {'nom': z.nom, 'delegation_id': z.delegation_id}
+                for z in Zone.objects.order_by('nom').only('nom', 'delegation_id')
+            ]),
             'selected_gouvernorat_id': '',
             'selected_delegation_id': '',
             'nom_value': '',
+            'next_url': '',
+            'popup': False,
         }
         context.update(overrides)
         return context
@@ -1019,10 +1055,20 @@ class ZoneCreateView(GroupRequiredMixin, View):
         gouvernorat_id = request.POST.get('gouvernorat', '').strip()
         delegation_id = request.POST.get('delegation', '').strip()
         nom = request.POST.get('nom', '').strip()
+        next_url = self._page_precedente(request, request.POST.get('next', ''))
+        popup = request.POST.get('popup') == '1'
 
         def _echec(message):
             messages.error(request, message)
-            return render(request, self.template_name, self._context(request))
+            # La saisie est conservée pour ne pas obliger à tout recommencer.
+            return render(request, self.template_name, self._context(
+                request,
+                selected_gouvernorat_id=gouvernorat_id,
+                selected_delegation_id=delegation_id,
+                nom_value=nom,
+                next_url=next_url,
+                popup=popup,
+            ))
 
         if not gouvernorat_id:
             return _echec('Le champ gouvernorat est obligatoire.')
@@ -1044,8 +1090,19 @@ class ZoneCreateView(GroupRequiredMixin, View):
             AuditAction.CREATE, f'Création zone « {zone.nom} »',
             table='Zone', record_id=zone.pk, new_value=model_to_dict(zone),
         )
+        # Ouverte en fenêtre depuis une page client : la fenêtre transmet la
+        # nouvelle zone à la page client (qui l'ajoute à sa liste) puis se ferme.
+        if popup:
+            return render(request, self.popup_template_name, {
+                'zone_data': {
+                    'id': zone.pk, 'nom': zone.nom,
+                    'delegation_id': delegation.pk, 'gouvernorat_id': delegation.gouvernorat_id,
+                },
+                'next_url': next_url,
+            })
+        # Sinon : retour à la page précédente.
         messages.success(request, f'Zone « {zone.nom} » ajoutée avec succès.')
-        return redirect('commercial:home')
+        return redirect(next_url or 'commercial:home')
 
 
 class ClientSansBLListView(GroupRequiredMixin, View):
@@ -1698,8 +1755,10 @@ class BonLivraisonUpdateView(GroupRequiredMixin, View):
         client_id     = request.POST.get('client_id', '').strip()
         commercial_id = request.POST.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
         nouveau_acompte_s = request.POST.get('nouveau_acompte', '').strip()
-        mode_paiement = request.POST.get('mode_paiement', '').strip() or 'Espèces'
-        observation   = request.POST.get('observation', '').strip()
+        # Commercial : mode de paiement toujours Espèces, et la remarque (qu'il
+        # ne voit pas) reste celle déjà enregistrée sur le bon.
+        mode_paiement = (request.POST.get('mode_paiement', '').strip() or 'Espèces') if is_admin else 'Espèces'
+        observation   = request.POST.get('observation', '').strip() if is_admin else (bon_livraison.observation or '')
 
         detail_ids        = request.POST.getlist('detail_id')
         prix_unitaire_strs = request.POST.getlist('detail_prix_unitaire')
@@ -1834,6 +1893,9 @@ class BonLivraisonUpdateView(GroupRequiredMixin, View):
             old_value=model_to_dict(bon_livraison), new_value=model_to_dict(nouveau_bl),
         )
         messages.success(request, f'Bon de livraison {code} modifié avec succès.')
+        # Un utilisateur Commercial revient directement à son accueil.
+        if not is_admin:
+            return redirect('commercial:home')
         return redirect('commercial:bon-livraison-list')
 
 
@@ -1929,7 +1991,9 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
         # son propre ID (le champ est caché/figé côté template).
         commercial_id     = request.POST.get('commercial_id', '').strip() if is_admin else str(request.user.pk)
         nouveau_acompte_s = request.POST.get('nouveau_acompte', '').strip()
-        mode_paiement     = request.POST.get('mode_paiement', '').strip() or 'Espèces'
+        # Le mode de paiement n'est choisi qu'en Administration : un
+        # utilisateur Commercial enregistre toujours en Espèces.
+        mode_paiement     = (request.POST.get('mode_paiement', '').strip() or 'Espèces') if is_admin else 'Espèces'
         observation       = request.POST.get('observation', '').strip()
 
         produit_ids     = request.POST.getlist('detail_produit_id')
@@ -2105,7 +2169,11 @@ class BonLivraisonCreateView(GroupRequiredMixin, View):
         )
         messages.success(request, f'Bon de livraison {code} enregistré avec succès.')
 
-        # Après un enregistrement réussi, la page reste affichée mais
+        # Un utilisateur Commercial revient directement à son accueil.
+        if not is_admin:
+            return redirect('commercial:home')
+
+        # Administration : après un enregistrement réussi, la page reste affichée mais
         # entièrement verrouillée (voir template) : le bouton Etat PDF
         # s'active, Annuler devient Fermer, Enregistrer reste désactivé.
         saved_details = bon_livraison.details.select_related('produit').order_by('pk')
@@ -3565,10 +3633,7 @@ class BonRestitutionCreateView(GroupRequiredMixin, View):
             quantite_par_produit[pid] = quantite_par_produit.get(pid, Decimal('0')) + quantite
 
         if not quantite_par_produit:
-            return _echec(
-                'Il faut avoir au moins un enregistrement valide entre les sections '
-                '« Produits à restituer » et « Ajouter d\'autres produits restitués ».'
-            )
+            return _echec('Indiquez au moins un produit avec une quantité restituée supérieure à 0.')
 
         try:
             with transaction.atomic():
@@ -3589,6 +3654,9 @@ class BonRestitutionCreateView(GroupRequiredMixin, View):
             table='BonRestitution', record_id=bon_restitution.pk, new_value=model_to_dict(bon_restitution),
         )
         messages.success(request, 'Bon de restitution enregistré avec succès.')
+        # Un utilisateur Commercial revient directement à son accueil.
+        if is_commercial:
+            return redirect('commercial:home')
         return redirect('commercial:bon-restitution-list')
 
 
@@ -3979,6 +4047,9 @@ class BonSortieCreateView(GroupRequiredMixin, View):
             table='BonSortie', record_id=bon_sortie.pk, new_value=model_to_dict(bon_sortie),
         )
         messages.success(request, 'Bon de sortie enregistré avec succès.')
+        # Un utilisateur Commercial revient directement à son accueil.
+        if is_commercial:
+            return redirect('commercial:home')
         return redirect('commercial:bon-sortie-list')
 
 
@@ -6085,7 +6156,9 @@ class DepenseCreateView(GroupRequiredMixin, View):
         depense_at_str     = request.POST.get('depense_at', '').strip()
         fournisseur_id     = request.POST.get('fournisseur_id', '').strip()
         nouveau_acompte_s  = request.POST.get('nouveau_acompte', '').strip()
-        mode_paiement      = request.POST.get('mode_paiement', '').strip() or 'Espèces'
+        is_admin           = _is_administration(request.user)
+        # Commercial : mode de paiement toujours Espèces (choix masqué dans le formulaire).
+        mode_paiement      = (request.POST.get('mode_paiement', '').strip() or 'Espèces') if is_admin else 'Espèces'
         observation        = request.POST.get('observation', '').strip()
 
         libelles  = request.POST.getlist('detail_libelle')
@@ -6147,14 +6220,14 @@ class DepenseCreateView(GroupRequiredMixin, View):
         # ── Étape 3 : Montant total / Reste à payer ─────────────────────────
         total_montant = sum((r['total_ligne'] for r in detail_rows_valides), Decimal('0'))
         if total_montant <= 0:
-            return _echec('Le montant total doit être suppérieur à zéro')
+            return _echec('Le montant total doit être supérieur à zéro. Vérifiez les quantités et les valeurs unitaires.')
 
         reste_a_payer = total_montant - nouveau_acompte
         if reste_a_payer < 0:
-            return _echec('Le reste ne doit pas être nigatif')
+            return _echec('Le montant payé ne peut pas dépasser le montant total.')
 
         if not detail_rows_valides:
-            return _echec('la section Détails de la dépense doit contenir au moins un enregistrement valide')
+            return _echec('Ajoutez au moins une ligne avec un libellé, une quantité et une valeur unitaire.')
 
         if reste_a_payer == 0:
             statut = 'Payé'
@@ -6228,6 +6301,9 @@ class DepenseCreateView(GroupRequiredMixin, View):
             new_value={'depense_code': model_to_dict(depense_code), 'depense': model_to_dict(depense)},
         )
         messages.success(request, f'Dépense {depense_code} enregistrée avec succès.')
+        # Un utilisateur Commercial revient directement à son accueil.
+        if not is_admin:
+            return redirect('commercial:home')
         return redirect('commercial:depense-list')
 
 

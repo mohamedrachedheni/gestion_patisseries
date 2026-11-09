@@ -14,180 +14,202 @@
 {% endblock %}
 
 {% block content %}
-<form method="post" enctype="multipart/form-data" novalidate>
+<div class="blx">
+{% comment %}
+   Les noms des champs envoyés (raison_sociale, nom_client, telephone,
+   delegation, zone_id, adresse, google_mape, jour_visite, commercial_id,
+   photo, photo_temp_path, created_at, is_active, observation) sont ceux
+   attendus par ClientCreateView.post().
+{% endcomment %}
+<form method="post" enctype="multipart/form-data" id="client-form" novalidate>
   {% csrf_token %}
 
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-person-plus me-2 text-primary"></i>Nouveau client
-    </div>
-  </div>
-
-  {# ── Section Zone (Gouvernorat → Délégation → Zone, une seule ligne) ─────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-pin-map me-2 text-primary"></i>Zone du client
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-3" style="min-width:170px;">Gouvernorat</th>
-              <th style="min-width:170px;">Délégation</th>
-              <th class="pe-3" style="min-width:200px;">Zone</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="zone-gouv-deleg-group">
-              <td class="ps-3">
-                <select class="form-select zone-gouvernorat-select" style="min-width:160px;">
-                  <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
-                  {% for g in gouvernorats_list %}
-                  <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-              <td>
-                <select name="delegation" class="form-select zone-delegation-select" style="min-width:160px;">
-                  <option value="" {% if not selected_delegation_id %}selected{% endif %}>— Choisir —</option>
-                  {% for d in delegations_list %}
-                  {% if selected_gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
-                  <option value="{{ d.pk }}" {% if selected_delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
-                  {% endif %}
-                  {% endfor %}
-                </select>
-              </td>
-              <td class="pe-3">
-                <select name="zone_id" class="form-select zone-select" style="min-width:190px;">
-                  <option value="">— Choisir —</option>
-                </select>
-                <a href="{% url 'commercial:zone-create' %}" target="_blank" class="small">
-                  <i class="bi bi-plus-lg"></i> Créer une nouvelle zone
-                </a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+  {# ── Étape 1 : identité ───────────────────────────────────────────────────── #}
+  <section class="blx-card" id="cli-step-identite">
+    <div class="blx-step-head">
+      <span class="blx-step-num">1</span>
+      <div>
+        <div class="blx-step-title">Le client</div>
+        <div class="blx-step-help">Le nom du commerce et la personne à contacter.</div>
       </div>
     </div>
-  </div>
 
-  {# ── Champs du client ─────────────────────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-person-vcard me-2 text-primary"></i>Informations du client
+    <div class="blx-field" id="cli-field-raison">
+      <label class="blx-label" for="id_raison_sociale">Nom du commerce (raison sociale) <span class="blx-req">*</span></label>
+      {{ form.raison_sociale }}
+      <div class="blx-hint">Exemple : Café Mrabet</div>
+      <div class="blx-invalid-msg"><i class="bi bi-exclamation-circle me-1"></i>Indiquez le nom du commerce.</div>
     </div>
-    <div class="card-body">
-      <div class="row g-3">
 
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Raison sociale</label>
-          {{ form.raison_sociale }}
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Nom client</label>
-          {{ form.nom_client }}
-        </div>
+    <div class="blx-grid-2">
+      <div class="blx-field">
+        <label class="blx-label" for="id_nom_client">Nom du contact <span class="text-muted fw-normal">(facultatif)</span></label>
+        {{ form.nom_client }}
+      </div>
+      <div class="blx-field mb-0">
+        <label class="blx-label" for="id_telephone">Téléphone <span class="text-muted fw-normal">(facultatif)</span></label>
+        {{ form.telephone }}
+        <div class="blx-hint">Chiffres uniquement, ex. : 22123456</div>
+      </div>
+    </div>
+  </section>
 
-        <div class="col-md-8">
-          <label class="form-label small mb-1">Adresse</label>
-          {{ form.adresse }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Téléphone</label>
-          {{ form.telephone }}
-        </div>
+  {# ── Étape 2 : emplacement ────────────────────────────────────────────────── #}
+  <section class="blx-card" id="cli-step-zone">
+    <div class="blx-step-head">
+      <span class="blx-step-num">2</span>
+      <div>
+        <div class="blx-step-title">Où se trouve le client ?</div>
+        <div class="blx-step-help">Choisissez le gouvernorat, puis la délégation, puis la zone.</div>
+      </div>
+    </div>
 
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Date de création</label>
-          {{ form.created_at }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Actif</label>
-          <div class="form-check mt-2">
-            {{ form.is_active }}
-            <label class="form-check-label">Client actif</label>
-          </div>
-        </div>
-
-        <div class="col-md-8">
-          <label class="form-label small mb-1">Lien Google Maps</label>
-          {{ form.google_mape }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Photo</label>
-          {% if photo_temp_url %}
-          <div class="mb-2">
-            <img src="{{ photo_temp_url }}" alt="Photo sélectionnée"
-                 style="width:72px;height:72px;border-radius:50%;object-fit:cover;">
-            <div class="form-text">
-              Photo déjà sélectionnée — choisissez un autre fichier uniquement pour la remplacer.
-            </div>
-          </div>
-          <input type="hidden" name="photo_temp_path" value="{{ photo_temp_path }}">
+    <div class="blx-grid-3">
+      <div class="blx-field">
+        <label class="blx-label" for="cli-gouvernorat">Gouvernorat</label>
+        <select id="cli-gouvernorat" class="form-select blx-input">
+          <option value="" {% if not selected_gouvernorat_id %}selected{% endif %}>— Choisir —</option>
+          {% for g in gouvernorats_list %}
+          <option value="{{ g.pk }}" {% if selected_gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blx-field">
+        <label class="blx-label" for="cli-delegation">Délégation</label>
+        <select name="delegation" id="cli-delegation" class="form-select blx-input">
+          <option value="" {% if not selected_delegation_id %}selected{% endif %}>— Choisir —</option>
+          {% for d in delegations_list %}
+          {% if selected_gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
+          <option value="{{ d.pk }}" {% if selected_delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
           {% endif %}
-          {{ form.photo }}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blx-field" id="cli-field-zone">
+        <label class="blx-label" for="cli-zone">Zone <span class="blx-req">*</span></label>
+        <select name="zone_id" id="cli-zone" class="form-select blx-input">
+          <option value="">— Choisir —</option>
+        </select>
+        <div class="blx-invalid-msg"><i class="bi bi-exclamation-circle me-1"></i>Choisissez la zone du client.</div>
+        <div class="blx-hint">
+          Zone absente ?
+          <a href="{% url 'commercial:zone-create' %}" target="_blank" class="js-zone-create-link">Créer une nouvelle zone</a>
+          : elle sera ajoutée à cette liste sans perdre votre saisie.
         </div>
-
-        <div class="col-12">
-          <label class="form-label small mb-1">Observation</label>
-          {{ form.observation }}
-        </div>
-
+        <div class="blx-note blx-note-ok mt-2 mb-0 d-none" id="cli-zone-ajoutee" role="status"></div>
       </div>
     </div>
-  </div>
 
-  {# ── Section Jours de visite récurrents ───────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-calendar-week me-2 text-primary"></i>Jours de visite récurrents
+    <div class="blx-field {% if not is_administration %}mb-0{% endif %}">
+      <label class="blx-label" for="id_adresse">Adresse <span class="text-muted fw-normal">(facultatif)</span></label>
+      {{ form.adresse }}
     </div>
-    <div class="card-body">
-      <p class="text-muted small mb-2">
-        Jours habituels de la semaine où ce client reçoit une livraison (optionnel).
-      </p>
-      <div class="d-flex flex-wrap gap-3">
-        {% for valeur, libelle in jours_semaine_choices %}
-        <div class="form-check">
-          <input type="checkbox" name="jour_visite" value="{{ valeur }}" id="jour-visite-{{ valeur }}"
-                 class="form-check-input" autocomplete="off"
-                 {% if valeur in selected_jours_visite %}checked{% endif %}>
-          <label class="form-check-label" for="jour-visite-{{ valeur }}">{{ libelle }}</label>
-        </div>
-        {% endfor %}
+
+    {% if is_administration %}
+    <div class="blx-field mb-0">
+      <label class="blx-label" for="id_google_mape">Lien Google Maps <span class="text-muted fw-normal">(facultatif)</span></label>
+      {{ form.google_mape }}
+      <div class="blx-hint">Dans Google Maps : Partager → Copier le lien, puis collez-le ici.</div>
+    </div>
+    {% endif %}
+  </section>
+
+  {# ── Étape 3 : jours de visite ────────────────────────────────────────────── #}
+  <section class="blx-card" id="cli-step-jours">
+    <div class="blx-step-head">
+      <span class="blx-step-num">3</span>
+      <div>
+        <div class="blx-step-title">Jours de visite</div>
+        <div class="blx-step-help">Jours habituels où ce client est livré. Touchez un jour pour le cocher ou le décocher.</div>
       </div>
     </div>
-  </div>
+    <div class="blx-days" role="group" aria-label="Jours de visite">
+      {% for valeur, libelle in jours_semaine_choices %}
+      <label class="blx-choice">
+        <input type="checkbox" name="jour_visite" value="{{ valeur }}" autocomplete="off"
+               {% if valeur in selected_jours_visite %}checked{% endif %}>
+        <span>{{ libelle }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </section>
 
-  {# ── Section Ajout autres Commerciaux (Administration uniquement) ────────── #}
+  {# ── Étape 4 : commerciaux (Administration uniquement) ───────────────────── #}
   {% if is_administration %}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-person-lines-fill me-2 text-primary"></i>Ajout autres Commerciaux
-    </div>
-    <div class="card-body">
-      <div id="commerciaux-rows"></div>
-      <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="add-commercial-row-btn" class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter un autre commercial
-        </button>
+  <section class="blx-card" id="cli-step-commerciaux">
+    <div class="blx-step-head">
+      <span class="blx-step-num">4</span>
+      <div>
+        <div class="blx-step-title">Commerciaux <span class="blx-req">*</span></div>
+        <div class="blx-step-help">Le ou les commerciaux qui s'occupent de ce client.</div>
       </div>
     </div>
-  </div>
+    <div class="blx-field mb-0" id="cli-field-commerciaux">
+      <div id="commerciaux-rows"></div>
+      <div class="blx-invalid-msg mb-2"><i class="bi bi-exclamation-circle me-1"></i>Choisissez au moins un commercial.</div>
+      <button type="button" id="add-commercial-row-btn" class="blx-add-btn">
+        <i class="bi bi-plus-circle"></i> Ajouter un commercial
+      </button>
+    </div>
+  </section>
   {% endif %}
 
-  {# ── Actions ───────────────────────────────────────────────────────────────── #}
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="#" class="btn btn-outline-secondary" onclick="history.back(); return false;">
+  {% if is_administration %}
+  {# ── Autres informations (facultatives) ───────────────────────────────────── #}
+  <section class="blx-card" id="cli-step-autres">
+    <div class="blx-card-title"><i class="bi bi-three-dots"></i> Autres informations <span class="text-muted fw-normal">(facultatif)</span></div>
+
+    <div class="blx-field">
+      <label class="blx-label" for="id_photo">Photo de la vitrine <span class="text-muted fw-normal">(pour reconnaître le client)</span></label>
+      <div class="blx-photo-row{% if not photo_temp_url %} d-none{% endif %}" id="cli-photo-row">
+        <img src="{{ photo_temp_url }}" alt="Photo sélectionnée" class="blx-photo-preview" id="cli-photo-preview">
+        <div class="blx-hint mt-0">Photo choisie. Choisissez un autre fichier seulement pour la remplacer.</div>
+      </div>
+      {% if photo_temp_path %}<input type="hidden" name="photo_temp_path" value="{{ photo_temp_path }}">{% endif %}
+      <input type="file" name="photo" id="id_photo" accept="image/*" class="form-control blx-input">
+    </div>
+
+    <div class="blx-grid-2">
+      <div class="blx-field">
+        <label class="blx-label" for="id_created_at">Date de création</label>
+        {{ form.created_at }}
+      </div>
+      <div class="blx-field">
+        <span class="blx-label">État</span>
+        <label class="blx-choice d-block">
+          {{ form.is_active }}
+          <span>Client actif</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="blx-field mb-0">
+      <label class="blx-label" for="id_observation">Remarque</label>
+      {{ form.observation }}
+    </div>
+  </section>
+  {% endif %}
+
+  {# ── Action secondaire ────────────────────────────────────────────────────── #}
+  <div class="blx-secondary-actions">
+    <a href="{% if is_administration %}{% url 'commercial:client-list' %}{% else %}{% url 'commercial:home' %}{% endif %}" class="btn btn-link text-secondary">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
+  </div>
+
+  {# ── Barre d'action principale, toujours visible en bas de l'écran ─────────── #}
+  <div class="blx-bar">
+    <button type="submit" id="client-save-btn" class="btn btn-primary blx-bar-btn">
+      <i class="bi bi-check-lg me-1"></i>Enregistrer le client
     </button>
   </div>
 </form>
+</div>{# /.blx #}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+{% include 'commercial/bon_livraison/_blx_styles.html' %}
 {% endblock %}
 
 {% block extra_js %}
@@ -199,12 +221,45 @@
   var COMMERCIAUX = {{ commerciaux_json|safe }};
   var SELECTED_COMMERCIAL_IDS = {{ selected_commercial_ids_json|default:"[]"|safe }};
 
+  var form          = document.getElementById('client-form');
+  var gouvSelect    = document.getElementById('cli-gouvernorat');
+  var delegSelect   = document.getElementById('cli-delegation');
+  var zoneSelect    = document.getElementById('cli-zone');
+  var raisonInput   = document.getElementById('id_raison_sociale');
+  var photoInput    = document.getElementById('id_photo');
+  var saveBtn       = document.getElementById('client-save-btn');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // ── Protection contre la perte de saisie ─────────────────────────────────
+  var dirty = false;
+  var enregistrementEnCours = false;
+  form.addEventListener('input', function () { dirty = true; });
+  form.addEventListener('change', function () { dirty = true; });
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty && !enregistrementEnCours) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // La touche Entrée ne doit pas soumettre le formulaire depuis un champ
+  // d'une ligne (elle reste utilisable dans les zones de texte multilignes).
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); }
+  });
+
+  // ── Étape 2 : cascade Gouvernorat → Délégation → Zone ────────────────────
   function buildDelegationOptions(gouvernoratId, selectedId) {
     var html = '<option value="">— Choisir —</option>';
     DELEGATIONS.forEach(function (d) {
       if (!gouvernoratId || String(d.gouvernorat_id) !== String(gouvernoratId)) { return; }
       var sel = (selectedId && String(d.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + d.id + '"' + sel + '>' + d.nom + '</option>';
+      html += '<option value="' + d.id + '"' + sel + '>' + esc(d.nom) + '</option>';
     });
     return html;
   }
@@ -214,93 +269,129 @@
     ZONES.forEach(function (z) {
       if (!delegationId || String(z.delegation_id) !== String(delegationId)) { return; }
       var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + z.id + '"' + sel + '>' + z.nom + '</option>';
+      html += '<option value="' + z.id + '"' + sel + '>' + esc(z.nom) + '</option>';
     });
     return html;
   }
 
-  document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
-    var gouvSelect = group.querySelector('.zone-gouvernorat-select');
-    var delegSelect = group.querySelector('.zone-delegation-select');
-    var zoneSelect = group.querySelector('.zone-select');
-    if (!gouvSelect || !delegSelect) { return; }
-
-    gouvSelect.addEventListener('change', function () {
-      delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
-      if (zoneSelect) { zoneSelect.innerHTML = '<option value="">— Choisir —</option>'; }
-      delegSelect.focus();
-    });
-
-    delegSelect.addEventListener('change', function () {
-      if (zoneSelect) { zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, null); }
-      if (zoneSelect) { zoneSelect.focus(); }
-    });
-
-    if (zoneSelect) {
-      zoneSelect.addEventListener('change', function () {
-        var raisonSocialeInput = document.getElementById('id_raison_sociale');
-        if (raisonSocialeInput) { raisonSocialeInput.focus(); }
-      });
-    }
-
-    // Pré-remplissage de la liste Zone si une délégation est déjà sélectionnée
-    // (ré-affichage de la page après échec de validation).
-    if (delegSelect.value && zoneSelect) {
-      zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, SELECTED_ZONE_ID);
-    }
+  gouvSelect.addEventListener('change', function () {
+    delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
+    zoneSelect.innerHTML = '<option value="">— Choisir —</option>';
   });
 
-  // Photo sélectionnée : le focus passe au champ Observation.
-  var photoInput = document.getElementById('id_photo');
-  var observationInput = document.getElementById('id_observation');
-  if (photoInput && observationInput) {
+  delegSelect.addEventListener('change', function () {
+    zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, null);
+  });
+
+  // Ré-affichage après échec : la zone déjà choisie reste sélectionnée.
+  if (delegSelect.value) {
+    zoneSelect.innerHTML = buildZoneSelectOptions(delegSelect.value, SELECTED_ZONE_ID);
+  }
+
+  // ── Zone créée dans la fenêtre « Nouvelle zone » : ajoutée à la liste et
+  // sélectionnée, sans recharger la page (voir _zone_live_refresh.html). ──
+  window.addEventListener('zone-creee', function (e) {
+    var z = e.detail;
+    ZONES.push({ id: z.id, nom: z.nom, delegation_id: z.delegation_id });
+    gouvSelect.value = String(z.gouvernorat_id);
+    delegSelect.innerHTML = buildDelegationOptions(z.gouvernorat_id, z.delegation_id);
+    zoneSelect.innerHTML = buildZoneSelectOptions(z.delegation_id, z.id);
+    setError('cli-field-zone', false);
+    dirty = true;
+    var note = document.getElementById('cli-zone-ajoutee');
+    note.innerHTML = '<i class="bi bi-check-circle me-1"></i>Zone « ' + esc(z.nom) + ' » ajoutée et choisie.';
+    note.classList.remove('d-none');
+  });
+
+  // ── Photo : aperçu immédiat du fichier choisi (Administration uniquement) ──
+  if (photoInput) {
     photoInput.addEventListener('change', function () {
-      observationInput.focus();
+      var file = photoInput.files && photoInput.files[0];
+      if (!file) { return; }
+      document.getElementById('cli-photo-preview').src = URL.createObjectURL(file);
+      document.getElementById('cli-photo-row').classList.remove('d-none');
     });
   }
 
-  // ── Section Ajout autres Commerciaux ────────────────────────────────────────
+  // ── Étape 4 : commerciaux (Administration) ───────────────────────────────
   var commerciauxRowsContainer = document.getElementById('commerciaux-rows');
 
   function buildCommercialOptions(selectedId) {
-    var html = '<option value="">— Choisir —</option>';
+    var html = '<option value="">— Choisir un commercial —</option>';
     COMMERCIAUX.forEach(function (u) {
       var sel = (selectedId && String(u.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + u.id + '"' + sel + '>' + u.label + '</option>';
+      html += '<option value="' + u.id + '"' + sel + '>' + esc(u.label) + '</option>';
     });
     return html;
   }
 
   function addCommercialRow(selectedId) {
     var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    row.className = 'blx-sub-row';
     row.innerHTML =
-      '<div style="flex:1 1 auto;">' +
-        '<select name="commercial_id" class="form-select form-select-sm">' + buildCommercialOptions(selectedId) + '</select>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer"><i class="bi bi-trash"></i></button>' +
-      '</div>';
-
+      '<select name="commercial_id" class="form-select blx-input" aria-label="Commercial">' + buildCommercialOptions(selectedId) + '</select>' +
+      '<button type="button" class="btn btn-outline-danger blx-remove remove-row" title="Retirer ce commercial" aria-label="Retirer ce commercial"><i class="bi bi-trash"></i></button>';
+    row.querySelector('select').addEventListener('change', function () { setError('cli-field-commerciaux', false); });
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
+      dirty = true;
+      if (!commerciauxRowsContainer.children.length) { addCommercialRow(null); }
     });
-
     commerciauxRowsContainer.appendChild(row);
-  }
-
-  var addBtn = document.getElementById('add-commercial-row-btn');
-  if (addBtn) {
-    addBtn.addEventListener('click', function () { addCommercialRow(null); });
+    return row;
   }
 
   if (commerciauxRowsContainer) {
+    document.getElementById('add-commercial-row-btn').addEventListener('click', function () {
+      addCommercialRow(null).querySelector('select').focus();
+    });
     if (SELECTED_COMMERCIAL_IDS.length) {
       SELECTED_COMMERCIAL_IDS.forEach(function (id) { addCommercialRow(id); });
     } else {
       addCommercialRow(null);
     }
   }
+
+  // ── Vérification avant envoi (les mêmes règles sont contrôlées côté serveur) ──
+  function setError(fieldId, on) {
+    var field = document.getElementById(fieldId);
+    if (field) { field.classList.toggle('blx-has-error', on); }
+  }
+
+  raisonInput.addEventListener('input', function () { if (raisonInput.value.trim()) { setError('cli-field-raison', false); } });
+  zoneSelect.addEventListener('change', function () { if (zoneSelect.value) { setError('cli-field-zone', false); } });
+
+  form.addEventListener('submit', function (e) {
+    var premier = null;
+    function verifier(ok, fieldId, champ) {
+      setError(fieldId, !ok);
+      if (!ok && !premier) { premier = champ; }
+    }
+    verifier(!!raisonInput.value.trim(), 'cli-field-raison', raisonInput);
+    verifier(!!zoneSelect.value, 'cli-field-zone', zoneSelect);
+    if (commerciauxRowsContainer) {
+      var choisis = Array.prototype.some.call(
+        commerciauxRowsContainer.querySelectorAll('select'), function (s) { return !!s.value; });
+      verifier(choisis, 'cli-field-commerciaux', commerciauxRowsContainer.querySelector('select'));
+    }
+    if (premier) {
+      e.preventDefault();
+      premier.closest('.blx-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      premier.focus({ preventScroll: true });
+      return;
+    }
+    // Évite un double enregistrement en cas de double appui.
+    enregistrementEnCours = true;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+  });
+
+  // Sur ordinateur, le curseur se place sur le nom du commerce ; sur
+  // téléphone on s'en abstient pour ne pas ouvrir le clavier à l'arrivée.
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    raisonInput.focus();
+  }
 })();
 </script>
+{% include 'commercial/zone/_zone_live_refresh.html' %}
 {% endblock %}
