@@ -500,7 +500,12 @@ class ClientListView(GroupRequiredMixin, View):
 
         base_qs = _client_queryset_for_user(request.user)
 
-        qs = base_qs.select_related('zone__delegation__gouvernorat').distinct()
+        qs = (
+            base_qs
+            .select_related('zone__delegation__gouvernorat')
+            .prefetch_related('client_users__user')
+            .distinct()
+        )
         if commercial_id:
             qs = qs.filter(client_users__user_id=commercial_id)
         if zone_id:
@@ -561,7 +566,9 @@ class ClientCreateView(GroupRequiredMixin, View):
         )
         is_admin = _is_administration(request.user)
 
-        form = overrides.pop('form', None) or ClientForm(initial={'created_at': date.today()})
+        form = overrides.pop('form', None) or ClientForm(
+            initial={'created_at': date.today()}, lock_autofill=True,
+        )
         if not is_admin:
             form.fields['is_active'].widget.attrs['disabled'] = 'disabled'
 
@@ -650,7 +657,7 @@ class ClientCreateView(GroupRequiredMixin, View):
                 'observation': observation,
                 'created_at': created_at_s or None,
                 'is_active': is_active,
-            })
+            }, lock_autofill=True)
             return render(request, self.template_name, self._context(
                 request, form=form,
                 selected_gouvernorat_id=gouvernorat_id_preserve,
@@ -824,7 +831,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
         )
         is_admin = _is_administration(request.user)
 
-        form = overrides.pop('form', None) or ClientForm(instance=client)
+        form = overrides.pop('form', None) or ClientForm(instance=client, lock_autofill=True)
 
         context = {
             'client': client,
@@ -881,7 +888,7 @@ class ClientUpdateView(GroupRequiredMixin, View):
         gouvernorat_id_preserve = str(delegation_obj.gouvernorat_id) if delegation_obj else ''
 
         avant = model_to_dict(client)
-        form = ClientForm(request.POST, request.FILES, instance=client)
+        form = ClientForm(request.POST, request.FILES, instance=client, lock_autofill=True)
 
         def _echec(message):
             messages.error(request, message)
@@ -4955,10 +4962,10 @@ class FournisseurCreateView(GroupRequiredMixin, View):
     template_name = 'commercial/fournisseur/create.html'
 
     def get(self, request):
-        return render(request, self.template_name, {'form': FournisseurForm()})
+        return render(request, self.template_name, {'form': FournisseurForm(lock_autofill=True)})
 
     def post(self, request):
-        form = FournisseurForm(request.POST)
+        form = FournisseurForm(request.POST, lock_autofill=True)
         if not form.is_valid():
             messages.error(request, _form_errors_text(form))
             return render(request, self.template_name, {'form': form})
@@ -4991,13 +4998,13 @@ class FournisseurUpdateView(GroupRequiredMixin, View):
 
     def get(self, request, pk):
         fournisseur = get_object_or_404(Fournisseur, pk=pk)
-        form = FournisseurForm(instance=fournisseur)
+        form = FournisseurForm(instance=fournisseur, lock_autofill=True)
         return render(request, self.template_name, {'fournisseur': fournisseur, 'form': form})
 
     def post(self, request, pk):
         fournisseur = get_object_or_404(Fournisseur, pk=pk)
         avant = model_to_dict(fournisseur)
-        form = FournisseurForm(request.POST, instance=fournisseur)
+        form = FournisseurForm(request.POST, instance=fournisseur, lock_autofill=True)
         if not form.is_valid():
             messages.error(request, _form_errors_text(form))
             return render(request, self.template_name, {'fournisseur': fournisseur, 'form': form})

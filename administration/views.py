@@ -640,7 +640,7 @@ class EmployeListView(GroupRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['q'] = self.request.GET.get('q', '')
+        ctx['q'] = self.request.GET.get('q', '').strip()
         return ctx
 
 
@@ -648,7 +648,7 @@ class EmployeDetailView(GroupRequiredMixin, DetailView):
     group_required = 'Administration'
     template_name = 'administration/employe/detail.html'
     context_object_name = 'employe'
-    queryset = Employe.objects.select_related('user')
+    queryset = Employe.objects.select_related('user').prefetch_related('user__groups')
 
 
 class EmployeCreateView(GroupRequiredMixin, View):

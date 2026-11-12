@@ -4,124 +4,194 @@
 {% block page_title %}Clients{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Clients</li>
+    <li class="breadcrumb-item active" aria-current="page">Clients</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des clients</h4>
-  <a href="{% url 'commercial:client-create' %}" class="btn btn-primary">
-    <i class="bi bi-person-plus me-1"></i> Nouveau client
-  </a>
-</div>
+<div class="client-directory">
 
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+  <header class="cld-hero" aria-labelledby="cld-page-title">
+    <span class="cld-hero-icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+    <div class="cld-hero-copy">
+      <div class="cld-eyebrow"><i class="bi bi-shop" aria-hidden="true"></i> Portefeuille commercial</div>
+      <h1 id="cld-page-title">Répertoire clients</h1>
+      <p>Consultez les contacts, zones et affectations commerciales depuis un espace unique.</p>
+    </div>
+    <div class="cld-hero-actions">
+      <div class="cld-count-card" aria-label="{{ page_obj.paginator.count }} clients trouvés">
+        <strong>{{ page_obj.paginator.count }}</strong>
+        <span>client{{ page_obj.paginator.count|pluralize }}</span>
+      </div>
+      <a href="{% url 'commercial:client-create' %}" class="btn btn-light cld-add-btn">
+        <i class="bi bi-person-plus" aria-hidden="true"></i>Nouveau client
+      </a>
+    </div>
+  </header>
 
-        {% if is_administration %}
-        <div style="width:240px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Raison sociale</label>
-          <select name="client_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les clients —</option>
-            {% for c in clients_options %}
-            <option value="{{ c.pk }}" {% if selected_client_id == c.pk|stringformat:"s" %}selected{% endif %}>
-              {{ c.raison_sociale|default:c.nom_client }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
+  <section class="cld-filter-card" aria-labelledby="cld-filter-title">
+    <div class="cld-filter-head">
+      <span class="cld-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span>
+      <div>
+        <h2 id="cld-filter-title">Filtrer le portefeuille</h2>
+        <p>{% if is_administration %}Croisez le client, la zone et le commercial.{% else %}Affichez les clients d'une zone précise.{% endif %}</p>
+      </div>
+      {% if selected_client_id or selected_zone_id or selected_commercial_id %}
+      <span class="cld-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i> Filtres actifs</span>
+      {% endif %}
+    </div>
 
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Zone</label>
-          <select name="zone_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Toutes les zones —</option>
-            {% for z in zones_options %}
-            <option value="{{ z.pk }}" {% if selected_zone_id == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.nom }}</option>
-            {% endfor %}
-          </select>
-        </div>
+    <form method="get" class="cld-filter-form {% if not is_administration %}cld-filter-form-compact{% endif %}" autocomplete="off">
+      {% if is_administration %}
+      <div class="cld-filter-field">
+        <label for="client-filter-company">Client</label>
+        <select name="client_id" id="client-filter-company" class="form-select">
+          <option value="">Tous les clients</option>
+          {% for c in clients_options %}
+          <option value="{{ c.pk }}" {% if selected_client_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.raison_sociale|default:c.nom_client|default:"Client sans nom" }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
 
-        {% if is_administration %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
+      <div class="cld-filter-field">
+        <label for="client-filter-zone">Zone</label>
+        <select name="zone_id" id="client-filter-zone" class="form-select">
+          <option value="">Toutes les zones</option>
+          {% for z in zones_options %}
+          <option value="{{ z.pk }}" {% if selected_zone_id == z.pk|stringformat:"s" %}selected{% endif %}>{{ z.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
+      {% if is_administration %}
+      <div class="cld-filter-field">
+        <label for="client-filter-commercial">Commercial</label>
+        <select name="commercial_id" id="client-filter-commercial" class="form-select">
+          <option value="">Tous les commerciaux</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="cld-filter-actions">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i>Appliquer</button>
         {% if selected_client_id or selected_zone_id or selected_commercial_id %}
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
+        <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>
         {% endif %}
-
       </div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Section 2 : liste des clients ────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="cld-panel" aria-labelledby="cld-results-title">
+    <header class="cld-panel-head">
+      <div>
+        <div class="cld-section-label">Portefeuille</div>
+        <h2 id="cld-results-title">
+          {% if selected_client_id or selected_zone_id or selected_commercial_id %}Résultats filtrés{% else %}{% if is_administration %}Tous les clients{% else %}Mes clients{% endif %}{% endif %}
+        </h2>
+        {% if clients %}
+        <p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>
+        {% else %}
+        <p>Aucun client ne correspond aux critères actuels.</p>
+        {% endif %}
+      </div>
+      {% if clients %}
+      <span class="cld-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} dossier{{ page_obj.paginator.count|pluralize }}</span>
+      {% endif %}
+    </header>
+
     {% if clients %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+    {# Ordinateur : tableau dense, sans champs de formulaire détournés. #}
+    <div class="cld-table-wrap">
+      <table class="cld-table">
+        <caption class="visually-hidden">Liste des clients, coordonnées et affectations</caption>
+        <thead>
           <tr>
-            <th class="ps-3" style="min-width:200px;">Client</th>
-            <th style="min-width:160px;">Zone</th>
-            <th class="text-center pe-3" style="width:140px">Actions</th>
+            <th scope="col">Client</th>
+            <th scope="col">Localisation</th>
+            <th scope="col">Contact</th>
+            <th scope="col">Affectation</th>
+            <th scope="col" class="cld-actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for c in clients %}
           <tr>
-            <td class="ps-3">
-              <input type="text" value="{{ c.raison_sociale|default:'' }}"
-                     class="form-control form-control-sm" style="min-width:190px;" disabled>
+            <td>
+              <div class="cld-client-identity">
+                {% if c.photo %}
+                <img src="{{ c.photo.url }}" alt="Photo de {{ c.raison_sociale|default:c.nom_client|default:'ce client' }}" class="cld-avatar">
+                {% else %}
+                <span class="cld-avatar cld-avatar-placeholder" aria-hidden="true"><i class="bi bi-shop"></i></span>
+                {% endif %}
+                <span class="cld-client-copy">
+                  {% if is_administration %}
+                  <a href="{% url 'commercial:client-detail' c.pk %}" class="cld-name">{{ c.raison_sociale|default:c.nom_client|default:"Client sans nom" }}</a>
+                  {% else %}
+                  <span class="cld-name cld-name-static">{{ c.raison_sociale|default:c.nom_client|default:"Client sans nom" }}</span>
+                  {% endif %}
+                  <span class="cld-contact-name">{{ c.nom_client|default:"Contact non renseigné" }}</span>
+                  {% if c.is_active %}
+                  <span class="cld-status cld-status-active"><i class="bi bi-circle-fill" aria-hidden="true"></i> Actif</span>
+                  {% else %}
+                  <span class="cld-status cld-status-inactive"><i class="bi bi-circle-fill" aria-hidden="true"></i> Inactif</span>
+                  {% endif %}
+                </span>
+              </div>
             </td>
             <td>
-              <input type="text" value="{{ c.zone.nom|default:'—' }}"
-                     class="form-control form-control-sm" style="min-width:150px;" disabled>
+              {% if c.zone %}
+              <span class="cld-primary-value"><i class="bi bi-geo-alt" aria-hidden="true"></i>{{ c.zone.nom }}</span>
+              <span class="cld-secondary-value">{{ c.zone.delegation.nom_delegation }} · {{ c.zone.delegation.gouvernorat.nom }}</span>
+              {% else %}
+              <span class="cld-empty"><i class="bi bi-geo-alt" aria-hidden="true"></i> Zone non renseignée</span>
+              {% endif %}
+              {% if c.adresse %}<span class="cld-address">{{ c.adresse }}</span>{% endif %}
             </td>
-            <td class="text-center pe-3">
-              {% if is_administration %}
-              <a href="{% url 'commercial:client-detail' c.pk %}"
-                 class="btn btn-sm btn-outline-secondary me-1" title="Visualiser">
-                <i class="bi bi-eye"></i>
-              </a>
+            <td>
+              {% if c.telephone %}
+              <a href="tel:{{ c.telephone }}" class="cld-phone"><i class="bi bi-telephone" aria-hidden="true"></i>{{ c.telephone }}</a>
+              {% else %}
+              <span class="cld-empty"><i class="bi bi-telephone" aria-hidden="true"></i> Non renseigné</span>
               {% endif %}
-              <a href="{% url 'commercial:client-update' c.pk %}"
-                 class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </a>
+              <span class="cld-secondary-value"><i class="bi bi-calendar3" aria-hidden="true"></i>{% if c.created_at %}Créé le {{ c.created_at|date:"d/m/Y" }}{% else %}Date non renseignée{% endif %}</span>
+            </td>
+            <td>
               {% if is_administration %}
-              <form id="client-delete-{{ c.pk }}" method="post"
-                    action="{% url 'commercial:client-delete' c.pk %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                        onclick="return confirm('Supprimer le client « {{ c|escapejs }} » ?');">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
+                {% with affectations=c.client_users.all %}
+                {% if affectations %}
+                <span class="cld-commercial-list">
+                  {% for cu in affectations %}<span><i class="bi bi-person" aria-hidden="true"></i>{{ cu.user.get_full_name|default:cu.user.username }}</span>{% endfor %}
+                </span>
+                {% else %}
+                <span class="cld-empty">Aucun commercial affecté</span>
+                {% endif %}
+                {% endwith %}
+              {% else %}
+              <span class="cld-portfolio"><i class="bi bi-person-check" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</span>
               {% endif %}
+            </td>
+            <td class="cld-actions-col">
+              <div class="cld-row-actions">
+                {% if is_administration %}
+                <a href="{% url 'commercial:client-detail' c.pk %}" class="cld-icon-btn" aria-label="Voir {{ c }}" title="Voir le détail"><i class="bi bi-eye" aria-hidden="true"></i></a>
+                {% endif %}
+                <a href="{% url 'commercial:client-update' c.pk %}" class="cld-icon-btn cld-icon-btn-primary" aria-label="Modifier {{ c }}" title="Modifier"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                {% if is_administration %}
+                <form method="post" action="{% url 'commercial:client-delete' c.pk %}" class="cld-delete-form">
+                  {% csrf_token %}
+                  <button type="submit" class="cld-icon-btn cld-icon-btn-danger" aria-label="Supprimer {{ c }}" title="Supprimer"
+                          onclick="return confirm('Supprimer le client « {{ c|escapejs }} » ?');"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                </form>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -129,70 +199,278 @@
       </table>
     </div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {# Tablettes et téléphones : cartes lisibles sans tableau horizontal. #}
+    <div class="cld-mobile-list">
+      {% for c in clients %}
+      <article class="cld-client-card">
+        <header class="cld-client-card-head">
+          {% if c.photo %}
+          <img src="{{ c.photo.url }}" alt="Photo de {{ c.raison_sociale|default:c.nom_client|default:'ce client' }}" class="cld-avatar cld-avatar-large">
+          {% else %}
+          <span class="cld-avatar cld-avatar-large cld-avatar-placeholder" aria-hidden="true"><i class="bi bi-shop"></i></span>
+          {% endif %}
+          <span class="cld-client-card-title">
+            {% if is_administration %}<a href="{% url 'commercial:client-detail' c.pk %}">{{ c.raison_sociale|default:c.nom_client|default:"Client sans nom" }}</a>{% else %}<strong>{{ c.raison_sociale|default:c.nom_client|default:"Client sans nom" }}</strong>{% endif %}
+            <span>{{ c.nom_client|default:"Contact non renseigné" }}</span>
+          </span>
+          {% if c.is_active %}<span class="cld-status cld-status-active"><i class="bi bi-circle-fill" aria-hidden="true"></i> Actif</span>{% else %}<span class="cld-status cld-status-inactive"><i class="bi bi-circle-fill" aria-hidden="true"></i> Inactif</span>{% endif %}
+        </header>
+
+        <dl class="cld-card-details">
+          <div><dt>Zone</dt><dd>{% if c.zone %}{{ c.zone.nom }}{% else %}Non renseignée{% endif %}</dd></div>
+          <div><dt>Téléphone</dt><dd>{% if c.telephone %}<a href="tel:{{ c.telephone }}">{{ c.telephone }}</a>{% else %}Non renseigné{% endif %}</dd></div>
+          {% if c.zone %}<div class="cld-detail-wide"><dt>Secteur</dt><dd>{{ c.zone.delegation.nom_delegation }} · {{ c.zone.delegation.gouvernorat.nom }}</dd></div>{% endif %}
+          <div class="cld-detail-wide"><dt>Adresse</dt><dd>{{ c.adresse|default:"Non renseignée" }}</dd></div>
+          <div><dt>Création</dt><dd>{% if c.created_at %}{{ c.created_at|date:"d/m/Y" }}{% else %}Non renseignée{% endif %}</dd></div>
+          <div>
+            <dt>{% if is_administration %}Commercial{% else %}Portefeuille{% endif %}</dt>
+            <dd>
+              {% if is_administration %}
+                {% with affectations=c.client_users.all %}
+                {% if affectations %}{% for cu in affectations %}{{ cu.user.get_full_name|default:cu.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}Non affecté{% endif %}
+                {% endwith %}
+              {% else %}
+                {{ request.user.get_full_name|default:request.user.username }}
+              {% endif %}
+            </dd>
+          </div>
+        </dl>
+
+        <footer class="cld-card-actions {% if not is_administration %}cld-card-actions-single{% endif %}">
+          {% if is_administration %}<a href="{% url 'commercial:client-detail' c.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Voir</a>{% endif %}
+          <a href="{% url 'commercial:client-update' c.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a>
+          {% if is_administration %}
+          <form method="post" action="{% url 'commercial:client-delete' c.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Supprimer le client « {{ c|escapejs }} » ?');"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer {{ c }}</span></button>
+          </form>
+          {% endif %}
+        </footer>
+      </article>
+      {% endfor %}
+    </div>
+
     {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} client{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+    <footer class="cld-pagination-footer">
+      <span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+      <nav aria-label="Pagination des clients">
+        <ul class="cld-pagination">
           {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?{% if selected_client_id %}client_id={{ selected_client_id }}&{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id }}&{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id }}&{% endif %}page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
+          <li><a href="?{% if selected_client_id %}client_id={{ selected_client_id|urlencode }}&amp;{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id|urlencode }}&amp;{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id|urlencode }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>
           {% endif %}
           {% for num in page_obj.paginator.page_range %}
             {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            <li><span class="active" aria-current="page">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?{% if selected_client_id %}client_id={{ selected_client_id }}&{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id }}&{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id }}&{% endif %}page={{ num }}">{{ num }}</a>
-            </li>
+            <li><a href="?{% if selected_client_id %}client_id={{ selected_client_id|urlencode }}&amp;{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id|urlencode }}&amp;{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id|urlencode }}&amp;{% endif %}page={{ num }}">{{ num }}</a></li>
             {% endif %}
           {% endfor %}
           {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?{% if selected_client_id %}client_id={{ selected_client_id }}&{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id }}&{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id }}&{% endif %}page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
+          <li><a href="?{% if selected_client_id %}client_id={{ selected_client_id|urlencode }}&amp;{% endif %}{% if selected_zone_id %}zone_id={{ selected_zone_id|urlencode }}&amp;{% endif %}{% if selected_commercial_id %}commercial_id={{ selected_commercial_id|urlencode }}&amp;{% endif %}page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>
           {% endif %}
         </ul>
       </nav>
-    </div>
+    </footer>
     {% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+    <div class="cld-empty-state">
+      <span class="cld-empty-icon"><i class="bi {% if selected_client_id or selected_zone_id or selected_commercial_id %}bi-search{% else %}bi-people{% endif %}" aria-hidden="true"></i></span>
       {% if selected_client_id or selected_zone_id or selected_commercial_id %}
-        Aucun client ne correspond aux filtres sélectionnés.
-        <br>
-        <a href="{% url 'commercial:client-list' %}" class="mt-2 d-inline-block">
-          Réinitialiser les filtres
-        </a>
+      <h2>Aucun client trouvé</h2>
+      <p>Modifiez les critères ou réinitialisez les filtres pour afficher le portefeuille complet.</p>
+      <a href="{% url 'commercial:client-list' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser les filtres</a>
       {% else %}
-        Aucun client enregistré.
+      <h2>Aucun client enregistré</h2>
+      <p>Ajoutez votre premier client pour commencer à constituer le portefeuille.</p>
+      <a href="{% url 'commercial:client-create' %}" class="btn btn-primary"><i class="bi bi-person-plus" aria-hidden="true"></i>Ajouter le premier client</a>
       {% endif %}
     </div>
     {% endif %}
-  </div>
+  </section>
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* ── Répertoire clients : ordinateur d'abord ─────────────────────────────── */
+.client-directory {
+  --cld-primary: #2c7be5;
+  --cld-primary-dark: #1a4f9c;
+  --cld-ink: #172033;
+  --cld-muted: #667085;
+  --cld-border: #e2e8f0;
+  --cld-surface: #fff;
+  --cld-radius: 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--cld-ink);
+}
+.cld-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.15rem;
+  min-height: 132px;
+  padding: 1.4rem 1.55rem;
+  border-radius: 1.05rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 62%, #2c7be5 100%);
+  box-shadow: 0 9px 28px rgba(25,74,128,.15);
+  color: #fff;
+}
+.cld-hero-icon { display: inline-flex; align-items: center; justify-content: center; width: 4.3rem; height: 4.3rem; border: 2px solid rgba(255,255,255,.35); border-radius: 1rem; background: rgba(255,255,255,.14); font-size: 1.65rem; }
+.cld-hero-copy { min-width: 0; }
+.cld-eyebrow { display: flex; align-items: center; gap: .35rem; color: rgba(255,255,255,.68); font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.cld-hero h1 { margin: .2rem 0 .25rem; font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 750; letter-spacing: -.02em; }
+.cld-hero-copy > p { margin: 0; max-width: 720px; color: rgba(255,255,255,.78); font-size: .88rem; line-height: 1.5; }
+.cld-hero-actions { display: flex; align-items: stretch; gap: .65rem; }
+.cld-count-card { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 84px; padding: .55rem .8rem; border: 1px solid rgba(255,255,255,.2); border-radius: .78rem; background: rgba(8,31,61,.2); }
+.cld-count-card strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.cld-count-card span { margin-top: .14rem; color: rgba(255,255,255,.72); font-size: .68rem; }
+.cld-add-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 3.15rem; padding-inline: 1rem; border-radius: .78rem; color: #194f89; font-size: .82rem; font-weight: 750; }
+
+.cld-filter-card { margin-top: 1.1rem; overflow: hidden; border: 1px solid var(--cld-border); border-radius: var(--cld-radius); background: var(--cld-surface); box-shadow: 0 2px 9px rgba(16,24,40,.04); }
+.cld-filter-head { display: flex; align-items: center; gap: .7rem; min-height: 72px; padding: .85rem 1rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.cld-filter-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.45rem; height: 2.45rem; border-radius: .7rem; background: #eaf2fd; color: var(--cld-primary); font-size: 1.02rem; }
+.cld-filter-head h2 { margin: 0; color: var(--cld-ink); font-size: .94rem; font-weight: 750; }
+.cld-filter-head p { margin: .12rem 0 0; color: var(--cld-muted); font-size: .7rem; }
+.cld-active-filter { display: inline-flex; align-items: center; gap: .3rem; margin-left: auto; padding: .3rem .58rem; border-radius: 2rem; background: #e9f6ef; color: #18794e; font-size: .68rem; font-weight: 750; white-space: nowrap; }
+.cld-filter-form { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)) auto; align-items: end; gap: .8rem; padding: 1rem; }
+.cld-filter-form-compact { grid-template-columns: minmax(240px, 380px) auto; justify-content: start; }
+.cld-filter-field { min-width: 0; }
+.cld-filter-field label { display: block; margin-bottom: .35rem; color: #344054; font-size: .72rem; font-weight: 700; }
+.cld-filter-field .form-select { min-height: 2.9rem; border-color: #cfd7e3; border-radius: .68rem; color: var(--cld-ink); font-size: .82rem; }
+.cld-filter-field .form-select:focus { border-color: #77a9e9; box-shadow: 0 0 0 .2rem rgba(44,123,229,.13); }
+.cld-filter-actions { display: flex; align-items: center; gap: .45rem; }
+.cld-filter-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .38rem; min-height: 2.9rem; padding-inline: .85rem; border-radius: .68rem; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+
+.cld-panel { margin-top: 1rem; overflow: hidden; border: 1px solid var(--cld-border); border-radius: var(--cld-radius); background: var(--cld-surface); box-shadow: 0 3px 12px rgba(16,24,40,.045); }
+.cld-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 82px; padding: 1rem 1.2rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.cld-section-label { color: var(--cld-primary-dark); font-size: .65rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.cld-panel-head h2 { margin: .18rem 0 0; color: var(--cld-ink); font-size: 1.05rem; font-weight: 750; }
+.cld-panel-head p { margin: .18rem 0 0; color: var(--cld-muted); font-size: .73rem; }
+.cld-result-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .38rem .65rem; border-radius: 2rem; background: #eaf2fd; color: var(--cld-primary-dark); font-size: .7rem; font-weight: 750; white-space: nowrap; }
+
+.cld-table-wrap { display: block; }
+.cld-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.cld-table thead { background: #f8fafc; }
+.cld-table th { padding: .7rem 1rem; border-bottom: 1px solid var(--cld-border); color: var(--cld-muted); font-size: .67rem; font-weight: 800; letter-spacing: .055em; text-align: left; text-transform: uppercase; }
+.cld-table td { padding: .82rem 1rem; border-bottom: 1px solid #edf0f4; color: var(--cld-ink); font-size: .78rem; vertical-align: middle; }
+.cld-table tbody tr:last-child td { border-bottom: 0; }
+.cld-table tbody tr { transition: background-color .14s ease; }
+.cld-table tbody tr:hover { background: #f8faff; }
+.cld-table th:nth-child(1) { width: 24%; }
+.cld-table th:nth-child(2) { width: 23%; }
+.cld-table th:nth-child(3) { width: 18%; }
+.cld-table th:nth-child(4) { width: 25%; }
+.cld-table th:nth-child(5) { width: 10%; }
+.cld-client-identity { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.cld-avatar { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; border-radius: .75rem; object-fit: cover; }
+.cld-avatar-placeholder { background: #eaf2fd; color: var(--cld-primary); font-size: 1.08rem; }
+.cld-avatar-large { width: 3.15rem; height: 3.15rem; border-radius: .85rem; }
+.cld-client-copy { min-width: 0; }
+.cld-name { display: block; overflow: hidden; color: var(--cld-ink); font-size: .82rem; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.cld-name:hover { color: var(--cld-primary-dark); }
+.cld-name-static:hover { color: var(--cld-ink); }
+.cld-contact-name { display: block; overflow: hidden; margin-top: .1rem; color: var(--cld-muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.cld-status { display: inline-flex; align-items: center; gap: .22rem; margin-top: .28rem; font-size: .64rem; font-weight: 750; white-space: nowrap; }
+.cld-status i { font-size: .38rem; }
+.cld-status-active { color: #18794e; }
+.cld-status-inactive { color: #7b8492; }
+.cld-primary-value { display: flex; align-items: center; gap: .3rem; overflow: hidden; font-size: .77rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.cld-secondary-value { display: flex; align-items: center; gap: .3rem; overflow: hidden; margin-top: .25rem; color: var(--cld-muted); font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
+.cld-address { display: -webkit-box; overflow: hidden; margin-top: .28rem; color: #526071; font-size: .68rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.cld-phone { display: flex; align-items: center; gap: .3rem; color: var(--cld-ink); font-size: .77rem; font-weight: 650; text-decoration: none; }
+.cld-phone:hover { color: var(--cld-primary-dark); }
+.cld-empty { display: inline-flex; align-items: center; gap: .3rem; color: #8b95a4; font-size: .69rem; }
+.cld-commercial-list { display: grid; gap: .28rem; }
+.cld-commercial-list > span { display: flex; align-items: center; gap: .3rem; overflow: hidden; color: #526071; font-size: .7rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.cld-commercial-list i { color: #8ea0b5; }
+.cld-portfolio { display: flex; align-items: center; gap: .35rem; color: #526071; font-size: .72rem; font-weight: 650; }
+.cld-actions-col { text-align: center !important; }
+.cld-row-actions { display: flex; align-items: center; justify-content: center; gap: .3rem; }
+.cld-delete-form { margin: 0; }
+.cld-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; padding: 0; border: 1px solid #d6dde7; border-radius: .56rem; background: #fff; color: #596579; text-decoration: none; transition: border-color .14s ease, background-color .14s ease, color .14s ease; }
+.cld-icon-btn:hover { border-color: #aeb9c7; background: #f7f9fb; color: var(--cld-ink); }
+.cld-icon-btn-primary { border-color: #b8d0ef; color: var(--cld-primary-dark); }
+.cld-icon-btn-primary:hover { border-color: #8eb6ea; background: #eef5fe; color: #174c8f; }
+.cld-icon-btn-danger { border-color: #efc6cb; color: #b42332; }
+.cld-icon-btn-danger:hover { border-color: #df9da5; background: #fff5f6; color: #991c2a; }
+
+.cld-mobile-list { display: none; }
+.cld-client-card { overflow: hidden; border: 1px solid var(--cld-border); border-radius: .85rem; background: #fff; }
+.cld-client-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .9rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.cld-client-card-title { min-width: 0; }
+.cld-client-card-title a,
+.cld-client-card-title strong { display: block; overflow: hidden; color: var(--cld-ink); font-size: .86rem; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.cld-client-card-title span { display: block; overflow: hidden; margin-top: .1rem; color: var(--cld-muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.cld-client-card-head > .cld-status { margin-top: 0; }
+.cld-card-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; margin: 0; padding: 1rem; }
+.cld-card-details div { min-width: 0; }
+.cld-card-details dt { margin-bottom: .15rem; color: var(--cld-muted); font-size: .64rem; font-weight: 650; text-transform: uppercase; }
+.cld-card-details dd { overflow-wrap: anywhere; margin: 0; color: var(--cld-ink); font-size: .75rem; font-weight: 650; }
+.cld-card-details a { color: var(--cld-primary-dark); text-decoration: none; }
+.cld-detail-wide { grid-column: 1 / -1; }
+.cld-card-actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: .5rem; padding: .75rem .9rem; border-top: 1px solid #edf0f4; }
+.cld-card-actions-single { grid-template-columns: 1fr; }
+.cld-card-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .38rem; width: 100%; min-height: 2.65rem; border-radius: .65rem; font-size: .74rem; font-weight: 700; }
+.cld-card-actions form { margin: 0; }
+
+.cld-pagination-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 62px; padding: .75rem 1rem; border-top: 1px solid var(--cld-border); background: #fbfcfe; }
+.cld-pagination-footer > span { color: var(--cld-muted); font-size: .72rem; }
+.cld-pagination { display: flex; align-items: center; gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.cld-pagination a,
+.cld-pagination span { display: inline-flex; align-items: center; justify-content: center; min-width: 2.25rem; height: 2.25rem; padding: 0 .4rem; border: 1px solid #d8e0ea; border-radius: .55rem; background: #fff; color: #526071; font-size: .72rem; font-weight: 700; text-decoration: none; }
+.cld-pagination a:hover { border-color: #9cbee9; background: #f4f8fe; color: var(--cld-primary-dark); }
+.cld-pagination .active { border-color: var(--cld-primary); background: var(--cld-primary); color: #fff; }
+.cld-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 350px; padding: 2rem; text-align: center; }
+.cld-empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; margin-bottom: .9rem; border-radius: 1rem; background: #edf4fd; color: var(--cld-primary); font-size: 1.55rem; }
+.cld-empty-state h2 { margin: 0; color: var(--cld-ink); font-size: 1rem; font-weight: 750; }
+.cld-empty-state p { max-width: 440px; margin: .35rem 0 1rem; color: var(--cld-muted); font-size: .78rem; }
+.cld-empty-state .btn { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; border-radius: .68rem; font-size: .78rem; font-weight: 700; }
+
+.client-directory a:focus-visible,
+.client-directory button:focus-visible,
+.client-directory select:focus-visible { outline: 3px solid #174c8f; outline-offset: 2px; }
+
+@media (max-width: 1199.98px) {
+  .cld-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cld-filter-form-compact { grid-template-columns: minmax(240px, 1fr) auto; }
+  .cld-table-wrap { display: none; }
+  .cld-mobile-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; padding: .9rem; }
+}
+@media (max-width: 991.98px) {
+  .cld-hero { grid-template-columns: auto minmax(0, 1fr); }
+  .cld-hero-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 767.98px) {
+  .cld-filter-form,
+  .cld-filter-form-compact { grid-template-columns: 1fr; }
+  .cld-filter-actions { flex-wrap: wrap; }
+  .cld-mobile-list { grid-template-columns: 1fr; }
+  .cld-panel-head { align-items: flex-start; }
+}
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .cld-hero { gap: .8rem; padding: 1rem; border-radius: .9rem; }
+  .cld-hero-icon { width: 3.5rem; height: 3.5rem; font-size: 1.35rem; }
+  .cld-hero-copy > p { font-size: .8rem; }
+  .cld-hero-actions { align-items: stretch; flex-direction: column; }
+  .cld-count-card { align-items: baseline; flex-direction: row; gap: .35rem; min-height: 2.6rem; }
+  .cld-count-card strong { font-size: 1rem; }
+  .cld-filter-head { align-items: flex-start; flex-wrap: wrap; }
+  .cld-active-filter { margin-left: 3.15rem; }
+  .cld-filter-actions .btn { flex: 1 1 100%; width: 100%; }
+  .cld-panel-head { flex-direction: column; padding: .9rem; }
+  .cld-client-card-head { grid-template-columns: auto minmax(0, 1fr); }
+  .cld-client-card-head > .cld-status { grid-column: 2; justify-self: start; }
+  .cld-card-details { grid-template-columns: 1fr; gap: .7rem; }
+  .cld-detail-wide { grid-column: auto; }
+  .cld-pagination-footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cld-table tbody tr,
+  .cld-icon-btn { transition: none; }
+}
 {% endblock %}

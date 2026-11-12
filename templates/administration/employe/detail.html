@@ -1,130 +1,339 @@
 {% extends "administration/base.html" %}
 
-{% block title %}{{ employe.user.get_full_name }} — Employés{% endblock %}
+{% block title %}{{ employe.user.get_full_name|default:employe.user.username }} — Employés{% endblock %}
 {% block page_title %}Fiche employé{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'administration:employe-list' %}">Employés</a></li>
-    <li class="breadcrumb-item active">{{ employe.user.get_full_name }}</li>
+    <li class="breadcrumb-item active" aria-current="page">{{ employe.user.get_full_name|default:employe.user.username }}</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
-<div class="row g-4">
+<div class="employee-profile">
 
-  {# ── Carte identité ────────────────────────────────────────────── #}
-  <div class="col-md-4 col-lg-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body text-center py-4">
-        {% if employe.photo %}
-        <img src="{{ employe.photo.url }}" alt="{{ employe.user.get_full_name }}"
-             style="width:96px;height:96px;border-radius:50%;object-fit:cover;" class="mb-3">
-        {% else %}
-        <div style="width:96px;height:96px;border-radius:50%;background:#2c7be5;color:#fff;
-                    display:flex;align-items:center;justify-content:center;font-size:2rem;
-                    font-weight:700;margin:0 auto 1rem;">
+  <header class="epd-hero" aria-labelledby="epd-page-title">
+    <div class="epd-avatar-wrap">
+      {% if employe.photo %}
+      <img src="{{ employe.photo.url }}" alt="Photo de {{ employe.user.get_full_name|default:employe.user.username }}" class="epd-avatar">
+      {% else %}
+      <span class="epd-avatar epd-avatar-placeholder" aria-hidden="true">
+        {% if employe.user.first_name or employe.user.last_name %}
           {{ employe.user.first_name|slice:":1"|upper }}{{ employe.user.last_name|slice:":1"|upper }}
-        </div>
+        {% else %}
+          <i class="bi bi-person"></i>
         {% endif %}
-        <h5 class="fw-bold mb-1">{{ employe.user.get_full_name }}</h5>
-        <p class="text-muted small mb-3">@{{ employe.user.username }}</p>
-        <div class="d-flex flex-wrap gap-1 justify-content-center">
-          {% if employe.matricule %}
-          <span class="badge bg-light text-dark border font-monospace">{{ employe.matricule }}</span>
-          {% endif %}
-          {% if employe.type_contrat %}
-          <span class="badge bg-primary">{{ employe.type_contrat }}</span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="card-footer bg-transparent d-flex gap-2 justify-content-center pb-3 flex-wrap">
-        <a href="{% url 'administration:employe-update' employe.pk %}"
-           class="btn btn-primary btn-sm">
-          <i class="bi bi-pencil me-1"></i>Modifier
-        </a>
-        <a href="{% url 'administration:employe-delete' employe.pk %}"
-           class="btn btn-outline-danger btn-sm">
-          <i class="bi bi-trash me-1"></i>Supprimer
-        </a>
-        <a href="{% url 'administration:employe-list' %}"
-           class="btn btn-outline-secondary btn-sm" title="Retour à la liste">
-          <i class="bi bi-arrow-left"></i>
-        </a>
-      </div>
+      </span>
+      {% endif %}
     </div>
-  </div>
 
-  {# ── Détails ───────────────────────────────────────────────────── #}
-  <div class="col-md-8 col-lg-9">
-
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-transparent fw-semibold py-3">
-        <i class="bi bi-briefcase me-2 text-primary"></i>Informations professionnelles
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-sm-6 col-lg-4">
-            <p class="text-muted small mb-1">Service</p>
-            <p class="fw-medium mb-0">{{ employe.service|default:"—" }}</p>
-          </div>
-          <div class="col-sm-6 col-lg-4">
-            <p class="text-muted small mb-1">Type de contrat</p>
-            <p class="fw-medium mb-0">{{ employe.type_contrat|default:"—" }}</p>
-          </div>
-          <div class="col-sm-6 col-lg-4">
-            <p class="text-muted small mb-1">Date d'embauche</p>
-            <p class="fw-medium mb-0">
-              {% if employe.embauche_at %}{{ employe.embauche_at|date:"d/m/Y" }}{% else %}—{% endif %}
-            </p>
-          </div>
-          <div class="col-sm-6 col-lg-4">
-            <p class="text-muted small mb-1">Salaire</p>
-            <p class="fw-medium font-monospace mb-0">
-              {% if employe.salaire %}{{ employe.salaire }} TND{% else %}—{% endif %}
-            </p>
-          </div>
-          <div class="col-sm-6 col-lg-4">
-            <p class="text-muted small mb-1">Téléphone</p>
-            <p class="fw-medium mb-0">{{ employe.telephone|default:"—" }}</p>
-          </div>
-          <div class="col-sm-6 col-lg-4">
-            <p class="text-muted small mb-1">Email</p>
-            <p class="fw-medium mb-0">{{ employe.user.email|default:"—" }}</p>
-          </div>
-          <div class="col-12">
-            <p class="text-muted small mb-1">Adresse</p>
-            <p class="fw-medium mb-0">{{ employe.adresse|default:"—" }}</p>
-          </div>
-        </div>
+    <div class="epd-hero-copy">
+      <div class="epd-eyebrow"><i class="bi bi-person-badge" aria-hidden="true"></i> Dossier employé</div>
+      <h1 id="epd-page-title">{{ employe.user.get_full_name|default:employe.user.username }}</h1>
+      <p>@{{ employe.user.username }}{% if employe.service %} · {{ employe.service }}{% endif %}</p>
+      <div class="epd-hero-tags" aria-label="Résumé du dossier">
+        {% if employe.user.is_active %}
+        <span class="epd-tag epd-tag-active"><i class="bi bi-check-circle" aria-hidden="true"></i> Compte actif</span>
+        {% else %}
+        <span class="epd-tag epd-tag-inactive"><i class="bi bi-pause-circle" aria-hidden="true"></i> Compte inactif</span>
+        {% endif %}
+        {% if employe.matricule %}<span class="epd-tag"><i class="bi bi-upc-scan" aria-hidden="true"></i> {{ employe.matricule }}</span>{% endif %}
+        {% if employe.type_contrat %}<span class="epd-tag"><i class="bi bi-file-earmark-text" aria-hidden="true"></i> {{ employe.type_contrat }}</span>{% endif %}
       </div>
     </div>
 
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-transparent fw-semibold py-3">
-        <i class="bi bi-person me-2 text-primary"></i>Informations personnelles
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-sm-6">
-            <p class="text-muted small mb-1">Date de naissance</p>
-            <p class="fw-medium mb-0">
-              {% if employe.naissance_at %}{{ employe.naissance_at|date:"d/m/Y" }}{% else %}—{% endif %}
-            </p>
-          </div>
-          {% if employe.observation %}
-          <div class="col-12">
-            <p class="text-muted small mb-1">Observation</p>
-            <p class="fw-medium mb-0">{{ employe.observation }}</p>
-          </div>
-          {% endif %}
-        </div>
-      </div>
+    <div class="epd-hero-actions">
+      <a href="{% url 'administration:employe-list' %}" class="btn btn-outline-light">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>Retour à l'annuaire
+      </a>
+      <a href="{% url 'administration:employe-update' employe.pk %}" class="btn btn-light">
+        <i class="bi bi-pencil" aria-hidden="true"></i>Modifier la fiche
+      </a>
     </div>
+  </header>
 
+  <div class="epd-layout">
+    <main class="epd-main">
+      <section class="epd-card" aria-labelledby="epd-job-title">
+        <header class="epd-card-head">
+          <span class="epd-card-icon"><i class="bi bi-briefcase" aria-hidden="true"></i></span>
+          <span>
+            <h2 id="epd-job-title">Informations professionnelles</h2>
+            <p>Affectation, contrat, rémunération et coordonnées professionnelles.</p>
+          </span>
+        </header>
+
+        <dl class="epd-info-grid">
+          <div class="epd-info-item">
+            <dt><i class="bi bi-diagram-3" aria-hidden="true"></i> Service</dt>
+            <dd>{{ employe.service|default:"Non renseigné" }}</dd>
+          </div>
+          <div class="epd-info-item">
+            <dt><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Type de contrat</dt>
+            <dd>{% if employe.type_contrat %}<span class="epd-contract">{{ employe.type_contrat }}</span>{% else %}<span class="epd-empty">Non renseigné</span>{% endif %}</dd>
+          </div>
+          <div class="epd-info-item">
+            <dt><i class="bi bi-calendar-check" aria-hidden="true"></i> Date d'embauche</dt>
+            <dd>{% if employe.embauche_at %}{{ employe.embauche_at|date:"d/m/Y" }}{% else %}<span class="epd-empty">Non renseignée</span>{% endif %}</dd>
+          </div>
+          <div class="epd-info-item">
+            <dt><i class="bi bi-cash-stack" aria-hidden="true"></i> Salaire</dt>
+            <dd>{% if employe.salaire is not None %}<strong class="epd-money">{{ employe.salaire }}</strong> <span class="epd-currency">TND</span>{% else %}<span class="epd-empty">Non renseigné</span>{% endif %}</dd>
+          </div>
+          <div class="epd-info-item">
+            <dt><i class="bi bi-telephone" aria-hidden="true"></i> Téléphone</dt>
+            <dd>{% if employe.telephone %}<a href="tel:{{ employe.telephone }}">{{ employe.telephone }}</a>{% else %}<span class="epd-empty">Non renseigné</span>{% endif %}</dd>
+          </div>
+          <div class="epd-info-item">
+            <dt><i class="bi bi-envelope" aria-hidden="true"></i> Email</dt>
+            <dd>{% if employe.user.email %}<a href="mailto:{{ employe.user.email }}">{{ employe.user.email }}</a>{% else %}<span class="epd-empty">Non renseigné</span>{% endif %}</dd>
+          </div>
+          <div class="epd-info-item epd-info-wide">
+            <dt><i class="bi bi-geo-alt" aria-hidden="true"></i> Adresse</dt>
+            <dd>{{ employe.adresse|default:"Non renseignée" }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="epd-card" aria-labelledby="epd-personal-title">
+        <header class="epd-card-head">
+          <span class="epd-card-icon"><i class="bi bi-person-vcard" aria-hidden="true"></i></span>
+          <span>
+            <h2 id="epd-personal-title">Informations personnelles</h2>
+            <p>Éléments complémentaires du dossier de l'employé.</p>
+          </span>
+        </header>
+
+        <dl class="epd-personal-grid">
+          <div class="epd-info-item">
+            <dt><i class="bi bi-cake2" aria-hidden="true"></i> Date de naissance</dt>
+            <dd>{% if employe.naissance_at %}{{ employe.naissance_at|date:"d/m/Y" }}{% else %}<span class="epd-empty">Non renseignée</span>{% endif %}</dd>
+          </div>
+          <div class="epd-info-item epd-observation">
+            <dt><i class="bi bi-chat-left-text" aria-hidden="true"></i> Observation</dt>
+            <dd>{% if employe.observation %}{{ employe.observation|linebreaksbr }}{% else %}<span class="epd-empty">Aucune observation</span>{% endif %}</dd>
+          </div>
+        </dl>
+      </section>
+    </main>
+
+    <aside class="epd-aside" aria-label="Compte utilisateur et actions">
+      <div class="epd-side-stack">
+        <section class="epd-access-card" aria-labelledby="epd-access-title">
+          <div class="epd-side-head">
+            <span><i class="bi bi-shield-lock" aria-hidden="true"></i></span>
+            <div><h2 id="epd-access-title">Compte et accès</h2><p>Paramètres de connexion actuels.</p></div>
+          </div>
+
+          <dl class="epd-access-list">
+            <div><dt>Identifiant</dt><dd>@{{ employe.user.username }}</dd></div>
+            <div><dt>Groupe</dt><dd>{{ employe.user.groups.all|join:", "|default:"Aucun groupe" }}</dd></div>
+            <div>
+              <dt>Interface Django admin</dt>
+              <dd>{% if employe.user.is_staff %}<span class="epd-access-yes"><i class="bi bi-check-circle" aria-hidden="true"></i> Autorisée</span>{% else %}<span class="epd-access-no"><i class="bi bi-dash-circle" aria-hidden="true"></i> Non autorisée</span>{% endif %}</dd>
+            </div>
+            <div>
+              <dt>État du compte</dt>
+              <dd>{% if employe.user.is_active %}<span class="epd-access-yes">Actif</span>{% else %}<span class="epd-access-no">Inactif</span>{% endif %}</dd>
+            </div>
+            <div><dt>Création du compte</dt><dd>{% if employe.user.date_joined %}{{ employe.user.date_joined|date:"d/m/Y" }}{% else %}Non renseignée{% endif %}</dd></div>
+            <div><dt>Dernière connexion</dt><dd>{% if employe.user.last_login %}{{ employe.user.last_login|date:"d/m/Y à H:i" }}{% else %}Jamais connecté{% endif %}</dd></div>
+          </dl>
+        </section>
+
+        <section class="epd-actions-card" aria-labelledby="epd-actions-title">
+          <div class="epd-side-head">
+            <span class="epd-actions-icon"><i class="bi bi-gear" aria-hidden="true"></i></span>
+            <div><h2 id="epd-actions-title">Actions sur le dossier</h2><p>Gérez cette fiche employé.</p></div>
+          </div>
+          <a href="{% url 'administration:employe-update' employe.pk %}" class="btn btn-primary epd-action-btn">
+            <i class="bi bi-pencil" aria-hidden="true"></i>Modifier les informations
+          </a>
+          <a href="{% url 'administration:employe-list' %}" class="btn btn-outline-secondary epd-action-btn">
+            <i class="bi bi-list-ul" aria-hidden="true"></i>Revenir à l'annuaire
+          </a>
+          <div class="epd-danger-zone">
+            <span><strong>Suppression du dossier</strong><small>Une confirmation sera demandée avant toute suppression.</small></span>
+            <a href="{% url 'administration:employe-delete' employe.pk %}" class="btn btn-outline-danger epd-delete-btn">
+              <i class="bi bi-trash" aria-hidden="true"></i>Supprimer
+            </a>
+          </div>
+        </section>
+      </div>
+    </aside>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Fiche employé : ordinateur d'abord, sans champs de formulaire ───────── */
+.employee-profile {
+  --epd-primary: #2c7be5;
+  --epd-primary-dark: #1a4f9c;
+  --epd-ink: #172033;
+  --epd-muted: #667085;
+  --epd-border: #e2e8f0;
+  --epd-surface: #fff;
+  --epd-radius: 1rem;
+  max-width: 1500px;
+  margin: 0 auto;
+  color: var(--epd-ink);
+}
+.epd-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.2rem;
+  min-height: 154px;
+  padding: 1.4rem 1.55rem;
+  border-radius: 1.05rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 62%, #2c7be5 100%);
+  box-shadow: 0 9px 28px rgba(25,74,128,.15);
+  color: #fff;
+}
+.epd-avatar-wrap { flex: 0 0 auto; }
+.epd-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.8rem;
+  height: 5.8rem;
+  border: 3px solid rgba(255,255,255,.65);
+  border-radius: 1.15rem;
+  background: rgba(255,255,255,.16);
+  box-shadow: 0 7px 20px rgba(5,27,56,.2);
+  object-fit: cover;
+}
+.epd-avatar-placeholder { color: #fff; font-size: 1.75rem; font-weight: 800; letter-spacing: .03em; }
+.epd-hero-copy { min-width: 0; }
+.epd-eyebrow { display: flex; align-items: center; gap: .35rem; color: rgba(255,255,255,.68); font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.epd-hero h1 { overflow: hidden; margin: .2rem 0 .18rem; color: #fff; font-size: clamp(1.55rem, 2.1vw, 2.1rem); font-weight: 750; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+.epd-hero-copy > p { margin: 0; color: rgba(255,255,255,.74); font-size: .82rem; }
+.epd-hero-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .65rem; }
+.epd-tag { display: inline-flex; align-items: center; gap: .3rem; padding: .26rem .58rem; border: 1px solid rgba(255,255,255,.17); border-radius: 2rem; background: rgba(8,31,61,.2); color: rgba(255,255,255,.9); font-size: .68rem; font-weight: 650; }
+.epd-tag-active { border-color: rgba(155,235,194,.35); background: rgba(19,104,69,.32); }
+.epd-tag-inactive { background: rgba(71,82,98,.4); }
+.epd-hero-actions { display: flex; align-items: center; gap: .55rem; }
+.epd-hero-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.85rem; padding-inline: .9rem; border-radius: .7rem; font-size: .76rem; font-weight: 700; }
+.epd-hero-actions .btn-light { color: #194f89; }
+
+.epd-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, .82fr); align-items: start; gap: 1.2rem; margin-top: 1.2rem; }
+.epd-main { display: grid; gap: 1rem; min-width: 0; }
+.epd-card,
+.epd-access-card,
+.epd-actions-card { overflow: hidden; border: 1px solid var(--epd-border); border-radius: var(--epd-radius); background: var(--epd-surface); box-shadow: 0 2px 9px rgba(16,24,40,.04); }
+.epd-card-head { display: flex; align-items: center; gap: .75rem; min-height: 78px; padding: .95rem 1.1rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.epd-card-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: .72rem;
+  background: #eaf2fd;
+  color: var(--epd-primary);
+  font-size: 1.08rem;
+}
+.epd-card-head h2,
+.epd-side-head h2 { margin: 0; color: var(--epd-ink); font-size: .98rem; font-weight: 750; }
+.epd-card-head p,
+.epd-side-head p { margin: .14rem 0 0; color: var(--epd-muted); font-size: .73rem; }
+.epd-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.epd-info-item { min-width: 0; min-height: 104px; padding: 1rem 1.1rem; border-right: 1px solid #edf0f4; border-bottom: 1px solid #edf0f4; }
+.epd-info-item:nth-child(3n) { border-right: 0; }
+.epd-info-wide { grid-column: 1 / -1; min-height: 88px; border-right: 0; border-bottom: 0; }
+.epd-info-item dt { display: flex; align-items: center; gap: .35rem; margin-bottom: .4rem; color: var(--epd-muted); font-size: .68rem; font-weight: 650; }
+.epd-info-item dt i { color: #8ea0b5; }
+.epd-info-item dd { overflow-wrap: anywhere; margin: 0; color: var(--epd-ink); font-size: .82rem; font-weight: 650; line-height: 1.45; }
+.epd-info-item dd a { color: var(--epd-primary-dark); text-decoration: none; }
+.epd-info-item dd a:hover { text-decoration: underline; }
+.epd-contract { display: inline-flex; padding: .2rem .48rem; border: 1px solid #dce3eb; border-radius: 2rem; background: #f8fafc; font-size: .7rem; }
+.epd-money { font-variant-numeric: tabular-nums; }
+.epd-currency { color: var(--epd-muted); font-size: .7rem; }
+.epd-empty { color: #8b95a4; font-weight: 500; }
+.epd-personal-grid { display: grid; grid-template-columns: minmax(210px, .45fr) minmax(0, 1.55fr); margin: 0; }
+.epd-personal-grid .epd-info-item { border-bottom: 0; }
+.epd-personal-grid .epd-info-item:first-child { border-right: 1px solid #edf0f4; }
+.epd-observation { border-right: 0; }
+
+.epd-side-stack { position: sticky; top: calc(var(--topbar-h) + 1rem); display: grid; gap: 1rem; }
+.epd-access-card,
+.epd-actions-card { padding: 1rem; }
+.epd-side-head { display: flex; align-items: center; gap: .7rem; }
+.epd-side-head > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: .7rem;
+  background: #eaf2fd;
+  color: var(--epd-primary);
+  font-size: 1.05rem;
+}
+.epd-access-list { margin: .9rem 0 0; }
+.epd-access-list div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: .6rem; padding: .62rem 0; border-top: 1px solid #edf0f4; }
+.epd-access-list dt { color: var(--epd-muted); font-size: .7rem; font-weight: 600; }
+.epd-access-list dd { overflow-wrap: anywhere; margin: 0; color: var(--epd-ink); font-size: .72rem; font-weight: 700; text-align: right; }
+.epd-access-yes,
+.epd-access-no { display: inline-flex; align-items: center; justify-content: flex-end; gap: .25rem; }
+.epd-access-yes { color: #18794e; }
+.epd-access-no { color: #7b8492; }
+.epd-actions-card .epd-actions-icon { background: #fff4dd; color: #8a5700; }
+.epd-action-btn { display: flex; align-items: center; justify-content: center; gap: .45rem; width: 100%; min-height: 2.9rem; margin-top: .75rem; border-radius: .68rem; font-size: .78rem; font-weight: 700; }
+.epd-action-btn + .epd-action-btn { margin-top: .5rem; }
+.epd-danger-zone { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-top: .9rem; padding-top: .9rem; border-top: 1px solid #f0d8db; }
+.epd-danger-zone > span { min-width: 0; }
+.epd-danger-zone strong { display: block; color: #8c2430; font-size: .72rem; }
+.epd-danger-zone small { display: block; margin-top: .12rem; color: var(--epd-muted); font-size: .63rem; line-height: 1.35; }
+.epd-delete-btn { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .35rem; min-height: 2.35rem; border-radius: .6rem; font-size: .68rem; font-weight: 700; }
+
+.employee-profile a:focus-visible { outline: 3px solid #174c8f; outline-offset: 3px; }
+
+@media (max-width: 1199.98px) {
+  .epd-layout { grid-template-columns: 1fr; }
+  .epd-side-stack { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 991.98px) {
+  .epd-hero { grid-template-columns: auto minmax(0, 1fr); }
+  .epd-hero-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 767.98px) {
+  .epd-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .epd-info-item,
+  .epd-info-item:nth-child(3n) { border-right: 1px solid #edf0f4; border-bottom: 1px solid #edf0f4; }
+  .epd-info-item:nth-child(2n) { border-right: 0; }
+  .epd-info-wide { grid-column: 1 / -1; border-right: 0; border-bottom: 0; }
+  .epd-personal-grid { grid-template-columns: 1fr; }
+  .epd-personal-grid .epd-info-item:first-child { border-right: 0; border-bottom: 1px solid #edf0f4; }
+  .epd-side-stack { grid-template-columns: 1fr; }
+}
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .epd-hero { gap: .8rem; padding: 1rem; border-radius: .9rem; }
+  .epd-avatar { width: 4.1rem; height: 4.1rem; border-radius: .9rem; font-size: 1.2rem; }
+  .epd-hero h1 { white-space: normal; }
+  .epd-hero-actions { align-items: stretch; flex-direction: column-reverse; }
+  .epd-hero-actions .btn { width: 100%; }
+  .epd-info-grid { grid-template-columns: 1fr; }
+  .epd-info-item,
+  .epd-info-item:nth-child(2n),
+  .epd-info-item:nth-child(3n) { min-height: auto; border-right: 0; border-bottom: 1px solid #edf0f4; }
+  .epd-info-wide { grid-column: auto; border-bottom: 0; }
+  .epd-personal-grid .epd-info-item:last-child { border-bottom: 0; }
+  .epd-card-head { padding: .9rem; }
+  .epd-access-list div { grid-template-columns: 1fr; gap: .15rem; }
+  .epd-access-list dd { text-align: left; }
+  .epd-access-yes,
+  .epd-access-no { justify-content: flex-start; }
+  .epd-danger-zone { align-items: stretch; flex-direction: column; }
+  .epd-delete-btn { justify-content: center; width: 100%; }
+}
 {% endblock %}

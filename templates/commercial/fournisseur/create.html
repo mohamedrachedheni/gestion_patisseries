@@ -1,120 +1,595 @@
 {% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
-{% block title %}Nouveau fournisseur — Commercial{% endblock %}
-{% block page_title %}Nouveau fournisseur{% endblock %}
+{% block title %}{% if fournisseur %}Modifier {{ fournisseur }} — Fournisseurs{% else %}Nouveau fournisseur — Commercial{% endif %}{% endblock %}
+{% block page_title %}{% if fournisseur %}Modifier un fournisseur{% else %}Nouveau fournisseur{% endif %}{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:fournisseur-list' %}">Fournisseurs</a></li>
-    <li class="breadcrumb-item active">Nouveau fournisseur</li>
+    <li class="breadcrumb-item active" aria-current="page">{% if fournisseur %}Modifier {{ fournisseur }}{% else %}Nouveau fournisseur{% endif %}</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
-<form method="post" novalidate>
-  {% csrf_token %}
+<div class="sup-shell">
 
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-building-add me-2 text-primary"></i>Nouveau fournisseur
+  <header class="sup-hero" aria-labelledby="sup-page-title">
+    <span class="sup-hero-icon" aria-hidden="true"><i class="bi {% if fournisseur %}bi-building-gear{% else %}bi-building-add{% endif %}"></i></span>
+    <div class="sup-hero-copy">
+      <div class="sup-eyebrow"><i class="bi bi-truck" aria-hidden="true"></i> {% if fournisseur %}Mise à jour du répertoire{% else %}Répertoire fournisseurs{% endif %}</div>
+      <h1 id="sup-page-title">{% if fournisseur %}Modifier {{ fournisseur }}{% else %}Ajouter un nouveau fournisseur{% endif %}</h1>
+      <p>{% if fournisseur %}Actualisez ses coordonnées, son contact ou ses informations administratives.{% else %}Centralisez ses coordonnées, son contact et ses informations administratives.{% endif %}</p>
     </div>
-    <div class="card-body">
-      <div class="row g-3">
+    <div class="sup-hero-steps" aria-label="Étapes du formulaire">
+      <span><i class="bi bi-1-circle" aria-hidden="true"></i> Identité</span>
+      <span><i class="bi bi-2-circle" aria-hidden="true"></i> Coordonnées</span>
+      <span><i class="bi bi-3-circle" aria-hidden="true"></i> Administratif</span>
+    </div>
+  </header>
 
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Raison sociale</label>
-          {{ form.raison_sociale }}
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Nom contact</label>
-          {{ form.nom_contact }}
-        </div>
+  <form method="post" novalidate autocomplete="off"
+        data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+        id="supplier-form" class="sup-form">
+    {% csrf_token %}
 
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Type fournisseur</label>
-          {{ form.type_fournisseur }}
-        </div>
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Téléphone</label>
-          {{ form.telephone }}
-        </div>
-
-        <div class="col-md-8">
-          <label class="form-label small mb-1">Adresse</label>
-          {{ form.adresse }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Date de création</label>
-          {{ form.created_at }}
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Email</label>
-          {{ form.email }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">N° TVA</label>
-          {{ form.tva }}
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">RIB</label>
-          {{ form.rib }}
-        </div>
-
-        <div class="col-12">
-          <label class="form-label small mb-1">Observations</label>
-          {{ form.observations }}
-        </div>
-
+    {% if form.errors %}
+    <div class="sup-error-summary" id="sup-error-summary" role="alert" tabindex="-1">
+      <span class="sup-error-summary-icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span>
+      <div>
+        <h2>Certains renseignements doivent être corrigés</h2>
+        <p>Vos saisies sont conservées. Sélectionnez un message pour accéder au champ concerné.</p>
+        <ul>
+          {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+          {% for field in form %}
+            {% for error in field.errors %}
+            <li><a href="#{{ field.id_for_label }}"><strong>{{ field.label }} :</strong> {{ error }}</a></li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
       </div>
     </div>
-  </div>
+    {% endif %}
 
-  <div class="d-flex justify-content-end gap-2">
-    <a href="{% if is_administration_user %}{% url 'commercial:fournisseur-list' %}{% else %}{% url 'commercial:home' %}{% endif %}"
-       class="btn btn-outline-secondary" tabindex="-1">
-      <i class="bi bi-x-lg me-1"></i>Annuler
-    </a>
-    <button type="submit" id="fournisseur-save-btn" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
-    </button>
-  </div>
-</form>
+    <div class="sup-layout">
+      <div class="sup-main">
+
+        <section class="sup-card" aria-labelledby="sup-identity-title">
+          <header class="sup-card-head">
+            <span class="sup-step">1</span>
+            <span class="sup-card-icon"><i class="bi bi-building" aria-hidden="true"></i></span>
+            <span class="sup-card-heading">
+              <h2 id="sup-identity-title">Identité du fournisseur</h2>
+              <p>Le nom utilisé dans les achats et la catégorie principale.</p>
+            </span>
+            <span class="sup-required-key"><span aria-hidden="true">*</span> Obligatoire</span>
+          </header>
+
+          <div class="sup-card-body">
+            <div class="sup-grid sup-grid-identity">
+              <div class="sup-field {% if form.raison_sociale.errors %}sup-has-error{% endif %}" id="sup-reason-field">
+                <label for="{{ form.raison_sociale.id_for_label }}">Raison sociale <span class="sup-required" aria-hidden="true">*</span></label>
+                {{ form.raison_sociale }}
+                <div class="sup-hint">Exemple : Société Tunisienne d'Emballage</div>
+                {% for error in form.raison_sociale.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+                <div class="sup-field-error d-none" id="sup-reason-required"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Indiquez la raison sociale du fournisseur.</div>
+              </div>
+
+              <div class="sup-field {% if form.type_fournisseur.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.type_fournisseur.id_for_label }}">Type de fournisseur <span class="sup-optional">(facultatif)</span></label>
+                {{ form.type_fournisseur }}
+                <div class="sup-hint">Sans choix, le fournisseur sera classé dans « Divers ».</div>
+                {% for error in form.type_fournisseur.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sup-card" aria-labelledby="sup-contact-title">
+          <header class="sup-card-head">
+            <span class="sup-step">2</span>
+            <span class="sup-card-icon"><i class="bi bi-person-lines-fill" aria-hidden="true"></i></span>
+            <span class="sup-card-heading">
+              <h2 id="sup-contact-title">Contact et coordonnées</h2>
+              <p>Les informations utiles pour joindre rapidement le fournisseur.</p>
+            </span>
+            <span class="sup-optional-key">Champs facultatifs</span>
+          </header>
+
+          <div class="sup-card-body">
+            <div class="sup-grid sup-grid-3">
+              <div class="sup-field {% if form.nom_contact.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.nom_contact.id_for_label }}">Nom du contact</label>
+                {{ form.nom_contact }}
+                {% for error in form.nom_contact.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+
+              <div class="sup-field {% if form.telephone.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.telephone.id_for_label }}">Téléphone</label>
+                {{ form.telephone }}
+                <div class="sup-hint">Chiffres uniquement, ex. : 71123456</div>
+                {% for error in form.telephone.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+
+              <div class="sup-field {% if form.email.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.email.id_for_label }}">Adresse email</label>
+                {{ form.email }}
+                {% for error in form.email.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+
+              <div class="sup-field sup-span-all {% if form.adresse.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.adresse.id_for_label }}">Adresse</label>
+                {{ form.adresse }}
+                <div class="sup-hint">Adresse professionnelle du dépôt, magasin ou siège.</div>
+                {% for error in form.adresse.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sup-card" aria-labelledby="sup-admin-title">
+          <header class="sup-card-head">
+            <span class="sup-step">3</span>
+            <span class="sup-card-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span>
+            <span class="sup-card-heading">
+              <h2 id="sup-admin-title">Informations administratives</h2>
+              <p>Références utiles pour les documents et le suivi comptable.</p>
+            </span>
+            <span class="sup-optional-key">Champs facultatifs</span>
+          </header>
+
+          <div class="sup-card-body">
+            <div class="sup-grid sup-grid-3">
+              <div class="sup-field {% if form.tva.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.tva.id_for_label }}">N° TVA</label>
+                {{ form.tva }}
+                {% for error in form.tva.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+
+              <div class="sup-field {% if form.rib.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.rib.id_for_label }}">RIB</label>
+                {{ form.rib }}
+                {% for error in form.rib.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+
+              <div class="sup-field {% if form.created_at.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.created_at.id_for_label }}">Date de création</label>
+                {{ form.created_at }}
+                <div class="sup-hint">Date d'ajout du fournisseur au répertoire.</div>
+                {% for error in form.created_at.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+
+              <div class="sup-field sup-span-all {% if form.observations.errors %}sup-has-error{% endif %}">
+                <label for="{{ form.observations.id_for_label }}">Observations</label>
+                {{ form.observations }}
+                <div class="sup-hint">Conditions particulières, horaires ou informations utiles à l'équipe.</div>
+                {% for error in form.observations.errors %}<div class="sup-field-error"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="sup-aside" aria-label="Aperçu, conseils et actions">
+        <div class="sup-side-stack">
+          <section class="sup-preview-card" aria-labelledby="sup-preview-title">
+            <div class="sup-preview-icon" aria-hidden="true"><i class="bi bi-building"></i></div>
+            <div class="sup-preview-eyebrow">Aperçu du fournisseur</div>
+            <h2 id="sup-preview-title">Nouveau fournisseur</h2>
+            <p id="sup-preview-type">Divers</p>
+            <dl class="sup-preview-list">
+              <div><dt><i class="bi bi-person" aria-hidden="true"></i> Contact</dt><dd id="sup-preview-contact">Non renseigné</dd></div>
+              <div><dt><i class="bi bi-telephone" aria-hidden="true"></i> Téléphone</dt><dd id="sup-preview-phone">Non renseigné</dd></div>
+              <div><dt><i class="bi bi-envelope" aria-hidden="true"></i> Email</dt><dd id="sup-preview-email">Non renseigné</dd></div>
+            </dl>
+          </section>
+
+          <section class="sup-guide-card" aria-labelledby="sup-guide-title">
+            <div class="sup-guide-head">
+              <span><i class="bi bi-lightbulb" aria-hidden="true"></i></span>
+              <div><h2 id="sup-guide-title">Avant d'enregistrer</h2><p>Quelques repères simples.</p></div>
+            </div>
+            <ul>
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>La raison sociale est le seul champ obligatoire.</span></li>
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>Vérifiez le téléphone et l'email du contact principal.</span></li>
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>TVA, RIB et observations peuvent être complétés plus tard.</span></li>
+            </ul>
+          </section>
+
+          <section class="sup-actions-card" aria-labelledby="sup-actions-title">
+            <div class="sup-actions-copy">
+              <span><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+              <div>
+                <h2 id="sup-actions-title">{% if fournisseur %}Enregistrer les modifications{% else %}Créer le fournisseur{% endif %}</h2>
+                <p>{% if fournisseur %}Les nouvelles informations remplaceront la fiche actuelle.{% else %}Les informations seront vérifiées avant l'enregistrement.{% endif %}</p>
+              </div>
+            </div>
+            <button type="submit" id="supplier-save-btn" class="btn btn-primary sup-save-btn">
+              <i class="bi bi-check-lg" aria-hidden="true"></i>{% if fournisseur %}Enregistrer les modifications{% else %}Enregistrer le fournisseur{% endif %}
+            </button>
+            <a href="{% if fournisseur or is_administration_user %}{% url 'commercial:fournisseur-list' %}{% else %}{% url 'commercial:home' %}{% endif %}"
+               class="btn btn-outline-secondary sup-cancel-btn">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>Annuler et revenir
+            </a>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Formulaire fournisseur : interface ordinateur d'abord ──────────────── */
+.sup-shell {
+  --sup-primary: #2c7be5;
+  --sup-primary-dark: #1a4f9c;
+  --sup-ink: #172033;
+  --sup-muted: #667085;
+  --sup-border: #e2e8f0;
+  --sup-surface: #fff;
+  --sup-radius: 1rem;
+  max-width: 1500px;
+  margin: 0 auto;
+  color: var(--sup-ink);
+}
+.sup-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.1rem;
+  min-height: 128px;
+  padding: 1.35rem 1.5rem;
+  border-radius: 1.05rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 62%, #2c7be5 100%);
+  box-shadow: 0 9px 28px rgba(25, 74, 128, .15);
+  color: #fff;
+}
+.sup-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.3rem;
+  height: 4.3rem;
+  border: 2px solid rgba(255,255,255,.35);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.14);
+  font-size: 1.65rem;
+}
+.sup-hero-copy { min-width: 0; }
+.sup-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  color: rgba(255,255,255,.68);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.sup-hero h1 { margin: .2rem 0 .25rem; font-size: clamp(1.5rem, 2vw, 1.95rem); font-weight: 750; letter-spacing: -.02em; }
+.sup-hero-copy > p { margin: 0; color: rgba(255,255,255,.78); font-size: .88rem; }
+.sup-hero-steps { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; max-width: 330px; }
+.sup-hero-steps span {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .35rem .62rem;
+  border: 1px solid rgba(255,255,255,.17);
+  border-radius: 2rem;
+  background: rgba(8,31,61,.2);
+  color: rgba(255,255,255,.9);
+  font-size: .7rem;
+  font-weight: 650;
+}
+.sup-form { margin-top: 1.25rem; }
+.sup-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 350px); align-items: start; gap: 1.25rem; }
+.sup-main { display: grid; gap: 1rem; min-width: 0; }
+.sup-card,
+.sup-preview-card,
+.sup-guide-card,
+.sup-actions-card {
+  border: 1px solid var(--sup-border);
+  border-radius: var(--sup-radius);
+  background: var(--sup-surface);
+  box-shadow: 0 2px 9px rgba(16,24,40,.04);
+}
+.sup-card { overflow: hidden; }
+.sup-card-head {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .7rem;
+  min-height: 82px;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid #edf0f4;
+  background: #fbfcfe;
+}
+.sup-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--sup-primary);
+  color: #fff;
+  font-size: .76rem;
+  font-weight: 800;
+}
+.sup-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: .72rem;
+  background: #eaf2fd;
+  color: var(--sup-primary);
+  font-size: 1.05rem;
+}
+.sup-card-heading { min-width: 0; }
+.sup-card-heading h2,
+.sup-preview-card h2,
+.sup-guide-card h2,
+.sup-actions-card h2 { margin: 0; color: var(--sup-ink); font-size: .98rem; font-weight: 750; }
+.sup-card-heading p,
+.sup-guide-card p,
+.sup-actions-card p { margin: .15rem 0 0; color: var(--sup-muted); font-size: .74rem; }
+.sup-required-key,
+.sup-optional-key { align-self: start; margin-top: .25rem; color: var(--sup-muted); font-size: .67rem; white-space: nowrap; }
+.sup-required-key > span,
+.sup-required { color: #c62838; font-weight: 800; }
+.sup-optional { color: var(--sup-muted); font-size: .72rem; font-weight: 500; }
+.sup-card-body { padding: 1.2rem; }
+.sup-grid { display: grid; gap: 1rem; }
+.sup-grid-identity { grid-template-columns: minmax(0, 1.6fr) minmax(260px, .8fr); }
+.sup-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sup-span-all { grid-column: 1 / -1; }
+.sup-field { min-width: 0; }
+.sup-field label { display: block; margin-bottom: .35rem; color: #344054; font-size: .8rem; font-weight: 700; }
+.sup-field .form-control,
+.sup-field .form-select {
+  width: 100%;
+  min-height: 3rem;
+  border-color: #cfd7e3;
+  border-radius: .65rem;
+  color: var(--sup-ink);
+  font-size: .93rem;
+}
+.sup-field textarea.form-control { min-height: 6rem; resize: vertical; }
+.sup-field .form-control:focus,
+.sup-field .form-select:focus { border-color: #77a9e9; box-shadow: 0 0 0 .2rem rgba(44,123,229,.13); }
+.sup-field [data-autofill-lock][readonly] { background: #fff; cursor: text; }
+.sup-hint { margin-top: .32rem; color: var(--sup-muted); font-size: .7rem; line-height: 1.4; }
+.sup-field-error { display: flex; align-items: flex-start; gap: .3rem; margin-top: .35rem; color: #b42332; font-size: .72rem; font-weight: 650; }
+.sup-has-error .form-control,
+.sup-has-error .form-select { border-color: #dc3545; }
+
+.sup-side-stack { position: sticky; top: calc(var(--topbar-h) + 1rem); display: grid; gap: 1rem; }
+.sup-preview-card { padding: 1.1rem; text-align: center; }
+.sup-preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin-bottom: .6rem;
+  border-radius: .85rem;
+  background: #eaf2fd;
+  color: var(--sup-primary);
+  font-size: 1.35rem;
+}
+.sup-preview-eyebrow { color: var(--sup-muted); font-size: .65rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.sup-preview-card h2 { overflow-wrap: anywhere; margin-top: .2rem; }
+.sup-preview-card > p { margin: .18rem 0 .9rem; color: var(--sup-primary-dark); font-size: .74rem; font-weight: 700; }
+.sup-preview-list { margin: 0; padding-top: .75rem; border-top: 1px solid #edf0f4; text-align: left; }
+.sup-preview-list div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: .5rem; padding: .35rem 0; }
+.sup-preview-list dt { color: var(--sup-muted); font-size: .69rem; font-weight: 600; }
+.sup-preview-list dd { overflow: hidden; margin: 0; color: var(--sup-ink); font-size: .72rem; font-weight: 650; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.sup-guide-card { padding: 1rem; }
+.sup-guide-head,
+.sup-actions-copy { display: flex; align-items: center; gap: .7rem; }
+.sup-guide-head > span,
+.sup-actions-copy > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: .7rem;
+  background: #fff4dd;
+  color: #8a5700;
+  font-size: 1.05rem;
+}
+.sup-guide-card ul { display: grid; gap: .65rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.sup-guide-card li { display: flex; align-items: flex-start; gap: .45rem; color: #526071; font-size: .73rem; line-height: 1.42; }
+.sup-guide-card li i { flex: 0 0 auto; color: #198754; font-size: .9rem; }
+.sup-actions-card { padding: 1rem; border-color: #cddff5; box-shadow: 0 8px 22px rgba(22,62,105,.08); }
+.sup-actions-copy { margin-bottom: .9rem; }
+.sup-actions-copy > span { background: #e9f6ef; color: #18794e; }
+.sup-save-btn,
+.sup-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  width: 100%;
+  min-height: 3rem;
+  border-radius: .7rem;
+  font-size: .84rem;
+  font-weight: 700;
+}
+.sup-save-btn { box-shadow: 0 6px 15px rgba(44,123,229,.2); }
+.sup-save-btn + .sup-cancel-btn { margin-top: .55rem; }
+
+.sup-error-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #efb8be;
+  border-left: 4px solid #c92a3b;
+  border-radius: .8rem;
+  background: #fff5f6;
+  color: #67202a;
+}
+.sup-error-summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: .65rem;
+  background: #fde1e4;
+  color: #b42332;
+}
+.sup-error-summary h2 { margin: 0; font-size: .94rem; font-weight: 750; }
+.sup-error-summary p { margin: .15rem 0 .5rem; font-size: .76rem; }
+.sup-error-summary ul { margin: 0; padding-left: 1.1rem; font-size: .76rem; }
+.sup-error-summary a { color: #8f1f2c; }
+.sup-shell a:focus-visible,
+.sup-shell button:focus-visible,
+.sup-shell input:focus-visible,
+.sup-shell select:focus-visible,
+.sup-shell textarea:focus-visible { outline: 3px solid #174c8f; outline-offset: 2px; }
+
+@media (max-width: 1199.98px) {
+  .sup-layout { grid-template-columns: 1fr; }
+  .sup-side-stack { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sup-actions-card { grid-column: 1 / -1; }
+}
+@media (max-width: 991.98px) {
+  .sup-hero { grid-template-columns: auto minmax(0, 1fr); }
+  .sup-hero-steps { grid-column: 1 / -1; justify-content: flex-start; max-width: none; }
+  .sup-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767.98px) {
+  .sup-grid-identity,
+  .sup-grid-3 { grid-template-columns: 1fr; }
+  .sup-span-all { grid-column: auto; }
+  .sup-card-head { grid-template-columns: auto auto minmax(0, 1fr); }
+  .sup-required-key,
+  .sup-optional-key { grid-column: 3; margin-top: -.15rem; }
+  .sup-side-stack { grid-template-columns: 1fr; }
+  .sup-actions-card { grid-column: auto; }
+}
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .sup-hero { gap: .8rem; padding: 1rem; border-radius: .9rem; }
+  .sup-hero-icon { width: 3.5rem; height: 3.5rem; font-size: 1.35rem; }
+  .sup-hero-copy > p { font-size: .8rem; line-height: 1.4; }
+  .sup-hero-steps span { font-size: .66rem; }
+  .sup-form { margin-top: 1rem; }
+  .sup-card-head { padding: .9rem; }
+  .sup-step { display: none; }
+  .sup-card-icon { width: 2.3rem; height: 2.3rem; }
+  .sup-card-heading { grid-column: 2; }
+  .sup-required-key,
+  .sup-optional-key { grid-column: 2; }
+  .sup-card-body { padding: .9rem; }
+  .sup-actions-card { position: sticky; bottom: .5rem; z-index: 20; box-shadow: 0 10px 28px rgba(16,24,40,.18); }
+}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
-  var raisonSocialeInput = document.getElementById('id_raison_sociale');
-  var typeFournisseurSelect = document.getElementById('id_type_fournisseur');
-  var telephoneInput = document.getElementById('id_telephone');
-  var saveBtn = document.getElementById('fournisseur-save-btn');
+  var isUpdate = {% if fournisseur %}true{% else %}false{% endif %};
+  var form = document.getElementById('supplier-form');
+  var reasonInput = document.getElementById('id_raison_sociale');
+  var typeSelect = document.getElementById('id_type_fournisseur');
+  var contactInput = document.getElementById('id_nom_contact');
+  var phoneInput = document.getElementById('id_telephone');
+  var emailInput = document.getElementById('id_email');
+  var saveButton = document.getElementById('supplier-save-btn');
+  var submitting = false;
+  var dirty = false;
 
-  // Type fournisseur sélectionné : le focus passe au champ Téléphone.
-  typeFournisseurSelect.addEventListener('change', function () {
-    telephoneInput.focus();
+  // Protection renforcée : les champs ne deviennent modifiables qu'au premier
+  // focus réel, ce qui bloque l'injection des adresses et identités enregistrées.
+  form.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+    function unlockField() {
+      field.readOnly = false;
+      field.removeAttribute('readonly');
+      field.removeAttribute('data-autofill-lock');
+    }
+    field.addEventListener('focus', unlockField, { once: true });
+    field.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'touch') { unlockField(); }
+    }, { once: true });
+    if (document.activeElement === field) { unlockField(); }
   });
 
-  // La touche Entrée ne doit jamais soumettre le formulaire depuis un champ
-  // de saisie — mais reste sans effet depuis un bouton (Entrée y déclenche
-  // son clic natif, comme la souris).
-  document.querySelector('form').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
-  });
+  function selectedLabel(select) {
+    var option = select.options[select.selectedIndex];
+    return option && option.value ? option.textContent.trim() : 'Divers';
+  }
 
-  // Depuis le bouton Enregistrer, Tab renvoie le focus au champ Raison sociale.
-  saveBtn.addEventListener('keydown', function (e) {
-    if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      raisonSocialeInput.focus();
+  function valueOrFallback(input, fallback) {
+    return input && input.value.trim() ? input.value.trim() : fallback;
+  }
+
+  function updatePreview() {
+    document.getElementById('sup-preview-title').textContent = valueOrFallback(reasonInput, isUpdate ? 'Fournisseur sans nom' : 'Nouveau fournisseur');
+    document.getElementById('sup-preview-type').textContent = selectedLabel(typeSelect);
+    document.getElementById('sup-preview-contact').textContent = valueOrFallback(contactInput, 'Non renseigné');
+    document.getElementById('sup-preview-phone').textContent = valueOrFallback(phoneInput, 'Non renseigné');
+    document.getElementById('sup-preview-email').textContent = valueOrFallback(emailInput, 'Non renseigné');
+  }
+
+  [reasonInput, contactInput, phoneInput, emailInput].forEach(function (input) {
+    if (input) { input.addEventListener('input', updatePreview); }
+  });
+  typeSelect.addEventListener('change', updatePreview);
+  updatePreview();
+
+  form.addEventListener('input', function () { dirty = true; });
+  form.addEventListener('change', function () { dirty = true; });
+  window.addEventListener('beforeunload', function (event) {
+    if (dirty && !submitting) {
+      event.preventDefault();
+      event.returnValue = '';
     }
   });
 
-  // À l'ouverture de la page, le focus se place sur le champ Raison sociale.
-  raisonSocialeInput.focus();
+  // Entrée dans un champ simple ne doit pas provoquer un enregistrement accidentel.
+  form.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && event.target.tagName === 'INPUT') { event.preventDefault(); }
+  });
+
+  reasonInput.addEventListener('input', function () {
+    if (reasonInput.value.trim()) {
+      document.getElementById('sup-reason-field').classList.remove('sup-has-error');
+      document.getElementById('sup-reason-required').classList.add('d-none');
+    }
+  });
+
+  form.addEventListener('submit', function (event) {
+    if (!reasonInput.value.trim()) {
+      event.preventDefault();
+      document.getElementById('sup-reason-field').classList.add('sup-has-error');
+      document.getElementById('sup-reason-required').classList.remove('d-none');
+      document.getElementById('sup-reason-field').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      reasonInput.focus({ preventScroll: true });
+      return;
+    }
+    submitting = true;
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ' + (isUpdate ? 'Mise à jour en cours…' : 'Enregistrement en cours…');
+  });
+
+  var errorSummary = document.getElementById('sup-error-summary');
+  if (errorSummary) {
+    errorSummary.focus();
+  } else if (window.matchMedia('(min-width: 768px)').matches) {
+    reasonInput.focus();
+  }
 })();
 </script>
 {% endblock %}

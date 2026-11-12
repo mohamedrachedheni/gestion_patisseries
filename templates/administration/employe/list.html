@@ -4,97 +4,171 @@
 {% block page_title %}Employés{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Employés</li>
+    <li class="breadcrumb-item active" aria-current="page">Employés</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des employés</h4>
-  <a href="{% url 'administration:employe-create' %}" class="btn btn-primary">
-    <i class="bi bi-person-plus me-1"></i> Nouvel employé
-  </a>
-</div>
+<div class="employee-directory">
 
-{# Barre de recherche #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" class="d-flex gap-2">
-      <input type="text" name="q" value="{{ q }}" class="form-control"
-             placeholder="Rechercher par nom, matricule, service…">
-      <button type="submit" class="btn btn-outline-primary px-3">
-        <i class="bi bi-search"></i>
+  <header class="eld-hero" aria-labelledby="eld-page-title">
+    <span class="eld-hero-icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+    <div class="eld-hero-copy">
+      <div class="eld-eyebrow"><i class="bi bi-person-badge" aria-hidden="true"></i> Gestion des accès et du personnel</div>
+      <h1 id="eld-page-title">Annuaire des employés</h1>
+      <p>Consultez les affectations, les coordonnées et les informations professionnelles de votre équipe.</p>
+    </div>
+    <div class="eld-hero-actions">
+      <div class="eld-count-card" aria-label="{{ page_obj.paginator.count }} employés trouvés">
+        <strong>{{ page_obj.paginator.count }}</strong>
+        <span>{% if q %}résultat{{ page_obj.paginator.count|pluralize }}{% else %}employé{{ page_obj.paginator.count|pluralize }}{% endif %}</span>
+      </div>
+      <a href="{% url 'administration:employe-create' %}" class="btn btn-light eld-add-btn">
+        <i class="bi bi-person-plus" aria-hidden="true"></i>
+        Nouvel employé
+      </a>
+    </div>
+  </header>
+
+  <section class="eld-toolbar" aria-label="Recherche dans les employés">
+    <form method="get" role="search" class="eld-search-form">
+      <div class="eld-search-control">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <label for="employee-search" class="visually-hidden">Rechercher un employé</label>
+        <input type="search" id="employee-search" name="q" value="{{ q }}"
+               class="form-control" autocomplete="off" aria-autocomplete="none"
+               data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+               placeholder="Nom, prénom, matricule ou service…">
+      </div>
+      <button type="submit" class="btn btn-primary eld-search-submit {% if not q %}eld-search-submit-wide{% endif %}">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        Rechercher
       </button>
       {% if q %}
-      <a href="{% url 'administration:employe-list' %}" class="btn btn-outline-secondary px-3">
-        <i class="bi bi-x-lg"></i>
+      <a href="{% url 'administration:employe-list' %}" class="btn btn-outline-secondary eld-clear-btn">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+        Effacer
       </a>
       {% endif %}
     </form>
-  </div>
-</div>
+    <div class="eld-search-hint">
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      Recherche dans le nom, le matricule et le service
+    </div>
+  </section>
 
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="eld-panel" aria-labelledby="eld-results-title">
+    <header class="eld-panel-head">
+      <div>
+        <div class="eld-section-label">Répertoire</div>
+        <h2 id="eld-results-title">
+          {% if q %}Résultats pour « {{ q }} »{% else %}Tous les employés{% endif %}
+        </h2>
+        {% if employes %}
+        <p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>
+        {% else %}
+        <p>Aucun dossier à afficher pour le moment.</p>
+        {% endif %}
+      </div>
+      {% if employes %}
+      <span class="eld-result-badge">
+        <i class="bi bi-list-ul" aria-hidden="true"></i>
+        {{ page_obj.paginator.count }} dossier{{ page_obj.paginator.count|pluralize }}
+      </span>
+      {% endif %}
+    </header>
+
     {% if employes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+    {# Vue large : tableau dense sans défilement horizontal. #}
+    <div class="eld-table-wrap">
+      <table class="eld-table">
+        <caption class="visually-hidden">Liste des employés et de leurs informations professionnelles</caption>
+        <thead>
           <tr>
-            <th class="ps-3">Nom</th>
-            <th>Matricule</th>
-            <th>Groupe</th>
-            <th>Contrat</th>
-            <th>Téléphone</th>
-            <th class="text-end">Salaire</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
+            <th scope="col">Employé</th>
+            <th scope="col">Affectation</th>
+            <th scope="col">Contrat</th>
+            <th scope="col">Contact</th>
+            <th scope="col" class="eld-money-col">Salaire</th>
+            <th scope="col" class="eld-actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for emp in employes %}
           <tr>
-            <td class="ps-3">
-              <div class="d-flex align-items-center gap-2">
+            <td>
+              <div class="eld-identity">
                 {% if emp.photo %}
-                <img src="{{ emp.photo.url }}" alt=""
-                     style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                <img src="{{ emp.photo.url }}" alt="Photo de {{ emp.user.get_full_name|default:emp.user.username }}" class="eld-avatar">
                 {% else %}
-                <div style="width:36px;height:36px;border-radius:50%;background:#2c7be5;color:#fff;
-                            display:flex;align-items:center;justify-content:center;
-                            font-size:.75rem;font-weight:700;flex-shrink:0;">
-                  {{ emp.user.first_name|slice:":1"|upper }}{{ emp.user.last_name|slice:":1"|upper }}
-                </div>
+                <span class="eld-avatar eld-avatar-placeholder" aria-hidden="true">
+                  {% if emp.user.first_name or emp.user.last_name %}
+                    {{ emp.user.first_name|slice:":1"|upper }}{{ emp.user.last_name|slice:":1"|upper }}
+                  {% else %}
+                    <i class="bi bi-person"></i>
+                  {% endif %}
+                </span>
                 {% endif %}
-                <div>
-                  <div class="fw-medium">{{ emp.user.get_full_name }}</div>
-                  <div class="text-muted small">@{{ emp.user.username }}</div>
-                </div>
+                <span class="eld-identity-copy">
+                  <a href="{% url 'administration:employe-detail' emp.pk %}" class="eld-name">
+                    {{ emp.user.get_full_name|default:emp.user.username }}
+                  </a>
+                  <span class="eld-username">@{{ emp.user.username }}</span>
+                  <span class="eld-inline-meta">
+                    {% if emp.matricule %}<span class="eld-matricule">{{ emp.matricule }}</span>{% endif %}
+                    {% if emp.user.is_active %}
+                    <span class="eld-status eld-status-active"><i class="bi bi-circle-fill" aria-hidden="true"></i> Actif</span>
+                    {% else %}
+                    <span class="eld-status eld-status-inactive"><i class="bi bi-circle-fill" aria-hidden="true"></i> Inactif</span>
+                    {% endif %}
+                  </span>
+                </span>
               </div>
             </td>
-            <td><span class="font-monospace small text-muted">{{ emp.matricule|default:"—" }}</span></td>
-            <td>{{ emp.user.groups.all|join:", "|default:"—" }}</td>
             <td>
-              {% if emp.type_contrat %}
-              <span class="badge rounded-pill bg-light text-dark border small">{{ emp.type_contrat }}</span>
-              {% else %}—{% endif %}
+              <span class="eld-primary-value">{{ emp.service|default:"Non affecté" }}</span>
+              <span class="eld-secondary-value">
+                <i class="bi bi-shield-check" aria-hidden="true"></i>
+                {{ emp.user.groups.all|join:", "|default:"Aucun groupe" }}
+              </span>
             </td>
-            <td>{{ emp.telephone|default:"—" }}</td>
-            <td class="text-end font-monospace small">
-              {% if emp.salaire %}{{ emp.salaire }} TND{% else %}—{% endif %}
+            <td>
+              {% if emp.type_contrat %}<span class="eld-contract">{{ emp.type_contrat }}</span>{% else %}<span class="eld-empty-value">Non renseigné</span>{% endif %}
+              <span class="eld-secondary-value">
+                <i class="bi bi-calendar3" aria-hidden="true"></i>
+                {% if emp.embauche_at %}Depuis le {{ emp.embauche_at|date:"d/m/Y" }}{% else %}Date non renseignée{% endif %}
+              </span>
             </td>
-            <td class="text-center pe-3">
-              <a href="{% url 'administration:employe-detail' emp.pk %}"
-                 class="btn btn-sm btn-outline-secondary" title="Voir le détail">
-                <i class="bi bi-eye"></i>
-              </a>
-              <a href="{% url 'administration:employe-update' emp.pk %}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </a>
+            <td>
+              {% if emp.telephone %}
+              <a href="tel:{{ emp.telephone }}" class="eld-contact-link"><i class="bi bi-telephone" aria-hidden="true"></i>{{ emp.telephone }}</a>
+              {% else %}
+              <span class="eld-empty-value"><i class="bi bi-telephone" aria-hidden="true"></i> Non renseigné</span>
+              {% endif %}
+              {% if emp.user.email %}
+              <a href="mailto:{{ emp.user.email }}" class="eld-secondary-value eld-email"><i class="bi bi-envelope" aria-hidden="true"></i>{{ emp.user.email }}</a>
+              {% endif %}
+            </td>
+            <td class="eld-money-col">
+              {% if emp.salaire is not None %}
+              <strong class="eld-salary">{{ emp.salaire }}</strong><span class="eld-currency"> TND</span>
+              {% else %}
+              <span class="eld-empty-value">Non renseigné</span>
+              {% endif %}
+            </td>
+            <td class="eld-actions-col">
+              <div class="eld-row-actions">
+                <a href="{% url 'administration:employe-detail' emp.pk %}" class="eld-icon-btn" aria-label="Voir la fiche de {{ emp.user.get_full_name|default:emp.user.username }}" title="Voir la fiche">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                </a>
+                <a href="{% url 'administration:employe-update' emp.pk %}" class="eld-icon-btn eld-icon-btn-primary" aria-label="Modifier {{ emp.user.get_full_name|default:emp.user.username }}" title="Modifier">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>
+                </a>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -102,61 +176,310 @@
       </table>
     </div>
 
-    {# Pagination #}
+    {# Tablettes et téléphones : cartes lisibles sans tableau horizontal. #}
+    <div class="eld-mobile-list">
+      {% for emp in employes %}
+      <article class="eld-employee-card">
+        <header class="eld-employee-card-head">
+          {% if emp.photo %}
+          <img src="{{ emp.photo.url }}" alt="Photo de {{ emp.user.get_full_name|default:emp.user.username }}" class="eld-avatar eld-avatar-large">
+          {% else %}
+          <span class="eld-avatar eld-avatar-large eld-avatar-placeholder" aria-hidden="true">
+            {% if emp.user.first_name or emp.user.last_name %}
+              {{ emp.user.first_name|slice:":1"|upper }}{{ emp.user.last_name|slice:":1"|upper }}
+            {% else %}
+              <i class="bi bi-person"></i>
+            {% endif %}
+          </span>
+          {% endif %}
+          <div class="eld-employee-card-title">
+            <a href="{% url 'administration:employe-detail' emp.pk %}">{{ emp.user.get_full_name|default:emp.user.username }}</a>
+            <span>@{{ emp.user.username }}{% if emp.matricule %} · {{ emp.matricule }}{% endif %}</span>
+          </div>
+          {% if emp.user.is_active %}
+          <span class="eld-status eld-status-active"><i class="bi bi-circle-fill" aria-hidden="true"></i> Actif</span>
+          {% else %}
+          <span class="eld-status eld-status-inactive"><i class="bi bi-circle-fill" aria-hidden="true"></i> Inactif</span>
+          {% endif %}
+        </header>
+
+        <dl class="eld-employee-details">
+          <div><dt>Service</dt><dd>{{ emp.service|default:"Non affecté" }}</dd></div>
+          <div><dt>Groupe</dt><dd>{{ emp.user.groups.all|join:", "|default:"Aucun groupe" }}</dd></div>
+          <div><dt>Contrat</dt><dd>{{ emp.type_contrat|default:"Non renseigné" }}</dd></div>
+          <div><dt>Embauche</dt><dd>{% if emp.embauche_at %}{{ emp.embauche_at|date:"d/m/Y" }}{% else %}Non renseignée{% endif %}</dd></div>
+          <div><dt>Téléphone</dt><dd>{% if emp.telephone %}<a href="tel:{{ emp.telephone }}">{{ emp.telephone }}</a>{% else %}Non renseigné{% endif %}</dd></div>
+          <div><dt>Salaire</dt><dd>{% if emp.salaire is not None %}{{ emp.salaire }} TND{% else %}Non renseigné{% endif %}</dd></div>
+          {% if emp.user.email %}<div class="eld-detail-wide"><dt>Email</dt><dd><a href="mailto:{{ emp.user.email }}">{{ emp.user.email }}</a></dd></div>{% endif %}
+        </dl>
+
+        <footer class="eld-employee-card-actions">
+          <a href="{% url 'administration:employe-detail' emp.pk %}" class="btn btn-outline-secondary">
+            <i class="bi bi-eye" aria-hidden="true"></i>Voir la fiche
+          </a>
+          <a href="{% url 'administration:employe-update' emp.pk %}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil" aria-hidden="true"></i>Modifier
+          </a>
+        </footer>
+      </article>
+      {% endfor %}
+    </div>
+
     {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} employé{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+    <footer class="eld-pagination-footer">
+      <span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+      <nav aria-label="Pagination des employés">
+        <ul class="eld-pagination">
           {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?{% if q %}q={{ q }}&{% endif %}page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
+          <li><a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>
           {% endif %}
           {% for num in page_obj.paginator.page_range %}
             {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            <li><span class="active" aria-current="page">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?{% if q %}q={{ q }}&{% endif %}page={{ num }}">{{ num }}</a>
-            </li>
+            <li><a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ num }}">{{ num }}</a></li>
             {% endif %}
           {% endfor %}
           {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?{% if q %}q={{ q }}&{% endif %}page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
+          <li><a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>
           {% endif %}
         </ul>
       </nav>
-    </div>
+    </footer>
     {% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+    <div class="eld-empty-state">
+      <span class="eld-empty-icon"><i class="bi {% if q %}bi-search{% else %}bi-people{% endif %}" aria-hidden="true"></i></span>
       {% if q %}
-        Aucun résultat pour <strong>« {{ q }} »</strong>.
-        <br>
-        <a href="{% url 'administration:employe-list' %}" class="mt-2 d-inline-block">
-          Effacer la recherche
-        </a>
+      <h2>Aucun résultat pour « {{ q }} »</h2>
+      <p>Essayez un nom plus court, un matricule ou le nom d'un service.</p>
+      <a href="{% url 'administration:employe-list' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser la recherche</a>
       {% else %}
-        Aucun employé enregistré.
-        <br>
-        <a href="{% url 'administration:employe-create' %}" class="mt-2 d-inline-block">
-          Ajouter le premier employé
-        </a>
+      <h2>Aucun employé enregistré</h2>
+      <p>Créez le premier dossier pour commencer à constituer votre annuaire.</p>
+      <a href="{% url 'administration:employe-create' %}" class="btn btn-primary"><i class="bi bi-person-plus" aria-hidden="true"></i>Ajouter le premier employé</a>
       {% endif %}
     </div>
     {% endif %}
-  </div>
+  </section>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Annuaire employés : ordinateur d'abord ──────────────────────────────── */
+.employee-directory {
+  --eld-primary: #2c7be5;
+  --eld-primary-dark: #1a4f9c;
+  --eld-ink: #172033;
+  --eld-muted: #667085;
+  --eld-border: #e2e8f0;
+  --eld-surface: #fff;
+  --eld-radius: 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--eld-ink);
+}
+.eld-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.15rem;
+  min-height: 132px;
+  padding: 1.4rem 1.55rem;
+  border-radius: 1.05rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 62%, #2c7be5 100%);
+  box-shadow: 0 9px 28px rgba(25,74,128,.15);
+  color: #fff;
+}
+.eld-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.3rem;
+  height: 4.3rem;
+  border: 2px solid rgba(255,255,255,.35);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.14);
+  font-size: 1.65rem;
+}
+.eld-hero-copy { min-width: 0; }
+.eld-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  color: rgba(255,255,255,.68);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.eld-hero h1 { margin: .2rem 0 .25rem; font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 750; letter-spacing: -.02em; }
+.eld-hero-copy > p { margin: 0; max-width: 720px; color: rgba(255,255,255,.78); font-size: .88rem; line-height: 1.5; }
+.eld-hero-actions { display: flex; align-items: stretch; gap: .65rem; }
+.eld-count-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  padding: .55rem .8rem;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: .78rem;
+  background: rgba(8,31,61,.2);
+}
+.eld-count-card strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.eld-count-card span { margin-top: .14rem; color: rgba(255,255,255,.72); font-size: .68rem; }
+.eld-add-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 3.15rem; padding-inline: 1rem; border-radius: .78rem; color: #194f89; font-size: .82rem; font-weight: 750; }
+
+.eld-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.1rem;
+  padding: .85rem;
+  border: 1px solid var(--eld-border);
+  border-radius: var(--eld-radius);
+  background: var(--eld-surface);
+  box-shadow: 0 2px 9px rgba(16,24,40,.04);
+}
+.eld-search-form { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.eld-search-control { position: relative; flex: 1 1 560px; max-width: 680px; min-width: 260px; }
+.eld-search-control > i { position: absolute; top: 50%; left: .9rem; z-index: 1; color: #98a2b3; transform: translateY(-50%); }
+.eld-search-control .form-control { min-height: 2.9rem; padding-left: 2.55rem; border-color: #cfd7e3; border-radius: .7rem; font-size: .88rem; }
+.eld-search-control .form-control:focus { border-color: #77a9e9; box-shadow: 0 0 0 .2rem rgba(44,123,229,.13); }
+.eld-search-submit,
+.eld-clear-btn { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: .4rem; min-height: 2.9rem; padding-inline: .9rem; border-radius: .7rem; font-size: .78rem; font-weight: 700; }
+.eld-search-hint { display: flex; align-items: center; gap: .4rem; color: var(--eld-muted); font-size: .7rem; white-space: nowrap; }
+
+.eld-panel { margin-top: 1rem; overflow: hidden; border: 1px solid var(--eld-border); border-radius: var(--eld-radius); background: var(--eld-surface); box-shadow: 0 3px 12px rgba(16,24,40,.045); }
+.eld-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 82px; padding: 1rem 1.2rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.eld-section-label { color: var(--eld-primary-dark); font-size: .65rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.eld-panel-head h2 { margin: .18rem 0 0; color: var(--eld-ink); font-size: 1.05rem; font-weight: 750; }
+.eld-panel-head p { margin: .18rem 0 0; color: var(--eld-muted); font-size: .73rem; }
+.eld-result-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .38rem .65rem; border-radius: 2rem; background: #eaf2fd; color: var(--eld-primary-dark); font-size: .7rem; font-weight: 750; white-space: nowrap; }
+
+.eld-table-wrap { display: block; }
+.eld-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.eld-table thead { background: #f8fafc; }
+.eld-table th { padding: .7rem 1rem; border-bottom: 1px solid var(--eld-border); color: var(--eld-muted); font-size: .67rem; font-weight: 800; letter-spacing: .055em; text-align: left; text-transform: uppercase; }
+.eld-table td { padding: .78rem 1rem; border-bottom: 1px solid #edf0f4; color: var(--eld-ink); font-size: .78rem; vertical-align: middle; }
+.eld-table tbody tr:last-child td { border-bottom: 0; }
+.eld-table tbody tr { transition: background-color .14s ease; }
+.eld-table tbody tr:hover { background: #f8faff; }
+.eld-table th:nth-child(1) { width: 25%; }
+.eld-table th:nth-child(2) { width: 18%; }
+.eld-table th:nth-child(3) { width: 16%; }
+.eld-table th:nth-child(4) { width: 20%; }
+.eld-table th:nth-child(5) { width: 12%; }
+.eld-table th:nth-child(6) { width: 9%; }
+.eld-identity { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.eld-avatar { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.65rem; height: 2.65rem; border-radius: .75rem; object-fit: cover; }
+.eld-avatar-placeholder { background: linear-gradient(145deg, #2c7be5, #1c5fac); color: #fff; font-size: .76rem; font-weight: 800; letter-spacing: .02em; }
+.eld-avatar-large { width: 3.15rem; height: 3.15rem; border-radius: .85rem; font-size: .86rem; }
+.eld-identity-copy { display: block; min-width: 0; }
+.eld-name { display: block; overflow: hidden; color: var(--eld-ink); font-size: .82rem; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.eld-name:hover { color: var(--eld-primary-dark); }
+.eld-username { display: block; overflow: hidden; margin-top: .08rem; color: var(--eld-muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.eld-inline-meta { display: flex; align-items: center; flex-wrap: wrap; gap: .28rem; margin-top: .28rem; }
+.eld-matricule { padding: .12rem .35rem; border: 1px solid #dce3eb; border-radius: .35rem; background: #f7f9fb; color: #536174; font-family: var(--bs-font-monospace); font-size: .62rem; }
+.eld-status { display: inline-flex; align-items: center; gap: .22rem; font-size: .64rem; font-weight: 750; white-space: nowrap; }
+.eld-status i { font-size: .38rem; }
+.eld-status-active { color: #18794e; }
+.eld-status-inactive { color: #7b8492; }
+.eld-primary-value { display: block; overflow: hidden; font-size: .77rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.eld-secondary-value,
+a.eld-secondary-value { display: flex; align-items: center; gap: .3rem; overflow: hidden; margin-top: .25rem; color: var(--eld-muted); font-size: .67rem; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+a.eld-secondary-value:hover { color: var(--eld-primary-dark); }
+.eld-contract { display: inline-flex; padding: .2rem .48rem; border: 1px solid #dce3eb; border-radius: 2rem; background: #f8fafc; font-size: .68rem; font-weight: 700; }
+.eld-empty-value { color: #8b95a4; font-size: .69rem; }
+.eld-contact-link { display: flex; align-items: center; gap: .3rem; color: var(--eld-ink); font-size: .76rem; font-weight: 650; text-decoration: none; }
+.eld-contact-link:hover { color: var(--eld-primary-dark); }
+.eld-email { max-width: 100%; }
+.eld-money-col { text-align: right !important; }
+.eld-salary { font-size: .78rem; font-variant-numeric: tabular-nums; }
+.eld-currency { color: var(--eld-muted); font-size: .64rem; }
+.eld-actions-col { text-align: center !important; }
+.eld-row-actions { display: flex; align-items: center; justify-content: center; gap: .35rem; }
+.eld-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.15rem; height: 2.15rem; border: 1px solid #d6dde7; border-radius: .58rem; background: #fff; color: #596579; text-decoration: none; transition: border-color .14s ease, background-color .14s ease, color .14s ease; }
+.eld-icon-btn:hover { border-color: #aeb9c7; background: #f7f9fb; color: var(--eld-ink); }
+.eld-icon-btn-primary { border-color: #b8d0ef; color: var(--eld-primary-dark); }
+.eld-icon-btn-primary:hover { border-color: #8eb6ea; background: #eef5fe; color: #174c8f; }
+
+.eld-mobile-list { display: none; }
+.eld-employee-card { overflow: hidden; border: 1px solid var(--eld-border); border-radius: .85rem; background: #fff; }
+.eld-employee-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .65rem; padding: .9rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.eld-employee-card-title { min-width: 0; }
+.eld-employee-card-title a { display: block; overflow: hidden; color: var(--eld-ink); font-size: .86rem; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.eld-employee-card-title span { display: block; overflow: hidden; margin-top: .1rem; color: var(--eld-muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.eld-employee-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; margin: 0; padding: 1rem; }
+.eld-employee-details div { min-width: 0; }
+.eld-employee-details dt { margin-bottom: .15rem; color: var(--eld-muted); font-size: .64rem; font-weight: 650; text-transform: uppercase; }
+.eld-employee-details dd { overflow-wrap: anywhere; margin: 0; color: var(--eld-ink); font-size: .75rem; font-weight: 650; }
+.eld-employee-details a { color: var(--eld-primary-dark); text-decoration: none; }
+.eld-detail-wide { grid-column: 1 / -1; }
+.eld-employee-card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: .75rem .9rem; border-top: 1px solid #edf0f4; }
+.eld-employee-card-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.65rem; border-radius: .65rem; font-size: .74rem; font-weight: 700; }
+
+.eld-pagination-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 62px; padding: .75rem 1rem; border-top: 1px solid var(--eld-border); background: #fbfcfe; }
+.eld-pagination-footer > span { color: var(--eld-muted); font-size: .72rem; }
+.eld-pagination { display: flex; align-items: center; gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.eld-pagination a,
+.eld-pagination span { display: inline-flex; align-items: center; justify-content: center; min-width: 2.25rem; height: 2.25rem; padding: 0 .4rem; border: 1px solid #d8e0ea; border-radius: .55rem; background: #fff; color: #526071; font-size: .72rem; font-weight: 700; text-decoration: none; }
+.eld-pagination a:hover { border-color: #9cbee9; background: #f4f8fe; color: var(--eld-primary-dark); }
+.eld-pagination .active { border-color: var(--eld-primary); background: var(--eld-primary); color: #fff; }
+.eld-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 360px; padding: 2rem; text-align: center; }
+.eld-empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; margin-bottom: .9rem; border-radius: 1rem; background: #edf4fd; color: var(--eld-primary); font-size: 1.55rem; }
+.eld-empty-state h2 { margin: 0; color: var(--eld-ink); font-size: 1rem; font-weight: 750; }
+.eld-empty-state p { max-width: 430px; margin: .35rem 0 1rem; color: var(--eld-muted); font-size: .78rem; }
+.eld-empty-state .btn { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; border-radius: .68rem; font-size: .78rem; font-weight: 700; }
+
+.employee-directory a:focus-visible,
+.employee-directory button:focus-visible,
+.employee-directory input:focus-visible { outline: 3px solid #174c8f; outline-offset: 2px; }
+
+@media (max-width: 1199.98px) {
+  .eld-table-wrap { display: none; }
+  .eld-mobile-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; padding: .9rem; }
+}
+@media (max-width: 991.98px) {
+  .eld-toolbar { grid-template-columns: 1fr; }
+  .eld-search-hint { justify-self: start; }
+}
+@media (max-width: 767.98px) {
+  .eld-hero { grid-template-columns: auto minmax(0, 1fr); padding: 1.15rem; }
+  .eld-hero-actions { grid-column: 1 / -1; }
+  .eld-add-btn { flex: 1 1 auto; }
+  .eld-mobile-list { grid-template-columns: 1fr; }
+  .eld-panel-head { align-items: flex-start; }
+}
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .eld-hero { gap: .8rem; padding: 1rem; border-radius: .9rem; }
+  .eld-hero-icon { width: 3.5rem; height: 3.5rem; font-size: 1.35rem; }
+  .eld-hero-copy > p { font-size: .8rem; }
+  .eld-hero-actions { align-items: stretch; flex-direction: column; }
+  .eld-count-card { align-items: baseline; flex-direction: row; gap: .35rem; min-height: 2.6rem; }
+  .eld-count-card strong { font-size: 1rem; }
+  .eld-toolbar { padding: .7rem; }
+  .eld-search-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eld-search-control { grid-column: 1 / -1; max-width: none; min-width: 0; }
+  .eld-search-submit,
+  .eld-clear-btn { width: 100%; }
+  .eld-search-submit-wide { grid-column: 1 / -1; }
+  .eld-search-hint { align-items: flex-start; white-space: normal; }
+  .eld-panel-head { flex-direction: column; padding: .9rem; }
+  .eld-employee-card-head { grid-template-columns: auto minmax(0, 1fr); }
+  .eld-employee-card-head > .eld-status { grid-column: 2; justify-self: start; }
+  .eld-employee-details { grid-template-columns: 1fr; gap: .7rem; }
+  .eld-detail-wide { grid-column: auto; }
+  .eld-pagination-footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eld-table tbody tr,
+  .eld-icon-btn { transition: none; }
+}
 {% endblock %}

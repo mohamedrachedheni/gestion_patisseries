@@ -1,14 +1,14 @@
 {% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
-{% block title %}Nouveau client — Commercial{% endblock %}
-{% block page_title %}Nouveau client{% endblock %}
+{% block title %}{% if client %}Modifier {{ client }} — Clients{% else %}Nouveau client — Commercial{% endif %}{% endblock %}
+{% block page_title %}{% if client %}Modifier un client{% else %}Nouveau client{% endif %}{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:client-list' %}">Clients</a></li>
-    <li class="breadcrumb-item active">Nouveau client</li>
+    <li class="breadcrumb-item active" aria-current="page">{% if client %}Modifier {{ client }}{% else %}Nouveau client{% endif %}</li>
   </ol>
 </nav>
 {% endblock %}
@@ -21,8 +21,24 @@
    photo, photo_temp_path, created_at, is_active, observation) sont ceux
    attendus par ClientCreateView.post().
 {% endcomment %}
-<form method="post" enctype="multipart/form-data" id="client-form" novalidate>
+<form method="post" enctype="multipart/form-data" id="client-form" novalidate autocomplete="off"
+      data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
   {% csrf_token %}
+
+  {% if form.errors %}
+  <div class="alert alert-danger blx-server-summary" id="client-error-summary" role="alert" tabindex="-1">
+    <div class="d-flex gap-2 align-items-start">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+      <div>
+        <strong>Certains renseignements doivent être corrigés.</strong>
+        <ul class="mb-0 mt-1 ps-3">
+          {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+          {% for field in form %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}" class="alert-link">{{ field.label }} : {{ error }}</a></li>{% endfor %}{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   {# ── Étape 1 : identité ───────────────────────────────────────────────────── #}
   <section class="blx-card" id="cli-step-identite">
@@ -100,12 +116,12 @@
       </div>
     </div>
 
-    <div class="blx-field {% if not is_administration %}mb-0{% endif %}">
+    <div class="blx-field {% if not is_administration and not client %}mb-0{% endif %}">
       <label class="blx-label" for="id_adresse">Adresse <span class="text-muted fw-normal">(facultatif)</span></label>
       {{ form.adresse }}
     </div>
 
-    {% if is_administration %}
+    {% if is_administration or client %}
     <div class="blx-field mb-0">
       <label class="blx-label" for="id_google_mape">Lien Google Maps <span class="text-muted fw-normal">(facultatif)</span></label>
       {{ form.google_mape }}
@@ -154,19 +170,19 @@
   </section>
   {% endif %}
 
-  {% if is_administration %}
+  {% if is_administration or client %}
   {# ── Autres informations (facultatives) ───────────────────────────────────── #}
   <section class="blx-card" id="cli-step-autres">
     <div class="blx-card-title"><i class="bi bi-three-dots"></i> Autres informations <span class="text-muted fw-normal">(facultatif)</span></div>
 
     <div class="blx-field">
       <label class="blx-label" for="id_photo">Photo de la vitrine <span class="text-muted fw-normal">(pour reconnaître le client)</span></label>
-      <div class="blx-photo-row{% if not photo_temp_url %} d-none{% endif %}" id="cli-photo-row">
-        <img src="{{ photo_temp_url }}" alt="Photo sélectionnée" class="blx-photo-preview" id="cli-photo-preview">
-        <div class="blx-hint mt-0">Photo choisie. Choisissez un autre fichier seulement pour la remplacer.</div>
+      <div class="blx-photo-row{% if not photo_temp_url and not client.photo %} d-none{% endif %}" id="cli-photo-row">
+        <img src="{% if photo_temp_url %}{{ photo_temp_url }}{% elif client.photo %}{{ client.photo.url }}{% endif %}" alt="Photo du client" class="blx-photo-preview" id="cli-photo-preview">
+        <div class="blx-hint mt-0">{% if client %}Photo actuelle. Choisissez un fichier uniquement pour la remplacer.{% else %}Photo choisie. Choisissez un autre fichier seulement pour la remplacer.{% endif %}</div>
       </div>
       {% if photo_temp_path %}<input type="hidden" name="photo_temp_path" value="{{ photo_temp_path }}">{% endif %}
-      <input type="file" name="photo" id="id_photo" accept="image/*" class="form-control blx-input">
+      <div class="blx-file-field">{{ form.photo }}</div>
     </div>
 
     <div class="blx-grid-2">
@@ -192,7 +208,7 @@
 
   {# ── Action secondaire ────────────────────────────────────────────────────── #}
   <div class="blx-secondary-actions">
-    <a href="{% if is_administration %}{% url 'commercial:client-list' %}{% else %}{% url 'commercial:home' %}{% endif %}" class="btn btn-link text-secondary">
+    <a href="{% if client or is_administration %}{% url 'commercial:client-list' %}{% else %}{% url 'commercial:home' %}{% endif %}" class="btn btn-link text-secondary">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
   </div>
@@ -200,7 +216,7 @@
   {# ── Barre d'action principale, toujours visible en bas de l'écran ─────────── #}
   <div class="blx-bar">
     <button type="submit" id="client-save-btn" class="btn btn-primary blx-bar-btn">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer le client
+      <i class="bi bi-check-lg me-1"></i>{% if client %}Enregistrer les modifications{% else %}Enregistrer le client{% endif %}
     </button>
   </div>
 </form>
@@ -210,11 +226,19 @@
 {% block extra_css %}
 {{ block.super }}
 {% include 'commercial/bon_livraison/_blx_styles.html' %}
+.blx [data-autofill-lock][readonly] { background: #fff; cursor: text; }
+.blx-server-summary { border-radius: var(--blx-radius); font-size: .82rem; }
+.blx-server-summary a { text-decoration: underline; }
+.blx-file-field { color: var(--blx-muted); font-size: .78rem; line-height: 1.7; }
+.blx-file-field > a { overflow-wrap: anywhere; }
+.blx-file-field input[type="checkbox"] { width: 1.05rem; height: 1.05rem; margin: 0 .25rem 0 .5rem; vertical-align: middle; }
+.blx-file-field input[type="file"] { display: block; width: 100%; margin-top: .45rem; }
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
+  var IS_UPDATE = {% if client %}true{% else %}false{% endif %};
   var DELEGATIONS = {{ delegations_json|safe }};
   var ZONES = {{ zones_json|safe }};
   var SELECTED_ZONE_ID = "{{ selected_zone_id|default:'' }}";
@@ -227,7 +251,24 @@
   var zoneSelect    = document.getElementById('cli-zone');
   var raisonInput   = document.getElementById('id_raison_sociale');
   var photoInput    = document.getElementById('id_photo');
+  var photoClear    = document.getElementById('photo-clear_id');
   var saveBtn       = document.getElementById('client-save-btn');
+
+  // Chrome et les gestionnaires de mots de passe peuvent ignorer
+  // autocomplete="off". Les champs protégés sont déverrouillés uniquement
+  // lors d'une interaction réelle, sans changer leur nom ni leur valeur POST.
+  form.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+    function unlockField() {
+      field.readOnly = false;
+      field.removeAttribute('readonly');
+      field.removeAttribute('data-autofill-lock');
+    }
+    field.addEventListener('focus', unlockField, { once: true });
+    field.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'touch') { unlockField(); }
+    }, { once: true });
+    if (document.activeElement === field) { unlockField(); }
+  });
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -310,7 +351,14 @@
       if (!file) { return; }
       document.getElementById('cli-photo-preview').src = URL.createObjectURL(file);
       document.getElementById('cli-photo-row').classList.remove('d-none');
+      if (photoClear) { photoClear.checked = false; }
     });
+  }
+  if (photoClear) {
+    photoClear.addEventListener('change', function () {
+      document.getElementById('cli-photo-row').classList.toggle('d-none', photoClear.checked);
+    });
+    if (photoClear.checked) { document.getElementById('cli-photo-row').classList.add('d-none'); }
   }
 
   // ── Étape 4 : commerciaux (Administration) ───────────────────────────────
@@ -383,12 +431,15 @@
     // Évite un double enregistrement en cas de double appui.
     enregistrementEnCours = true;
     saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + (IS_UPDATE ? 'Mise à jour…' : 'Enregistrement…');
   });
 
   // Sur ordinateur, le curseur se place sur le nom du commerce ; sur
   // téléphone on s'en abstient pour ne pas ouvrir le clavier à l'arrivée.
-  if (window.matchMedia('(min-width: 768px)').matches) {
+  var errorSummary = document.getElementById('client-error-summary');
+  if (errorSummary) {
+    errorSummary.focus();
+  } else if (window.matchMedia('(min-width: 768px)').matches) {
     raisonInput.focus();
   }
 })();

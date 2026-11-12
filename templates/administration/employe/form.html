@@ -2,93 +2,725 @@
 {% load crispy_forms_tags %}
 
 {% block title %}{{ title }} — Administration{% endblock %}
-{% block page_title %}{{ title }}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-.asteriskField { color: #dc3545; }
-{% endblock %}
+{% block page_title %}{% if is_update %}Modifier un employé{% else %}Nouvel employé{% endif %}{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'administration:employe-list' %}">Employés</a></li>
     {% if employe %}
     <li class="breadcrumb-item">
-      <a href="{% url 'administration:employe-detail' employe.pk %}">{{ employe.user.get_full_name }}</a>
+      <a href="{% url 'administration:employe-detail' employe.pk %}">
+        {{ employe.user.get_full_name|default:employe.user.username }}
+      </a>
     </li>
     {% endif %}
-    <li class="breadcrumb-item active">{{ title }}</li>
+    <li class="breadcrumb-item active" aria-current="page">{% if is_update %}Modifier{% else %}Nouveau{% endif %}</li>
   </ol>
 </nav>
 {% endblock %}
 
-
 {% block content %}
-<form method="post" enctype="multipart/form-data" novalidate>
-  {% csrf_token %}
-  <div class="row g-4">
+<div class="emp-shell">
 
-    {# ── Compte utilisateur ─────────────────────────────────────── #}
-    <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-transparent fw-semibold py-3">
-          <i class="bi bi-person-lock me-2 text-primary"></i>Compte utilisateur
-        </div>
-        <div class="card-body">
-          {% crispy user_form %}
-        </div>
+  <header class="emp-hero" aria-labelledby="emp-page-title">
+    <div class="emp-avatar-wrap" aria-hidden="true">
+      {% if employe and employe.photo %}
+      <img src="{{ employe.photo.url }}" alt="" class="emp-avatar" id="emp-avatar-preview">
+      {% else %}
+      <img src="" alt="" class="emp-avatar d-none" id="emp-avatar-preview">
+      {% endif %}
+      <span class="emp-avatar emp-avatar-placeholder {% if employe and employe.photo %}d-none{% endif %}" id="emp-avatar-placeholder">
+        {% if employe %}
+          {{ employe.user.first_name|slice:":1"|upper }}{{ employe.user.last_name|slice:":1"|upper }}
+        {% else %}
+          <i class="bi bi-person-plus"></i>
+        {% endif %}
+      </span>
+    </div>
+
+    <div class="emp-hero-copy">
+      <div class="emp-eyebrow">
+        <i class="bi bi-person-badge" aria-hidden="true"></i>
+        {% if is_update %}Dossier employé{% else %}Création d'un compte{% endif %}
+      </div>
+      <h1 id="emp-page-title">
+        {% if employe %}
+          {{ employe.user.get_full_name|default:employe.user.username }}
+        {% else %}
+          Ajouter un nouvel employé
+        {% endif %}
+      </h1>
+      <p>
+        {% if is_update %}
+          Mettez à jour son identité, ses accès et ses informations professionnelles.
+        {% else %}
+          Créez son compte utilisateur puis renseignez les informations nécessaires à son dossier.
+        {% endif %}
+      </p>
+      {% if employe %}
+      <div class="emp-tags" aria-label="Informations actuelles">
+        <span><i class="bi bi-at" aria-hidden="true"></i>{{ employe.user.username }}</span>
+        {% if employe.user.groups.all %}
+        <span><i class="bi bi-key" aria-hidden="true"></i>{{ employe.user.groups.all|join:", " }}</span>
+        {% endif %}
+        {% if employe.type_contrat %}
+        <span><i class="bi bi-file-earmark-text" aria-hidden="true"></i>{{ employe.type_contrat }}</span>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="emp-tags" aria-label="Étapes de création">
+        <span><i class="bi bi-1-circle" aria-hidden="true"></i>Compte et accès</span>
+        <span><i class="bi bi-2-circle" aria-hidden="true"></i>Dossier professionnel</span>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if employe %}
+    <a href="{% url 'administration:employe-detail' employe.pk %}" class="btn btn-light emp-hero-link">
+      <i class="bi bi-eye" aria-hidden="true"></i>
+      Voir la fiche
+    </a>
+    {% endif %}
+  </header>
+
+  <form method="post" enctype="multipart/form-data" novalidate autocomplete="off"
+        data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+        id="emp-editor-form" class="emp-editor">
+    {% csrf_token %}
+
+    {% if user_form.errors or employe_form.errors %}
+    <div class="emp-error-summary" id="emp-error-summary" role="alert" tabindex="-1">
+      <span class="emp-error-icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span>
+      <div>
+        <h2>Certains renseignements doivent être corrigés</h2>
+        <p>Vos saisies sont conservées. Sélectionnez un message pour accéder au champ concerné.</p>
+        <ul>
+          {% for error in user_form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+          {% for field in user_form %}
+            {% for error in field.errors %}
+            <li><a href="#{{ field.id_for_label }}"><strong>{{ field.label }} :</strong> {{ error }}</a></li>
+            {% endfor %}
+          {% endfor %}
+          {% for error in employe_form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+          {% for field in employe_form %}
+            {% for error in field.errors %}
+            <li><a href="#{{ field.id_for_label }}"><strong>{{ field.label }} :</strong> {{ error }}</a></li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
       </div>
     </div>
+    {% endif %}
 
-    {# ── Informations professionnelles ──────────────────────────── #}
-    <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-transparent fw-semibold py-3">
-          <i class="bi bi-briefcase me-2 text-primary"></i>Informations professionnelles
-        </div>
-        <div class="card-body">
-          {% crispy employe_form %}
-        </div>
+    <div class="emp-layout">
+      <div class="emp-main">
+
+        <section class="emp-card" aria-labelledby="emp-account-title">
+          <header class="emp-card-head">
+            <span class="emp-step">1</span>
+            <span class="emp-card-icon"><i class="bi bi-person-lock" aria-hidden="true"></i></span>
+            <span class="emp-card-heading">
+              <h2 id="emp-account-title">Identité et accès</h2>
+              <p>Informations de connexion et niveau d'autorisation dans l'application.</p>
+            </span>
+            <span class="emp-required-key"><span aria-hidden="true">*</span> Obligatoire</span>
+          </header>
+
+          <div class="emp-card-body emp-form-fields">
+            {% if is_update %}
+            <div class="emp-inline-note">
+              <i class="bi bi-shield-lock" aria-hidden="true"></i>
+              <span><strong>Mot de passe inchangé par défaut.</strong> Renseignez les deux champs de mot de passe uniquement pour le remplacer.</span>
+            </div>
+            {% else %}
+            <div class="emp-inline-note emp-inline-note-create">
+              <i class="bi bi-key" aria-hidden="true"></i>
+              <span><strong>Préparez le premier accès.</strong> Créez un mot de passe provisoire conforme aux règles affichées, puis communiquez-le directement à l'employé.</span>
+            </div>
+            {% endif %}
+
+            <div class="emp-access-note">
+              <i class="bi bi-info-circle" aria-hidden="true"></i>
+              <span id="emp-staff-status" aria-live="polite">Le groupe choisi détermine les écrans accessibles à cet employé.</span>
+            </div>
+
+            {% crispy user_form %}
+          </div>
+        </section>
+
+        <section class="emp-card" aria-labelledby="emp-job-title">
+          <header class="emp-card-head">
+            <span class="emp-step">2</span>
+            <span class="emp-card-icon"><i class="bi bi-briefcase" aria-hidden="true"></i></span>
+            <span class="emp-card-heading">
+              <h2 id="emp-job-title">Informations professionnelles</h2>
+              <p>Contrat, coordonnées, rémunération et informations complémentaires.</p>
+            </span>
+            <span class="emp-optional-key">Champs facultatifs</span>
+          </header>
+
+          <div class="emp-card-body emp-form-fields">
+            {% if employe and employe.matricule or employe and employe.service %}
+            <dl class="emp-readonly-data">
+              {% if employe.matricule %}
+              <div><dt>Matricule</dt><dd>{{ employe.matricule }}</dd></div>
+              {% endif %}
+              {% if employe.service %}
+              <div><dt>Service</dt><dd>{{ employe.service }}</dd></div>
+              {% endif %}
+            </dl>
+            {% endif %}
+
+            {% crispy employe_form %}
+          </div>
+        </section>
       </div>
-    </div>
 
-    {# ── Boutons ────────────────────────────────────────────────── #}
-    <div class="col-12 d-flex gap-2 justify-content-end">
-      <a href="{% if employe %}{% url 'administration:employe-detail' employe.pk %}{% else %}{% url 'administration:employe-list' %}{% endif %}"
-         class="btn btn-outline-secondary">
-        Annuler
-      </a>
-      <button type="submit" class="btn btn-primary">
-        <i class="bi bi-check-lg me-1"></i>
-        {% if is_update %}Enregistrer les modifications{% else %}Créer l'employé{% endif %}
-      </button>
-    </div>
+      <aside class="emp-aside" aria-label="Aide et actions du formulaire">
+        <div class="emp-side-stack">
+          <section class="emp-side-card" aria-labelledby="emp-guide-title">
+            <div class="emp-side-card-head">
+              <span><i class="bi bi-lightbulb" aria-hidden="true"></i></span>
+              <div>
+                <h2 id="emp-guide-title">Repères de saisie</h2>
+                <p>Pour éviter les erreurs courantes.</p>
+              </div>
+            </div>
+            <ul class="emp-checklist">
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>Vérifiez l'adresse email et l'identifiant avant d'enregistrer.</span></li>
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>Le groupe définit l'espace de travail accessible après connexion.</span></li>
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>L'accès Django admin est réservé au groupe Administration.</span></li>
+              {% if is_update %}
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>La nouvelle photo remplacera l'aperçu actuel après enregistrement.</span></li>
+              {% else %}
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>Saisissez deux fois le même mot de passe avant de créer le compte.</span></li>
+              <li><i class="bi bi-check2" aria-hidden="true"></i><span>La photo est facultative et peut être ajoutée plus tard.</span></li>
+              {% endif %}
+            </ul>
+          </section>
 
-  </div>
-</form>
+          <section class="emp-actions-card" aria-labelledby="emp-actions-title">
+            <div class="emp-actions-copy">
+              <span class="emp-actions-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+              <span>
+                <h2 id="emp-actions-title">{% if is_update %}Enregistrer les changements{% else %}Créer l'employé{% endif %}</h2>
+                <p>
+                  {% if is_update %}
+                    Les champs signalés seront vérifiés avant l'enregistrement.
+                  {% else %}
+                    Le compte pourra être utilisé dès que sa création sera confirmée.
+                  {% endif %}
+                </p>
+              </span>
+            </div>
+            <button type="submit" class="btn btn-primary emp-save-btn" id="emp-save-btn">
+              <i class="bi bi-check-lg" aria-hidden="true"></i>
+              {% if is_update %}Enregistrer les modifications{% else %}Créer l'employé{% endif %}
+            </button>
+            <a href="{% if employe %}{% url 'administration:employe-detail' employe.pk %}{% else %}{% url 'administration:employe-list' %}{% endif %}"
+               class="btn btn-outline-secondary emp-cancel-btn">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+              Annuler et revenir
+            </a>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Éditeur employé : mise en page ordinateur d'abord ───────────────────── */
+.emp-shell {
+  --emp-primary: #2c7be5;
+  --emp-primary-dark: #1a4f9c;
+  --emp-ink: #172033;
+  --emp-muted: #667085;
+  --emp-border: #e2e8f0;
+  --emp-surface: #fff;
+  --emp-soft: #f5f8fc;
+  --emp-radius: 1rem;
+  max-width: 1480px;
+  margin: 0 auto;
+  color: var(--emp-ink);
+}
+.emp-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.15rem;
+  min-height: 122px;
+  padding: 1.35rem 1.5rem;
+  overflow: hidden;
+  border-radius: 1.05rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 62%, #2c7be5 100%);
+  box-shadow: 0 9px 28px rgba(25, 74, 128, .15);
+  color: #fff;
+}
+.emp-avatar-wrap { flex: 0 0 auto; }
+.emp-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 74px;
+  border: 3px solid rgba(255,255,255,.65);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.17);
+  box-shadow: 0 6px 18px rgba(5, 27, 56, .2);
+  object-fit: cover;
+}
+.emp-avatar-placeholder { color: #fff; font-size: 1.35rem; font-weight: 800; letter-spacing: .03em; }
+.emp-avatar-placeholder i { font-size: 1.6rem; }
+.emp-hero-copy { min-width: 0; }
+.emp-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  color: rgba(255,255,255,.68);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.emp-hero h1 {
+  overflow: hidden;
+  margin: .22rem 0 .22rem;
+  color: #fff;
+  font-size: clamp(1.45rem, 2vw, 1.9rem);
+  font-weight: 750;
+  letter-spacing: -.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.emp-hero-copy > p { margin: 0; color: rgba(255,255,255,.77); font-size: .88rem; }
+.emp-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .65rem; }
+.emp-tags span {
+  display: inline-flex;
+  align-items: center;
+  gap: .28rem;
+  padding: .22rem .55rem;
+  border: 1px solid rgba(255,255,255,.17);
+  border-radius: 2rem;
+  background: rgba(8, 31, 61, .2);
+  color: rgba(255,255,255,.88);
+  font-size: .68rem;
+  font-weight: 650;
+}
+.emp-hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border: 1px solid rgba(255,255,255,.52);
+  border-radius: .7rem;
+  box-shadow: 0 4px 12px rgba(5, 27, 56, .12);
+  color: #194f89;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.emp-editor { margin-top: 1.25rem; }
+.emp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 350px);
+  align-items: start;
+  gap: 1.25rem;
+}
+.emp-main { display: grid; gap: 1rem; min-width: 0; }
+.emp-card,
+.emp-side-card,
+.emp-actions-card {
+  border: 1px solid var(--emp-border);
+  border-radius: var(--emp-radius);
+  background: var(--emp-surface);
+  box-shadow: 0 2px 9px rgba(16, 24, 40, .04);
+}
+.emp-card { overflow: hidden; }
+.emp-card-head {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .7rem;
+  min-height: 82px;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid #edf0f4;
+  background: #fbfcfe;
+}
+.emp-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--emp-primary);
+  color: #fff;
+  font-size: .76rem;
+  font-weight: 800;
+}
+.emp-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: .72rem;
+  background: #eaf2fd;
+  color: var(--emp-primary);
+  font-size: 1.05rem;
+}
+.emp-card-heading { min-width: 0; }
+.emp-card-heading h2,
+.emp-side-card h2,
+.emp-actions-card h2 {
+  margin: 0;
+  color: var(--emp-ink);
+  font-size: .98rem;
+  font-weight: 750;
+}
+.emp-card-heading p,
+.emp-side-card p,
+.emp-actions-card p { margin: .15rem 0 0; color: var(--emp-muted); font-size: .74rem; }
+.emp-required-key,
+.emp-optional-key {
+  align-self: start;
+  margin-top: .25rem;
+  color: var(--emp-muted);
+  font-size: .67rem;
+  white-space: nowrap;
+}
+.emp-required-key span { color: #c62838; font-size: .9rem; font-weight: 800; }
+.emp-card-body { padding: 1.2rem; }
+
+.emp-inline-note,
+.emp-access-note {
+  display: flex;
+  align-items: flex-start;
+  gap: .55rem;
+  margin-bottom: 1rem;
+  padding: .7rem .8rem;
+  border-radius: .7rem;
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.emp-inline-note { background: #eef5ff; color: #294f7d; }
+.emp-inline-note-create { border: 1px solid #cfe1f8; }
+.emp-access-note { border: 1px solid #e5e9ef; background: #f8fafc; color: #536174; }
+.emp-inline-note > i,
+.emp-access-note > i { flex: 0 0 auto; margin-top: .08rem; }
+.emp-readonly-data {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin: 0 0 1rem;
+  padding: .7rem .8rem;
+  border: 1px solid #dfe8f4;
+  border-radius: .7rem;
+  background: #f5f8fc;
+}
+.emp-readonly-data div { display: flex; align-items: center; gap: .4rem; }
+.emp-readonly-data div + div::before { content: ""; width: 1px; height: 1rem; margin-right: .15rem; background: #ccd6e2; }
+.emp-readonly-data dt { color: var(--emp-muted); font-size: .7rem; font-weight: 600; }
+.emp-readonly-data dd { margin: 0; color: var(--emp-ink); font-size: .76rem; font-weight: 750; }
+
+/* Champs rendus par crispy-forms. */
+.emp-form-fields .row { --bs-gutter-x: 1rem; }
+.emp-form-fields .mb-3 { margin-bottom: 1rem !important; }
+.emp-form-fields label,
+.emp-form-fields legend {
+  margin-bottom: .35rem;
+  color: #344054;
+  font-size: .8rem;
+  font-weight: 700;
+}
+.emp-form-fields .asteriskField { margin-left: .12rem; color: #c62838; }
+.emp-form-fields .form-control,
+.emp-form-fields .form-select {
+  min-height: 3rem;
+  border-color: #cfd7e3;
+  border-radius: .65rem;
+  color: var(--emp-ink);
+  font-size: .93rem;
+}
+.emp-form-fields textarea.form-control { min-height: 6rem; resize: vertical; }
+.emp-form-fields .form-control:focus,
+.emp-form-fields .form-select:focus {
+  border-color: #77a9e9;
+  box-shadow: 0 0 0 .2rem rgba(44, 123, 229, .13);
+}
+.emp-form-fields .form-text { margin-top: .35rem; color: var(--emp-muted); font-size: .7rem; line-height: 1.4; }
+.emp-form-fields .form-text ul { margin: .3rem 0 0; padding-left: 1.15rem; }
+.emp-form-fields .invalid-feedback { font-size: .73rem; font-weight: 600; }
+.emp-form-fields .form-check { min-height: 2.75rem; padding-top: .4rem; }
+.emp-form-fields .form-check-input { width: 1.2rem; height: 1.2rem; margin-top: .08rem; }
+.emp-form-fields .form-check-label { margin-left: .25rem; }
+.emp-form-fields .form-check-input:disabled { opacity: .48; }
+.emp-form-fields input[type="file"] { padding: .63rem .75rem; }
+.emp-form-fields [data-autofill-lock][readonly] {
+  background-color: #fff;
+  cursor: text;
+}
+#div_id_photo a { overflow-wrap: anywhere; }
+
+.emp-side-stack {
+  position: sticky;
+  top: calc(var(--topbar-h) + 1rem);
+  display: grid;
+  gap: 1rem;
+}
+.emp-side-card { padding: 1rem; }
+.emp-side-card-head { display: flex; align-items: center; gap: .7rem; }
+.emp-side-card-head > span:first-child,
+.emp-actions-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: .7rem;
+  background: #fff4dd;
+  color: #8a5700;
+  font-size: 1.05rem;
+}
+.emp-checklist { display: grid; gap: .7rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.emp-checklist li { display: flex; align-items: flex-start; gap: .5rem; color: #526071; font-size: .74rem; line-height: 1.45; }
+.emp-checklist i { flex: 0 0 auto; margin-top: .08rem; color: #198754; font-size: .9rem; }
+.emp-actions-card { padding: 1rem; border-color: #cddff5; box-shadow: 0 8px 22px rgba(22, 62, 105, .08); }
+.emp-actions-copy { display: flex; align-items: center; gap: .7rem; margin-bottom: .9rem; }
+.emp-actions-icon { background: #e9f6ef; color: #18794e; }
+.emp-save-btn,
+.emp-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  width: 100%;
+  min-height: 3rem;
+  border-radius: .7rem;
+  font-size: .84rem;
+  font-weight: 700;
+}
+.emp-save-btn { box-shadow: 0 6px 15px rgba(44, 123, 229, .2); }
+.emp-save-btn + .emp-cancel-btn { margin-top: .55rem; }
+
+.emp-error-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #efb8be;
+  border-left: 4px solid #c92a3b;
+  border-radius: .8rem;
+  background: #fff5f6;
+  color: #67202a;
+}
+.emp-error-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: .65rem;
+  background: #fde1e4;
+  color: #b42332;
+}
+.emp-error-summary h2 { margin: 0; font-size: .94rem; font-weight: 750; }
+.emp-error-summary p { margin: .15rem 0 .5rem; font-size: .76rem; }
+.emp-error-summary ul { margin: 0; padding-left: 1.1rem; font-size: .76rem; }
+.emp-error-summary a { color: #8f1f2c; }
+
+.emp-shell a:focus-visible,
+.emp-shell button:focus-visible,
+.emp-shell input:focus-visible,
+.emp-shell select:focus-visible,
+.emp-shell textarea:focus-visible {
+  outline: 3px solid #174c8f;
+  outline-offset: 2px;
+}
+
+/* La colonne d'aide passe sous le formulaire quand la largeur utile diminue. */
+@media (max-width: 1199.98px) {
+  .emp-layout { grid-template-columns: 1fr; }
+  .emp-side-stack { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767.98px) {
+  .emp-hero { grid-template-columns: auto minmax(0, 1fr); padding: 1.15rem; }
+  .emp-hero-link { grid-column: 1 / -1; justify-self: start; }
+  .emp-hero h1 { white-space: normal; }
+  .emp-card-head { grid-template-columns: auto auto minmax(0, 1fr); }
+  .emp-required-key,
+  .emp-optional-key { grid-column: 3; margin-top: -.15rem; }
+  .emp-side-stack { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .emp-hero { gap: .8rem; padding: 1rem; border-radius: .9rem; }
+  .emp-avatar { width: 58px; height: 58px; border-radius: .8rem; }
+  .emp-hero-copy > p { font-size: .8rem; line-height: 1.45; }
+  .emp-tags { gap: .25rem; }
+  .emp-editor { margin-top: 1rem; }
+  .emp-card-head { padding: .9rem; }
+  .emp-step { display: none; }
+  .emp-card-icon { width: 2.3rem; height: 2.3rem; }
+  .emp-card-heading { grid-column: 2; }
+  .emp-required-key,
+  .emp-optional-key { grid-column: 2; }
+  .emp-card-body { padding: .9rem; }
+  .emp-inline-note,
+  .emp-access-note { padding: .65rem; }
+  .emp-readonly-data { align-items: flex-start; flex-direction: column; }
+  .emp-readonly-data div + div::before { display: none; }
+  .emp-actions-card { position: sticky; bottom: .5rem; z-index: 20; box-shadow: 0 10px 28px rgba(16, 24, 40, .18); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emp-shell * { scroll-behavior: auto !important; }
+}
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
+  var isUpdate = {{ is_update|yesno:"true,false" }};
+  var form = document.getElementById('emp-editor-form');
+
+  // Les navigateurs peuvent ignorer autocomplete="off". Les champs textuels
+  // arrivent donc en lecture seule, puis sont déverrouillés uniquement lors
+  // d'une interaction réelle. Ils restent normalement soumis par le formulaire.
+  if (form) {
+    form.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+      function unlockField() {
+        field.readOnly = false;
+        field.removeAttribute('readonly');
+        field.removeAttribute('data-autofill-lock');
+      }
+
+      field.addEventListener('focus', unlockField, { once: true });
+      field.addEventListener('pointerdown', function (event) {
+        if (event.pointerType === 'touch') { unlockField(); }
+      }, { once: true });
+
+      if (document.activeElement === field) { unlockField(); }
+    });
+  }
+
   var groupeSelect = document.getElementById('id_groupe');
   var isStaffCheckbox = document.getElementById('id_is_staff');
-  if (!groupeSelect || !isStaffCheckbox) { return; }
+  var staffStatus = document.getElementById('emp-staff-status');
 
   function syncIsStaff() {
+    if (!groupeSelect || !isStaffCheckbox) { return; }
     var option = groupeSelect.options[groupeSelect.selectedIndex];
-    var estAdministration = !!option && option.text.trim() === 'Administration';
+    var groupe = option ? option.text.trim() : '';
+    var estAdministration = groupe === 'Administration';
     isStaffCheckbox.disabled = !estAdministration;
-    if (!estAdministration) {
-      isStaffCheckbox.checked = false;
+    if (!estAdministration) { isStaffCheckbox.checked = false; }
+
+    if (!staffStatus) { return; }
+    if (estAdministration) {
+      staffStatus.textContent = "Le groupe Administration est sélectionné : l'accès à l'interface Django admin peut être activé.";
+    } else if (groupe && groupe !== '— Aucun groupe —') {
+      staffStatus.textContent = "Ce groupe utilise uniquement l'application métier ; l'accès à l'interface Django admin reste désactivé.";
+    } else {
+      staffStatus.textContent = "Choisissez un groupe pour définir les écrans accessibles à cet employé.";
     }
   }
 
-  groupeSelect.addEventListener('change', syncIsStaff);
-  syncIsStaff();
+  if (groupeSelect && isStaffCheckbox) {
+    groupeSelect.addEventListener('change', syncIsStaff);
+    syncIsStaff();
+  }
+
+  // Aperçu immédiat de la photo sélectionnée, sans envoi anticipé au serveur.
+  var photoInput = document.getElementById('id_photo');
+  var photoPreview = document.getElementById('emp-avatar-preview');
+  var photoPlaceholder = document.getElementById('emp-avatar-placeholder');
+  var clearPhoto = document.getElementById('photo-clear_id');
+  var originalPhoto = photoPreview ? photoPreview.getAttribute('src') : '';
+  var previewUrl = null;
+
+  function showPhoto(src) {
+    if (!photoPreview || !photoPlaceholder) { return; }
+    if (src) {
+      photoPreview.src = src;
+      photoPreview.classList.remove('d-none');
+      photoPlaceholder.classList.add('d-none');
+    } else {
+      photoPreview.classList.add('d-none');
+      photoPlaceholder.classList.remove('d-none');
+    }
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener('change', function () {
+      if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+      var file = photoInput.files && photoInput.files[0];
+      if (file && file.type.indexOf('image/') === 0) {
+        previewUrl = URL.createObjectURL(file);
+        showPhoto(previewUrl);
+        if (clearPhoto) { clearPhoto.checked = false; }
+      } else {
+        showPhoto(clearPhoto && clearPhoto.checked ? '' : originalPhoto);
+      }
+    });
+  }
+
+  if (clearPhoto) {
+    clearPhoto.addEventListener('change', function () {
+      showPhoto(clearPhoto.checked ? '' : originalPhoto);
+    });
+  }
+
+  // Création : le bandeau confirme visuellement l'identité en cours de saisie.
+  if (!isUpdate) {
+    var firstNameInput = document.getElementById('id_first_name');
+    var lastNameInput = document.getElementById('id_last_name');
+    var pageTitle = document.getElementById('emp-page-title');
+
+    function updateIdentityPreview() {
+      var firstName = firstNameInput ? firstNameInput.value.trim() : '';
+      var lastName = lastNameInput ? lastNameInput.value.trim() : '';
+      var fullName = (firstName + ' ' + lastName).trim();
+
+      if (pageTitle) { pageTitle.textContent = fullName || 'Ajouter un nouvel employé'; }
+      if (!photoPlaceholder) { return; }
+      if (fullName) {
+        photoPlaceholder.textContent = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+      } else {
+        photoPlaceholder.innerHTML = '<i class="bi bi-person-plus"></i>';
+      }
+    }
+
+    if (firstNameInput) { firstNameInput.addEventListener('input', updateIdentityPreview); }
+    if (lastNameInput) { lastNameInput.addEventListener('input', updateIdentityPreview); }
+    updateIdentityPreview();
+  }
+
+  var errorSummary = document.getElementById('emp-error-summary');
+  if (errorSummary) { errorSummary.focus(); }
+
+  // Retour visuel et protection contre les doubles soumissions.
+  var saveButton = document.getElementById('emp-save-btn');
+  if (form && saveButton) {
+    form.addEventListener('submit', function () {
+      saveButton.disabled = true;
+      saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Enregistrement en cours…';
+    });
+  }
 })();
 </script>
 {% endblock %}
-

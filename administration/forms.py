@@ -22,10 +22,45 @@ TYPE_CONTRAT_CHOICES = [
 ]
 
 
+_AUTOFILL_BLOCK_ATTRS = {
+    # Chrome peut ignorer « off » sur les champs qu'il reconnaît comme une
+    # adresse ou un identifiant. « new-password » empêche cette classification
+    # sans changer le type, le nom ou la valeur envoyée au serveur.
+    'autocomplete': 'new-password',
+    'aria-autocomplete': 'none',
+    # Les principaux gestionnaires de mots de passe disposent chacun de leur
+    # attribut d'exclusion. Ils sont sans effet sur Django et les navigateurs
+    # qui ne les connaissent pas.
+    'data-lpignore': 'true',
+    'data-1p-ignore': 'true',
+    'data-bwignore': 'true',
+    'data-form-type': 'other',
+}
+
+
+def _block_browser_autofill(form, *, lock_text_fields=False):
+    """Désactive l'autofill natif et celui des extensions sur un formulaire."""
+    ignored_widgets = (forms.HiddenInput, forms.CheckboxInput, forms.FileInput, forms.Select)
+
+    for field in form.fields.values():
+        widget = field.widget
+        if isinstance(widget, ignored_widgets):
+            continue
+        widget.attrs.update(_AUTOFILL_BLOCK_ATTRS)
+        if lock_text_fields and (
+            isinstance(widget, forms.Textarea) or getattr(widget, 'input_type', None)
+        ):
+            # Lecture seule au chargement : empêche l'injection automatique.
+            # Le template retire cet attribut dès un vrai focus utilisateur.
+            widget.attrs['readonly'] = True
+            widget.attrs['data-autofill-lock'] = 'true'
+
+
 class UserCreateForm(UserCreationForm):
     is_staff = forms.BooleanField(
         required=False,
         label='Accès interface Django admin',
+        help_text='Disponible uniquement pour le groupe Administration.',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'disabled': True}),
     )
     groupe = forms.ModelChoiceField(
@@ -48,6 +83,7 @@ class UserCreateForm(UserCreationForm):
         # retire pour respecter l'ordre visuel du formulaire (Prénom en premier).
         del self.fields['username'].widget.attrs['autofocus']
         self.fields['first_name'].widget.attrs['autofocus'] = True
+        _block_browser_autofill(self)
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -64,8 +100,8 @@ class UserCreateForm(UserCreationForm):
                 Column('password2', css_class='col-md-6'),
             ),
             Row(
-                Column('is_staff', css_class='col-md-4 d-flex align-items-center pt-2'),
                 Column('groupe',   css_class='col-md-8'),
+                Column('is_staff', css_class='col-md-4 d-flex align-items-center pt-2'),
             ),
         )
 
@@ -85,6 +121,7 @@ class UserUpdateForm(forms.ModelForm):
     is_staff = forms.BooleanField(
         required=False,
         label='Accès interface Django admin',
+        help_text='Disponible uniquement pour le groupe Administration.',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'disabled': True}),
     )
     groupe = forms.ModelChoiceField(
@@ -96,6 +133,7 @@ class UserUpdateForm(forms.ModelForm):
     new_password1 = forms.CharField(
         required=False,
         label='Nouveau mot de passe',
+        help_text='Laissez les deux champs vides pour conserver le mot de passe actuel.',
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'autocomplete': 'new-password'}),
     )
     new_password2 = forms.CharField(
@@ -113,6 +151,7 @@ class UserUpdateForm(forms.ModelForm):
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
         self.fields['email'].required = True
+        _block_browser_autofill(self, lock_text_fields=True)
         # Pré-remplir les champs supplémentaires depuis l'instance
         if self.instance.pk:
             self.fields['is_staff'].initial = self.instance.is_staff
@@ -133,8 +172,8 @@ class UserUpdateForm(forms.ModelForm):
                 Column('new_password2', css_class='col-md-6'),
             ),
             Row(
-                Column('is_staff', css_class='col-md-4 d-flex align-items-center pt-2'),
                 Column('groupe',   css_class='col-md-8'),
+                Column('is_staff', css_class='col-md-4 d-flex align-items-center pt-2'),
             ),
         )
 
@@ -198,6 +237,8 @@ class EmployeForm(forms.ModelForm):
     def __init__(self, *args, hide_matricule_service=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['type_contrat'].widget = forms.Select(choices=TYPE_CONTRAT_CHOICES)
+        _block_browser_autofill(self, lock_text_fields=True)
+        self.fields['photo'].widget.attrs['accept'] = 'image/*'
         self.helper = FormHelper()
         self.helper.form_tag = False
         if hide_matricule_service:

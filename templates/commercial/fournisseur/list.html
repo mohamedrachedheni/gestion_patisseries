@@ -4,113 +4,169 @@
 {% block page_title %}Fournisseurs{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Fournisseurs</li>
+    <li class="breadcrumb-item active" aria-current="page">Fournisseurs</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
+<div class="supplier-directory">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des fournisseurs</h4>
-  <a href="{% url 'commercial:fournisseur-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouveau fournisseur
-  </a>
-</div>
+  <header class="sld-hero" aria-labelledby="sld-page-title">
+    <span class="sld-hero-icon" aria-hidden="true"><i class="bi bi-buildings"></i></span>
+    <div class="sld-hero-copy">
+      <div class="sld-eyebrow"><i class="bi bi-truck" aria-hidden="true"></i> Achats et approvisionnements</div>
+      <h1 id="sld-page-title">Répertoire fournisseurs</h1>
+      <p>Retrouvez rapidement les contacts, coordonnées et références administratives de vos partenaires.</p>
+    </div>
+    <div class="sld-hero-actions">
+      <div class="sld-count-card" aria-label="{{ page_obj.paginator.count }} fournisseurs trouvés">
+        <strong>{{ page_obj.paginator.count }}</strong>
+        <span>fournisseur{{ page_obj.paginator.count|pluralize }}</span>
+      </div>
+      <a href="{% url 'commercial:fournisseur-create' %}" class="btn btn-light sld-add-btn">
+        <i class="bi bi-building-add" aria-hidden="true"></i>Nouveau fournisseur
+      </a>
+    </div>
+  </header>
 
-{# ── Filtres ───────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+  <section class="sld-filter-card" aria-labelledby="sld-filter-title">
+    <div class="sld-filter-head">
+      <span class="sld-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span>
+      <div>
+        <h2 id="sld-filter-title">Filtrer le répertoire</h2>
+        <p>Sélectionnez un ou plusieurs critères, puis appliquez les filtres.</p>
+      </div>
+      {% if raison_sociale_id or type_fournisseur or nom_contact %}
+      <span class="sld-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i> Filtres actifs</span>
+      {% endif %}
+    </div>
 
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Raison sociale</label>
-          <select name="raison_sociale" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les fournisseurs —</option>
-            {% for f in fournisseurs_list %}
-            <option value="{{ f.pk }}" {% if raison_sociale_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>
-            {% endfor %}
-          </select>
+    <form method="get" id="supplier-filter-form" class="sld-filter-form" autocomplete="off"
+          data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="sld-filter-field">
+        <label for="supplier-filter-company">Raison sociale</label>
+        <select name="raison_sociale" id="supplier-filter-company" class="form-select">
+          <option value="">Tous les fournisseurs</option>
+          {% for f in fournisseurs_list %}
+          <option value="{{ f.pk }}" {% if raison_sociale_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="sld-filter-field">
+        <label for="supplier-filter-type">Type de fournisseur</label>
+        <select name="type_fournisseur" id="supplier-filter-type" class="form-select">
+          <option value="">Tous les types</option>
+          {% for value, label in type_choices %}
+          <option value="{{ value }}" {% if type_fournisseur == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="sld-filter-field">
+        <label for="supplier-filter-contact">Nom du contact</label>
+        <div class="sld-search-control">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input type="search" name="nom_contact" id="supplier-filter-contact" value="{{ nom_contact }}"
+                 class="form-control" placeholder="Rechercher un contact…"
+                 autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true"
+                 data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">
         </div>
+      </div>
 
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Type fournisseur</label>
-          <select name="type_fournisseur" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les types —</option>
-            {% for value, label in type_choices %}
-            <option value="{{ value }}" {% if type_fournisseur == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Nom contact</label>
-          <input type="text" name="nom_contact" value="{{ nom_contact }}"
-                 class="form-control form-control-sm" placeholder="Rechercher…" data-autosubmit>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:fournisseur-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
+      <div class="sld-filter-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-funnel" aria-hidden="true"></i>Appliquer
+        </button>
+        {% if raison_sociale_id or type_fournisseur or nom_contact %}
+        <a href="{% url 'commercial:fournisseur-list' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser
+        </a>
+        {% endif %}
       </div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Liste des enregistrements ────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+  <section class="sld-panel" aria-labelledby="sld-results-title">
+    <header class="sld-panel-head">
+      <div>
+        <div class="sld-section-label">Répertoire</div>
+        <h2 id="sld-results-title">
+          {% if raison_sociale_id or type_fournisseur or nom_contact %}Résultats filtrés{% else %}Tous les fournisseurs{% endif %}
+        </h2>
+        {% if fournisseurs %}
+        <p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>
+        {% else %}
+        <p>Aucun fournisseur ne correspond aux critères actuels.</p>
+        {% endif %}
+      </div>
+      {% if fournisseurs %}
+      <span class="sld-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} dossier{{ page_obj.paginator.count|pluralize }}</span>
+      {% endif %}
+    </header>
+
+    {% if fournisseurs %}
+    {# Ordinateur : tableau sémantique compact, sans faux champs désactivés. #}
+    <div class="sld-table-wrap">
+      <table class="sld-table">
+        <caption class="visually-hidden">Liste des fournisseurs et de leurs coordonnées</caption>
+        <thead>
           <tr>
-            <th class="ps-3" style="min-width:200px;">Raison sociale</th>
-            <th style="min-width:160px;">Type fournisseur</th>
-            <th style="min-width:170px;">Nom contact</th>
-            <th style="min-width:130px;">Téléphone</th>
-            <th class="text-center pe-3" style="width:140px">Actions</th>
+            <th scope="col">Fournisseur</th>
+            <th scope="col">Contact principal</th>
+            <th scope="col">Adresse</th>
+            <th scope="col">Informations administratives</th>
+            <th scope="col" class="sld-actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for f in page_obj.object_list %}
+          {% for f in fournisseurs %}
           <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:190px;" value="{{ f.raison_sociale }}" disabled>
+            <td>
+              <div class="sld-supplier-identity">
+                <span class="sld-building-icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+                <span class="sld-supplier-copy">
+                  <a href="{% url 'commercial:fournisseur-detail' f.pk %}" class="sld-name">{{ f.raison_sociale }}</a>
+                  {% if f.type_fournisseur %}<span class="sld-type-badge">{{ f.type_fournisseur }}</span>{% else %}<span class="sld-empty">Divers</span>{% endif %}
+                </span>
+              </div>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:150px;" value="{{ f.type_fournisseur|default:'' }}" disabled>
+              <span class="sld-primary-value">{{ f.nom_contact|default:"Contact non renseigné" }}</span>
+              {% if f.telephone %}<a href="tel:{{ f.telephone }}" class="sld-secondary-link"><i class="bi bi-telephone" aria-hidden="true"></i>{{ f.telephone }}</a>{% endif %}
+              {% if f.email %}<a href="mailto:{{ f.email }}" class="sld-secondary-link sld-email"><i class="bi bi-envelope" aria-hidden="true"></i>{{ f.email }}</a>{% endif %}
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;" value="{{ f.nom_contact|default:'' }}" disabled>
+              {% if f.adresse %}
+              <span class="sld-address"><i class="bi bi-geo-alt" aria-hidden="true"></i>{{ f.adresse }}</span>
+              {% else %}
+              <span class="sld-empty"><i class="bi bi-geo-alt" aria-hidden="true"></i> Non renseignée</span>
+              {% endif %}
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:120px;" value="{{ f.telephone|default:'' }}" disabled>
+              <dl class="sld-admin-data">
+                <div><dt>TVA</dt><dd>{{ f.tva|default:"—" }}</dd></div>
+                <div><dt>RIB</dt><dd>{{ f.rib|default:"—" }}</dd></div>
+                <div><dt>Créé le</dt><dd>{% if f.created_at %}{{ f.created_at|date:"d/m/Y" }}{% else %}—{% endif %}</dd></div>
+              </dl>
             </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                <a href="{% url 'commercial:fournisseur-detail' f.pk %}"
-                   class="btn btn-sm btn-outline-secondary" title="Voir détail">
-                  <i class="bi bi-eye"></i>
+            <td class="sld-actions-col">
+              <div class="sld-row-actions">
+                <a href="{% url 'commercial:fournisseur-detail' f.pk %}" class="sld-icon-btn" aria-label="Voir {{ f.raison_sociale }}" title="Voir le détail">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
                 </a>
-                <a href="{% url 'commercial:fournisseur-update' f.pk %}"
-                   class="btn btn-sm btn-outline-primary" title="Modifier">
-                  <i class="bi bi-pencil"></i>
+                <a href="{% url 'commercial:fournisseur-update' f.pk %}" class="sld-icon-btn sld-icon-btn-primary" aria-label="Modifier {{ f.raison_sociale }}" title="Modifier">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>
                 </a>
-                <form id="fournisseur-delete-{{ f.pk }}" method="post"
-                      action="{% url 'commercial:fournisseur-delete' f.pk %}" class="d-inline">
+                <form method="post" action="{% url 'commercial:fournisseur-delete' f.pk %}" class="sld-delete-form">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
+                  <button type="submit" class="sld-icon-btn sld-icon-btn-danger" aria-label="Supprimer {{ f.raison_sociale }}" title="Supprimer"
                           onclick="return confirm('Supprimer le fournisseur « {{ f.raison_sociale|escapejs }} » ?');">
-                    <i class="bi bi-trash"></i>
+                    <i class="bi bi-trash" aria-hidden="true"></i>
                   </button>
                 </form>
               </div>
@@ -121,73 +177,292 @@
       </table>
     </div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {# Tablettes et téléphones : cartes, sans défilement horizontal. #}
+    <div class="sld-mobile-list">
+      {% for f in fournisseurs %}
+      <article class="sld-supplier-card">
+        <header class="sld-supplier-card-head">
+          <span class="sld-building-icon sld-building-icon-large" aria-hidden="true"><i class="bi bi-building"></i></span>
+          <span class="sld-supplier-card-title">
+            <a href="{% url 'commercial:fournisseur-detail' f.pk %}">{{ f.raison_sociale }}</a>
+            <span>{{ f.type_fournisseur|default:"Divers" }}</span>
+          </span>
+        </header>
+
+        <dl class="sld-card-details">
+          <div><dt>Contact</dt><dd>{{ f.nom_contact|default:"Non renseigné" }}</dd></div>
+          <div><dt>Téléphone</dt><dd>{% if f.telephone %}<a href="tel:{{ f.telephone }}">{{ f.telephone }}</a>{% else %}Non renseigné{% endif %}</dd></div>
+          <div class="sld-detail-wide"><dt>Email</dt><dd>{% if f.email %}<a href="mailto:{{ f.email }}">{{ f.email }}</a>{% else %}Non renseigné{% endif %}</dd></div>
+          <div class="sld-detail-wide"><dt>Adresse</dt><dd>{{ f.adresse|default:"Non renseignée" }}</dd></div>
+          <div><dt>N° TVA</dt><dd>{{ f.tva|default:"Non renseigné" }}</dd></div>
+          <div><dt>RIB</dt><dd>{{ f.rib|default:"Non renseigné" }}</dd></div>
+          <div><dt>Date de création</dt><dd>{% if f.created_at %}{{ f.created_at|date:"d/m/Y" }}{% else %}Non renseignée{% endif %}</dd></div>
+        </dl>
+
+        <footer class="sld-card-actions">
+          <a href="{% url 'commercial:fournisseur-detail' f.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Voir</a>
+          <a href="{% url 'commercial:fournisseur-update' f.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a>
+          <form method="post" action="{% url 'commercial:fournisseur-delete' f.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Supprimer le fournisseur « {{ f.raison_sociale|escapejs }} » ?');">
+              <i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer {{ f.raison_sociale }}</span>
+            </button>
+          </form>
+        </footer>
+      </article>
+      {% endfor %}
+    </div>
+
     {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} fournisseur{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
+    <footer class="sld-pagination-footer">
+      <span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+      <nav aria-label="Pagination des fournisseurs">
+        <ul class="sld-pagination">
           {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?raison_sociale={{ raison_sociale_id }}&type_fournisseur={{ type_fournisseur }}&nom_contact={{ nom_contact }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
+          <li><a href="?raison_sociale={{ raison_sociale_id|urlencode }}&amp;type_fournisseur={{ type_fournisseur|urlencode }}&amp;nom_contact={{ nom_contact|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>
           {% endif %}
-
           {% for num in page_obj.paginator.page_range %}
             {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            <li><span class="active" aria-current="page">{{ num }}</span></li>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?raison_sociale={{ raison_sociale_id }}&type_fournisseur={{ type_fournisseur }}&nom_contact={{ nom_contact }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
+            <li><a href="?raison_sociale={{ raison_sociale_id|urlencode }}&amp;type_fournisseur={{ type_fournisseur|urlencode }}&amp;nom_contact={{ nom_contact|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>
             {% endif %}
           {% endfor %}
-
           {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?raison_sociale={{ raison_sociale_id }}&type_fournisseur={{ type_fournisseur }}&nom_contact={{ nom_contact }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
+          <li><a href="?raison_sociale={{ raison_sociale_id|urlencode }}&amp;type_fournisseur={{ type_fournisseur|urlencode }}&amp;nom_contact={{ nom_contact|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>
           {% endif %}
-
         </ul>
       </nav>
-    </div>
+    </footer>
     {% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-building fs-1 d-block mb-2 opacity-25"></i>
-      Aucun fournisseur
-      {% if raison_sociale_id or type_fournisseur or nom_contact %}avec ces filtres{% endif %}.
+    <div class="sld-empty-state">
+      <span class="sld-empty-icon"><i class="bi {% if raison_sociale_id or type_fournisseur or nom_contact %}bi-search{% else %}bi-buildings{% endif %}" aria-hidden="true"></i></span>
+      {% if raison_sociale_id or type_fournisseur or nom_contact %}
+      <h2>Aucun fournisseur trouvé</h2>
+      <p>Modifiez les critères ou réinitialisez les filtres pour afficher le répertoire complet.</p>
+      <a href="{% url 'commercial:fournisseur-list' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser les filtres</a>
+      {% else %}
+      <h2>Aucun fournisseur enregistré</h2>
+      <p>Ajoutez votre premier fournisseur pour commencer à constituer le répertoire.</p>
+      <a href="{% url 'commercial:fournisseur-create' %}" class="btn btn-primary"><i class="bi bi-building-add" aria-hidden="true"></i>Ajouter le premier fournisseur</a>
+      {% endif %}
     </div>
     {% endif %}
-  </div>
+  </section>
 </div>
+{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+/* ── Répertoire fournisseurs : ordinateur d'abord ────────────────────────── */
+.supplier-directory {
+  --sld-primary: #2c7be5;
+  --sld-primary-dark: #1a4f9c;
+  --sld-ink: #172033;
+  --sld-muted: #667085;
+  --sld-border: #e2e8f0;
+  --sld-surface: #fff;
+  --sld-radius: 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--sld-ink);
+}
+.sld-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.15rem;
+  min-height: 132px;
+  padding: 1.4rem 1.55rem;
+  border-radius: 1.05rem;
+  background: linear-gradient(118deg, #17345a 0%, #235f9e 62%, #2c7be5 100%);
+  box-shadow: 0 9px 28px rgba(25,74,128,.15);
+  color: #fff;
+}
+.sld-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.3rem;
+  height: 4.3rem;
+  border: 2px solid rgba(255,255,255,.35);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.14);
+  font-size: 1.65rem;
+}
+.sld-hero-copy { min-width: 0; }
+.sld-eyebrow { display: flex; align-items: center; gap: .35rem; color: rgba(255,255,255,.68); font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.sld-hero h1 { margin: .2rem 0 .25rem; font-size: clamp(1.5rem, 2vw, 2rem); font-weight: 750; letter-spacing: -.02em; }
+.sld-hero-copy > p { margin: 0; max-width: 720px; color: rgba(255,255,255,.78); font-size: .88rem; line-height: 1.5; }
+.sld-hero-actions { display: flex; align-items: stretch; gap: .65rem; }
+.sld-count-card { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 92px; padding: .55rem .8rem; border: 1px solid rgba(255,255,255,.2); border-radius: .78rem; background: rgba(8,31,61,.2); }
+.sld-count-card strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.sld-count-card span { margin-top: .14rem; color: rgba(255,255,255,.72); font-size: .68rem; }
+.sld-add-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 3.15rem; padding-inline: 1rem; border-radius: .78rem; color: #194f89; font-size: .82rem; font-weight: 750; }
+
+.sld-filter-card { margin-top: 1.1rem; overflow: hidden; border: 1px solid var(--sld-border); border-radius: var(--sld-radius); background: var(--sld-surface); box-shadow: 0 2px 9px rgba(16,24,40,.04); }
+.sld-filter-head { display: flex; align-items: center; gap: .7rem; min-height: 72px; padding: .85rem 1rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.sld-filter-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.45rem; height: 2.45rem; border-radius: .7rem; background: #eaf2fd; color: var(--sld-primary); font-size: 1.02rem; }
+.sld-filter-head h2 { margin: 0; color: var(--sld-ink); font-size: .94rem; font-weight: 750; }
+.sld-filter-head p { margin: .12rem 0 0; color: var(--sld-muted); font-size: .7rem; }
+.sld-active-filter { display: inline-flex; align-items: center; gap: .3rem; margin-left: auto; padding: .3rem .58rem; border-radius: 2rem; background: #e9f6ef; color: #18794e; font-size: .68rem; font-weight: 750; white-space: nowrap; }
+.sld-filter-form { display: grid; grid-template-columns: minmax(220px, 1.05fr) minmax(220px, .9fr) minmax(220px, .9fr) auto; align-items: end; gap: .8rem; padding: 1rem; }
+.sld-filter-field { min-width: 0; }
+.sld-filter-field label { display: block; margin-bottom: .35rem; color: #344054; font-size: .72rem; font-weight: 700; }
+.sld-filter-field .form-control,
+.sld-filter-field .form-select { min-height: 2.9rem; border-color: #cfd7e3; border-radius: .68rem; color: var(--sld-ink); font-size: .82rem; }
+.sld-filter-field .form-control:focus,
+.sld-filter-field .form-select:focus { border-color: #77a9e9; box-shadow: 0 0 0 .2rem rgba(44,123,229,.13); }
+.sld-filter-field [data-autofill-lock][readonly] { background: #fff; cursor: text; }
+.sld-search-control { position: relative; }
+.sld-search-control > i { position: absolute; top: 50%; left: .85rem; z-index: 1; color: #98a2b3; transform: translateY(-50%); }
+.sld-search-control .form-control { padding-left: 2.35rem; }
+.sld-filter-actions { display: flex; align-items: center; gap: .45rem; }
+.sld-filter-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .38rem; min-height: 2.9rem; padding-inline: .85rem; border-radius: .68rem; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+
+.sld-panel { margin-top: 1rem; overflow: hidden; border: 1px solid var(--sld-border); border-radius: var(--sld-radius); background: var(--sld-surface); box-shadow: 0 3px 12px rgba(16,24,40,.045); }
+.sld-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 82px; padding: 1rem 1.2rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.sld-section-label { color: var(--sld-primary-dark); font-size: .65rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.sld-panel-head h2 { margin: .18rem 0 0; color: var(--sld-ink); font-size: 1.05rem; font-weight: 750; }
+.sld-panel-head p { margin: .18rem 0 0; color: var(--sld-muted); font-size: .73rem; }
+.sld-result-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .38rem .65rem; border-radius: 2rem; background: #eaf2fd; color: var(--sld-primary-dark); font-size: .7rem; font-weight: 750; white-space: nowrap; }
+
+.sld-table-wrap { display: block; }
+.sld-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sld-table thead { background: #f8fafc; }
+.sld-table th { padding: .7rem 1rem; border-bottom: 1px solid var(--sld-border); color: var(--sld-muted); font-size: .67rem; font-weight: 800; letter-spacing: .055em; text-align: left; text-transform: uppercase; }
+.sld-table td { padding: .82rem 1rem; border-bottom: 1px solid #edf0f4; color: var(--sld-ink); font-size: .78rem; vertical-align: middle; }
+.sld-table tbody tr:last-child td { border-bottom: 0; }
+.sld-table tbody tr { transition: background-color .14s ease; }
+.sld-table tbody tr:hover { background: #f8faff; }
+.sld-table th:nth-child(1) { width: 24%; }
+.sld-table th:nth-child(2) { width: 22%; }
+.sld-table th:nth-child(3) { width: 22%; }
+.sld-table th:nth-child(4) { width: 22%; }
+.sld-table th:nth-child(5) { width: 10%; }
+.sld-supplier-identity { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.sld-building-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.7rem; height: 2.7rem; border-radius: .75rem; background: #eaf2fd; color: var(--sld-primary); font-size: 1.05rem; }
+.sld-building-icon-large { width: 3.1rem; height: 3.1rem; border-radius: .85rem; font-size: 1.2rem; }
+.sld-supplier-copy { min-width: 0; }
+.sld-name { display: block; overflow: hidden; color: var(--sld-ink); font-size: .82rem; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.sld-name:hover { color: var(--sld-primary-dark); }
+.sld-type-badge { display: inline-flex; max-width: 100%; overflow: hidden; margin-top: .25rem; padding: .18rem .45rem; border: 1px solid #dce3eb; border-radius: 2rem; background: #f8fafc; color: #526071; font-size: .64rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.sld-primary-value { display: block; overflow: hidden; font-size: .77rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.sld-secondary-link { display: flex; align-items: center; gap: .3rem; overflow: hidden; margin-top: .25rem; color: var(--sld-muted); font-size: .67rem; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.sld-secondary-link:hover { color: var(--sld-primary-dark); }
+.sld-email { max-width: 100%; }
+.sld-address { display: flex; align-items: flex-start; gap: .35rem; color: #526071; font-size: .72rem; line-height: 1.45; }
+.sld-address i { flex: 0 0 auto; margin-top: .1rem; color: #8ea0b5; }
+.sld-empty { color: #8b95a4; font-size: .69rem; }
+.sld-admin-data { display: grid; gap: .28rem; margin: 0; }
+.sld-admin-data div { display: grid; grid-template-columns: 3.8rem minmax(0, 1fr); gap: .4rem; }
+.sld-admin-data dt { color: var(--sld-muted); font-size: .64rem; font-weight: 600; }
+.sld-admin-data dd { overflow: hidden; margin: 0; font-size: .68rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.sld-actions-col { text-align: center !important; }
+.sld-row-actions { display: flex; align-items: center; justify-content: center; gap: .3rem; }
+.sld-delete-form { margin: 0; }
+.sld-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; padding: 0; border: 1px solid #d6dde7; border-radius: .56rem; background: #fff; color: #596579; text-decoration: none; transition: border-color .14s ease, background-color .14s ease, color .14s ease; }
+.sld-icon-btn:hover { border-color: #aeb9c7; background: #f7f9fb; color: var(--sld-ink); }
+.sld-icon-btn-primary { border-color: #b8d0ef; color: var(--sld-primary-dark); }
+.sld-icon-btn-primary:hover { border-color: #8eb6ea; background: #eef5fe; color: #174c8f; }
+.sld-icon-btn-danger { border-color: #efc6cb; color: #b42332; }
+.sld-icon-btn-danger:hover { border-color: #df9da5; background: #fff5f6; color: #991c2a; }
+
+.sld-mobile-list { display: none; }
+.sld-supplier-card { overflow: hidden; border: 1px solid var(--sld-border); border-radius: .85rem; background: #fff; }
+.sld-supplier-card-head { display: flex; align-items: center; gap: .7rem; padding: .9rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.sld-supplier-card-title { min-width: 0; }
+.sld-supplier-card-title a { display: block; overflow: hidden; color: var(--sld-ink); font-size: .86rem; font-weight: 750; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.sld-supplier-card-title span { display: block; overflow: hidden; margin-top: .1rem; color: var(--sld-muted); font-size: .68rem; text-overflow: ellipsis; white-space: nowrap; }
+.sld-card-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem 1rem; margin: 0; padding: 1rem; }
+.sld-card-details div { min-width: 0; }
+.sld-card-details dt { margin-bottom: .15rem; color: var(--sld-muted); font-size: .64rem; font-weight: 650; text-transform: uppercase; }
+.sld-card-details dd { overflow-wrap: anywhere; margin: 0; color: var(--sld-ink); font-size: .75rem; font-weight: 650; }
+.sld-card-details a { color: var(--sld-primary-dark); text-decoration: none; }
+.sld-detail-wide { grid-column: 1 / -1; }
+.sld-card-actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: .5rem; padding: .75rem .9rem; border-top: 1px solid #edf0f4; }
+.sld-card-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .38rem; width: 100%; min-height: 2.65rem; border-radius: .65rem; font-size: .74rem; font-weight: 700; }
+.sld-card-actions form { margin: 0; }
+
+.sld-pagination-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 62px; padding: .75rem 1rem; border-top: 1px solid var(--sld-border); background: #fbfcfe; }
+.sld-pagination-footer > span { color: var(--sld-muted); font-size: .72rem; }
+.sld-pagination { display: flex; align-items: center; gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.sld-pagination a,
+.sld-pagination span { display: inline-flex; align-items: center; justify-content: center; min-width: 2.25rem; height: 2.25rem; padding: 0 .4rem; border: 1px solid #d8e0ea; border-radius: .55rem; background: #fff; color: #526071; font-size: .72rem; font-weight: 700; text-decoration: none; }
+.sld-pagination a:hover { border-color: #9cbee9; background: #f4f8fe; color: var(--sld-primary-dark); }
+.sld-pagination .active { border-color: var(--sld-primary); background: var(--sld-primary); color: #fff; }
+.sld-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 350px; padding: 2rem; text-align: center; }
+.sld-empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; margin-bottom: .9rem; border-radius: 1rem; background: #edf4fd; color: var(--sld-primary); font-size: 1.55rem; }
+.sld-empty-state h2 { margin: 0; color: var(--sld-ink); font-size: 1rem; font-weight: 750; }
+.sld-empty-state p { max-width: 440px; margin: .35rem 0 1rem; color: var(--sld-muted); font-size: .78rem; }
+.sld-empty-state .btn { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.75rem; border-radius: .68rem; font-size: .78rem; font-weight: 700; }
+
+.supplier-directory a:focus-visible,
+.supplier-directory button:focus-visible,
+.supplier-directory input:focus-visible,
+.supplier-directory select:focus-visible { outline: 3px solid #174c8f; outline-offset: 2px; }
+
+@media (max-width: 1199.98px) {
+  .sld-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sld-filter-actions { align-self: end; }
+  .sld-table-wrap { display: none; }
+  .sld-mobile-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; padding: .9rem; }
+}
+@media (max-width: 991.98px) {
+  .sld-hero { grid-template-columns: auto minmax(0, 1fr); }
+  .sld-hero-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 767.98px) {
+  .sld-filter-form { grid-template-columns: 1fr; }
+  .sld-filter-actions { flex-wrap: wrap; }
+  .sld-mobile-list { grid-template-columns: 1fr; }
+  .sld-panel-head { align-items: flex-start; }
+}
+@media (max-width: 575.98px) {
+  #main-content { padding: 1rem .75rem; }
+  .sld-hero { gap: .8rem; padding: 1rem; border-radius: .9rem; }
+  .sld-hero-icon { width: 3.5rem; height: 3.5rem; font-size: 1.35rem; }
+  .sld-hero-copy > p { font-size: .8rem; }
+  .sld-hero-actions { align-items: stretch; flex-direction: column; }
+  .sld-count-card { align-items: baseline; flex-direction: row; gap: .35rem; min-height: 2.6rem; }
+  .sld-count-card strong { font-size: 1rem; }
+  .sld-filter-head { align-items: flex-start; flex-wrap: wrap; }
+  .sld-active-filter { margin-left: 3.15rem; }
+  .sld-filter-actions .btn { flex: 1 1 100%; width: 100%; }
+  .sld-panel-head { flex-direction: column; padding: .9rem; }
+  .sld-card-details { grid-template-columns: 1fr; gap: .7rem; }
+  .sld-detail-wide { grid-column: auto; }
+  .sld-card-actions { grid-template-columns: 1fr 1fr auto; }
+  .sld-pagination-footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sld-table tbody tr,
+  .sld-icon-btn { transition: none; }
+}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
+(function () {
+  var filterForm = document.getElementById('supplier-filter-form');
+  if (!filterForm) { return; }
+
+  // Empêche l'injection d'adresses ou d'identités mémorisées par le navigateur.
+  filterForm.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+    function unlockField() {
+      field.readOnly = false;
+      field.removeAttribute('readonly');
+      field.removeAttribute('data-autofill-lock');
+    }
+    field.addEventListener('focus', unlockField, { once: true });
+    field.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'touch') { unlockField(); }
+    }, { once: true });
+    if (document.activeElement === field) { unlockField(); }
   });
-});
+})();
 </script>
 {% endblock %}
