@@ -4403,13 +4403,21 @@ class StockCommercialActuelView(GroupRequiredMixin, View):
         commercial_id = str(request.user.pk) if is_commercial else request.GET.get('user_id', '').strip()
 
         lignes = []
+        commercial_selectionne = None
+        derniere_maj_stock = None
         if commercial_id and commercial_id.isdigit():
+            commercial_selectionne = (
+                request.user
+                if is_commercial
+                else User.objects.filter(pk=commercial_id).first()
+            )
             hist = (
                 HistoriqueStockInitial.objects
                 .filter(user_id=commercial_id)
                 .order_by('-stock_initial_at')
                 .first()
             )
+            derniere_maj_stock = hist.stock_initial_at if hist is not None else None
             quantite_initiale = {}
             if hist is not None:
                 quantite_initiale = {
@@ -4445,6 +4453,11 @@ class StockCommercialActuelView(GroupRequiredMixin, View):
                 })
             lignes.sort(key=lambda l: l['produit_nom'])
 
+        total_reste_calcule = sum(
+            (ligne['reste_calcule'] for ligne in lignes), Decimal('0')
+        )
+        nb_stock_negatif = sum(1 for ligne in lignes if ligne['reste_calcule'] < 0)
+
         commerciaux_list = (
             None if is_commercial
             else User.objects.filter(
@@ -4455,9 +4468,14 @@ class StockCommercialActuelView(GroupRequiredMixin, View):
         return render(request, self.template_name, {
             'is_commercial':    is_commercial,
             'commercial_id':    commercial_id,
+            'commercial_selectionne': commercial_selectionne,
             'commerciaux_list': commerciaux_list,
             'today':            today.isoformat(),
             'lignes':           lignes,
+            'total_produits':   len(lignes),
+            'total_reste_calcule': total_reste_calcule,
+            'nb_stock_negatif': nb_stock_negatif,
+            'derniere_maj_stock': derniere_maj_stock,
         })
 
 
