@@ -1,89 +1,12 @@
-{% comment %}
-Tableau générique « matières premières en rupture » — voir list.html. Contexte attendu :
-ruptures, titre, texte_vide (+ date_debut/date_fin déjà présents dans le contexte parent).
-masquable=True : ajoute les boutons Afficher/Cacher, contenu masqué par défaut
-(voir le conteneur .rs-toggle-wrapper et le JS dans list.html).
-{% endcomment %}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3 d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-cart-x me-2 text-danger"></i>{{ titre }}</span>
-    <div class="d-flex align-items-center gap-2">
-      {% if masquable %}
-      <button type="button" class="btn btn-sm btn-outline-secondary rs-toggle-show">
-        <i class="bi bi-eye me-1"></i>Afficher
-      </button>
-      <button type="button" class="btn btn-sm btn-outline-secondary rs-toggle-hide" style="display:none;">
-        <i class="bi bi-eye-slash me-1"></i>Cacher
-      </button>
-      {% endif %}
-      <span class="badge bg-danger-subtle text-danger-emphasis">{{ ruptures|length }} matière{{ ruptures|length|pluralize }}</span>
-    </div>
-  </div>
-  <div class="card-body p-0{% if masquable %} rs-toggle-content{% endif %}" {% if masquable %}style="display:none;"{% endif %}>
+{% comment %}Section réutilisable pour les besoins et achats de matières premières.{% endcomment %}
+<details class="rst-material-section" {% if not masquable %}open{% endif %}>
+  <summary><span class="rst-material-title"><span><i class="bi bi-cart-x" aria-hidden="true"></i></span><span><strong>{{ titre }}</strong><small>{{ ruptures|length }} matière{{ ruptures|length|pluralize }} analysée{{ ruptures|length|pluralize }}</small></span></span><span class="rst-material-summary"><span class="rst-count-badge">{{ ruptures|length }}</span><i class="bi bi-chevron-down" aria-hidden="true"></i></span></summary>
+  <div class="rst-material-content">
     {% if ruptures %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:180px;">Matière première</th>
-            <th class="text-end">Besoin</th>
-            <th class="text-end">Stock disponible</th>
-            <th class="text-end">Stock minimum</th>
-            <th class="text-end">Manque</th>
-            <th class="text-end" style="min-width:110px;">Dernier prix</th>
-            <th style="min-width:170px;">Dernier fournisseur</th>
-            <th class="text-end" style="min-width:110px;">Meilleur prix (60j)</th>
-            <th class="pe-3" style="min-width:170px;">Fournisseur (60j)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in ruptures %}
-          <tr>
-            <td class="ps-3 fw-medium" style="min-width:180px;">{{ r.matiere_premiere.nom }}</td>
-            <td class="text-end font-monospace">
-              {% if r.matiere_premiere.unite == 'Pièce' %}{{ r.besoin|floatformat:0 }}{% else %}{{ r.besoin|stringformat:'s' }}{% endif %}
-              {{ r.matiere_premiere.unite }}
-            </td>
-            <td class="text-end font-monospace">
-              {% if r.matiere_premiere.unite == 'Pièce' %}{{ r.stock_disponible|floatformat:0 }}{% else %}{{ r.stock_disponible|stringformat:'s' }}{% endif %}
-            </td>
-            <td class="text-end font-monospace text-muted">
-              {% if r.matiere_premiere.unite == 'Pièce' %}{{ r.stock_minimum|floatformat:0 }}{% else %}{{ r.stock_minimum|stringformat:'s' }}{% endif %}
-            </td>
-            <td class="text-end font-monospace fw-semibold {% if r.manque > 0 %}text-danger{% endif %}">
-              {% if r.matiere_premiere.unite == 'Pièce' %}{{ r.manque_affiche|floatformat:0 }}{% else %}{{ r.manque_affiche|stringformat:'s' }}{% endif %}
-            </td>
-            <td class="text-end font-monospace" style="min-width:110px;">
-              {% if r.dernier_prix is not None %}
-              {{ r.dernier_prix|stringformat:'s' }} TND
-              <div class="text-muted" style="font-size:.75rem;">{{ r.dernier_date|date:'d/m/Y' }}</div>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td style="min-width:170px;">{{ r.dernier_fournisseur.raison_sociale|default:'—' }}</td>
-            <td class="text-end font-monospace" style="min-width:110px;">
-              {% if r.meilleur_prix_60j is not None %}
-              {{ r.meilleur_prix_60j|stringformat:'s' }} TND
-              <div class="text-muted" style="font-size:.75rem;">{{ r.meilleur_date_60j|date:'d/m/Y' }}</div>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td class="pe-3" style="min-width:170px;">{{ r.meilleur_fournisseur_60j.raison_sociale|default:'—' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
-      {{ texte_vide }}
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>.
-    </div>
-    {% endif %}
+    <div class="rst-material-table-wrap"><table class="rst-material-table"><caption class="visually-hidden">{{ titre }}</caption><thead><tr><th scope="col">Matière première</th><th scope="col">Besoin</th><th scope="col">Stock disponible</th><th scope="col">Stock minimum</th><th scope="col">Manque / surplus</th><th scope="col">Dernier prix</th><th scope="col">Dernier fournisseur</th><th scope="col">Meilleur prix 60j</th><th scope="col">Fournisseur 60j</th></tr></thead><tbody>
+      {% for r in ruptures %}<tr class="{% if r.manque > 0 %}rst-critical-row{% endif %}"><td><span class="rst-material-name"><span><i class="bi bi-box" aria-hidden="true"></i></span><strong>{{ r.matiere_premiere.nom }}</strong></span></td><td class="rst-number">{% if r.matiere_premiere.unite == 'Pièce' %}{{ r.besoin|floatformat:0 }}{% else %}{{ r.besoin|stringformat:'s' }}{% endif %} {{ r.matiere_premiere.unite }}</td><td class="rst-number">{% if r.matiere_premiere.unite == 'Pièce' %}{{ r.stock_disponible|floatformat:0 }}{% else %}{{ r.stock_disponible|stringformat:'s' }}{% endif %}</td><td class="rst-number rst-muted">{% if r.matiere_premiere.unite == 'Pièce' %}{{ r.stock_minimum|floatformat:0 }}{% else %}{{ r.stock_minimum|stringformat:'s' }}{% endif %}</td><td class="rst-number"><strong class="{% if r.manque > 0 %}rst-danger{% else %}rst-safe{% endif %}">{% if r.matiere_premiere.unite == 'Pièce' %}{{ r.manque_affiche|floatformat:0 }}{% else %}{{ r.manque_affiche|stringformat:'s' }}{% endif %}</strong></td><td class="rst-price">{% if r.dernier_prix is not None %}<strong>{{ r.dernier_prix|stringformat:'s' }} TND</strong><small>{{ r.dernier_date|date:'d/m/Y' }}</small>{% else %}<span>—</span>{% endif %}</td><td>{{ r.dernier_fournisseur.raison_sociale|default:'—' }}</td><td class="rst-price">{% if r.meilleur_prix_60j is not None %}<strong>{{ r.meilleur_prix_60j|stringformat:'s' }} TND</strong><small>{{ r.meilleur_date_60j|date:'d/m/Y' }}</small>{% else %}<span>—</span>{% endif %}</td><td>{{ r.meilleur_fournisseur_60j.raison_sociale|default:'—' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <div class="rst-material-cards">{% for r in ruptures %}<article class="{% if r.manque > 0 %}rst-card-critical{% endif %}"><header><span class="rst-material-name"><span><i class="bi bi-box" aria-hidden="true"></i></span><strong>{{ r.matiere_premiere.nom }}</strong></span><span class="{% if r.manque > 0 %}rst-status-danger{% else %}rst-status-safe{% endif %}">{% if r.manque > 0 %}Manque{% else %}Couvert{% endif %}</span></header><dl><div><dt>Besoin</dt><dd>{% if r.matiere_premiere.unite == 'Pièce' %}{{ r.besoin|floatformat:0 }}{% else %}{{ r.besoin|stringformat:'s' }}{% endif %} {{ r.matiere_premiere.unite }}</dd></div><div><dt>Disponible</dt><dd>{{ r.stock_disponible|stringformat:'s' }}</dd></div><div><dt>Minimum</dt><dd>{{ r.stock_minimum|stringformat:'s' }}</dd></div><div><dt>Manque / surplus</dt><dd class="{% if r.manque > 0 %}rst-danger{% else %}rst-safe{% endif %}">{{ r.manque_affiche|stringformat:'s' }}</dd></div><div><dt>Dernier achat</dt><dd>{% if r.dernier_prix is not None %}{{ r.dernier_prix|stringformat:'s' }} TND · {{ r.dernier_fournisseur.raison_sociale|default:'—' }}{% else %}Non renseigné{% endif %}</dd></div><div><dt>Meilleur sur 60j</dt><dd>{% if r.meilleur_prix_60j is not None %}{{ r.meilleur_prix_60j|stringformat:'s' }} TND · {{ r.meilleur_fournisseur_60j.raison_sociale|default:'—' }}{% else %}Non renseigné{% endif %}</dd></div></dl></article>{% endfor %}</div>
+    {% else %}<div class="rst-section-empty"><span><i class="bi bi-check-circle" aria-hidden="true"></i></span><strong>{{ texte_vide }}</strong><p>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</p></div>{% endif %}
   </div>
-</div>
+</details>

@@ -3,217 +3,63 @@
 {% block title %}Chiffre d'affaires par zone — Administration{% endblock %}
 {% block page_title %}Chiffre d'affaires par zone{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Chiffre d'affaires par zone</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Chiffre d'affaires par zone</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="zone-revenue-dashboard">
+  <header class="caz-hero" aria-labelledby="caz-page-title">
+    <span class="caz-hero-icon" aria-hidden="true"><i class="bi bi-pin-map"></i></span>
+    <div class="caz-hero-copy"><div class="caz-eyebrow"><i class="bi bi-geo-alt" aria-hidden="true"></i> Performance territoriale</div><h1 id="caz-page-title">Chiffre d’affaires par zone</h1><p>Comparez la contribution des secteurs géographiques et repérez les ventes qui nécessitent encore une affectation de zone.</p></div>
+    <div class="caz-hero-meta"><div><span>Période analysée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong><small>{{ nb_jours }} jour{{ nb_jours|pluralize }}</small></div><div><span>Couverture territoriale</span><strong>{{ nb_zones_affectees }} zone{{ nb_zones_affectees|pluralize }}</strong><small>avec ventes enregistrées</small></div></div>
+  </header>
 
-{# ── Filtres + total verrouillé ────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3 overflow-auto">
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total chiffre d'affaire (TND)</label>
-          <input type="text"
-                 class="form-control form-control-sm text-end font-monospace fw-semibold"
-                 value="{{ total_chiffre_affaire|stringformat:'.3f' }}" disabled>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:chiffre-affaire-zone-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="caz-filter-card" aria-labelledby="caz-filter-title">
+    <div class="caz-filter-head"><span><i class="bi bi-calendar-range" aria-hidden="true"></i></span><div><h2 id="caz-filter-title">Période de l’analyse</h2><p>Le classement territorial et les graphiques sont recalculés après validation.</p></div></div>
+    <form method="get" id="caz-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="caz-filter-field"><label for="caz-date-start">Date de début</label><input type="date" name="date_debut" id="caz-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <div class="caz-filter-field"><label for="caz-date-end">Date de fin</label><input type="date" name="date_fin" id="caz-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <p class="caz-filter-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Seule la dernière version de chaque bon de livraison est comptabilisée.</p>
+      <div class="caz-filter-actions"><a href="{% url 'administration:chiffre-affaire-zone-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Actualiser l’analyse</button></div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="caz-kpi-grid" aria-label="Synthèse du chiffre d’affaires par zone">
+    <article class="caz-kpi caz-kpi-blue"><span><i class="bi bi-cash-stack" aria-hidden="true"></i></span><div><small>Chiffre d’affaires total</small><strong>{{ total_chiffre_affaire|stringformat:'.3f' }}</strong><em>TND sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></div></article>
+    <article class="caz-kpi {% if ca_sans_zone > 0 %}caz-kpi-orange{% else %}caz-kpi-violet{% endif %}"><span><i class="bi bi-map" aria-hidden="true"></i></span><div><small>Zones avec ventes</small><strong>{{ nb_zones_affectees }}</strong><em>{% if ca_sans_zone > 0 %}{{ ca_sans_zone|stringformat:'.3f' }} TND sans zone{% else %}toutes les ventes sont affectées{% endif %}</em></div></article>
+    <article class="caz-kpi caz-kpi-violet"><span><i class="bi bi-calculator" aria-hidden="true"></i></span><div><small>CA moyen par zone</small><strong>{{ ca_moyen|stringformat:'.3f' }}</strong><em>TND hors ventes non affectées</em></div></article>
+    <article class="caz-kpi caz-kpi-green"><span><i class="bi bi-trophy" aria-hidden="true"></i></span><div><small>Meilleure zone</small><strong>{% if meilleure_zone %}{{ meilleure_zone.zone_nom }}{% else %}—{% endif %}</strong><em>{% if meilleure_zone and meilleure_zone.part_ca is not None %}{{ meilleure_zone.part_ca|stringformat:'.2f' }}% du CA total{% elif meilleure_zone %}part non calculable{% else %}aucune vente affectée{% endif %}</em></div></article>
+  </section>
+
+  <details class="caz-method">
+    <summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre le classement territorial</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+    <div><div><strong>Montant de la zone</strong><p>Somme des derniers bons de livraison destinés aux clients rattachés à cette zone.</p></div><div><strong>Part du CA</strong><p>Contribution de la zone au chiffre d’affaires total, ventes non affectées incluses.</p></div><div><strong>Hiérarchie</strong><p>La délégation et le gouvernorat permettent de situer précisément chaque zone.</p></div><div><strong>Sans zone</strong><p>Regroupe les ventes de clients auxquels aucune zone géographique n’est encore affectée.</p></div></div>
+  </details>
+
+  <section class="caz-panel" aria-labelledby="caz-results-title">
+    <header class="caz-panel-head"><div><div class="caz-section-label">Classement de la période</div><h2 id="caz-results-title">Contribution par zone</h2>{% if lignes %}<p>{{ total_count }} périmètre{{ total_count|pluralize }} classé{{ total_count|pluralize }} selon le montant des ventes.</p>{% else %}<p>Aucune vente n’a été enregistrée sur une zone pendant cette période.</p>{% endif %}</div>{% if lignes %}<span class="caz-result-badge"><i class="bi bi-list-ol" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:160px;">Zone</th>
-            <th class="text-end" style="min-width:170px;">Total montant (TND)</th>
-            <th class="text-end pe-3" style="min-width:150px;">Part du CA (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;" value="{{ l.zone_nom }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.total_montant|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end pe-3">
-              {% if l.part_ca is not None %}
-              <input type="text" class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.part_ca|stringformat:'.2f' }} %" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="caz-table-wrap"><table class="caz-table"><caption class="visually-hidden">Classement des zones par chiffre d’affaires</caption><colgroup><col class="caz-col-rank"><col class="caz-col-zone"><col class="caz-col-revenue"><col class="caz-col-share"></colgroup><thead><tr><th scope="col">Rang</th><th scope="col">Zone géographique</th><th scope="col" class="caz-number-col">Chiffre d’affaires</th><th scope="col">Part du chiffre d’affaires</th></tr></thead><tbody>{% for l in lignes %}<tr class="{% if not l.zone_id %}caz-row-unassigned{% endif %}"><td><span class="caz-rank {% if l.rang == 1 %}caz-rank-first{% endif %}">{{ l.rang }}</span></td><td><span class="caz-zone"><span aria-hidden="true"><i class="bi {% if l.zone_id %}bi-geo-alt{% else %}bi-exclamation-triangle{% endif %}"></i></span><span><strong>{{ l.zone_nom }}</strong>{% if l.zone_id %}<small>{{ l.delegation_nom }} · {{ l.gouvernorat_nom }}</small>{% else %}<small>Clientèle non géolocalisée</small>{% endif %}</span></span></td><td class="caz-number-col"><strong class="caz-money">{{ l.total_montant|stringformat:'.3f' }}</strong><small>TND</small></td><td>{% if l.part_ca is not None %}<div class="caz-share"><strong>{{ l.part_ca|stringformat:'.2f' }}%</strong><span aria-hidden="true"><i style="width:{{ l.part_ca|stringformat:'s' }}%"></i></span></div>{% else %}<span class="caz-dash">—</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="caz-card-list">{% for l in lignes %}<article class="caz-card {% if not l.zone_id %}caz-card-unassigned{% endif %}"><header><span class="caz-rank {% if l.rang == 1 %}caz-rank-first{% endif %}">{{ l.rang }}</span><span class="caz-zone"><span aria-hidden="true"><i class="bi {% if l.zone_id %}bi-geo-alt{% else %}bi-exclamation-triangle{% endif %}"></i></span><span><strong>{{ l.zone_nom }}</strong>{% if l.zone_id %}<small>{{ l.delegation_nom }} · {{ l.gouvernorat_nom }}</small>{% else %}<small>Clientèle non géolocalisée</small>{% endif %}</span></span></header><dl><div><dt>Chiffre d’affaires</dt><dd>{{ l.total_montant|stringformat:'.3f' }} TND</dd></div><div><dt>Part du CA</dt><dd>{% if l.part_ca is not None %}{{ l.part_ca|stringformat:'.2f' }}%{% else %}—{% endif %}</dd></div></dl></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="caz-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} périmètre{{ total_count|pluralize }}</span><nav aria-label="Pagination du chiffre d’affaires par zone"><ul class="caz-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="caz-empty"><span><i class="bi bi-pin-map" aria-hidden="true"></i></span><h3>Aucune vente sur cette période</h3><p>Élargissez la période ou vérifiez les bons de livraison enregistrés.</p></div>{% endif %}
+  </section>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} zone{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
-      Aucune vente sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>.
-    </div>
-    {% endif %}
-  </div>
+  {% if chart_montant_b64 or chart_part_b64 %}<section class="caz-charts-panel" aria-labelledby="caz-charts-title"><header class="caz-charts-head"><div><div class="caz-section-label">Visualisations territoriales</div><h2 id="caz-charts-title">Répartition du chiffre d’affaires</h2><p>Les graphiques couvrent toutes les zones de la période, indépendamment de la page affichée.</p></div><i class="bi bi-bar-chart-line" aria-hidden="true"></i></header><div class="caz-charts-grid">{% if chart_montant_b64 %}<article class="caz-chart-card"><header><span><i class="bi bi-bar-chart" aria-hidden="true"></i></span><div><h3>Montant par zone</h3><p>Comparaison des chiffres d’affaires en TND</p></div></header><figure><img src="data:image/png;base64,{{ chart_montant_b64 }}" width="1350" height="900" alt="Graphique du chiffre d’affaires total par zone"><figcaption>Les montants sont classés du plus élevé au plus faible.</figcaption></figure></article>{% endif %}{% if chart_part_b64 %}<article class="caz-chart-card"><header><span><i class="bi bi-pie-chart" aria-hidden="true"></i></span><div><h3>Part du chiffre d’affaires</h3><p>Poids de chaque zone dans le total</p></div></header><figure><img src="data:image/png;base64,{{ chart_part_b64 }}" width="1200" height="1050" alt="Graphique de la part du chiffre d’affaires par zone"><figcaption>Les ventes sans zone apparaissent comme un périmètre distinct.</figcaption></figure></article>{% endif %}</div></section>{% endif %}
 </div>
-
-{# ── Boutons graphiques (pop-up) ───────────────────────────────────────────── #}
-{% if chart_montant_b64 or chart_part_b64 %}
-<div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
-  {% if chart_montant_b64 %}
-  <button type="button" class="btn btn-outline-primary btn-sm"
-          data-bs-toggle="modal" data-bs-target="#modal-chart-montant">
-    <i class="bi bi-bar-chart-line me-1"></i>Graphique Total montant (3D)
-  </button>
-  {% endif %}
-  {% if chart_part_b64 %}
-  <button type="button" class="btn btn-outline-primary btn-sm"
-          data-bs-toggle="modal" data-bs-target="#modal-chart-part">
-    <i class="bi bi-pie-chart me-1"></i>Graphique Part du CA (3D)
-  </button>
-  {% endif %}
-</div>
-{% endif %}
-
-{# ── Pop-up : Total montant ──────────────────────────────────────────────── #}
-{% if chart_montant_b64 %}
-<div class="modal fade" id="modal-chart-montant" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Chiffre d'affaire par zone — Total montant</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img src="data:image/png;base64,{{ chart_montant_b64 }}" class="img-fluid" alt="Total montant par zone">
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-{# ── Pop-up : Part du chiffre d'affaire ──────────────────────────────────── #}
-{% if chart_part_b64 %}
-<div class="modal fade" id="modal-chart-part" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Chiffre d'affaire par zone — Part du chiffre d'affaire</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img src="data:image/png;base64,{{ chart_part_b64 }}" class="img-fluid" alt="Part du chiffre d'affaire par zone">
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Chiffre d'affaires par zone : tableau de bord ordinateur d'abord. */
+.zone-revenue-dashboard{--caz-primary:#2c7be5;--caz-primary-dark:#1a4f9c;--caz-ink:#172033;--caz-muted:#667085;--caz-border:#e2e8f0;--caz-radius:1rem;max-width:1700px;margin:0 auto;color:var(--caz-ink)}
+.caz-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(360px,430px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.caz-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.caz-hero-copy{min-width:0}.caz-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.caz-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.caz-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.caz-hero-meta{display:grid;grid-template-columns:1.3fr .7fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.caz-hero-meta div{min-width:0;padding:.55rem}.caz-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.caz-hero-meta span,.caz-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.caz-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.caz-hero-meta small{margin-top:.1rem}
+.caz-filter-card,.caz-method,.caz-panel,.caz-charts-panel{margin-top:1rem;border:1px solid var(--caz-border);border-radius:var(--caz-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04);overflow:hidden}.caz-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.caz-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--caz-primary)}.caz-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.caz-filter-head p{margin:.12rem 0 0;color:var(--caz-muted);font-size:.68rem}.caz-filter-card form{display:grid;grid-template-columns:165px 165px minmax(180px,1fr) auto;align-items:end;gap:.75rem;padding:1rem}.caz-filter-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.caz-filter-field .form-control{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.caz-filter-note{display:flex;align-items:center;gap:.35rem;min-height:2.8rem;margin:0;color:var(--caz-muted);font-size:.64rem}.caz-filter-actions{display:flex;gap:.5rem}.caz-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:.75rem;border-radius:.62rem;font-size:.68rem;font-weight:700;white-space:nowrap}
+.caz-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.caz-kpi{--caz-accent:#2c7be5;--caz-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--caz-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.caz-kpi-blue{--caz-accent:#2c7be5;--caz-soft:#eaf2fd}.caz-kpi-green{--caz-accent:#198754;--caz-soft:#e9f6ef}.caz-kpi-violet{--caz-accent:#6f42c1;--caz-soft:#f1ebfb}.caz-kpi-orange{--caz-accent:#d97706;--caz-soft:#fff4e0}.caz-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--caz-soft);color:var(--caz-accent);font-size:1.1rem}.caz-kpi small{display:block;color:var(--caz-muted);font-size:.64rem;font-weight:650}.caz-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.08rem;font-variant-numeric:tabular-nums;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}.caz-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--caz-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.caz-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.caz-method summary::-webkit-details-marker{display:none}.caz-method summary span{display:flex;align-items:center;gap:.4rem}.caz-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.caz-method[open] summary>i{transform:rotate(180deg)}.caz-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.caz-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.caz-method strong{font-size:.68rem}.caz-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.caz-panel-head,.caz-charts-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.caz-section-label{color:var(--caz-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.caz-panel-head h2,.caz-charts-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.caz-panel-head p,.caz-charts-head p{margin:.15rem 0 0;color:var(--caz-muted);font-size:.7rem}.caz-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--caz-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.caz-table{width:100%;border-collapse:collapse;table-layout:fixed}.caz-col-rank{width:9%}.caz-col-zone{width:39%}.caz-col-revenue{width:24%}.caz-col-share{width:28%}.caz-table thead{background:#f8fafc}.caz-table th{padding:.72rem .85rem;border-bottom:1px solid var(--caz-border);color:var(--caz-muted);font-size:.61rem;font-weight:800;letter-spacing:.03em;text-align:left;text-transform:uppercase}.caz-table td{padding:.78rem .85rem;border-bottom:1px solid #edf0f4;font-size:.7rem;vertical-align:middle}.caz-table tbody tr:last-child td{border-bottom:0}.caz-table tbody tr:hover{background:#f8faff}.caz-row-unassigned{background:#fffaf0}.caz-number-col{text-align:right!important}.caz-rank{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:.58rem;background:#eef2f6;color:#45576d;font-size:.7rem;font-weight:800}.caz-rank-first{background:#fff2cc;color:#805b00;box-shadow:inset 0 0 0 1px #f0d98c}.caz-zone{display:flex;align-items:center;gap:.58rem;min-width:0}.caz-zone>span:first-child{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.35rem;height:2.35rem;border-radius:.68rem;background:#eaf2fd;color:var(--caz-primary)}.caz-row-unassigned .caz-zone>span:first-child,.caz-card-unassigned .caz-zone>span:first-child{background:#fff0cf;color:#8a5300}.caz-zone>span:last-child{min-width:0}.caz-zone strong,.caz-zone small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.caz-zone small{margin-top:.08rem;color:var(--caz-muted);font-size:.58rem}.caz-money{display:block;font-size:.76rem;font-variant-numeric:tabular-nums}.caz-table td>small{display:block;margin-top:.08rem;color:var(--caz-muted);font-size:.57rem}.caz-share strong{display:block;color:#31577f;font-size:.68rem;font-variant-numeric:tabular-nums}.caz-share>span{display:block;overflow:hidden;height:.32rem;margin-top:.25rem;border-radius:2rem;background:#e9edf3}.caz-share>span i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2c7be5,#64a1ee)}.caz-dash{color:#98a2b3}.caz-card-list{display:none}
+.caz-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.caz-pagination-footer>span{color:var(--caz-muted);font-size:.65rem}.caz-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.caz-pagination a,.caz-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.caz-pagination .active{border-color:var(--caz-primary);background:var(--caz-primary);color:#fff}.caz-empty{padding:3rem 1rem;text-align:center}.caz-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.caz-empty h3{margin:.7rem 0 .25rem;font-size:.95rem}.caz-empty p{margin:0;color:var(--caz-muted);font-size:.72rem}
+.caz-charts-head>i{color:var(--caz-primary);font-size:1.45rem}.caz-charts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;padding:1rem;background:#f7f9fc}.caz-chart-card{overflow:hidden;border:1px solid var(--caz-border);border-radius:.8rem;background:#fff}.caz-chart-card>header{display:flex;align-items:center;gap:.6rem;padding:.75rem .85rem;border-bottom:1px solid #edf0f4}.caz-chart-card>header>span{display:inline-flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.62rem;background:#eaf2fd;color:var(--caz-primary)}.caz-chart-card h3{margin:0;font-size:.75rem;font-weight:750}.caz-chart-card header p{margin:.1rem 0 0;color:var(--caz-muted);font-size:.6rem}.caz-chart-card figure{margin:0;padding:.75rem}.caz-chart-card img{display:block;width:100%;height:auto;border-radius:.55rem}.caz-chart-card figcaption{margin-top:.45rem;color:var(--caz-muted);font-size:.6rem;text-align:center}.zone-revenue-dashboard a:focus-visible,.zone-revenue-dashboard button:focus-visible,.zone-revenue-dashboard input:focus-visible,.zone-revenue-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.caz-hero{grid-template-columns:auto minmax(0,1fr)}.caz-hero-meta{grid-column:1/-1}.caz-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.caz-filter-note{grid-column:1/-1}.caz-filter-actions{grid-column:1/-1;justify-content:flex-end}.caz-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.caz-charts-grid{grid-template-columns:1fr}.caz-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.caz-table-wrap{display:none}.caz-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;padding:.8rem;background:#f7f9fc}.caz-card{overflow:hidden;border:1px solid var(--caz-border);border-radius:.78rem;background:#fff}.caz-card-unassigned{border-color:#efd7a4}.caz-card header{display:flex;align-items:center;gap:.55rem;padding:.7rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.caz-card .caz-zone{min-width:0}.caz-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:0;padding:.75rem}.caz-card dt{color:var(--caz-muted);font-size:.55rem;text-transform:uppercase}.caz-card dd{margin:.1rem 0 0;font-size:.68rem;font-weight:750}.caz-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.caz-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.caz-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.caz-hero-copy>p{font-size:.8rem}.caz-hero-meta{grid-template-columns:1fr}.caz-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.caz-filter-card form{grid-template-columns:1fr}.caz-filter-note,.caz-filter-actions{grid-column:auto}.caz-filter-actions{flex-direction:column}.caz-kpi-grid{grid-template-columns:1fr}.caz-method>div{grid-template-columns:1fr}.caz-panel-head{flex-direction:column;padding:.9rem}.caz-card-list{grid-template-columns:1fr}.caz-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}

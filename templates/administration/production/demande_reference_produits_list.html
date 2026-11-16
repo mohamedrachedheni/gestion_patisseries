@@ -3,130 +3,99 @@
 {% block title %}Demande de référence produits — Administration{% endblock %}
 {% block page_title %}Demande de référence produits{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Demande de référence produits</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Demande de référence produits</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="product-reference-dashboard">
+  <header class="drp-hero" aria-labelledby="drp-page-title">
+    <span class="drp-hero-icon" aria-hidden="true"><i class="bi bi-clipboard-data"></i></span>
+    <div class="drp-hero-copy">
+      <div class="drp-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Planification de la production</div>
+      <h1 id="drp-page-title">Demande de référence produits</h1>
+      <p>Estimez les quantités à prévoir à partir des livraisons moyennes observées pour les jours sélectionnés.</p>
+    </div>
+    <div class="drp-hero-meta">
+      <div><span>Période analysée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong></div>
+      <div><span>Périmètre</span><strong>{% if produit_ids_selectionnes %}{{ produit_ids_selectionnes|length }} produit{{ produit_ids_selectionnes|length|pluralize }} ciblé{{ produit_ids_selectionnes|length|pluralize }}{% else %}Tous les produits{% endif %}</strong><small>{{ jours_semaine_selectionnes|length }} jour{{ jours_semaine_selectionnes|length|pluralize }} retenu{{ jours_semaine_selectionnes|length|pluralize }}</small></div>
+    </div>
+  </header>
 
-<h4 class="mb-4 fw-bold">
-  Demande de référence par produit et jour de semaine
-</h4>
-<p class="text-muted small mb-4">
-  Pour chaque produit, somme des quantités moyennes livrées sur chaque jour de semaine sélectionné, calculées sur
-  la période de référence (les jours non ouvrés sont exclus du calcul) — sert à programmer les commandes internes
-  de production.
-</p>
-
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-        <div style="width:260px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Produits (défaut : tous)</label>
-          <select name="produit_id" class="form-select form-select-sm" multiple size="1" data-autosubmit>
-            {% for p in produits_list %}
-            <option value="{{ p.pk }}" {% if p.pk|stringformat:"s" in produit_ids_selectionnes %}selected{% endif %}>
-              {{ p.nom }}
-            </option>
-            {% endfor %}
-          </select>
-          <small class="text-muted">Ctrl/Cmd + clic pour en sélectionner plusieurs.</small>
-        </div>
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:demande-reference-produits-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-      </div>
-
-      <div>
-        <label class="form-label small mb-1 d-block">Jours de la semaine (défaut : tous)</label>
-        <div class="d-flex flex-wrap gap-3">
-          {% for valeur, libelle in jours_semaine_choices %}
-          <div class="form-check">
-            <input type="checkbox" name="jour_semaine" value="{{ valeur }}" id="jour-semaine-{{ valeur }}"
-                   class="form-check-input" autocomplete="off" data-autosubmit
-                   {% if valeur in jours_semaine_selectionnes %}checked{% endif %}>
-            <label class="form-check-label" for="jour-semaine-{{ valeur }}">{{ libelle }}</label>
+  <section class="drp-filter-card" aria-labelledby="drp-filter-title">
+    <div class="drp-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="drp-filter-title">Périmètre de l’analyse</h2><p>Choisissez la période, les produits et les jours à intégrer au calcul.</p></div></div>
+    <form method="get" id="drp-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="drp-filter-grid">
+        <fieldset class="drp-date-group">
+          <legend>Période de référence</legend>
+          <div class="drp-date-fields">
+            <div class="drp-filter-field"><label for="drp-date-start">Date de début</label><input type="date" name="date_debut" id="drp-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+            <div class="drp-filter-field"><label for="drp-date-end">Date de fin</label><input type="date" name="date_fin" id="drp-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
           </div>
-          {% endfor %}
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
+          <small>Les jours non ouvrés ne sont pas comptabilisés.</small>
+        </fieldset>
 
-{# ── Section 2 : tableau ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+        <div class="drp-product-group">
+          <label for="drp-products">Produits à analyser</label>
+          <select name="produit_id" id="drp-products" class="form-select" multiple size="5" aria-describedby="drp-products-help">
+            {% for p in produits_list %}<option value="{{ p.pk }}" {% if p.pk|stringformat:"s" in produit_ids_selectionnes %}selected{% endif %}>{{ p.nom }}</option>{% endfor %}
+          </select>
+          <small id="drp-products-help">Aucune sélection signifie « tous les produits ». Utilisez Ctrl ou Cmd pour en choisir plusieurs.</small>
+        </div>
+
+        <fieldset class="drp-day-group">
+          <legend>Jours à prévoir</legend>
+          <div class="drp-day-options">
+            {% for valeur, libelle in jours_semaine_choices %}<label class="drp-day-option" for="drp-day-{{ valeur }}"><input type="checkbox" name="jour_semaine" value="{{ valeur }}" id="drp-day-{{ valeur }}" autocomplete="off" {% if valeur in jours_semaine_selectionnes %}checked{% endif %}><span>{{ libelle }}</span></label>{% endfor %}
+          </div>
+          <small>Le résultat additionne la moyenne de chaque jour coché.</small>
+        </fieldset>
+      </div>
+      <footer class="drp-filter-actions">
+        <p><i class="bi bi-info-circle" aria-hidden="true"></i> Les modifications sont appliquées uniquement après validation.</p>
+        <a href="{% url 'administration:demande-reference-produits-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Actualiser l’analyse</button>
+      </footer>
+    </form>
+  </section>
+
+  <section class="drp-kpi-grid" aria-label="Synthèse du calcul">
+    <article class="drp-kpi drp-kpi-blue"><span><i class="bi bi-boxes" aria-hidden="true"></i></span><div><small>Références calculées</small><strong>{{ lignes|length }}</strong><em>produit{{ lignes|length|pluralize }} avec historique</em></div></article>
+    <article class="drp-kpi drp-kpi-violet"><span><i class="bi bi-bullseye" aria-hidden="true"></i></span><div><small>Produits ciblés</small><strong>{% if produit_ids_selectionnes %}{{ produit_ids_selectionnes|length }}{% else %}{{ produits_list|length }}{% endif %}</strong><em>{% if produit_ids_selectionnes %}sélection explicite{% else %}catalogue complet{% endif %}</em></div></article>
+    <article class="drp-kpi drp-kpi-green"><span><i class="bi bi-calendar-week" aria-hidden="true"></i></span><div><small>Jours retenus</small><strong>{{ jours_semaine_selectionnes|length }}</strong><em>moyenne{{ jours_semaine_selectionnes|length|pluralize }} additionnée{{ jours_semaine_selectionnes|length|pluralize }}</em></div></article>
+  </section>
+
+  <details class="drp-method">
+    <summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre la quantité de référence</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+    <div><p><strong>1. Historique</strong> Les dernières versions des bons de livraison de la période sont utilisées.</p><p><strong>2. Moyenne</strong> Pour chaque jour sélectionné, la quantité moyenne livrée est arrondie à l’unité supérieure.</p><p><strong>3. Référence</strong> Les moyennes journalières sont additionnées. Les dates non ouvrées sont exclues.</p></div>
+  </details>
+
+  <section class="drp-panel" aria-labelledby="drp-results-title">
+    <header class="drp-panel-head"><div><div class="drp-section-label">Prévision de production</div><h2 id="drp-results-title">Quantités de référence par produit</h2>{% if lignes %}<p>{{ lignes|length }} produit{{ lignes|length|pluralize }} dispose{{ lignes|length|pluralize:"nt" }} de livraisons exploitables sur la période.</p>{% else %}<p>Aucune quantité ne peut être calculée avec les filtres actuels.</p>{% endif %}</div>{% if lignes %}<span class="drp-result-badge"><i class="bi bi-check2-circle" aria-hidden="true"></i>{{ lignes|length }} résultat{{ lignes|length|pluralize }}</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:200px;">Produit</th>
-            <th class="text-end" style="min-width:170px;">Quantité de référence demandée</th>
-            <th class="text-end pe-3" style="min-width:150px;">Stock disponible actuel</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:190px;" value="{{ l.produit }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="1"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.quantite_reference }}" disabled>
-            </td>
-            <td class="text-end pe-3">
-              <input type="number"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.stock_disponible }}" disabled>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
+    <div class="drp-table-wrap">
+      <table class="drp-table">
+        <caption class="visually-hidden">Quantité de référence et stock disponible par produit</caption>
+        <thead><tr><th scope="col">Produit</th><th scope="col" class="drp-number-col">Quantité de référence</th><th scope="col" class="drp-number-col">Stock disponible</th><th scope="col">Lecture</th></tr></thead>
+        <tbody>{% for l in lignes %}<tr class="{% if l.stock_disponible < l.quantite_reference %}drp-row-attention{% endif %}"><td><span class="drp-product"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><strong>{{ l.produit }}</strong></span></td><td class="drp-number-col"><strong class="drp-reference-value">{{ l.quantite_reference }}</strong><small>quantité recommandée</small></td><td class="drp-number-col"><strong>{{ l.stock_disponible }}</strong><small>stock actuel</small></td><td>{% if l.stock_disponible < l.quantite_reference %}<span class="drp-status drp-status-warning"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Stock à compléter</span>{% else %}<span class="drp-status drp-status-safe"><i class="bi bi-check-circle" aria-hidden="true"></i>Stock suffisant</span>{% endif %}</td></tr>{% endfor %}</tbody>
       </table>
     </div>
+    <div class="drp-card-list">{% for l in lignes %}<article class="drp-card {% if l.stock_disponible < l.quantite_reference %}drp-card-attention{% endif %}"><header><span class="drp-product"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><strong>{{ l.produit }}</strong></span>{% if l.stock_disponible < l.quantite_reference %}<span class="drp-status drp-status-warning">À compléter</span>{% else %}<span class="drp-status drp-status-safe">Suffisant</span>{% endif %}</header><dl><div><dt>Quantité de référence</dt><dd>{{ l.quantite_reference }}</dd></div><div><dt>Stock disponible</dt><dd>{{ l.stock_disponible }}</dd></div></dl></article>{% endfor %}</div>
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-bar-chart fs-1 d-block mb-2 opacity-25"></i>
-      Aucune donnée pour ces filtres sur cette période.
-      <br>
-      <small>Vérifiez que des bons de livraison existent sur la période sélectionnée.</small>
-    </div>
+    <div class="drp-empty"><span><i class="bi bi-bar-chart" aria-hidden="true"></i></span><h3>Aucune donnée disponible</h3><p>Vérifiez la période choisie ou élargissez la sélection de produits et de jours.</p></div>
     {% endif %}
-  </div>
+  </section>
 </div>
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    this.closest('form').submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Demande de référence produits : interface ordinateur d'abord. */
+.product-reference-dashboard{--drp-primary:#2c7be5;--drp-primary-dark:#1a4f9c;--drp-ink:#172033;--drp-muted:#667085;--drp-border:#e2e8f0;--drp-radius:1rem;max-width:1650px;margin:0 auto;color:var(--drp-ink)}
+.drp-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(330px,410px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.drp-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.drp-hero-copy{min-width:0}.drp-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.drp-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.drp-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.drp-hero-meta{display:grid;grid-template-columns:1.35fr 1fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.drp-hero-meta div{min-width:0;padding:.55rem}.drp-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.drp-hero-meta span,.drp-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.drp-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.drp-hero-meta small{margin-top:.12rem}
+.drp-filter-card,.drp-panel,.drp-method{margin-top:1rem;border:1px solid var(--drp-border);border-radius:var(--drp-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.drp-filter-card,.drp-panel,.drp-method{overflow:hidden}.drp-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.drp-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--drp-primary)}.drp-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.drp-filter-head p{margin:.12rem 0 0;color:var(--drp-muted);font-size:.68rem}.drp-filter-grid{display:grid;grid-template-columns:minmax(250px,.85fr) minmax(260px,1fr) minmax(340px,1.35fr);gap:.85rem;padding:1rem}.drp-date-group,.drp-day-group{min-width:0;margin:0;padding:0;border:0}.drp-date-group legend,.drp-day-group legend,.drp-product-group>label{float:none;width:auto;margin:0 0 .45rem;padding:0;color:#344054;font-size:.7rem;font-weight:750}.drp-date-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}.drp-filter-field label{display:block;margin-bottom:.3rem;color:var(--drp-muted);font-size:.63rem;font-weight:650}.drp-filter-field .form-control,.drp-product-group .form-select{border-color:#cfd7e3;border-radius:.62rem;font-size:.76rem}.drp-filter-field .form-control{min-height:2.8rem}.drp-product-group .form-select{min-height:8.2rem;padding:.35rem}.drp-product-group option{padding:.28rem .4rem;border-radius:.3rem}.drp-date-group>small,.drp-product-group>small,.drp-day-group>small{display:block;margin-top:.42rem;color:var(--drp-muted);font-size:.62rem;line-height:1.4}.drp-day-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.42rem}.drp-day-option{position:relative;cursor:pointer}.drp-day-option input{position:absolute;width:1px;height:1px;opacity:0}.drp-day-option span{display:flex;align-items:center;justify-content:center;min-height:2.35rem;padding:.38rem .5rem;border:1px solid #d7dee8;border-radius:.58rem;background:#fff;color:#45576d;font-size:.67rem;font-weight:700;transition:border-color .15s,background .15s,color .15s}.drp-day-option input:checked+span{border-color:#9cc0ef;background:#eaf2fd;color:#1a4f9c}.drp-day-option input:focus-visible+span{outline:3px solid #174c8f;outline-offset:2px}.drp-filter-actions{display:flex;align-items:center;justify-content:flex-end;gap:.55rem;padding:.8rem 1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.drp-filter-actions p{display:flex;align-items:center;gap:.35rem;margin:0 auto 0 0;color:var(--drp-muted);font-size:.65rem}.drp-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.7rem;padding-inline:.85rem;border-radius:.62rem;font-size:.68rem;font-weight:700}
+.drp-kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem;margin-top:1rem}.drp-kpi{--drp-accent:#2c7be5;--drp-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:98px;padding:.9rem;border:1px solid var(--drp-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.drp-kpi-blue{--drp-accent:#2c7be5;--drp-soft:#eaf2fd}.drp-kpi-green{--drp-accent:#198754;--drp-soft:#e9f6ef}.drp-kpi-violet{--drp-accent:#6f42c1;--drp-soft:#f1ebfb}.drp-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--drp-soft);color:var(--drp-accent);font-size:1.1rem}.drp-kpi small{display:block;color:var(--drp-muted);font-size:.65rem;font-weight:650}.drp-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.drp-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--drp-muted);font-size:.61rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.drp-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.drp-method summary::-webkit-details-marker{display:none}.drp-method summary span{display:flex;align-items:center;gap:.4rem}.drp-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.drp-method[open] summary>i{transform:rotate(180deg)}.drp-method>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;padding:.9rem}.drp-method p{margin:0;padding:.7rem;border:1px solid #e5eaf0;border-radius:.65rem;color:#526071;font-size:.66rem;line-height:1.5}.drp-method strong{display:block;margin-bottom:.16rem;color:#27364a;font-size:.68rem}
+.drp-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.drp-section-label{color:var(--drp-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.drp-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.drp-panel-head p{margin:.15rem 0 0;color:var(--drp-muted);font-size:.7rem}.drp-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--drp-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.drp-table{width:100%;border-collapse:collapse;table-layout:fixed}.drp-table thead{background:#f8fafc}.drp-table th{padding:.72rem .9rem;border-bottom:1px solid var(--drp-border);color:var(--drp-muted);font-size:.62rem;font-weight:800;letter-spacing:.035em;text-align:left;text-transform:uppercase}.drp-table td{padding:.78rem .9rem;border-bottom:1px solid #edf0f4;font-size:.72rem;vertical-align:middle}.drp-table tbody tr:last-child td{border-bottom:0}.drp-table tbody tr:hover{background:#f8faff}.drp-table th:nth-child(1){width:40%}.drp-table th:nth-child(2),.drp-table th:nth-child(3){width:20%}.drp-table th:nth-child(4){width:20%}.drp-row-attention{background:#fffdf7}.drp-product{display:flex;align-items:center;gap:.6rem;min-width:0}.drp-product>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.35rem;height:2.35rem;border-radius:.65rem;background:#eaf2fd;color:var(--drp-primary)}.drp-product strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drp-number-col{text-align:right}.drp-table td>strong,.drp-table td>small{display:block}.drp-table td>small{margin-top:.1rem;color:var(--drp-muted);font-size:.6rem}.drp-reference-value{color:#1a4f9c;font-size:.82rem}.drp-status{display:inline-flex;align-items:center;gap:.3rem;padding:.26rem .5rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.drp-status-warning{background:#fff4e0;color:#8a5300}.drp-status-safe{background:#e9f6ef;color:#18794e}.drp-card-list{display:none}.drp-empty{padding:3rem 1rem;text-align:center}.drp-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.drp-empty h3{margin:.7rem 0 .25rem;font-size:.95rem}.drp-empty p{margin:0;color:var(--drp-muted);font-size:.72rem}.product-reference-dashboard a:focus-visible,.product-reference-dashboard button:focus-visible,.product-reference-dashboard input:focus-visible,.product-reference-dashboard select:focus-visible,.product-reference-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.drp-hero{grid-template-columns:auto minmax(0,1fr)}.drp-hero-meta{grid-column:1/-1}.drp-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.drp-day-group{grid-column:1/-1}.drp-day-options{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@media(max-width:767.98px){.drp-filter-grid{grid-template-columns:1fr}.drp-day-group{grid-column:auto}.drp-day-options{grid-template-columns:repeat(2,minmax(0,1fr))}.drp-filter-actions{align-items:stretch;flex-direction:column}.drp-filter-actions p{margin:0 0 .2rem}.drp-kpi-grid{grid-template-columns:1fr}.drp-table-wrap{display:none}.drp-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;padding:.8rem;background:#f7f9fc}.drp-card{overflow:hidden;border:1px solid var(--drp-border);border-radius:.78rem;background:#fff}.drp-card-attention{border-color:#ecd8ac}.drp-card header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.72rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.drp-card .drp-product>span{width:2rem;height:2rem}.drp-card .drp-product strong{font-size:.7rem}.drp-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:0;padding:.8rem}.drp-card dt{color:var(--drp-muted);font-size:.58rem;text-transform:uppercase}.drp-card dd{margin:.1rem 0 0;font-size:.75rem;font-weight:750}.drp-method>div{grid-template-columns:1fr}.drp-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.drp-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.drp-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.drp-hero-copy>p{font-size:.8rem}.drp-hero-meta{grid-template-columns:1fr}.drp-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.drp-date-fields{grid-template-columns:1fr}.drp-card-list{grid-template-columns:1fr}.drp-panel-head{flex-direction:column;padding:.9rem}.drp-card dl{grid-template-columns:1fr}}
 {% endblock %}

@@ -1,0 +1,48 @@
+/* ── Menu latéral à groupes repliables (partagé Administration / Production) ─────────────────────────────────────────────────────── */
+.sidebar-group { position: relative; }
+.sidebar-group-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.sidebar-group-chevron { transition: transform .2s ease; font-size: .75rem; }
+.sidebar-submenu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease;
+}
+.sidebar-submenu .nav-link {
+  padding-left: 2.75rem;
+  font-size: .85rem;
+}
+.sidebar-group.sidebar-group-open .sidebar-submenu { max-height: 40rem; }
+.sidebar-group.sidebar-group-open .sidebar-group-chevron { transform: rotate(180deg); }
+.sidebar-group.sidebar-group-open > .sidebar-group-toggle { color: #fff; }
+/* Focus clavier bien visible sur fond sombre */
+.sidebar-nav .nav-link:focus-visible { outline: 2px solid #9ec1f3; outline-offset: -2px; color: #fff; }
+
+/* Téléphone / tablette : zones tactiles plus grandes, texte plus lisible */
+@media (max-width: 991.98px) {
+  #sidebar { width: min(85vw, 300px); }
+  .sidebar-nav .nav-link { min-height: 2.9rem; font-size: .95rem; }
+  .sidebar-submenu .nav-link { font-size: .9rem; }
+  .sidebar-footer .btn { min-height: 2.75rem; }
+  #sidebarToggle { min-width: 2.75rem; min-height: 2.75rem; }
+}
+.sidebar-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 999;
+  opacity: 0; pointer-events: none; transition: opacity .2s ease;
+}
+.sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
+@media (min-width: 992px) { .sidebar-backdrop { display: none; } }
+
+/* Ordinateur, menu réduit aux icônes : sous-menus alignés sur les autres icônes */
+@media (min-width: 992px) {
+  body.sidebar-collapsed .sidebar-submenu .nav-link { padding-left: 1.25rem; background: rgba(255,255,255,.03); }
+  body.sidebar-collapsed .sidebar-group-chevron { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-submenu, .sidebar-group-chevron, .sidebar-backdrop { transition: none; }
+}

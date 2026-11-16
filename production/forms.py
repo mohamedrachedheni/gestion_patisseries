@@ -34,6 +34,19 @@ class ProduitForm(forms.ModelForm):
             ),
             'observation',
         )
+        # Pas de saisie automatique du navigateur / gestionnaires de mots de passe.
+        anti_auto = {
+            'autocomplete': 'new-password', 'aria-autocomplete': 'none',
+            'data-lpignore': 'true', 'data-1p-ignore': 'true', 'data-bwignore': 'true',
+        }
+        for name, field in self.fields.items():
+            css = field.widget.attrs.get('class', '')
+            if name == 'taille':
+                field.widget.attrs.update({'class': 'form-select', 'autocomplete': 'off', 'id': 'prf-taille'})
+                continue
+            field.widget.attrs.update(anti_auto)
+            field.widget.attrs['class'] = ('form-control ' + css).strip()
+            field.widget.attrs['id'] = f'prf-{name}'
 
 
 class FamilleForm(forms.ModelForm):
@@ -66,6 +79,19 @@ class MatierePremiereForm(forms.ModelForm):
                 Column('stock_minimum', css_class='col-md-4'),
             ),
         )
+        # Pas de saisie automatique du navigateur / gestionnaires de mots de passe.
+        anti_auto = {
+            'autocomplete': 'new-password', 'aria-autocomplete': 'none',
+            'data-lpignore': 'true', 'data-1p-ignore': 'true', 'data-bwignore': 'true',
+        }
+        for name, field in self.fields.items():
+            css = field.widget.attrs.get('class', '')
+            if name in ('matiere_premiere_famille', 'unite'):
+                field.widget.attrs.update({'class': 'form-select', 'autocomplete': 'off'})
+            else:
+                field.widget.attrs.update(anti_auto)
+                field.widget.attrs['class'] = ('form-control ' + css).strip()
+            field.widget.attrs['id'] = f'mpf-{name}'
 
 
 class ProduitSemiFiniForm(forms.Form):

@@ -394,7 +394,12 @@ class ClientImpayesDetailPopupView(GroupRequiredMixin, View):
     template_name = 'commercial/client/impayes_detail_popup.html'
 
     def get(self, request, pk):
-        client = get_object_or_404(_client_queryset_for_user(request.user), pk=pk)
+        client = get_object_or_404(
+            _client_queryset_for_user(request.user).select_related(
+                'zone__delegation__gouvernorat',
+            ),
+            pk=pk,
+        )
 
         dernier_bl_id_par_code = (
             BonLivraison.objects
@@ -1263,6 +1268,11 @@ class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
         nb_absentes = sum(1 for l in lignes if l['statut'] == 'absent')
         nb_evaluees = nb_honorees + nb_manquees
         taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
+        commercial_selectionne = (
+            request.user
+            if not is_admin
+            else User.objects.filter(pk=commercial_id).first() if commercial_id else None
+        )
 
         paginator = Paginator(lignes, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
@@ -1281,8 +1291,12 @@ class ClientAdherenceVisitesListView(GroupRequiredMixin, View):
             'nb_manquees':       nb_manquees,
             'nb_ignorees':       nb_ignorees,
             'nb_absentes':       nb_absentes,
+            'nb_evaluees':       nb_evaluees,
+            'nb_clients_concernes': len({l['client'].pk for l in lignes}),
             'taux_adherence':    taux_adherence,
             'tolerance_jours':   TOLERANCE_JOURS,
+            'commercial_selectionne': commercial_selectionne,
+            'nb_jours':          (date_fin - date_debut).days + 1,
             'bl_agenda_date_debut': (today - timedelta(days=self.NB_BL_JOURS)).isoformat(),
             'bl_agenda_date_fin':   today.isoformat(),
         })
@@ -1355,6 +1369,11 @@ class ClientAdherenceGraphiqueView(GroupRequiredMixin, View):
         nb_absentes = sum(1 for l in toutes_lignes if l['statut'] == 'absent')
         nb_evaluees = nb_honorees + nb_manquees
         taux_adherence = round(100 * nb_honorees / nb_evaluees) if nb_evaluees else None
+        commercial_selectionne = (
+            request.user
+            if not is_admin
+            else User.objects.filter(pk=commercial_id).first() if commercial_id else None
+        )
 
         chart_b64 = generer_graphique_adherence(series)
 
@@ -1368,7 +1387,13 @@ class ClientAdherenceGraphiqueView(GroupRequiredMixin, View):
             'nb_manquees':              nb_manquees,
             'nb_ignorees':              nb_ignorees,
             'nb_absentes':              nb_absentes,
+            'nb_evaluees':              nb_evaluees,
+            'nb_attendues':              len(toutes_lignes),
+            'nb_commerciaux':            len(commerciaux),
             'taux_adherence':           taux_adherence,
+            'tolerance_jours':          TOLERANCE_JOURS,
+            'commercial_selectionne':   commercial_selectionne,
+            'nb_jours':                 (date_fin - date_debut).days + 1,
             'chart_b64':                chart_b64,
             'commerciaux_sans_donnees': commerciaux_sans_donnees,
         })
@@ -3276,7 +3301,23 @@ class BonSortieListView(GroupRequiredMixin, View):
         elif commercial_id:
             qs = qs.filter(user_id=commercial_id)
 
-        qs = qs.order_by('user__last_name', 'user__first_name', '-sortie_at')
+        stats = qs.aggregate(
+            total=Count('pk'),
+            soldes=Count('pk', filter=Q(historique_stock_initial__isnull=False)),
+        )
+        total_bons = stats['total'] or 0
+        total_soldes = stats['soldes'] or 0
+
+        qs = qs.annotate(
+            nb_lignes=Count('details', distinct=True),
+            quantite_totale=Sum('details__quantite'),
+        ).order_by('user__last_name', 'user__first_name', '-sortie_at')
+
+        commercial_selectionne = (
+            request.user
+            if is_commercial
+            else User.objects.filter(pk=commercial_id).first() if commercial_id else None
+        )
 
         commerciaux_list = (
             None if is_commercial
@@ -3298,7 +3339,12 @@ class BonSortieListView(GroupRequiredMixin, View):
             'date_debut':       date_debut_str,
             'date_fin':         date_fin_str,
             'commercial_id':    commercial_id,
+            'commercial_selectionne': commercial_selectionne,
             'commerciaux_list': commerciaux_list,
+            'total_bons':       total_bons,
+            'total_soldes':     total_soldes,
+            'total_non_soldes': total_bons - total_soldes,
+            'nb_jours':         (date_fin - date_debut).days + 1,
         })
 
 
@@ -3363,7 +3409,23 @@ class BonRestitutionListView(GroupRequiredMixin, View):
         elif commercial_id:
             qs = qs.filter(user_id=commercial_id)
 
-        qs = qs.order_by('user__last_name', 'user__first_name', '-restitution_at')
+        stats = qs.aggregate(
+            total=Count('pk'),
+            soldes=Count('pk', filter=Q(historique_stock_initial__isnull=False)),
+        )
+        total_bons = stats['total'] or 0
+        total_soldes = stats['soldes'] or 0
+
+        qs = qs.annotate(
+            nb_lignes=Count('details', distinct=True),
+            quantite_totale=Sum('details__quantite'),
+        ).order_by('user__last_name', 'user__first_name', '-restitution_at')
+
+        commercial_selectionne = (
+            request.user
+            if is_commercial
+            else User.objects.filter(pk=commercial_id).first() if commercial_id else None
+        )
 
         commerciaux_list = (
             None if is_commercial
@@ -3385,7 +3447,12 @@ class BonRestitutionListView(GroupRequiredMixin, View):
             'date_debut':           date_debut_str,
             'date_fin':             date_fin_str,
             'commercial_id':        commercial_id,
+            'commercial_selectionne': commercial_selectionne,
             'commerciaux_list':     commerciaux_list,
+            'total_bons':           total_bons,
+            'total_soldes':         total_soldes,
+            'total_non_soldes':     total_bons - total_soldes,
+            'nb_jours':             (date_fin - date_debut).days + 1,
         })
 
 
@@ -3780,11 +3847,13 @@ class BonRestitutionUpdateView(GroupRequiredMixin, View):
         if commercial_id is None:
             commercial_id = str(request.user.pk) if is_commercial else str(bon_restitution.user_id)
 
-        if existing_rows_json is None and not detail_rows_json:
+        if existing_rows_json is None:
             existing_rows_json = json.dumps([
                 {'produit_id': d.produit_id, 'quantite': str(d.quantite)}
                 for d in bon_restitution.details.all().order_by('pk')
             ])
+        if detail_rows_json is None:
+            detail_rows_json = existing_rows_json
 
         produits_list = Produit.objects.filter(is_produit_semi_fini=False).order_by('nom')
 
@@ -4334,6 +4403,37 @@ class HistoriqueStockInitialListView(GroupRequiredMixin, View):
         elif commercial_id:
             qs = qs.filter(user_id=commercial_id)
 
+        detail_stats = HistoriqueStockInitialDetaille.objects.filter(
+            historique_stock_initial__in=qs,
+        ).aggregate(
+            total_produits=Count('pk'),
+            total_ecarts=Count(
+                'pk',
+                filter=(
+                    Q(calcul_stock__isnull=False, reel_stock__isnull=False)
+                    & ~Q(calcul_stock=F('reel_stock'))
+                ),
+            ),
+        )
+        total_mises_a_jour = qs.count()
+        qs = qs.annotate(
+            nb_produits=Count('details', distinct=True),
+            nb_ecarts=Count(
+                'details',
+                filter=(
+                    Q(details__calcul_stock__isnull=False, details__reel_stock__isnull=False)
+                    & ~Q(details__calcul_stock=F('details__reel_stock'))
+                ),
+                distinct=True,
+            ),
+            stock_reel_total=Sum('details__reel_stock'),
+        ).order_by('-stock_initial_at', '-pk')
+        commercial_selectionne = (
+            request.user
+            if is_commercial
+            else User.objects.filter(pk=commercial_id).first() if commercial_id else None
+        )
+
         commerciaux_list = (
             None if is_commercial
             else User.objects.filter(
@@ -4353,6 +4453,11 @@ class HistoriqueStockInitialListView(GroupRequiredMixin, View):
             'date_fin':         date_fin_str,
             'commercial_id':    commercial_id,
             'commerciaux_list': commerciaux_list,
+            'commercial_selectionne': commercial_selectionne,
+            'total_mises_a_jour': total_mises_a_jour,
+            'total_produits': detail_stats['total_produits'] or 0,
+            'total_ecarts': detail_stats['total_ecarts'] or 0,
+            'nb_jours': (date_fin - date_debut).days + 1,
         })
 
 
@@ -6012,6 +6117,20 @@ class DepenseListView(GroupRequiredMixin, View):
 
         qs = qs.order_by('depense_code__depense_at', 'pk')
 
+        stats = qs.aggregate(
+            total_montant=Sum('total_montant'),
+            total_paye=Sum('total_acompte'),
+            total_reste=Sum('reste_a_payer'),
+            total_payees=Count('pk', filter=Q(statut='Payé')),
+            total_partielles=Count('pk', filter=Q(statut='Partiellement payé')),
+            total_non_payees=Count('pk', filter=Q(statut='Non payé')),
+        )
+        employe_selectionne = (
+            request.user
+            if not is_admin
+            else User.objects.filter(pk=employe_id).first() if employe_id else None
+        )
+
         # ── Données pour les listes déroulantes ───────────────────
         fournisseurs_list = (
             Fournisseur.objects
@@ -6036,6 +6155,14 @@ class DepenseListView(GroupRequiredMixin, View):
             'fournisseurs_list': fournisseurs_list,
             'statut_choices':    STATUT_PAIEMENT_CHOICES,
             'total_count':       paginator.count,
+            'total_montant':     stats['total_montant'] or Decimal('0'),
+            'total_paye':        stats['total_paye'] or Decimal('0'),
+            'total_reste':       stats['total_reste'] or Decimal('0'),
+            'total_payees':      stats['total_payees'] or 0,
+            'total_partielles':  stats['total_partielles'] or 0,
+            'total_non_payees':  stats['total_non_payees'] or 0,
+            'employe_selectionne': employe_selectionne,
+            'nb_jours':          (date_fin - date_debut).days + 1,
         })
 
 
@@ -6352,10 +6479,21 @@ class DepenseDetailView(GroupRequiredMixin, View):
             messages.error(request, "Vous n'êtes pas autorisé à visualiser cet enregistrement")
             return redirect('commercial:depense-list')
 
+        details = list(depense.details.order_by('pk'))
+        total_montant = depense.total_montant or Decimal('0')
+        pourcentage_paye = Decimal('0')
+        if total_montant > 0:
+            pourcentage_paye = min(
+                Decimal('100'),
+                max(Decimal('0'), (depense.total_acompte / total_montant) * Decimal('100')),
+            )
+
         return render(request, self.template_name, {
             'depense':      depense,
             'depense_code': depense.depense_code,
-            'details':      depense.details.order_by('pk'),
+            'details':      details,
+            'nb_details':   len(details),
+            'pourcentage_paye': pourcentage_paye,
         })
 
 
@@ -6405,7 +6543,7 @@ class DepenseUpdateView(GroupRequiredMixin, View):
             'ancien_total_acompte':  str(depense.total_acompte),
             'nouveau_acompte':       '0',
             'mode_paiement':         'Espèces',
-            'observation':           '',
+            'observation':           depense.observation or '',
             'fournisseurs_list': (
                 Fournisseur.objects
                 .exclude(type_fournisseur=FOURNISSEUR_TYPE_DEPENSE_EXCLU)

@@ -1,146 +1,102 @@
 {% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
-{% block title %}Visualiser {{ depense_code }} — Commercial{% endblock %}
+{% block title %}DEP-{{ depense_code.depense_numero }} — Dépenses{% endblock %}
 {% block page_title %}Détail de la dépense{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:depense-list' %}">Dépenses</a></li>
-    <li class="breadcrumb-item active">Visualiser {{ depense_code }}</li>
+    <li class="breadcrumb-item active" aria-current="page">DEP-{{ depense_code.depense_numero }}</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
+<div class="expense-detail">
 
-{# ══ Section 1 : informations de la dépense (lecture seule) ══════════════ #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-cash-stack me-2 text-primary"></i>Information de la dépense
-  </div>
-  <div class="card-body">
-
-    <div class="overflow-auto">
-    {# ── Ligne 1 ────────────────────────────────────────────────────── #}
-    <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
-      <div style="width:200px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Employé</label>
-        <input type="text" value="{{ depense.user.get_full_name|default:depense.user.username }}"
-               class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Date dépense</label>
-        <input type="date" value="{{ depense_code.depense_at|date:'Y-m-d' }}" class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="width:220px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Fournisseur</label>
-        <input type="text" value="{{ depense_code.fournisseur|default:'' }}" class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="width:140px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Montant payé</label>
-        <input type="number" step="0.001" value="{{ depense.nouveau_acompte|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Mode paiement</label>
-        <input type="text" value="{{ depense.mode_paiement }}" class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="flex:1 1 auto;min-width:200px;">
-        <label class="form-label small mb-1">Observation</label>
-        <input type="text" value="{{ depense.observation|default:'' }}" class="form-control form-control-sm" disabled>
+  <header class="dpd-hero" aria-labelledby="dpd-page-title">
+    <span class="dpd-hero-icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+    <div class="dpd-hero-copy">
+      <div class="dpd-eyebrow"><i class="bi bi-eye" aria-hidden="true"></i> Consultation de la dépense</div>
+      <h1 id="dpd-page-title">DEP-{{ depense_code.depense_numero }}</h1>
+      <p>{{ depense_code.fournisseur.raison_sociale }} · créée par {{ depense.user.get_full_name|default:depense.user.username }}</p>
+      <div class="dpd-hero-tags">
+        {% if depense.statut == 'Payé' %}<span class="dpd-tag dpd-tag-paid"><i class="bi bi-check-circle" aria-hidden="true"></i>Payé</span>
+        {% elif depense.statut == 'Partiellement payé' %}<span class="dpd-tag dpd-tag-partial"><i class="bi bi-pie-chart" aria-hidden="true"></i>Partiellement payé</span>
+        {% else %}<span class="dpd-tag dpd-tag-unpaid"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ depense.statut|default:"Non payé" }}</span>{% endif %}
+        <span class="dpd-tag"><i class="bi bi-credit-card" aria-hidden="true"></i>{{ depense.mode_paiement }}</span>
       </div>
     </div>
-
-    {# ── Ligne 2 ────────────────────────────────────────────────────── #}
-    <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Numéro dépense</label>
-        <input type="text" value="{{ depense_code.depense_numero }}" class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Montant total</label>
-        <input type="number" step="0.001" value="{{ depense.total_montant|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Total acompte</label>
-        <input type="number" step="0.001" value="{{ depense.total_acompte|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Reste à payer</label>
-        <input type="number" step="0.001" value="{{ depense.reste_a_payer|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner text-end font-monospace {% if depense.reste_a_payer < 0 %}text-danger{% endif %}"
-               disabled>
-      </div>
-
-      <div style="width:180px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Statut paiement</label>
-        <input type="text" value="{{ depense.statut }}" class="form-control form-control-sm" disabled>
-      </div>
+    <div class="dpd-hero-actions">
+      <div class="dpd-hero-date"><span>Date de la dépense</span><strong>{{ depense_code.depense_at|date:"d/m/Y" }}</strong></div>
+      <a href="{% url 'commercial:depense-list' %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Retour à la liste</a>
     </div>
-    </div>
+  </header>
 
+  <section class="dpd-kpi-grid" aria-label="Synthèse financière de la dépense">
+    <article class="dpd-kpi dpd-kpi-violet"><span class="dpd-kpi-icon"><i class="bi bi-calculator" aria-hidden="true"></i></span><span><small>Montant total</small><strong>{{ depense.total_montant|floatformat:3 }}</strong><em>TND</em></span></article>
+    <article class="dpd-kpi dpd-kpi-green"><span class="dpd-kpi-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span><span><small>Total payé</small><strong>{{ depense.total_acompte|floatformat:3 }}</strong><em>TND</em></span></article>
+    <article class="dpd-kpi dpd-kpi-blue"><span class="dpd-kpi-icon"><i class="bi bi-cash-coin" aria-hidden="true"></i></span><span><small>Paiement de cette version</small><strong>{{ depense.nouveau_acompte|floatformat:3 }}</strong><em>TND</em></span></article>
+    <article class="dpd-kpi {% if depense.reste_a_payer > 0 %}dpd-kpi-red{% else %}dpd-kpi-green{% endif %}"><span class="dpd-kpi-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><span><small>Reste à payer</small><strong>{{ depense.reste_a_payer|floatformat:3 }}</strong><em>TND</em></span></article>
+  </section>
+
+  <div class="dpd-layout">
+    <main class="dpd-main">
+      <section class="dpd-card" aria-labelledby="dpd-info-title">
+        <header class="dpd-card-head"><span class="dpd-card-icon"><i class="bi bi-info-circle" aria-hidden="true"></i></span><div><h2 id="dpd-info-title">Informations générales</h2><p>Identification, fournisseur et conditions de règlement.</p></div></header>
+        <dl class="dpd-info-grid">
+          <div><dt><i class="bi bi-person" aria-hidden="true"></i>Employé</dt><dd>{{ depense.user.get_full_name|default:depense.user.username }}<small>@{{ depense.user.username }}</small></dd></div>
+          <div><dt><i class="bi bi-building" aria-hidden="true"></i>Fournisseur</dt><dd>{{ depense_code.fournisseur.raison_sociale }}</dd></div>
+          <div><dt><i class="bi bi-calendar3" aria-hidden="true"></i>Date</dt><dd>{{ depense_code.depense_at|date:"d/m/Y" }}</dd></div>
+          <div><dt><i class="bi bi-credit-card" aria-hidden="true"></i>Mode de paiement</dt><dd>{{ depense.mode_paiement }}</dd></div>
+          <div><dt><i class="bi bi-hash" aria-hidden="true"></i>Numéro de dépense</dt><dd>DEP-{{ depense_code.depense_numero }}</dd></div>
+          <div><dt><i class="bi bi-flag" aria-hidden="true"></i>Statut</dt><dd>{{ depense.statut|default:"Non renseigné" }}</dd></div>
+          <div class="dpd-info-wide"><dt><i class="bi bi-chat-left-text" aria-hidden="true"></i>Observation</dt><dd>{% if depense.observation %}{{ depense.observation|linebreaksbr }}{% else %}<span class="dpd-empty-value">Aucune observation</span>{% endif %}</dd></div>
+        </dl>
+      </section>
+
+      <section class="dpd-card" aria-labelledby="dpd-lines-title">
+        <header class="dpd-card-head"><span class="dpd-card-icon"><i class="bi bi-list-ul" aria-hidden="true"></i></span><div><h2 id="dpd-lines-title">Détails de la dépense</h2><p>{{ nb_details }} ligne{{ nb_details|pluralize }} composent le montant total.</p></div>{% if details %}<span class="dpd-line-count">{{ nb_details }} ligne{{ nb_details|pluralize }}</span>{% endif %}</header>
+        {% if details %}
+        <div class="dpd-table-wrap">
+          <table class="dpd-table"><caption class="visually-hidden">Lignes de la dépense</caption><thead><tr><th scope="col">Libellé</th><th scope="col" class="dpd-number-col">Quantité</th><th scope="col" class="dpd-number-col">Valeur unitaire</th><th scope="col" class="dpd-number-col">Total ligne</th></tr></thead><tbody>
+            {% for d in details %}<tr><td><span class="dpd-line-label"><span><i class="bi bi-tag" aria-hidden="true"></i></span><strong>{{ d.libelle|default:"Sans libellé" }}</strong></span></td><td class="dpd-number-col">{{ d.quantite|floatformat:0 }}</td><td class="dpd-number-col">{{ d.valeur_unitaire|floatformat:3 }} TND</td><td class="dpd-number-col"><strong>{{ d.total_ligne|floatformat:3 }} TND</strong></td></tr>{% endfor %}
+          </tbody></table>
+        </div>
+        <div class="dpd-mobile-lines">
+          {% for d in details %}<article><header><span class="dpd-line-label"><span><i class="bi bi-tag" aria-hidden="true"></i></span><strong>{{ d.libelle|default:"Sans libellé" }}</strong></span><strong>{{ d.total_ligne|floatformat:3 }} TND</strong></header><dl><div><dt>Quantité</dt><dd>{{ d.quantite|floatformat:0 }}</dd></div><div><dt>Valeur unitaire</dt><dd>{{ d.valeur_unitaire|floatformat:3 }} TND</dd></div></dl></article>{% endfor %}
+        </div>
+        {% else %}<div class="dpd-empty"><span><i class="bi bi-list-ul" aria-hidden="true"></i></span><h3>Aucun détail</h3><p>Aucune ligne n’est associée à cette dépense.</p></div>{% endif %}
+      </section>
+    </main>
+
+    <aside class="dpd-aside" aria-label="Résumé du paiement">
+      <div class="dpd-side-stack">
+        <section class="dpd-payment-card" aria-labelledby="dpd-payment-title">
+          <div class="dpd-side-head"><span><i class="bi bi-pie-chart" aria-hidden="true"></i></span><div><h2 id="dpd-payment-title">Progression du paiement</h2><p>Part réglée sur le montant total.</p></div></div>
+          <div class="dpd-progress-value"><strong>{{ pourcentage_paye|floatformat:0 }}%</strong><span>du total payé</span></div>
+          <div class="progress dpd-progress" role="progressbar" aria-label="Pourcentage payé" aria-valuenow="{{ pourcentage_paye|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width:{{ pourcentage_paye|stringformat:'s' }}%"></div></div>
+          <dl class="dpd-payment-list"><div><dt>Montant total</dt><dd>{{ depense.total_montant|floatformat:3 }} TND</dd></div><div><dt>Déjà payé</dt><dd class="dpd-paid">{{ depense.total_acompte|floatformat:3 }} TND</dd></div><div><dt>Reste</dt><dd class="{% if depense.reste_a_payer > 0 %}dpd-due{% else %}dpd-paid{% endif %}">{{ depense.reste_a_payer|floatformat:3 }} TND</dd></div></dl>
+        </section>
+        <section class="dpd-navigation-card" aria-labelledby="dpd-navigation-title"><div class="dpd-side-head"><span class="dpd-navigation-icon"><i class="bi bi-arrow-left" aria-hidden="true"></i></span><div><h2 id="dpd-navigation-title">Navigation</h2><p>Revenez à l’historique financier.</p></div></div><a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary"><i class="bi bi-list-ul" aria-hidden="true"></i>Revenir aux dépenses</a></section>
+      </div>
+    </aside>
   </div>
 </div>
+{% endblock %}
 
-{# ══ Section 2 : détails de la dépense (lecture seule) ════════════════════ #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-list-ul me-2 text-primary"></i>Détails de la dépense
-  </div>
-  <div class="card-body p-0">
-    {% if details %}
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:220px;">Libellé</th>
-            <th style="min-width:110px;">Quantité</th>
-            <th style="min-width:140px;">Valeur unitaire</th>
-            <th class="pe-3" style="min-width:140px;">Total ligne</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in details %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" value="{{ d.libelle|default:'' }}" disabled>
-            </td>
-            <td style="width:110px;">
-              <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
-            </td>
-            <td style="width:140px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.valeur_unitaire|stringformat:'s' }}" disabled>
-            </td>
-            <td class="pe-3" style="width:140px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="text-center py-4 text-muted">Aucun détail pour cette dépense.</div>
-    {% endif %}
-  </div>
-</div>
-
-<div class="d-flex justify-content-end">
-  <a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-  </a>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+/* ── Détail dépense : consultation ordinateur d'abord ────────────────────── */
+.expense-detail{--dpd-primary:#2c7be5;--dpd-primary-dark:#1a4f9c;--dpd-ink:#172033;--dpd-muted:#667085;--dpd-border:#e2e8f0;--dpd-surface:#fff;--dpd-radius:1rem;max-width:1500px;margin:0 auto;color:var(--dpd-ink)}
+.dpd-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.dpd-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.dpd-hero-copy{min-width:0}.dpd-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.dpd-hero h1{margin:.2rem 0 .2rem;font-size:clamp(1.6rem,2.1vw,2.15rem);font-weight:750;letter-spacing:-.02em}.dpd-hero-copy>p{margin:0;color:rgba(255,255,255,.76);font-size:.84rem}.dpd-hero-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem}.dpd-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.26rem .55rem;border:1px solid rgba(255,255,255,.18);border-radius:2rem;background:rgba(8,31,61,.2);color:#fff;font-size:.66rem;font-weight:700}.dpd-tag-paid{background:rgba(19,104,69,.38)}.dpd-tag-partial{background:rgba(145,91,0,.38)}.dpd-tag-unpaid{background:rgba(150,30,46,.38)}.dpd-hero-actions{display:flex;align-items:stretch;gap:.55rem}.dpd-hero-date{display:flex;flex-direction:column;justify-content:center;min-width:130px;padding:.55rem .7rem;border:1px solid rgba(255,255,255,.18);border-radius:.72rem;background:rgba(8,31,61,.2)}.dpd-hero-date span{color:rgba(255,255,255,.64);font-size:.64rem}.dpd-hero-date strong{font-size:.78rem}.dpd-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:3rem;padding-inline:.9rem;border-radius:.72rem;color:#194f89;font-size:.76rem;font-weight:750}
+.dpd-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.dpd-kpi{--dpd-accent:#2c7be5;--dpd-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:100px;padding:.9rem;border:1px solid var(--dpd-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.dpd-kpi-violet{--dpd-accent:#6f42c1;--dpd-soft:#f1ebfb}.dpd-kpi-green{--dpd-accent:#198754;--dpd-soft:#e9f6ef}.dpd-kpi-blue{--dpd-accent:#2c7be5;--dpd-soft:#eaf2fd}.dpd-kpi-red{--dpd-accent:#dc3545;--dpd-soft:#fdecee}.dpd-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border-radius:.72rem;background:var(--dpd-soft);color:var(--dpd-accent);font-size:1.15rem}.dpd-kpi>span:last-child{min-width:0}.dpd-kpi small{display:block;color:var(--dpd-muted);font-size:.66rem;font-weight:650}.dpd-kpi strong{display:block;overflow:hidden;margin-top:.06rem;color:var(--dpd-ink);font-size:1.08rem;font-variant-numeric:tabular-nums;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}.dpd-kpi em{display:block;margin-top:.1rem;color:var(--dpd-muted);font-size:.62rem;font-style:normal}
+.dpd-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,.78fr);align-items:start;gap:1rem;margin-top:1rem}.dpd-main{display:grid;gap:1rem;min-width:0}.dpd-card,.dpd-payment-card,.dpd-navigation-card{overflow:hidden;border:1px solid var(--dpd-border);border-radius:var(--dpd-radius);background:var(--dpd-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.dpd-card-head{display:flex;align-items:center;gap:.7rem;min-height:76px;padding:.9rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dpd-card-icon,.dpd-side-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--dpd-primary);font-size:1.02rem}.dpd-card-head h2,.dpd-side-head h2{margin:0;color:var(--dpd-ink);font-size:.94rem;font-weight:750}.dpd-card-head p,.dpd-side-head p{margin:.12rem 0 0;color:var(--dpd-muted);font-size:.7rem}.dpd-line-count{margin-left:auto;padding:.3rem .55rem;border-radius:2rem;background:#eaf2fd;color:var(--dpd-primary-dark);font-size:.66rem;font-weight:750}.dpd-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0}.dpd-info-grid>div{min-width:0;min-height:100px;padding:1rem;border-right:1px solid #edf0f4;border-bottom:1px solid #edf0f4}.dpd-info-grid>div:nth-child(3n){border-right:0}.dpd-info-grid .dpd-info-wide{grid-column:1/-1;min-height:82px;border-right:0;border-bottom:0}.dpd-info-grid dt{display:flex;align-items:center;gap:.35rem;margin-bottom:.38rem;color:var(--dpd-muted);font-size:.66rem;font-weight:650}.dpd-info-grid dd{overflow-wrap:anywhere;margin:0;font-size:.8rem;font-weight:700;line-height:1.45}.dpd-info-grid dd small{display:block;margin-top:.15rem;color:var(--dpd-muted);font-size:.64rem;font-weight:500}.dpd-empty-value{color:#8b95a4;font-weight:500}
+.dpd-table-wrap{display:block}.dpd-table{width:100%;border-collapse:collapse;table-layout:fixed}.dpd-table thead{background:#f8fafc}.dpd-table th{padding:.7rem 1rem;border-bottom:1px solid var(--dpd-border);color:var(--dpd-muted);font-size:.65rem;font-weight:800;letter-spacing:.05em;text-align:left;text-transform:uppercase}.dpd-table td{padding:.8rem 1rem;border-bottom:1px solid #edf0f4;font-size:.75rem;vertical-align:middle}.dpd-table tbody tr:last-child td{border-bottom:0}.dpd-table th:first-child{width:46%}.dpd-table th:not(:first-child){width:18%}.dpd-number-col{text-align:right!important;font-variant-numeric:tabular-nums}.dpd-line-label{display:flex;align-items:center;gap:.6rem;min-width:0}.dpd-line-label>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:.6rem;background:#eaf2fd;color:var(--dpd-primary)}.dpd-line-label strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dpd-mobile-lines{display:none}.dpd-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:230px;padding:2rem;text-align:center}.dpd-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.7rem;height:3.7rem;margin-bottom:.8rem;border-radius:1rem;background:#edf4fd;color:var(--dpd-primary);font-size:1.4rem}.dpd-empty h3{margin:0;font-size:.95rem;font-weight:750}.dpd-empty p{margin:.3rem 0 0;color:var(--dpd-muted);font-size:.73rem}
+.dpd-side-stack{position:sticky;top:calc(var(--topbar-h) + 1rem);display:grid;gap:1rem}.dpd-payment-card,.dpd-navigation-card{padding:1rem}.dpd-side-head{display:flex;align-items:center;gap:.7rem}.dpd-progress-value{display:flex;align-items:baseline;justify-content:space-between;margin-top:1rem}.dpd-progress-value strong{font-size:1.35rem;color:var(--dpd-primary-dark)}.dpd-progress-value span{color:var(--dpd-muted);font-size:.68rem}.dpd-progress{height:.55rem;margin-top:.45rem;background:#edf1f6}.dpd-progress .progress-bar{background:linear-gradient(90deg,#2c7be5,#198754)}.dpd-payment-list{margin:.85rem 0 0}.dpd-payment-list div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;padding:.58rem 0;border-top:1px solid #edf0f4}.dpd-payment-list dt{color:var(--dpd-muted);font-size:.68rem}.dpd-payment-list dd{margin:0;font-size:.72rem;font-weight:750;font-variant-numeric:tabular-nums}.dpd-paid{color:#18794e}.dpd-due{color:#b42332}.dpd-navigation-card .dpd-navigation-icon{background:#fff4e0;color:#8a5300}.dpd-navigation-card .btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:2.8rem;margin-top:.85rem;border-radius:.68rem;font-size:.74rem;font-weight:700}.expense-detail a:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.dpd-hero{grid-template-columns:auto minmax(0,1fr)}.dpd-hero-actions{grid-column:1/-1}.dpd-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dpd-layout{grid-template-columns:1fr}.dpd-side-stack{position:static;grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.dpd-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dpd-info-grid>div,.dpd-info-grid>div:nth-child(3n){border-right:1px solid #edf0f4}.dpd-info-grid>div:nth-child(2n){border-right:0}.dpd-info-grid .dpd-info-wide{grid-column:1/-1;border-right:0}.dpd-table-wrap{display:none}.dpd-mobile-lines{display:grid;gap:.7rem;padding:.8rem}.dpd-mobile-lines article{overflow:hidden;border:1px solid var(--dpd-border);border-radius:.72rem}.dpd-mobile-lines article header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dpd-mobile-lines article header>strong{font-size:.72rem;white-space:nowrap}.dpd-mobile-lines article dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:0;padding:.75rem}.dpd-mobile-lines article dt{color:var(--dpd-muted);font-size:.62rem;text-transform:uppercase}.dpd-mobile-lines article dd{margin:.1rem 0 0;font-size:.72rem;font-weight:700}.dpd-side-stack{grid-template-columns:1fr}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.dpd-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.dpd-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.dpd-hero-copy>p{font-size:.8rem}.dpd-hero-actions{align-items:stretch;flex-direction:column}.dpd-kpi-grid{grid-template-columns:1fr}.dpd-info-grid{grid-template-columns:1fr}.dpd-info-grid>div,.dpd-info-grid>div:nth-child(2n),.dpd-info-grid>div:nth-child(3n){min-height:auto;border-right:0}.dpd-info-grid .dpd-info-wide{grid-column:auto}.dpd-card-head{align-items:flex-start;flex-wrap:wrap}.dpd-line-count{margin-left:3.15rem}.dpd-mobile-lines article dl{grid-template-columns:1fr}}
 {% endblock %}

@@ -1,388 +1,81 @@
-{% extends "administration/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
-{% block title %}Mise à jour des stocks — Commercial{% endblock %}
+{% block title %}Nouvelle mise à jour de stock — Commercial{% endblock %}
 {% block page_title %}Mise à jour des stocks{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:historique-stock-initial-list' %}">Mises à jour des stocks commerciaux</a></li>
-    <li class="breadcrumb-item active">Mise à jour des stocks</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:historique-stock-initial-list' %}">Mises à jour des stocks</a></li><li class="breadcrumb-item active" aria-current="page">Nouvelle mise à jour</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="stock-update-editor">
+  <header class="hsf-hero" aria-labelledby="hsf-page-title"><span class="hsf-hero-icon" aria-hidden="true"><i class="bi bi-boxes"></i></span><div class="hsf-hero-copy"><div class="hsf-eyebrow"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Inventaire commercial</div><h1 id="hsf-page-title">Nouvelle mise à jour de stock</h1><p>Comparez le stock théorique au stock réellement constaté avant de solder les mouvements du commercial.</p></div><a href="{% url 'commercial:historique-stock-initial-list' %}" class="btn btn-outline-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Retour à l’historique</a></header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Mise à jour des stocks de produits chez le commercial</h4>
+  <form id="hsi-create-form" method="post" novalidate autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    {% csrf_token %}
+    <div class="hsf-form-error d-none" id="hsf-form-error" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span></span></div>
+
+    <section class="hsf-config-card" aria-labelledby="hsf-config-title"><header><span><i class="bi bi-person-check" aria-hidden="true"></i></span><div><h2 id="hsf-config-title">Périmètre de l’inventaire</h2><p>Sélectionnez le commercial et la date de référence.</p></div></header><div class="hsf-config-grid">
+      {% if not is_commercial %}<div class="hsf-field"><label for="hsi-commercial-select">Commercial <span>*</span></label><select id="hsi-commercial-select" name="commercial_id" class="form-select" required><option value="">— Choisir un commercial —</option>{% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>{% else %}<div class="hsf-locked-value"><span>Commercial connecté</span><strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong><input type="hidden" id="hsi-commercial-select" name="commercial_id" value="{{ commercial_id }}"></div>{% endif %}
+      <div class="hsf-field"><label for="hsi-date-input">Date de mise à jour <span>*</span></label><input type="date" id="hsi-date-input" name="stock_initial_at" value="{{ stock_initial_at }}" max="{{ today }}" {% if derniere_date_maj %}min="{{ derniere_date_maj }}"{% endif %} class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <div class="hsf-last-update {% if not derniere_date_maj %}d-none{% endif %}" id="hsi-derniere-date-wrapper"><span>Dernière mise à jour</span><strong id="hsi-derniere-date-display">{% if derniere_date_maj %}{{ derniere_date_maj|slice:"8:10" }}/{{ derniere_date_maj|slice:"5:7" }}/{{ derniere_date_maj|slice:":4" }}{% else %}—{% endif %}</strong><input type="hidden" id="hsi-derniere-date-input" value="{{ derniere_date_maj }}"></div>
+    </div></section>
+
+    <section class="hsf-summary-grid" aria-label="Synthèse de la saisie"><article class="hsf-summary hsf-summary-blue"><span><i class="bi bi-box-seam" aria-hidden="true"></i></span><div><small>Produits saisis</small><strong id="hsf-summary-products">0</strong></div></article><article class="hsf-summary hsf-summary-violet"><span><i class="bi bi-calculator" aria-hidden="true"></i></span><div><small>Stock calculé total</small><strong id="hsf-summary-calculated">0</strong></div></article><article class="hsf-summary hsf-summary-green"><span><i class="bi bi-clipboard-data" aria-hidden="true"></i></span><div><small>Stock réel total</small><strong id="hsf-summary-real">0</strong></div></article><article class="hsf-summary hsf-summary-red"><span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span><div><small>Écarts constatés</small><strong id="hsf-summary-differences">0</strong></div></article></section>
+
+    <div class="hsf-formula" role="note"><i class="bi bi-calculator" aria-hidden="true"></i><span><strong>Stock calculé</strong> = dernier stock réel + sorties non soldées − livraisons non soldées − restitutions non soldées.</span></div>
+
+    <section class="hsf-card" aria-labelledby="hsf-calculated-title"><header class="hsf-card-head"><span><i class="bi bi-cpu" aria-hidden="true"></i></span><div><h2 id="hsf-calculated-title">Stocks calculés à contrôler</h2><p>Renseignez uniquement le stock réellement constaté et, si nécessaire, une observation.</p></div><span class="hsf-card-count" id="hsf-calculated-count">0 produit</span></header>
+      <div class="hsf-stock-header" aria-hidden="true"><span>Produit</span><span>Stock initial</span><span>Sorties</span><span>Livré</span><span>Restitué</span><span>Calculé</span><span>Réel</span><span>Observation</span><span></span></div>
+      <div id="hsi-section2-rows" class="hsf-stock-rows"><div class="hsf-loading-empty">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div></div>
+      <nav class="hsf-internal-pager d-none" id="hsi-section2-pagination" aria-label="Pagination des produits calculés"><ul></ul></nav>
+    </section>
+
+    <section class="hsf-card" aria-labelledby="hsf-manual-title"><header class="hsf-card-head"><span><i class="bi bi-plus-square" aria-hidden="true"></i></span><div><h2 id="hsf-manual-title">Ajouter d’autres produits</h2><p>Ajoutez un produit absent du calcul, avec un stock calculé égal à zéro.</p></div><button type="button" id="hsi-add-row-btn" class="btn btn-outline-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter un produit</button></header>
+      <div class="hsf-manual-header" aria-hidden="true"><span>Produit</span><span>Calculé</span><span>Stock réel</span><span>Observation</span><span></span></div><div id="hsi-section3-rows" class="hsf-manual-rows"></div>
+    </section>
+
+    <div class="hsf-action-bar"><div><strong>Prêt à enregistrer l’inventaire ?</strong><span>Vérifiez les écarts avant de continuer.</span></div><a href="{% url 'commercial:historique-stock-initial-list' %}" class="btn btn-link text-secondary">Annuler</a><button type="submit" id="hsi-save-btn" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i>Vérifier et enregistrer</button></div>
+  </form>
 </div>
-<p class="text-muted mb-4">
-  Cette page calcule les quantités des produits en stock chez le commercial, sur la base de l'ancien stock corrigé
-  s'il existe, des bons de sortie non soldés, des bons de livraison non soldés et des bons de restitution non
-  soldés dont la date est antérieure ou égale à la date de mise à jour choisie. Le stock réel peut ensuite être
-  librement corrigé, avec une observation éventuelle.
-</p>
 
-<form id="hsi-create-form" method="post" novalidate>
-  {% csrf_token %}
+<div class="modal fade" id="hsi-recap-modal" tabindex="-1" aria-hidden="true" aria-labelledby="hsi-recap-title"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="hsi-recap-title"><i class="bi bi-clipboard-check me-2" aria-hidden="true"></i>Vérifiez la mise à jour</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><dl class="hsf-recap"><div><dt>Commercial</dt><dd id="hsf-recap-commercial"></dd></div><div><dt>Date</dt><dd id="hsf-recap-date"></dd></div><div><dt>Produits enregistrés</dt><dd id="hsf-recap-products"></dd></div><div><dt>Stock calculé total</dt><dd id="hsf-recap-calculated"></dd></div><div><dt>Stock réel total</dt><dd id="hsf-recap-real"></dd></div><div><dt>Écarts constatés</dt><dd id="hsf-recap-differences"></dd></div></dl><div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>L’enregistrement soldera les bons de sortie, livraison et restitution non soldés jusqu’à cette date.</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Corriger</button><button type="button" class="btn btn-success" id="hsi-recap-confirm"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Confirmer l’inventaire</button></div></div></div></div>
+{% endblock %}
 
-  {# ── Section 1 : Commercial + Date de mise à jour ──────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-
-        {% if not is_commercial %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select id="hsi-commercial-select" name="commercial_id" class="form-select form-select-sm">
-            <option value="">-Choisir-</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" id="hsi-commercial-select" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date de mise à jour</label>
-          <input type="date" id="hsi-date-input" name="stock_initial_at" value="{{ stock_initial_at }}" max="{{ today }}"
-                 {% if derniere_date_maj %}min="{{ derniere_date_maj }}"{% endif %}
-                 class="form-control form-control-sm">
-        </div>
-
-        <div id="hsi-derniere-date-wrapper" style="width:180px;flex:0 0 auto;{% if not derniere_date_maj %}display:none;{% endif %}">
-          <label class="form-label small mb-1">Dernière date de mise à jour</label>
-          <input type="date" id="hsi-derniere-date-input" value="{{ derniere_date_maj }}"
-                 class="form-control form-control-sm" disabled>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  {# ── Section 2 : produits calculés ─────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-boxes me-2 text-primary"></i>Stocks à mettre à jour
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 180px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Dernière MAJ Stock</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté bons de sortie</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté livrée</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Qté déjà restituée</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock calculé</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock réel</span></div>
-          <div style="flex:1 1 160px;min-width:140px;"><span class="form-label small text-muted mb-0">Observation</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="hsi-section2-rows">
-          <div class="text-muted small py-2">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div>
-        </div>
-      </div>
-
-      <nav class="d-flex justify-content-end mt-2" id="hsi-section2-pagination" style="display:none;">
-        <ul class="pagination pagination-sm mb-0"></ul>
-      </nav>
-    </div>
-  </div>
-
-  {# ── Section 3 : ajouter d'autres produits ─────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-plus-square me-2 text-primary"></i>Ajouter d'autres produits
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 180px;min-width:160px;"><span class="form-label small text-muted mb-0">Produit</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock calculé</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Stock réel</span></div>
-          <div style="flex:1 1 160px;min-width:140px;"><span class="form-label small text-muted mb-0">Observation</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="hsi-section3-rows"></div>
-      </div>
-
-      <div class="d-flex justify-content-end gap-2 mt-2">
-        <button type="button" id="hsi-add-row-btn" class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
-        </button>
-        <button type="submit" class="btn btn-primary btn-sm">
-          <i class="bi bi-check-lg me-1"></i>Enregistrer
-        </button>
-      </div>
-    </div>
-  </div>
-
-</form>
-
+{% block extra_css %}
+{{ block.super }}
+/* ── Mise à jour stock : éditeur ordinateur d'abord ───────────────────────── */
+.stock-update-editor{--hsf-primary:#2c7be5;--hsf-primary-dark:#1a4f9c;--hsf-ink:#172033;--hsf-muted:#667085;--hsf-border:#e2e8f0;--hsf-surface:#fff;--hsf-radius:1rem;max-width:1650px;margin:0 auto;color:var(--hsf-ink)}.hsf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.hsf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.4rem;height:4.4rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.hsf-hero-copy{min-width:0}.hsf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.hsf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.hsf-hero-copy>p{margin:0;max-width:760px;color:rgba(255,255,255,.78);font-size:.86rem}.hsf-hero .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.8rem;border-radius:.68rem;font-size:.72rem;font-weight:700}
+.hsf-form-error{display:flex;align-items:flex-start;gap:.5rem;margin-top:1rem;padding:.7rem .85rem;border:1px solid #efb8be;border-left:4px solid #c92a3b;border-radius:.7rem;background:#fff5f6;color:#8f1f2c;font-size:.73rem}.hsf-config-card,.hsf-card{margin-top:1rem;overflow:hidden;border:1px solid var(--hsf-border);border-radius:var(--hsf-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.hsf-config-card>header,.hsf-card-head{display:flex;align-items:center;gap:.7rem;min-height:74px;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.hsf-config-card>header>span,.hsf-card-head>span:first-child{display:inline-flex;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--hsf-primary);font-size:1.02rem}.hsf-config-card h2,.hsf-card-head h2{margin:0;font-size:.94rem;font-weight:750}.hsf-config-card p,.hsf-card-head p{margin:.12rem 0 0;color:var(--hsf-muted);font-size:.68rem}.hsf-config-grid{display:grid;grid-template-columns:minmax(280px,1.1fr) minmax(190px,.7fr) minmax(190px,.7fr);align-items:end;gap:.8rem;padding:1rem}.hsf-field label,.hsf-locked-value>span,.hsf-last-update>span{display:block;margin-bottom:.32rem;color:#344054;font-size:.7rem;font-weight:700}.hsf-field label span{color:#c62838}.hsf-field .form-control,.hsf-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.65rem;font-size:.8rem}.hsf-locked-value strong,.hsf-last-update strong{display:flex;align-items:center;gap:.35rem;min-height:2.85rem;padding:.6rem .75rem;border:1px solid #e0e6ee;border-radius:.65rem;background:#f7f9fc;font-size:.76rem}
+.hsf-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.hsf-summary{--hsf-accent:#2c7be5;--hsf-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.65rem;min-height:88px;padding:.8rem;border:1px solid var(--hsf-border);border-radius:.82rem;background:#fff}.hsf-summary-blue{--hsf-accent:#2c7be5;--hsf-soft:#eaf2fd}.hsf-summary-violet{--hsf-accent:#6f42c1;--hsf-soft:#f1ebfb}.hsf-summary-green{--hsf-accent:#198754;--hsf-soft:#e9f6ef}.hsf-summary-red{--hsf-accent:#dc3545;--hsf-soft:#fdecee}.hsf-summary>span{display:inline-flex;align-items:center;justify-content:center;width:2.55rem;height:2.55rem;border-radius:.68rem;background:var(--hsf-soft);color:var(--hsf-accent)}.hsf-summary small{display:block;color:var(--hsf-muted);font-size:.63rem;font-weight:650}.hsf-summary strong{display:block;margin-top:.04rem;font-size:1.1rem;font-variant-numeric:tabular-nums}.hsf-formula{display:flex;align-items:center;gap:.55rem;margin-top:1rem;padding:.65rem .8rem;border:1px solid #d9e6f6;border-radius:.7rem;background:#f4f8fd;color:#45576d;font-size:.69rem}.hsf-formula>i{color:var(--hsf-primary)}
+.hsf-card-head>div{flex:1 1 auto;min-width:0}.hsf-card-head .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.55rem;border-radius:.62rem;font-size:.68rem;font-weight:700}.hsf-card-count{flex:0 0 auto!important;width:auto!important;height:auto!important;padding:.28rem .52rem;border-radius:2rem!important;background:#eaf2fd!important;color:var(--hsf-primary-dark)!important;font-size:.65rem;font-weight:750}.hsf-stock-header,.hsi-stock-row{display:grid;grid-template-columns:minmax(160px,1.35fr) 82px 82px 82px 82px 82px 96px minmax(140px,1fr) 38px;align-items:center;gap:.55rem}.hsf-stock-header{padding:.6rem .8rem;border-bottom:1px solid var(--hsf-border);background:#f8fafc;color:var(--hsf-muted);font-size:.58rem;font-weight:800;text-transform:uppercase}.hsi-stock-row{padding:.62rem .8rem;border-bottom:1px solid #edf0f4}.hsi-stock-row:last-child{border-bottom:0}.hsi-stock-row.is-different{background:#fffafb}.hsf-cell{min-width:0}.hsf-cell>label{display:none}.hsf-product-name{display:block;overflow:hidden;font-size:.72rem;font-weight:750;text-overflow:ellipsis;white-space:nowrap}.hsf-static-number{display:block;text-align:right;color:#526071;font-size:.7rem;font-variant-numeric:tabular-nums}.hsf-calculated-number{font-weight:800;color:var(--hsf-primary-dark)}.hsf-negative{color:#b42332}.hsf-row-input{min-height:2.45rem;border-color:#d3dae4;border-radius:.55rem;font-size:.72rem}.hsf-row-input:focus{border-color:#77a9e9;box-shadow:0 0 0 .16rem rgba(44,123,229,.12)}.hsf-row-input[data-autofill-lock][readonly]{background:#fff;cursor:text}.hsf-remove{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;border:1px solid #efc6cb;border-radius:.55rem;background:#fff;color:#b42332}.hsf-loading-empty{padding:1.5rem;text-align:center;color:var(--hsf-muted);font-size:.72rem}.hsf-internal-pager{display:flex;justify-content:flex-end;padding:.6rem .8rem;border-top:1px solid var(--hsf-border);background:#fbfcfe}.hsf-internal-pager ul{display:flex;gap:.22rem;margin:0;padding:0;list-style:none}.hsf-internal-pager a{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;border:1px solid #d8e0ea;border-radius:.48rem;color:#526071;font-size:.66rem;text-decoration:none}.hsf-internal-pager .active a{border-color:var(--hsf-primary);background:var(--hsf-primary);color:#fff}.hsf-internal-pager .disabled a{opacity:.4}
+.hsf-manual-header,.hsi-manual-row{display:grid;grid-template-columns:minmax(220px,1.4fr) 100px 110px minmax(180px,1fr) 38px;align-items:center;gap:.65rem}.hsf-manual-header{padding:.6rem .8rem;border-bottom:1px solid var(--hsf-border);background:#f8fafc;color:var(--hsf-muted);font-size:.58rem;font-weight:800;text-transform:uppercase}.hsi-manual-row{padding:.65rem .8rem;border-bottom:1px solid #edf0f4}.hsi-manual-row:last-child{border-bottom:0}.hsf-action-bar{position:sticky;bottom:.5rem;z-index:20;display:flex;align-items:center;justify-content:flex-end;gap:.65rem;margin-top:1rem;padding:.75rem 1rem;border:1px solid #cbdced;border-radius:.85rem;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(16,24,40,.14);backdrop-filter:blur(8px)}.hsf-action-bar>div{margin-right:auto}.hsf-action-bar strong,.hsf-action-bar span{display:block}.hsf-action-bar strong{font-size:.75rem}.hsf-action-bar span{color:var(--hsf-muted);font-size:.63rem}.hsf-action-bar .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.75rem;border-radius:.65rem;font-size:.72rem;font-weight:700}.hsf-recap{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin:0 0 1rem}.hsf-recap div{padding:.65rem;border:1px solid #e4e9ef;border-radius:.65rem;background:#fafbfd}.hsf-recap dt{color:var(--hsf-muted);font-size:.62rem}.hsf-recap dd{margin:.15rem 0 0;font-size:.76rem;font-weight:750}
+@media(max-width:1199.98px){.hsf-hero{grid-template-columns:auto minmax(0,1fr)}.hsf-hero>.btn{grid-column:1/-1;justify-self:start}.hsf-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hsf-stock-header,.hsf-manual-header{display:none}.hsi-stock-row{grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem}.hsi-stock-row .hsf-product-cell{grid-column:1/3}.hsi-stock-row .hsf-observation-cell{grid-column:1/4}.hsi-manual-row{grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem}.hsi-manual-row .hsf-product-cell{grid-column:1/3}.hsi-manual-row .hsf-observation-cell{grid-column:1/4}.hsf-cell>label{display:block;margin-bottom:.2rem;color:var(--hsf-muted);font-size:.58rem;font-weight:700;text-transform:uppercase}.hsf-static-number{text-align:left}}
+@media(max-width:767.98px){.hsf-config-grid{grid-template-columns:1fr}.hsf-summary-grid{grid-template-columns:1fr 1fr}.hsi-stock-row,.hsi-manual-row{grid-template-columns:repeat(2,minmax(0,1fr))}.hsi-stock-row .hsf-product-cell,.hsi-manual-row .hsf-product-cell,.hsi-stock-row .hsf-observation-cell,.hsi-manual-row .hsf-observation-cell{grid-column:1/-1}.hsf-remove{justify-self:end}.hsf-card-head{align-items:flex-start;flex-wrap:wrap}.hsf-card-head .btn{margin-left:3.15rem}.hsf-card-count{margin-left:3.15rem}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.hsf-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.hsf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.hsf-hero-copy>p{font-size:.8rem}.hsf-summary-grid{grid-template-columns:1fr}.hsi-stock-row,.hsi-manual-row{grid-template-columns:1fr}.hsi-stock-row .hsf-product-cell,.hsi-manual-row .hsf-product-cell,.hsi-stock-row .hsf-observation-cell,.hsi-manual-row .hsf-observation-cell{grid-column:auto}.hsf-remove{justify-self:stretch;width:100%}.hsf-action-bar{align-items:stretch;flex-direction:column}.hsf-action-bar>div{margin-right:0}.hsf-action-bar .btn{justify-content:center;width:100%}.hsf-recap{grid-template-columns:1fr}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-(function () {
-  var PRODUITS = {{ produits_json|safe }};
-  var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
-  var DEFAULTS_URL = "{% url 'commercial:historique-stock-initial-defaults' %}";
-  var PAGE_SIZE = 8;
-
-  var commercialEl        = document.getElementById('hsi-commercial-select');
-  var dateInput            = document.getElementById('hsi-date-input');
-  var derniereDateWrapper = document.getElementById('hsi-derniere-date-wrapper');
-  var derniereDateInput   = document.getElementById('hsi-derniere-date-input');
-  var section2Rows       = document.getElementById('hsi-section2-rows');
-  var section2Pager      = document.getElementById('hsi-section2-pagination');
-  var section3Rows       = document.getElementById('hsi-section3-rows');
-  var section2Page       = 1;
-
-  // ── Champ « Dernière date de mise à jour » : visible uniquement si le
-  // commercial sélectionné a un enregistrement HistoriqueStockInitial ; sert
-  // aussi de borne min (HTML5) pour « Date de mise à jour » dans ce cas —
-  // sinon aucune contrainte de date minimale.
-  function updateDerniereDateMaj(derniereDate) {
-    if (derniereDate) {
-      derniereDateInput.value = derniereDate;
-      derniereDateWrapper.style.display = '';
-      dateInput.min = derniereDate;
-    } else {
-      derniereDateInput.value = '';
-      derniereDateWrapper.style.display = 'none';
-      dateInput.removeAttribute('min');
-    }
-  }
-
-  function num(el) {
-    var v = parseFloat(el.value);
-    return isNaN(v) ? 0 : v;
-  }
-
-  function buildProduitOptions() {
-    var html = '<option value="">- choisir</option>';
-    PRODUITS.forEach(function (p) {
-      html += '<option value="' + p.id + '">' + p.nom + '</option>';
-    });
-    return html;
-  }
-
-  // ── Section 2 : lignes calculées, verrouillées sauf Stock réel / Observation ──
-  function addSection2Row(l) {
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 hsi-section2-row';
-    var calculStock = parseFloat(l.calcul_stock) || 0;
-    var valeurParDefaut = calculStock >= 0 ? calculStock : '';
-
-    row.innerHTML =
-      '<div style="flex:1 1 180px;min-width:160px;">' +
-        '<input type="hidden" name="detail_produit_id" value="' + l.produit_id + '">' +
-        '<input type="text" class="form-control form-control-sm" value="" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_initiale) || 0) + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_sortie) || 0) + '" disabled>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_livree) || 0) + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + (parseFloat(l.quantite_deja_restituee) || 0) + '" disabled>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="hidden" name="detail_calcul_stock" value="' + calculStock + '">' +
-        '<input type="number" class="form-control form-control-sm no-spinner calcul-stock-input' + (calculStock < 0 ? ' text-danger' : '') + '" value="' + calculStock + '" disabled>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_reel_stock" ' +
-          'class="form-control form-control-sm no-spinner reel-stock-input" value="' + valeurParDefaut + '">' +
-        '<div class="invalid-feedback">Le stock réel ne doit pas être négatif.</div>' +
-      '</div>' +
-      '<div style="flex:1 1 160px;min-width:140px;">' +
-        '<input type="text" name="detail_observation" class="form-control form-control-sm">' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
-
-    var nomInput = row.children[0].querySelector('input[type="text"]');
-    nomInput.value = l.produit_nom;
-
-    var reelInput = row.querySelector('.reel-stock-input');
-
-    function syncReel() {
-      var valeur = reelInput.value;
-      var estNegatif = valeur !== '' && num(reelInput) < 0;
-      var estDifferent = valeur !== '' && num(reelInput) !== calculStock;
-      reelInput.classList.toggle('is-invalid', estNegatif);
-      reelInput.classList.toggle('text-danger', !estNegatif && estDifferent);
-    }
-    reelInput.addEventListener('input', syncReel);
-    syncReel();
-
-    row.querySelector('.remove-row').addEventListener('click', function () {
-      row.remove();
-      renderSection2Pagination();
-    });
-
-    section2Rows.appendChild(row);
-  }
-
-  function renderSection2Pagination() {
-    var rows = Array.prototype.slice.call(section2Rows.querySelectorAll('.hsi-section2-row'));
-    var totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-    if (section2Page > totalPages) { section2Page = totalPages; }
-
-    rows.forEach(function (row, idx) {
-      var page = Math.floor(idx / PAGE_SIZE) + 1;
-      var visible = page === section2Page;
-      // Bootstrap's .d-flex est marquée !important : une simple bascule de
-      // style.display='none' ne peut pas la surclasser (la ligne resterait
-      // visible sur toutes les pages). On retire donc la classe .d-flex à la
-      // place, pour que .d-none (également !important) fasse foi seule.
-      row.classList.toggle('d-flex', visible);
-      row.classList.toggle('d-none', !visible);
-    });
-
-    var ul = section2Pager.querySelector('ul');
-    ul.innerHTML = '';
-    if (!rows.length || totalPages <= 1) {
-      section2Pager.style.display = 'none';
-      return;
-    }
-    section2Pager.style.display = '';
-
-    function addPageItem(label, page, disabled, active) {
-      var li = document.createElement('li');
-      li.className = 'page-item' + (disabled ? ' disabled' : '') + (active ? ' active' : '');
-      var a = document.createElement('a');
-      a.className = 'page-link';
-      a.href = '#';
-      a.innerHTML = label;
-      if (!disabled && !active) {
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          section2Page = page;
-          renderSection2Pagination();
-        });
-      }
-      li.appendChild(a);
-      ul.appendChild(li);
-    }
-
-    addPageItem('<i class="bi bi-chevron-left"></i>', section2Page - 1, section2Page <= 1, false);
-    for (var p = 1; p <= totalPages; p++) {
-      if (p === section2Page || (p > section2Page - 3 && p < section2Page + 3)) {
-        addPageItem(String(p), p, false, p === section2Page);
-      }
-    }
-    addPageItem('<i class="bi bi-chevron-right"></i>', section2Page + 1, section2Page >= totalPages, false);
-  }
-
-  function refreshSection2() {
-    section2Rows.innerHTML = '';
-    section2Page = 1;
-    var commercialId = commercialEl.value;
-
-    if (!commercialId) {
-      section2Rows.innerHTML =
-        '<div class="text-muted small py-2">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div>';
-      updateDerniereDateMaj(null);
-      renderSection2Pagination();
-      return;
-    }
-
-    var url = DEFAULTS_URL + '?commercial_id=' + encodeURIComponent(commercialId) +
-      '&stock_initial_at=' + encodeURIComponent(dateInput.value);
-    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-      updateDerniereDateMaj(data.derniere_date_maj);
-      var lignes = data.lignes || [];
-      if (!lignes.length) {
-        section2Rows.innerHTML =
-          '<div class="text-muted small py-2">Aucun produit à mettre à jour pour ce commercial.</div>';
-      } else {
-        lignes.forEach(function (l) { addSection2Row(l); });
-      }
-      renderSection2Pagination();
-    });
-  }
-
-  if (commercialEl.tagName === 'SELECT') {
-    commercialEl.addEventListener('change', refreshSection2);
-  }
-  dateInput.addEventListener('change', refreshSection2);
-
-  // ── Section 3 : ajout libre de produits ─────────────────────────────────
-  function addSection3Row(prefill) {
-    prefill = prefill || {};
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
-    var calculStock = prefill.calcul_stock !== undefined ? prefill.calcul_stock : '0';
-    row.innerHTML =
-      '<div style="flex:1 1 180px;min-width:160px;">' +
-        '<select name="detail_produit_id" class="form-select form-select-sm produit-select">' + buildProduitOptions() + '</select>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="hidden" name="detail_calcul_stock" value="' + calculStock + '">' +
-        '<input type="number" class="form-control form-control-sm no-spinner" value="' + calculStock + '" disabled>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_reel_stock" ' +
-          'class="form-control form-control-sm no-spinner qte-input" value="">' +
-        '<div class="invalid-feedback">Le stock réel ne doit pas être négatif.</div>' +
-      '</div>' +
-      '<div style="flex:1 1 160px;min-width:140px;">' +
-        '<input type="text" name="detail_observation" class="form-control form-control-sm">' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
-
-    var produitSelect = row.querySelector('.produit-select');
-    var qteInput = row.querySelector('.qte-input');
-    var observationInput = row.querySelector('input[name="detail_observation"]');
-
-    if (prefill.produit_id) { produitSelect.value = String(prefill.produit_id); }
-    if (prefill.reel_stock !== undefined) { qteInput.value = prefill.reel_stock; }
-    if (prefill.observation !== undefined) { observationInput.value = prefill.observation; }
-
-    qteInput.addEventListener('input', function () {
-      qteInput.classList.toggle('is-invalid', qteInput.value !== '' && num(qteInput) < 0);
-    });
-
-    row.querySelector('.remove-row').addEventListener('click', function () {
-      row.remove();
-    });
-
-    section3Rows.appendChild(row);
-  }
-
-  document.getElementById('hsi-add-row-btn').addEventListener('click', function () {
-    addSection3Row();
-  });
-
-  // ── Initialisation ───────────────────────────────────────────────────────
-  // En cas de réaffichage après échec de validation, toutes les lignes
-  // précédemment saisies (Section 2 et Section 3 confondues) sont restaurées
-  // telles quelles dans la Section 3 — la Section 2 n'est PAS recalculée via
-  // AJAX au chargement dans ce cas, pour ne jamais perdre ni compter deux
-  // fois une quantité déjà saisie (un changement ultérieur de commercial ou
-  // de date relance normalement le calcul de la Section 2).
-  if (PRESERVED_LIGNES.length) {
-    section2Rows.innerHTML =
-      '<div class="text-muted small py-2">' +
-      'Les produits calculés seront réaffichés en changeant de commercial ou de date.</div>';
-    PRESERVED_LIGNES.forEach(function (l) { addSection3Row(l); });
-  } else {
-    refreshSection2();
-    addSection3Row();
-  }
+(function(){
+  var PRODUITS={{ produits_json|safe }},PRESERVED_LIGNES={{ detail_rows_json|safe }},DEFAULTS_URL="{% url 'commercial:historique-stock-initial-defaults' %}",PAGE_SIZE=8;
+  var form=document.getElementById('hsi-create-form'),commercialEl=document.getElementById('hsi-commercial-select'),dateInput=document.getElementById('hsi-date-input'),lastWrapper=document.getElementById('hsi-derniere-date-wrapper'),lastInput=document.getElementById('hsi-derniere-date-input'),lastDisplay=document.getElementById('hsi-derniere-date-display'),calculatedRows=document.getElementById('hsi-section2-rows'),pager=document.getElementById('hsi-section2-pagination'),manualRows=document.getElementById('hsi-section3-rows'),formError=document.getElementById('hsf-form-error'),saveButton=document.getElementById('hsi-save-btn'),currentPage=1,confirmed=false,submitting=false,dirty=false;
+  var recapModal=new bootstrap.Modal(document.getElementById('hsi-recap-modal')),recapConfirm=document.getElementById('hsi-recap-confirm');
+  function esc(v){var d=document.createElement('div');d.textContent=v==null?'':String(v);return d.innerHTML}function num(el){var v=parseFloat(el.value);return isNaN(v)?0:v}function format(v){return(Number(v)||0).toLocaleString('fr-FR',{maximumFractionDigits:3})}function dateFr(v){if(!v)return'—';var p=v.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:v}
+  function protect(field){field.addEventListener('focus',function(){field.readOnly=false;field.removeAttribute('readonly');field.removeAttribute('data-autofill-lock')},{once:true});field.addEventListener('pointerdown',function(e){if(e.pointerType==='touch'){field.readOnly=false;field.removeAttribute('readonly');field.removeAttribute('data-autofill-lock')}},{once:true})}
+  function showError(message){formError.classList.toggle('d-none',!message);formError.querySelector('span').textContent=message||'';if(message){formError.scrollIntoView({behavior:'smooth',block:'center'})}}
+  function productOptions(selected){var html='<option value="">— Choisir —</option>';PRODUITS.forEach(function(p){html+='<option value="'+p.id+'"'+(String(p.id)===String(selected)?' selected':'')+'>'+esc(p.nom)+'</option>'});return html}
+  function updateLastDate(value){if(value){lastInput.value=value;lastDisplay.textContent=dateFr(value);lastWrapper.classList.remove('d-none');dateInput.min=value}else{lastInput.value='';lastDisplay.textContent='—';lastWrapper.classList.add('d-none');dateInput.removeAttribute('min')}}
+  function updateSummary(){var rows=form.querySelectorAll('.hsi-stock-row,.hsi-manual-row'),products=0,calc=0,real=0,differences=0;rows.forEach(function(row){var product=row.querySelector('[name="detail_produit_id"]'),realInput=row.querySelector('[name="detail_reel_stock"]'),calcInput=row.querySelector('[name="detail_calcul_stock"]');if(product&&product.value&&realInput&&realInput.value!==''&&num(realInput)>0){products++;var c=num(calcInput),r=num(realInput);calc+=c;real+=r;if(c!==r){differences++}}});document.getElementById('hsf-summary-products').textContent=products;document.getElementById('hsf-summary-calculated').textContent=format(calc);document.getElementById('hsf-summary-real').textContent=format(real);document.getElementById('hsf-summary-differences').textContent=differences;document.getElementById('hsf-calculated-count').textContent=calculatedRows.querySelectorAll('.hsi-stock-row').length+' produit(s)';return{products:products,calculated:calc,real:real,differences:differences}}
+  function observationInput(value){return'<input type="text" name="detail_observation" value="'+esc(value||'')+'" class="form-control hsf-row-input hsf-observation-input" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">'}
+  function removeButton(){return'<button type="button" class="hsf-remove remove-row" title="Supprimer la ligne" aria-label="Supprimer la ligne"><i class="bi bi-trash" aria-hidden="true"></i></button>'}
+  function bindRow(row,pagination){var real=row.querySelector('[name="detail_reel_stock"]'),calc=row.querySelector('[name="detail_calcul_stock"]'),obs=row.querySelector('.hsf-observation-input'),remove=row.querySelector('.remove-row');if(obs){protect(obs)}function sync(){var invalid=real.value!==''&&num(real)<0,different=real.value!==''&&num(real)!==num(calc);real.classList.toggle('is-invalid',invalid);real.classList.toggle('text-danger',!invalid&&different);row.classList.toggle('is-different',different&&!invalid);updateSummary();dirty=true}real.addEventListener('input',sync);if(obs){obs.addEventListener('input',function(){dirty=true})}remove.addEventListener('click',function(){row.remove();if(pagination){renderPagination()}updateSummary();dirty=true});sync()}
+  function addCalculatedRow(l){var c=parseFloat(l.calcul_stock)||0,row=document.createElement('div');row.className='hsi-stock-row';row.innerHTML='<input type="hidden" name="detail_produit_id" value="'+esc(l.produit_id)+'"><input type="hidden" name="detail_calcul_stock" value="'+c+'"><div class="hsf-cell hsf-product-cell" data-label="Produit"><label>Produit</label><span class="hsf-product-name">'+esc(l.produit_nom)+'</span></div><div class="hsf-cell"><label>Stock initial</label><span class="hsf-static-number">'+format(l.quantite_initiale)+'</span></div><div class="hsf-cell"><label>Sorties</label><span class="hsf-static-number">'+format(l.quantite_sortie)+'</span></div><div class="hsf-cell"><label>Livré</label><span class="hsf-static-number">'+format(l.quantite_livree)+'</span></div><div class="hsf-cell"><label>Restitué</label><span class="hsf-static-number">'+format(l.quantite_deja_restituee)+'</span></div><div class="hsf-cell"><label>Calculé</label><span class="hsf-static-number hsf-calculated-number '+(c<0?'hsf-negative':'')+'">'+format(c)+'</span></div><div class="hsf-cell"><label>Stock réel</label><input type="number" step="1" min="0" name="detail_reel_stock" value="'+(c>=0?c:'')+'" class="form-control hsf-row-input no-spinner" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="invalid-feedback">Valeur négative interdite.</div></div><div class="hsf-cell hsf-observation-cell"><label>Observation</label>'+observationInput('')+'</div><div>'+removeButton()+'</div>';calculatedRows.appendChild(row);bindRow(row,true)}
+  function addManualRow(prefill){prefill=prefill||{};var c=prefill.calcul_stock!==undefined?prefill.calcul_stock:0,row=document.createElement('div');row.className='hsi-manual-row';row.innerHTML='<div class="hsf-cell hsf-product-cell"><label>Produit</label><select name="detail_produit_id" class="form-select hsf-row-input">'+productOptions(prefill.produit_id)+'</select></div><div class="hsf-cell"><label>Calculé</label><input type="hidden" name="detail_calcul_stock" value="'+esc(c)+'"><span class="hsf-static-number hsf-calculated-number">'+format(c)+'</span></div><div class="hsf-cell"><label>Stock réel</label><input type="number" step="1" min="0" name="detail_reel_stock" value="'+esc(prefill.reel_stock===undefined?'':prefill.reel_stock)+'" class="form-control hsf-row-input no-spinner" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="invalid-feedback">Valeur négative interdite.</div></div><div class="hsf-cell hsf-observation-cell"><label>Observation</label>'+observationInput(prefill.observation)+'</div><div>'+removeButton()+'</div>';manualRows.appendChild(row);var product=row.querySelector('[name="detail_produit_id"]');product.addEventListener('change',function(){dirty=true;updateSummary()});bindRow(row,false)}
+  function renderPagination(){var rows=Array.prototype.slice.call(calculatedRows.querySelectorAll('.hsi-stock-row')),pages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));if(currentPage>pages)currentPage=pages;rows.forEach(function(row,i){row.classList.toggle('d-none',Math.floor(i/PAGE_SIZE)+1!==currentPage)});var ul=pager.querySelector('ul');ul.innerHTML='';if(!rows.length||pages<=1){pager.classList.add('d-none');return}pager.classList.remove('d-none');function item(label,page,disabled,active){var li=document.createElement('li'),a=document.createElement('a');li.className=(disabled?'disabled ':'')+(active?'active':'');a.href='#';a.innerHTML=label;if(!disabled&&!active){a.addEventListener('click',function(e){e.preventDefault();currentPage=page;renderPagination()})}li.appendChild(a);ul.appendChild(li)}item('<i class="bi bi-chevron-left"></i>',currentPage-1,currentPage<=1,false);for(var p=1;p<=pages;p++){if(p===currentPage||(p>currentPage-3&&p<currentPage+3)){item(String(p),p,false,p===currentPage)}}item('<i class="bi bi-chevron-right"></i>',currentPage+1,currentPage>=pages,false)}
+  function refreshCalculated(){calculatedRows.innerHTML='<div class="hsf-loading-empty"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Calcul des stocks…</div>';currentPage=1;var commercial=commercialEl.value;if(!commercial){calculatedRows.innerHTML='<div class="hsf-loading-empty">Sélectionnez un commercial pour afficher les stocks à mettre à jour.</div>';updateLastDate(null);updateSummary();return}fetch(DEFAULTS_URL+'?commercial_id='+encodeURIComponent(commercial)+'&stock_initial_at='+encodeURIComponent(dateInput.value),{credentials:'same-origin'}).then(function(r){if(!r.ok)throw new Error();return r.json()}).then(function(data){calculatedRows.innerHTML='';updateLastDate(data.derniere_date_maj);(data.lignes||[]).forEach(addCalculatedRow);if(!(data.lignes||[]).length){calculatedRows.innerHTML='<div class="hsf-loading-empty">Aucun produit calculé pour ce commercial.</div>'}renderPagination();updateSummary();dirty=false}).catch(function(){calculatedRows.innerHTML='<div class="hsf-loading-empty text-danger">Le calcul des stocks n’a pas pu être chargé.</div>';updateSummary()})}
+  if(commercialEl.tagName==='SELECT'){commercialEl.addEventListener('change',refreshCalculated)}dateInput.addEventListener('change',refreshCalculated);document.getElementById('hsi-add-row-btn').addEventListener('click',function(){addManualRow();dirty=true});
+  function validateAndRecap(){showError('');if(!commercialEl.value){showError('Sélectionnez un commercial.');commercialEl.focus();return false}if(!dateInput.value){showError('Sélectionnez une date de mise à jour.');dateInput.focus();return false}var invalid=false;form.querySelectorAll('[name="detail_reel_stock"]').forEach(function(input){if(input.value!==''&&num(input)<0){input.classList.add('is-invalid');invalid=true}});if(invalid){showError('Le stock réel ne peut pas être négatif.');return false}var s=updateSummary();if(!s.products){showError('Renseignez au moins un produit avec un stock réel.');return false}var label=commercialEl.tagName==='SELECT'?commercialEl.options[commercialEl.selectedIndex].text:document.querySelector('.hsf-locked-value strong').textContent.trim();document.getElementById('hsf-recap-commercial').textContent=label;document.getElementById('hsf-recap-date').textContent=dateFr(dateInput.value);document.getElementById('hsf-recap-products').textContent=s.products;document.getElementById('hsf-recap-calculated').textContent=format(s.calculated);document.getElementById('hsf-recap-real').textContent=format(s.real);document.getElementById('hsf-recap-differences').textContent=s.differences;recapModal.show();return true}
+  form.addEventListener('submit',function(e){if(confirmed)return;e.preventDefault();validateAndRecap()});recapConfirm.addEventListener('click',function(){confirmed=true;submitting=true;recapConfirm.disabled=true;recapConfirm.innerHTML='<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enregistrement…';form.submit()});window.addEventListener('beforeunload',function(e){if(dirty&&!submitting){e.preventDefault();e.returnValue=''}});
+  if(PRESERVED_LIGNES.length){calculatedRows.innerHTML='<div class="hsf-loading-empty">Les valeurs saisies ont été conservées ci-dessous.</div>';PRESERVED_LIGNES.forEach(addManualRow);dirty=true;updateSummary()}else{refreshCalculated();addManualRow();dirty=false}
 })();
 </script>
 {% endblock %}

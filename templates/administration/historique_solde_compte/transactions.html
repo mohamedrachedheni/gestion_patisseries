@@ -3,236 +3,61 @@
 {% block title %}Transactions caisse liées — Administration{% endblock %}
 {% block page_title %}Transactions caisse liées{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'administration:solde-caisse-list' %}">Soldes comptes caisses</a></li>
-    <li class="breadcrumb-item active">Transactions liées</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'administration:solde-caisse-list' %}">Soldes comptes caisses</a></li><li class="breadcrumb-item active" aria-current="page">Transactions liées</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="cash-transactions-dashboard">
+  <header class="sct-hero" aria-labelledby="sct-page-title">
+    <span class="sct-hero-icon" aria-hidden="true"><i class="bi bi-receipt-cutoff"></i></span>
+    <div class="sct-hero-copy"><div class="sct-eyebrow"><i class="bi bi-wallet2" aria-hidden="true"></i> Justificatif du contrôle</div><h1 id="sct-page-title">Transactions du contrôle de caisse</h1><p>Consultez les écritures intégrées au solde sélectionné et vérifiez la composition du montant calculé.</p></div>
+    <div class="sct-hero-actions"><div class="sct-hero-meta"><div><span>Employé</span><strong>{{ hist.user.get_full_name|default:hist.user.username }}</strong><small>{{ hist.user.username }}</small></div><div><span>Date du contrôle</span><strong>{{ hist.solde_at|date:'d/m/Y' }}</strong><small>{{ total_count }} transaction{{ total_count|pluralize }}</small></div></div><a href="{% url 'administration:solde-caisse-list' %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Retour aux soldes</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des transactions caisse liées au solde compte caisse sélectionné</h4>
-</div>
+  <section class="sct-balance-panel" aria-labelledby="sct-balance-title">
+    <header><div><div class="sct-section-label">Rapprochement de caisse</div><h2 id="sct-balance-title">Synthèse du solde sélectionné</h2></div>{% if ecart_solde != 0 %}<span class="sct-status sct-status-alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Écart à vérifier</span>{% else %}<span class="sct-status sct-status-safe"><i class="bi bi-check-circle" aria-hidden="true"></i>Solde conforme</span>{% endif %}</header>
+    <div class="sct-balance-grid"><article><span class="sct-balance-icon sct-balance-blue"><i class="bi bi-calculator" aria-hidden="true"></i></span><div><small>Solde calculé</small><strong>{{ hist.calcul_solde|stringformat:'.3f' }} TND</strong><em>issu des transactions</em></div></article><article><span class="sct-balance-icon {% if ecart_solde != 0 %}sct-balance-red{% else %}sct-balance-green{% endif %}"><i class="bi bi-cash-coin" aria-hidden="true"></i></span><div><small>Solde réel</small><strong>{{ hist.correction_solde|stringformat:'.3f' }} TND</strong><em>constaté lors du contrôle</em></div></article><article><span class="sct-balance-icon {% if ecart_solde != 0 %}sct-balance-red{% else %}sct-balance-green{% endif %}"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></span><div><small>Écart</small><strong class="{% if ecart_solde != 0 %}sct-negative{% else %}sct-positive{% endif %}">{{ ecart_solde|stringformat:'.3f' }} TND</strong><em>réel moins calculé</em></div></article><article class="sct-observation-card"><span class="sct-balance-icon sct-balance-violet"><i class="bi bi-chat-left-text" aria-hidden="true"></i></span><div><small>Observation</small><strong>{{ hist.observation|default:"Aucune observation" }}</strong><em>commentaire du contrôle</em></div></article></div>
+  </section>
 
-{# ── Section 1 : Données solde caisse ─────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-wallet2 me-2 text-primary"></i>Données solde caisse
-  </div>
-  <div class="card-body">
-    <div class="d-flex flex-nowrap gap-2 overflow-auto">
-      <div style="flex:1 1 180px;min-width:160px;">
-        <label class="form-label small mb-1">Employé</label>
-        <input type="text" class="form-control form-control-sm" disabled
-               value="{{ hist.user.get_full_name|default:hist.user.username }}">
-      </div>
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Date</label>
-        <input type="date" class="form-control form-control-sm" disabled value="{{ hist.solde_at|date:'Y-m-d' }}">
-      </div>
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Solde caisse calculé</label>
-        <input type="number" step="0.001" class="form-control form-control-sm no-spinner font-monospace" disabled
-               value="{{ hist.calcul_solde|stringformat:'s' }}">
-      </div>
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Solde caisse réel</label>
-        <input type="number" step="0.001"
-               class="form-control form-control-sm no-spinner font-monospace{% if hist.calcul_solde != hist.correction_solde %} text-danger{% endif %}"
-               disabled value="{{ hist.correction_solde|stringformat:'s' }}">
-      </div>
-      <div style="flex:1 1 200px;min-width:180px;">
-        <label class="form-label small mb-1">Observation</label>
-        <input type="text" class="form-control form-control-sm" disabled value="{{ hist.observation|default:'' }}">
-      </div>
-    </div>
-  </div>
-</div>
+  <section class="sct-kpi-grid" aria-label="Synthèse des transactions liées">
+    <article class="sct-kpi sct-kpi-blue"><span><i class="bi bi-list-check" aria-hidden="true"></i></span><div><small>Transactions</small><strong>{{ total_count }}</strong><em>écritures soldées</em></div></article>
+    <article class="sct-kpi sct-kpi-green"><span><i class="bi bi-arrow-down-left" aria-hidden="true"></i></span><div><small>Crédits</small><strong>+{{ totaux.credit|default:"0.000" }}</strong><em>{{ totaux.nb_credits }} écriture{{ totaux.nb_credits|pluralize }} · TND</em></div></article>
+    <article class="sct-kpi sct-kpi-red"><span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span><div><small>Débits</small><strong>{{ totaux.debit|default:"0.000" }}</strong><em>{{ totaux.nb_debits }} écriture{{ totaux.nb_debits|pluralize }} · TND</em></div></article>
+    <article class="sct-kpi {% if totaux.net >= 0 %}sct-kpi-green{% else %}sct-kpi-red{% endif %}"><span><i class="bi bi-bank" aria-hidden="true"></i></span><div><small>Solde net</small><strong>{{ totaux.net|default:"0.000" }}</strong><em>crédits et débits · TND</em></div></article>
+  </section>
 
-{# ── Barre de résumé ──────────────────────────────────────────────────────── #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5">{{ total_count }}</div>
-      <div class="text-muted small">Transaction{{ total_count|pluralize }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5 text-success font-monospace">
-        +{{ totaux.credit|default:"0.000" }}
-      </div>
-      <div class="text-muted small">Crédits (TND)</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5 text-danger font-monospace">
-        {{ totaux.debit|default:"0.000" }}
-      </div>
-      <div class="text-muted small">Débits (TND)</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5 font-monospace
-                  {% if totaux.net >= 0 %}text-success{% else %}text-danger{% endif %}">
-        {{ totaux.net|default:"0.000" }}
-      </div>
-      <div class="text-muted small">Solde net (TND)</div>
-    </div>
-  </div>
-</div>
+  <details class="sct-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre les écritures affichées</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><div><strong>Crédit</strong><p>Une valeur positive augmente le solde du compte caisse de l’employé.</p></div><div><strong>Débit</strong><p>Une valeur négative diminue le solde et apparaît en rouge.</p></div><div><strong>Transaction soldée</strong><p>Chaque ligne affichée est rattachée à ce contrôle de caisse précis.</p></div><div><strong>Référence</strong><p>L’identifiant technique permet de retrouver le document métier à l’origine de l’écriture.</p></div></div></details>
 
-{# ── Section 2 : liste des transactions caisse liées ──────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="sct-panel" aria-labelledby="sct-results-title">
+    <header class="sct-panel-head"><div><div class="sct-section-label">Écritures rapprochées</div><h2 id="sct-results-title">Transactions incluses dans le contrôle</h2>{% if page_obj.object_list %}<p>{{ total_count }} transaction{{ total_count|pluralize }} classée{{ total_count|pluralize }} de la plus récente à la plus ancienne.</p>{% else %}<p>Aucune transaction n’est rattachée à ce contrôle.</p>{% endif %}</div>{% if page_obj.object_list %}<span class="sct-result-badge"><i class="bi bi-check2-circle" aria-hidden="true"></i>Toutes soldées</span>{% endif %}</header>
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:100px;">Date / Heure</th>
-            <th style="min-width:160px;">Employé</th>
-            <th style="min-width:130px;">Libellé</th>
-            <th class="d-none">Référence</th>
-            <th class="text-end" style="min-width:110px;">Montant (TND)</th>
-            <th class="text-center" style="min-width:80px;">Soldé</th>
-            <th class="text-center pe-3" style="width:70px">Détail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in page_obj.object_list %}
-          <tr>
-            <td class="ps-3">
-              {% if t.created_at %}
-              <div class="fw-medium small">{{ t.created_at|date:"d/m/Y" }}</div>
-              <div class="text-muted" style="font-size:.75rem;">{{ t.created_at|date:"H:i" }}</div>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>
-              <div class="fw-medium small">{{ t.user.get_full_name|default:t.user.username }}</div>
-            </td>
-            <td>
-              <span class="badge rounded-pill bg-light text-dark border small">{{ t.libelle }}</span>
-            </td>
-            <td class="d-none">
-              <span class="font-monospace text-muted" style="font-size:.8rem;">{{ t.table_id }}</span>
-            </td>
-            <td class="text-end font-monospace fw-semibold">
-              {% if t.montant >= 0 %}
-              <span class="text-success">+{{ t.montant }}</span>
-              {% else %}
-              <span class="text-danger">{{ t.montant }}</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input" disabled
-                     {% if t.hist_solde_compte_id %}checked{% endif %}
-                     title="{% if t.hist_solde_compte_id %}Soldée{% else %}Non soldée{% endif %}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="button"
-                      class="btn btn-sm btn-outline-secondary transaction-detail-btn"
-                      data-url="{% url 'administration:transaction-detail-popup' t.pk %}"
-                      title="Détail">
-                <i class="bi bi-box-arrow-up-right"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} enregistrement{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
-      Aucune transaction caisse liée à ce solde compte caisse.
-    </div>
-    {% endif %}
-  </div>
+    <div class="sct-table-wrap"><table class="sct-table"><caption class="visually-hidden">Transactions rattachées au contrôle de caisse</caption><colgroup><col class="sct-col-date"><col class="sct-col-label"><col class="sct-col-reference"><col class="sct-col-amount"><col class="sct-col-status"><col class="sct-col-action"></colgroup><thead><tr><th scope="col">Date et heure</th><th scope="col">Libellé</th><th scope="col">Référence</th><th scope="col" class="sct-number-col">Montant</th><th scope="col">Statut</th><th scope="col">Détail</th></tr></thead><tbody>{% for t in page_obj.object_list %}<tr><td>{% if t.created_at %}<time datetime="{{ t.created_at|date:'c' }}"><strong>{{ t.created_at|date:'d/m/Y' }}</strong><small>{{ t.created_at|date:'H:i' }}</small></time>{% else %}<span class="sct-dash">—</span>{% endif %}</td><td><span class="sct-label"><i class="bi bi-tag" aria-hidden="true"></i>{{ t.libelle }}</span></td><td><code title="{{ t.table_id }}">{{ t.table_id }}</code></td><td class="sct-number-col"><strong class="sct-amount {% if t.montant >= 0 %}sct-positive{% else %}sct-negative{% endif %}">{% if t.montant >= 0 %}+{% endif %}{{ t.montant|stringformat:'.3f' }}</strong><small>TND</small></td><td>{% if t.hist_solde_compte_id %}<span class="sct-status sct-status-safe"><i class="bi bi-check-circle" aria-hidden="true"></i>Soldée</span>{% else %}<span class="sct-status sct-status-pending"><i class="bi bi-clock" aria-hidden="true"></i>En attente</span>{% endif %}</td><td><button type="button" class="btn btn-outline-secondary transaction-detail-btn" data-url="{% url 'administration:transaction-detail-popup' t.pk %}" aria-label="Afficher le détail de la transaction {{ t.table_id }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Ouvrir</button></td></tr>{% endfor %}</tbody></table></div>
+    <div class="sct-card-list">{% for t in page_obj.object_list %}<article class="sct-card"><header><div>{% if t.created_at %}<strong>{{ t.created_at|date:'d/m/Y' }}</strong><small>{{ t.created_at|date:'H:i' }}</small>{% else %}<strong>Date inconnue</strong>{% endif %}</div><span class="sct-status sct-status-safe"><i class="bi bi-check-circle" aria-hidden="true"></i>Soldée</span></header><div class="sct-card-main"><span class="sct-label"><i class="bi bi-tag" aria-hidden="true"></i>{{ t.libelle }}</span><strong class="sct-amount {% if t.montant >= 0 %}sct-positive{% else %}sct-negative{% endif %}">{% if t.montant >= 0 %}+{% endif %}{{ t.montant|stringformat:'.3f' }} TND</strong><code>{{ t.table_id }}</code></div><button type="button" class="btn btn-outline-secondary transaction-detail-btn" data-url="{% url 'administration:transaction-detail-popup' t.pk %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Afficher le détail</button></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="sct-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} transaction{{ total_count|pluralize }}</span><nav aria-label="Pagination des transactions liées"><ul class="sct-pagination">{% if page_obj.has_previous %}<li><a href="?page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="sct-empty"><span><i class="bi bi-inbox" aria-hidden="true"></i></span><h3>Aucune transaction liée</h3><p>Ce contrôle ne contient aucune écriture de caisse soldée.</p></div>{% endif %}
+  </section>
 </div>
 
-<div class="d-flex justify-content-end mt-3">
-  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="history.back()">
-    <i class="bi bi-arrow-left me-1"></i>Page précédente
-  </button>
-</div>
+<div class="modal fade" id="transaction-detail-modal" tabindex="-1" aria-labelledby="transaction-detail-modal-title" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content sct-modal"><div class="modal-header"><div><div class="sct-section-label">Document source</div><h2 class="modal-title" id="transaction-detail-modal-title">Détail de la transaction</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body" id="transaction-detail-modal-body" aria-live="polite"><div class="sct-modal-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Chargement du détail…</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button></div></div></div></div>
+{% endblock %}
 
-{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
-<div class="modal fade" id="transaction-detail-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="transaction-detail-modal-title">Détail</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body" id="transaction-detail-modal-body">
-        <div class="text-center py-4 text-muted">
-          <div class="spinner-border spinner-border-sm"></div> Chargement…
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+/* Transactions d'un solde de caisse : interface ordinateur d'abord. */
+.cash-transactions-dashboard{--sct-primary:#2c7be5;--sct-primary-dark:#1a4f9c;--sct-ink:#172033;--sct-muted:#667085;--sct-border:#e2e8f0;--sct-radius:1rem;max-width:1700px;margin:0 auto;color:var(--sct-ink)}
+.sct-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.sct-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.sct-hero-copy{min-width:0}.sct-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.sct-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.sct-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.84rem}.sct-hero-actions{display:flex;align-items:stretch;gap:.55rem}.sct-hero-meta{display:grid;grid-template-columns:1.2fr .8fr;min-width:360px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.sct-hero-meta div{min-width:0;padding:.5rem}.sct-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.sct-hero-meta span,.sct-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.61rem}.sct-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}.sct-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.75rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.sct-balance-panel,.sct-method,.sct-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--sct-border);border-radius:var(--sct-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.sct-balance-panel>header,.sct-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.sct-section-label{color:var(--sct-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.sct-balance-panel h2,.sct-panel-head h2{margin:.12rem 0 0;font-size:.94rem;font-weight:750}.sct-balance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,.8fr)) minmax(260px,1.6fr);gap:.75rem;padding:.9rem}.sct-balance-grid article{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.6rem;min-height:82px;padding:.7rem;border:1px solid #e5eaf0;border-radius:.7rem}.sct-balance-icon{display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:.68rem}.sct-balance-blue{background:#eaf2fd;color:#2c7be5}.sct-balance-green{background:#e9f6ef;color:#198754}.sct-balance-red{background:#fdecee;color:#dc3545}.sct-balance-violet{background:#f1ebfb;color:#6f42c1}.sct-balance-grid small,.sct-balance-grid em{display:block;color:var(--sct-muted);font-size:.57rem;font-style:normal}.sct-balance-grid strong{display:block;overflow:hidden;margin:.08rem 0;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.sct-observation-card strong{white-space:normal}
+.sct-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.sct-kpi{--sct-accent:#2c7be5;--sct-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--sct-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.sct-kpi-blue{--sct-accent:#2c7be5;--sct-soft:#eaf2fd}.sct-kpi-green{--sct-accent:#198754;--sct-soft:#e9f6ef}.sct-kpi-red{--sct-accent:#dc3545;--sct-soft:#fdecee}.sct-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--sct-soft);color:var(--sct-accent);font-size:1.1rem}.sct-kpi small{display:block;color:var(--sct-muted);font-size:.64rem;font-weight:650}.sct-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.05rem;font-variant-numeric:tabular-nums;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}.sct-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--sct-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}.sct-positive{color:#18794e}.sct-negative{color:#b42332}
+.sct-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.sct-method summary::-webkit-details-marker{display:none}.sct-method summary span{display:flex;align-items:center;gap:.4rem}.sct-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.sct-method[open] summary>i{transform:rotate(180deg)}.sct-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.sct-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.sct-method strong{font-size:.68rem}.sct-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.sct-panel-head p{margin:.14rem 0 0;color:var(--sct-muted);font-size:.66rem}.sct-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#e9f6ef;color:#18794e;font-size:.65rem;font-weight:750;white-space:nowrap}.sct-table{width:100%;border-collapse:collapse;table-layout:fixed}.sct-col-date{width:14%}.sct-col-label{width:20%}.sct-col-reference{width:28%}.sct-col-amount{width:14%}.sct-col-status{width:12%}.sct-col-action{width:12%}.sct-table thead{background:#f8fafc}.sct-table th{padding:.68rem .7rem;border-bottom:1px solid var(--sct-border);color:var(--sct-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.sct-table td{padding:.72rem .7rem;border-bottom:1px solid #edf0f4;font-size:.65rem;vertical-align:middle}.sct-table tbody tr:last-child td{border-bottom:0}.sct-table tbody tr:hover{background:#f8faff}.sct-table time strong,.sct-table time small{display:block}.sct-table time small{margin-top:.06rem;color:var(--sct-muted);font-size:.55rem}.sct-label{display:inline-flex;align-items:center;gap:.28rem;max-width:100%;padding:.22rem .42rem;border:1px solid #dfe5ed;border-radius:2rem;background:#f8fafc;font-size:.58rem;font-weight:700}.sct-table code,.sct-card code{display:block;overflow:hidden;color:#526071;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}.sct-number-col{text-align:right!important}.sct-amount{display:block;font-size:.7rem;font-variant-numeric:tabular-nums;white-space:nowrap}.sct-table td>small{display:block;margin-top:.06rem;color:var(--sct-muted);font-size:.53rem}.sct-status{display:inline-flex;align-items:center;gap:.22rem;padding:.22rem .4rem;border-radius:2rem;font-size:.54rem;font-weight:750;white-space:nowrap}.sct-status-safe{background:#e9f6ef;color:#18794e}.sct-status-alert{background:#fdecee;color:#b42332}.sct-status-pending{background:#fff4e0;color:#8a5300}.sct-table td>.btn{display:inline-flex;align-items:center;justify-content:center;gap:.22rem;min-height:2.2rem;padding:.35rem .45rem;border-radius:.52rem;font-size:.55rem;font-weight:700}.sct-card-list{display:none}
+.sct-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.sct-pagination-footer>span{color:var(--sct-muted);font-size:.62rem}.sct-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.sct-pagination a,.sct-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.sct-pagination .active{border-color:var(--sct-primary);background:var(--sct-primary);color:#fff}.sct-empty{padding:3rem 1rem;text-align:center}.sct-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.sct-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.sct-empty p{margin:0;color:var(--sct-muted);font-size:.68rem}.sct-modal{--sct-primary-dark:#1a4f9c;--sct-muted:#667085;border:0;border-radius:.9rem;box-shadow:0 18px 50px rgba(15,23,42,.22)}.sct-modal .modal-header{background:#fbfcfe}.sct-modal .modal-title{font-size:.95rem}.sct-modal-loading{display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:150px;color:var(--sct-muted);font-size:.7rem}.cash-transactions-dashboard button:focus-visible,.cash-transactions-dashboard a:focus-visible,.sct-modal button:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.sct-hero{grid-template-columns:auto minmax(0,1fr)}.sct-hero-actions{grid-column:1/-1}.sct-balance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sct-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sct-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:991.98px){.sct-table-wrap{display:none}.sct-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem;background:#f7f9fc}.sct-card{overflow:hidden;border:1px solid var(--sct-border);border-radius:.8rem;background:#fff}.sct-card>header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.7rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.sct-card header strong,.sct-card header small{display:block}.sct-card header small{color:var(--sct-muted);font-size:.56rem}.sct-card-main{display:grid;gap:.55rem;padding:.8rem}.sct-card .sct-amount{font-size:.78rem}.sct-card>.btn{display:flex;align-items:center;justify-content:center;gap:.3rem;margin:0 .8rem .8rem;border-radius:.55rem;font-size:.62rem;font-weight:700}}
+@media(max-width:767.98px){.sct-hero-actions{align-items:stretch;flex-direction:column}.sct-hero-meta{min-width:0}.sct-card-list{grid-template-columns:1fr}.sct-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.sct-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.sct-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.sct-hero-copy>p{font-size:.8rem}.sct-hero-meta{grid-template-columns:1fr}.sct-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.sct-balance-grid,.sct-kpi-grid,.sct-method>div{grid-template-columns:1fr}.sct-panel-head{flex-direction:column;padding:.9rem}.sct-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// ── Pop-up « Détail » ───────────────────────────────────────────────────────
 (function () {
   var modalEl = document.getElementById('transaction-detail-modal');
   var modalTitleEl = document.getElementById('transaction-detail-modal-title');
@@ -240,32 +65,34 @@
   if (!modalEl || !modalBody) { return; }
   var modal = new bootstrap.Modal(modalEl);
 
-  function loadDetail(url) {
-    modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
-      '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
-    modal.show();
-    fetch(url).then(function (r) {
-      var title = r.headers.get('X-Popup-Title');
-      if (title) { modalTitleEl.textContent = title; }
-      return r.text();
-    }).then(function (html) {
-      modalBody.innerHTML = html;
-    });
+  function loadingState() {
+    modalBody.innerHTML = '<div class="sct-modal-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Chargement du détail…</div>';
   }
 
-  document.querySelectorAll('.transaction-detail-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      loadDetail(btn.getAttribute('data-url'));
-    });
+  function loadDetail(url) {
+    loadingState();
+    modal.show();
+    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(function (response) {
+        if (!response.ok) { throw new Error('Erreur HTTP ' + response.status); }
+        var title = response.headers.get('X-Popup-Title');
+        if (title) { modalTitleEl.textContent = title; }
+        return response.text();
+      })
+      .then(function (html) { modalBody.innerHTML = html; })
+      .catch(function () {
+        modalBody.innerHTML = '<div class="alert alert-danger mb-0" role="alert">Le détail de cette transaction n’a pas pu être chargé.</div>';
+      });
+  }
+
+  document.querySelectorAll('.transaction-detail-btn').forEach(function (button) {
+    button.addEventListener('click', function () { loadDetail(button.getAttribute('data-url')); });
   });
 
-  // Délégation d'événement : le contenu de la pop-up est entièrement
-  // remplacé à chaque navigation (page précédente/suivante), les boutons du
-  // pager n'existent donc pas encore au moment de l'attache des listeners.
-  modalBody.addEventListener('click', function (e) {
-    var link = e.target.closest('.bl-pager-btn');
+  modalBody.addEventListener('click', function (event) {
+    var link = event.target.closest('.bl-pager-btn');
     if (!link || link.classList.contains('disabled')) { return; }
-    e.preventDefault();
+    event.preventDefault();
     loadDetail(link.getAttribute('data-url'));
   });
 })();

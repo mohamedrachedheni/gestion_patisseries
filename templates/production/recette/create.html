@@ -3,93 +3,54 @@
 {% block title %}{{ title }} — Production{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'production:recette-list' %}">Recettes</a></li>
-    <li class="breadcrumb-item active">{{ title }}</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'production:recette-list' %}">Recettes</a></li><li class="breadcrumb-item active" aria-current="page">{{ title }}</li></ol></nav>{% endblock %}
 
 {% block content %}
-<form method="post" id="recette-form" novalidate>
-  {% csrf_token %}
+<div class="recipe-form">
+  <header class="rcf-hero" aria-labelledby="rcf-page-title">
+    <span class="rcf-hero-icon" aria-hidden="true"><i class="bi bi-journal-plus"></i></span>
+    <div class="rcf-hero-copy"><div class="rcf-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Catalogue de production</div><h1 id="rcf-page-title">{{ title }}</h1><p>Choisissez le produit, indiquez la quantité qu’elle permet de produire, puis listez les matières premières nécessaires. Les champs marqués d’un astérisque sont obligatoires.</p></div>
+    <div class="rcf-hero-actions"><a href="{% url 'production:recette-list' %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Revenir à la liste</a></div>
+  </header>
 
-  {# ══ Partie 1 : la recette ═══════════════════════════════════════════ #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-journal-text me-2 text-primary"></i>Recette
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Produit</label>
-          <select name="produit_id" id="id_produit_id" class="form-select"
-                  {% if focus_produit %}autofocus{% endif %}>
-            <option value="">— Choisir un produit —</option>
-            {% for p in produits_disponibles %}
-            <option value="{{ p.pk }}" {% if selected_produit_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nom }}</option>
-            {% endfor %}
-          </select>
-          <div class="form-text">Seuls les produits sans recette existante sont proposés.</div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Quantité produite</label>
-          <input type="number" step="0.001" name="quantite" value="{{ quantite }}"
-                 class="form-control no-spinner" {% if focus_quantite %}autofocus{% endif %}>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Unité</label>
-          <select name="unite" class="form-select">
-            {% for value, label in unite_choices %}
-            <option value="{{ value }}" {% if value == unite %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-12">
-          <label class="form-label small mb-1">Observation</label>
-          <textarea name="observation" rows="2" class="form-control">{{ observation }}</textarea>
-        </div>
-      </div>
-    </div>
-  </div>
+  <form method="post" id="recette-form" novalidate autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    {% csrf_token %}
 
-  {# ══ Partie 2 : composition (matières premières) ═════════════════════ #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-list-check me-2 text-primary"></i>Composition
-    </div>
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-3" style="min-width:220px;">Matière première</th>
-              <th style="min-width:130px;">Quantité</th>
-              <th style="min-width:110px;">Unité</th>
-              <th class="pe-3" style="width:60px;"></th>
-            </tr>
-          </thead>
-          <tbody id="detail-rows"></tbody>
-        </table>
+    <section class="rcf-panel" aria-labelledby="rcf-s1">
+      <header class="rcf-panel-head"><span class="rcf-step" aria-hidden="true">1</span><div><h2 id="rcf-s1">La recette</h2><p>Le produit concerné et la quantité obtenue avec cette recette.</p></div></header>
+      <div class="rcf-grid rcf-grid-4">
+        <div class="rcf-field rcf-span-2"><label for="id_produit_id">Produit <span class="rcf-req" aria-hidden="true">*</span></label><select name="produit_id" id="id_produit_id" class="form-select" autocomplete="off" {% if focus_produit %}autofocus{% endif %}><option value="">— Choisir un produit —</option>{% for p in produits_disponibles %}<option value="{{ p.pk }}" {% if selected_produit_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nom }}</option>{% endfor %}</select><small>Seuls les produits sans recette existante sont proposés.</small></div>
+        <div class="rcf-field"><label for="id_quantite">Quantité produite <span class="rcf-req" aria-hidden="true">*</span></label><input type="number" step="0.001" name="quantite" id="id_quantite" value="{{ quantite }}" class="form-control no-spinner" {% if focus_quantite %}autofocus{% endif %} autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Doit être supérieure à zéro.</small></div>
+        <div class="rcf-field"><label for="id_unite">Unité</label><select name="unite" id="id_unite" class="form-select" autocomplete="off">{% for value, label in unite_choices %}<option value="{{ value }}" {% if value == unite %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="rcf-field rcf-span-2" style="grid-column:1/-1"><label for="id_observation">Observation <span class="rcf-opt">(facultatif)</span></label><textarea name="observation" id="id_observation" rows="2" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{{ observation }}</textarea></div>
       </div>
-      <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="add-row-btn" class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
-        </button>
-      </div>
-    </div>
-  </div>
+    </section>
 
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'production:recette-list' %}" class="btn btn-outline-secondary">Annuler</a>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
-    </button>
-  </div>
-</form>
+    <section class="rcf-panel" aria-labelledby="rcf-s2">
+      <header class="rcf-panel-head"><span class="rcf-step" aria-hidden="true">2</span><div><h2 id="rcf-s2">Composition</h2><p>Les matières premières utilisées. Les lignes sans matière première sont ignorées ; l’unité s’affiche automatiquement.</p></div></header>
+      <div class="rcf-comp">
+        <table class="rcf-comp-table"><caption class="visually-hidden">Composition de la recette</caption><thead><tr><th scope="col">Matière première</th><th scope="col">Quantité</th><th scope="col">Unité</th><th scope="col"><span class="visually-hidden">Retirer</span></th></tr></thead><tbody id="detail-rows"></tbody></table>
+        <div class="rcf-add-row"><button type="button" id="add-row-btn" class="btn btn-outline-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter une autre ligne</button></div>
+      </div>
+      <footer class="rcf-footer"><a href="{% url 'production:recette-list' %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg" aria-hidden="true"></i>Annuler</a><button type="submit" class="btn btn-primary" id="rcf-submit"><i class="bi bi-check-lg" aria-hidden="true"></i>Enregistrer la recette</button></footer>
+    </section>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* Formulaire recette : ordinateur d'abord, même système que le catalogue produits. */
+.recipe-form{--rcf-primary:#2c7be5;--rcf-primary-dark:#1a4f9c;--rcf-ink:#172033;--rcf-muted:#667085;--rcf-border:#e2e8f0;max-width:1100px;margin:0 auto;color:var(--rcf-ink)}
+.rcf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.rcf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}.rcf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.rcf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.4rem,2vw,1.9rem);font-weight:750;letter-spacing:-.02em;overflow-wrap:anywhere}.rcf-hero-copy>p{margin:0;max-width:680px;color:rgba(255,255,255,.78);font-size:.85rem}.rcf-hero-actions .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:3rem;border-radius:.68rem;color:#194f89;font-size:.72rem;font-weight:750;white-space:nowrap}
+.rcf-alert{display:flex;align-items:flex-start;gap:.6rem;margin-top:1rem;padding:.8rem 1rem;border:1px solid #f1b8b3;border-radius:.7rem;background:#fdeceb;color:#8a1f15;font-size:.8rem}.rcf-alert i{margin-top:.1rem}
+.rcf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--rcf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.rcf-panel-head{display:flex;align-items:center;gap:.8rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.rcf-step{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:var(--rcf-primary);color:#fff;font-size:.8rem;font-weight:800}.rcf-panel-head h2{margin:0;font-size:1rem;font-weight:750}.rcf-panel-head p{margin:.12rem 0 0;color:var(--rcf-muted);font-size:.72rem}
+.rcf-grid{display:grid;gap:1rem;padding:1.1rem 1.2rem}.rcf-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.rcf-span-2{grid-column:span 2}.rcf-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.75rem;font-weight:700}.rcf-field .form-control,.rcf-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.rcf-field .input-group .form-control{border-radius:.6rem 0 0 .6rem}.rcf-field .input-group-text{border-color:#cfd7e3;border-radius:0 .6rem .6rem 0;background:#f8fafc;font-size:.75rem;font-weight:700}.rcf-field textarea.form-control{min-height:5.2rem}.rcf-field .form-control:focus,.rcf-field .form-select:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.rcf-field small{display:block;margin-top:.3rem;color:var(--rcf-muted);font-size:.68rem}.rcf-req{color:#b42318}.rcf-opt{color:var(--rcf-muted);font-weight:500}.rcf-error{margin-top:.3rem;color:#b42318;font-size:.72rem;font-weight:600}
+.rcf-footer{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.2rem;border-top:1px solid #edf0f4;background:#fbfcfe}.rcf-footer .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding-inline:1.1rem;border-radius:.6rem;font-size:.78rem;font-weight:700}
+.recipe-form a:focus-visible,.recipe-form button:focus-visible,.recipe-form input:focus-visible,.recipe-form select:focus-visible,.recipe-form textarea:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:991.98px){.rcf-hero{grid-template-columns:auto minmax(0,1fr)}.rcf-hero-actions{grid-column:1/-1}.rcf-grid-3{grid-template-columns:1fr 1fr}.rcf-span-2{grid-column:1/-1}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.rcf-hero{padding:1rem}.rcf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.rcf-grid-3{grid-template-columns:1fr}.rcf-footer{flex-direction:column-reverse}}
+.rcf-field select.form-select,.rcf-field input.form-control{width:100%}.rcf-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.rcf-span-2{grid-column:span 2}.rcf-comp{padding:1.1rem 1.2rem}.rcf-comp-table{width:100%;border-collapse:collapse}.rcf-comp-table th{padding:.4rem .5rem;color:#526071;font-size:.68rem;font-weight:800;letter-spacing:.05em;text-align:left;text-transform:uppercase}.rcf-comp-table td{padding:.35rem .5rem;vertical-align:middle}.rcf-comp-table th:nth-child(1){width:50%}.rcf-comp-table th:nth-child(2){width:20%}.rcf-comp-table th:nth-child(3){width:18%}.rcf-comp-table th:nth-child(4){width:12%}.rcf-comp .form-control,.rcf-comp .form-select{min-height:2.7rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.rcf-add-row{margin-top:.6rem;display:flex;justify-content:flex-end}.rcf-add-row .btn,.rcf-icon-del{display:inline-flex;align-items:center;gap:.35rem;border-radius:.6rem;font-size:.78rem;font-weight:700}.rcf-icon-del{justify-content:center;width:2.5rem;height:2.5rem;padding:0}.rcf-flash{margin-top:1rem}@media(max-width:991.98px){.rcf-grid-4{grid-template-columns:1fr 1fr}}@media(max-width:767.98px){.rcf-comp-table thead{display:none}.rcf-comp-table,.rcf-comp-table tbody,.rcf-comp-table tr,.rcf-comp-table td{display:block;width:100%}.rcf-comp-table tr{padding:.6rem 0;border-bottom:1px solid #edf0f4}}@media(max-width:575.98px){.rcf-grid-4{grid-template-columns:1fr}.rcf-span-2{grid-column:auto}}
 {% endblock %}
 
 {% block extra_js %}
@@ -149,17 +110,17 @@
     var row = document.createElement('tr');
     row.className = 'detail-row';
     row.innerHTML =
-      '<td class="ps-3">' +
-        '<select name="matiere_premiere_id" class="form-select form-select-sm mp-select">' + buildOptions() + '</select>' +
+      '<td>' +
+        '<select name="matiere_premiere_id" class="form-select mp-select" autocomplete="off" aria-label="Matière première">' + buildOptions() + '</select>' +
       '</td>' +
       '<td>' +
-        '<input type="number" step="0.001" name="quantite_detail" class="form-control form-control-sm no-spinner" value="0">' +
+        '<input type="number" step="0.001" name="quantite_detail" class="form-control no-spinner" value="0" aria-label="Quantité" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">' +
       '</td>' +
       '<td>' +
-        '<select class="form-select form-select-sm unite-auto" disabled>' + buildUniteOptions() + '</select>' +
+        '<select class="form-select unite-auto" disabled aria-label="Unité" autocomplete="off">' + buildUniteOptions() + '</select>' +
       '</td>' +
-      '<td class="pe-3 text-end">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne">' +
+      '<td class="text-end">' +
+        '<button type="button" class="btn btn-outline-danger rcf-icon-del remove-row" title="Retirer la ligne" aria-label="Retirer la ligne">' +
           '<i class="bi bi-trash"></i>' +
         '</button>' +
       '</td>';
@@ -189,6 +150,14 @@
   } else {
     for (var i = 0; i < 4; i++) { addRow(); }
   }
+
+  var rform = document.getElementById('recette-form'), rbtn = document.getElementById('rcf-submit');
+  rform.addEventListener('submit', function () {
+    window.setTimeout(function () { rbtn.disabled = true; rbtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement…'; }, 0);
+  });
+  rform.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); }
+  });
 
   document.getElementById('add-row-btn').addEventListener('click', function () { addRow(); });
 })();

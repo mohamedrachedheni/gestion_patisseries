@@ -3,132 +3,46 @@
 {% block title %}Tableau de bord commerciaux — Administration{% endblock %}
 {% block page_title %}Tableau de bord commerciaux{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Tableau de bord commerciaux</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Tableau de bord commerciaux</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="sales-dashboard">
+  <header class="tbc-hero" aria-labelledby="tbc-page-title"><span class="tbc-hero-icon" aria-hidden="true"><i class="bi bi-bar-chart-line"></i></span><div class="tbc-hero-copy"><div class="tbc-eyebrow"><i class="bi bi-people" aria-hidden="true"></i> Pilotage de l'équipe</div><h1 id="tbc-page-title">Performance des commerciaux</h1><p>Comparez activité, développement du portefeuille, adhérence et risques financiers sur une période commune.</p></div><div class="tbc-hero-meta"><div><span>Période analysée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong></div><div><span>Équipe active</span><strong>{{ total_commerciaux }} commercial{{ total_commerciaux|pluralize }}</strong></div></div></header>
 
-<h4 class="mb-4 fw-bold">Comparatif des commerciaux</h4>
+  <section class="tbc-filter-card" aria-labelledby="tbc-filter-title"><div class="tbc-filter-head"><span><i class="bi bi-calendar-range" aria-hidden="true"></i></span><div><h2 id="tbc-filter-title">Période de comparaison</h2><p>Tous les indicateurs opérationnels sont recalculés sur ces dates.</p></div></div><form method="get" id="filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="tbc-period-group"><span>Période rapide</span><div role="group" aria-label="Période rapide"><button type="button" class="btn btn-outline-secondary tbc-period" data-days="6">7 jours</button><button type="button" class="btn btn-outline-secondary tbc-period" data-days="29">30 jours</button><button type="button" class="btn btn-outline-secondary tbc-period" data-days="89">90 jours</button></div></div><div class="tbc-filter-field"><label for="tbc-date-start">Du</label><input type="date" name="date_debut" id="tbc-date-start" value="{{ date_debut }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div><div class="tbc-filter-field"><label for="tbc-date-end">Au</label><input type="date" name="date_fin" id="tbc-date-end" value="{{ date_fin }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div><a href="{% url 'administration:tableau-bord-commerciaux-list' %}" class="btn btn-outline-secondary tbc-reset"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a></form></section>
 
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:tableau-bord-commerciaux-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-<p class="text-muted small mb-4">
-  CA, panier moyen, nouveaux clients et taux d'adhérence calculés sur la période ci-dessus. Les impayés cumulés
-  portent sur toutes les périodes (une dette ne s'annule pas avec le temps) et sont imputés au commercial ayant
-  enregistré le bon de livraison.
-  <br>
-  Le <strong>score</strong> et le <strong>classement</strong> combinent ces mesures sur des valeurs brutes
-  (aucune division par la taille du portefeuille) selon la pondération CA 50 %, adhérence 30 %, panier moyen 5 %,
-  nouveaux clients 15 % — chaque mesure est ramenée sur 100 par rapport au meilleur commercial de la période avant
-  d'appliquer les poids.
-</p>
+  <section class="tbc-kpi-grid" aria-label="Synthèse de l'équipe"><article class="tbc-kpi tbc-kpi-blue"><span><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></span><div><small>Chiffre d'affaires</small><strong>{{ total_ca|floatformat:3 }}</strong><em>TND sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></div></article><article class="tbc-kpi tbc-kpi-green"><span><i class="bi bi-calendar2-check" aria-hidden="true"></i></span><div><small>Adhérence moyenne</small><strong>{{ adherence_moyenne|default_if_none:"—" }}{% if adherence_moyenne is not None %}%{% endif %}</strong><em>visites évaluées</em></div></article><article class="tbc-kpi {% if total_impayes > 0 %}tbc-kpi-red{% else %}tbc-kpi-green{% endif %}"><span><i class="bi bi-cash-coin" aria-hidden="true"></i></span><div><small>Impayés cumulés</small><strong>{{ total_impayes|floatformat:3 }}</strong><em>TND toutes périodes</em></div></article><article class="tbc-kpi tbc-kpi-violet"><span><i class="bi bi-trophy" aria-hidden="true"></i></span><div><small>Meilleur score</small><strong>{% if meilleur_commercial %}{{ meilleur_commercial.score|floatformat:1 }}{% else %}—{% endif %}</strong><em>{% if meilleur_commercial %}{{ meilleur_commercial.commercial.get_full_name|default:meilleur_commercial.commercial.username }}{% else %}aucune donnée{% endif %}</em></div></article></section>
 
-{# ── Section 2 : tableau comparatif ──────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <details class="tbc-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre les indicateurs et le score</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><p>Le CA, le panier moyen, les nouveaux clients et l’adhérence utilisent la période sélectionnée. Les impayés sont cumulés sur toutes les périodes, car une dette ne s’annule pas avec le temps.</p><p>Le score compare les valeurs brutes, sans les diviser par la taille du portefeuille. Chaque mesure est normalisée par rapport au meilleur résultat, puis pondérée :</p><ul><li><strong>50 %</strong> chiffre d’affaires</li><li><strong>30 %</strong> adhérence des visites</li><li><strong>15 %</strong> nouveaux clients</li><li><strong>5 %</strong> panier moyen</li></ul></div></details>
+
+  <section class="tbc-panel" aria-labelledby="tbc-ranking-title"><header class="tbc-panel-head"><div><div class="tbc-section-label">Classement</div><h2 id="tbc-ranking-title">Comparatif des commerciaux</h2><p>{{ total_commerciaux }} commercial{{ total_commerciaux|pluralize }} classé{{ total_commerciaux|pluralize }} selon le score composite.</p></div>{% if lignes %}<span class="tbc-result-badge"><i class="bi bi-award" aria-hidden="true"></i>Classement complet</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="text-center ps-3" style="width:70px;">Rang</th>
-            <th style="min-width:180px;">Commercial</th>
-            <th class="text-center" style="width:110px;">Clients actifs</th>
-            <th class="text-end" style="min-width:130px;">CA période (TND)</th>
-            <th class="text-end" style="min-width:120px;">Panier moyen (TND)</th>
-            <th class="text-center" style="width:110px;">Nouveaux clients</th>
-            <th class="text-center" style="width:140px;">Taux d'adhérence</th>
-            <th class="text-end" style="min-width:140px;">Impayés cumulés (TND)</th>
-            <th class="text-center" style="width:90px;">Score</th>
-            <th class="text-center pe-3" style="width:130px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="text-center ps-3">
-              {% if l.rang == 1 %}<span title="1er">🥇</span>
-              {% elif l.rang == 2 %}<span title="2e">🥈</span>
-              {% elif l.rang == 3 %}<span title="3e">🥉</span>
-              {% else %}{{ l.rang }}{% endif %}
-            </td>
-            <td>{{ l.commercial.get_full_name|default:l.commercial.username }}</td>
-            <td class="text-center">{{ l.nb_clients_actifs }}</td>
-            <td class="text-end font-monospace">{{ l.ca|stringformat:'.3f' }}</td>
-            <td class="text-end font-monospace">{{ l.panier_moyen|stringformat:'.3f' }}</td>
-            <td class="text-center">{{ l.nb_nouveaux_clients }}</td>
-            <td class="text-center">
-              {% if l.taux_adherence is not None %}
-              <span class="badge {% if l.taux_adherence >= 80 %}text-bg-success{% elif l.taux_adherence >= 50 %}text-bg-warning text-dark{% else %}text-bg-danger{% endif %}">
-                {{ l.taux_adherence }}%
-              </span>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td class="text-end font-monospace {% if l.impayes > 0 %}text-danger{% endif %}">{{ l.impayes|stringformat:'.3f' }}</td>
-            <td class="text-center fw-bold">{{ l.score|stringformat:'.1f' }}</td>
-            <td class="text-center pe-3">
-              <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ l.commercial.pk }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-                 class="btn btn-sm btn-outline-secondary" title="Détail adhérence">
-                <i class="bi bi-calendar-check"></i>
-              </a>
-              <a href="{% url 'commercial:client-impayes-list' %}?commercial_id={{ l.commercial.pk }}"
-                 class="btn btn-sm btn-outline-secondary ms-1" title="Détail impayés">
-                <i class="bi bi-cash-coin"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
-      Aucun commercial actif.
-    </div>
-    {% endif %}
-  </div>
-</div>
+    <div class="tbc-table-wrap"><table class="tbc-table"><caption class="visually-hidden">Classement et performance des commerciaux</caption><thead><tr><th scope="col">Rang</th><th scope="col">Commercial</th><th scope="col">Portefeuille</th><th scope="col">Performance commerciale</th><th scope="col">Adhérence</th><th scope="col">Impayés</th><th scope="col">Score</th><th scope="col" class="tbc-actions-col">Actions</th></tr></thead><tbody>
+      {% for l in lignes %}<tr class="{% if l.rang <= 3 %}tbc-top-row{% endif %}"><td><span class="tbc-rank tbc-rank-{{ l.rang }}">{% if l.rang == 1 %}<i class="bi bi-trophy-fill" aria-hidden="true"></i>{% else %}{{ l.rang }}{% endif %}</span></td><td><div class="tbc-person"><span class="tbc-avatar" aria-hidden="true">{{ l.commercial.first_name|slice:":1"|upper }}{{ l.commercial.last_name|slice:":1"|upper }}</span><span><strong>{{ l.commercial.get_full_name|default:l.commercial.username }}</strong><small>@{{ l.commercial.username }}</small></span></div></td><td><strong>{{ l.nb_clients_actifs }}</strong> client{{ l.nb_clients_actifs|pluralize }} actif{{ l.nb_clients_actifs|pluralize }}<small>{{ l.nb_nouveaux_clients }} nouveau{{ l.nb_nouveaux_clients|pluralize }} sur la période</small></td><td><strong class="tbc-money">{{ l.ca|floatformat:3 }} TND</strong><small>Panier moyen : {{ l.panier_moyen|floatformat:3 }} TND</small></td><td>{% if l.taux_adherence is not None %}<span class="tbc-adherence {% if l.taux_adherence >= 80 %}tbc-good{% elif l.taux_adherence >= 50 %}tbc-warning{% else %}tbc-bad{% endif %}">{{ l.taux_adherence }}%</span>{% else %}<span class="tbc-muted">Non évaluée</span>{% endif %}</td><td><strong class="{% if l.impayes > 0 %}tbc-due{% endif %}">{{ l.impayes|floatformat:3 }} TND</strong></td><td><div class="tbc-score"><strong>{{ l.score|floatformat:1 }}</strong><span><i style="width:{{ l.score|stringformat:'s' }}%"></i></span></div></td><td class="tbc-actions-col"><div><a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ l.commercial.pk }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" class="tbc-icon-btn" aria-label="Détail adhérence de {{ l.commercial.get_full_name|default:l.commercial.username }}" title="Détail adhérence"><i class="bi bi-calendar-check" aria-hidden="true"></i></a><a href="{% url 'commercial:client-impayes-list' %}?commercial_id={{ l.commercial.pk }}" class="tbc-icon-btn" aria-label="Détail impayés de {{ l.commercial.get_full_name|default:l.commercial.username }}" title="Détail impayés"><i class="bi bi-cash-coin" aria-hidden="true"></i></a></div></td></tr>{% endfor %}
+    </tbody></table></div>
 
+    <div class="tbc-mobile-list">{% for l in lignes %}<article class="tbc-card"><header><span class="tbc-rank tbc-rank-{{ l.rang }}">{% if l.rang == 1 %}<i class="bi bi-trophy-fill" aria-hidden="true"></i>{% else %}{{ l.rang }}{% endif %}</span><div class="tbc-person"><span class="tbc-avatar" aria-hidden="true">{{ l.commercial.first_name|slice:":1"|upper }}{{ l.commercial.last_name|slice:":1"|upper }}</span><span><strong>{{ l.commercial.get_full_name|default:l.commercial.username }}</strong><small>@{{ l.commercial.username }}</small></span></div><strong class="tbc-card-score">{{ l.score|floatformat:1 }}</strong></header><dl><div><dt>Clients actifs</dt><dd>{{ l.nb_clients_actifs }}</dd></div><div><dt>Nouveaux clients</dt><dd>{{ l.nb_nouveaux_clients }}</dd></div><div><dt>Chiffre d'affaires</dt><dd>{{ l.ca|floatformat:3 }} TND</dd></div><div><dt>Panier moyen</dt><dd>{{ l.panier_moyen|floatformat:3 }} TND</dd></div><div><dt>Adhérence</dt><dd>{% if l.taux_adherence is not None %}{{ l.taux_adherence }}%{% else %}Non évaluée{% endif %}</dd></div><div><dt>Impayés</dt><dd class="{% if l.impayes > 0 %}tbc-due{% endif %}">{{ l.impayes|floatformat:3 }} TND</dd></div></dl><footer><a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ l.commercial.pk }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" class="btn btn-outline-secondary"><i class="bi bi-calendar-check" aria-hidden="true"></i>Adhérence</a><a href="{% url 'commercial:client-impayes-list' %}?commercial_id={{ l.commercial.pk }}" class="btn btn-outline-secondary"><i class="bi bi-cash-coin" aria-hidden="true"></i>Impayés</a></footer></article>{% endfor %}</div>
+    {% else %}<div class="tbc-empty"><span><i class="bi bi-people" aria-hidden="true"></i></span><h3>Aucun commercial actif</h3><p>Aucune donnée n’est disponible pour établir le classement.</p></div>{% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Tableau de bord commerciaux : ordinateur d'abord ────────────────────── */
+.sales-dashboard{--tbc-primary:#2c7be5;--tbc-primary-dark:#1a4f9c;--tbc-ink:#172033;--tbc-muted:#667085;--tbc-border:#e2e8f0;--tbc-surface:#fff;--tbc-radius:1rem;max-width:1650px;margin:0 auto;color:var(--tbc-ink)}
+.tbc-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(310px,390px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.tbc-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.tbc-hero-copy{min-width:0}.tbc-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.tbc-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.tbc-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.tbc-hero-meta{display:grid;grid-template-columns:1.5fr .8fr;gap:.45rem;padding:.5rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.tbc-hero-meta div{min-width:0;padding:.5rem}.tbc-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.tbc-hero-meta span{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.tbc-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}
+.tbc-filter-card,.tbc-panel,.tbc-method{margin-top:1rem;border:1px solid var(--tbc-border);border-radius:var(--tbc-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.tbc-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.tbc-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--tbc-primary)}.tbc-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.tbc-filter-head p{margin:.12rem 0 0;color:var(--tbc-muted);font-size:.68rem}.tbc-filter-card form{display:grid;grid-template-columns:minmax(260px,1.2fr) minmax(150px,.65fr) minmax(150px,.65fr) auto;align-items:end;gap:.75rem;padding:1rem}.tbc-period-group>span,.tbc-filter-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.tbc-period-group>div{display:flex;gap:.35rem}.tbc-period-group .btn{flex:1 1 auto;min-height:2.8rem;border-radius:.62rem;font-size:.7rem;font-weight:650}.tbc-filter-field .form-control{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.tbc-reset{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;border-radius:.62rem;font-size:.7rem;font-weight:700}
+.tbc-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.tbc-kpi{--tbc-accent:#2c7be5;--tbc-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:100px;padding:.9rem;border:1px solid var(--tbc-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.tbc-kpi-blue{--tbc-accent:#2c7be5;--tbc-soft:#eaf2fd}.tbc-kpi-green{--tbc-accent:#198754;--tbc-soft:#e9f6ef}.tbc-kpi-red{--tbc-accent:#dc3545;--tbc-soft:#fdecee}.tbc-kpi-violet{--tbc-accent:#6f42c1;--tbc-soft:#f1ebfb}.tbc-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border-radius:.72rem;background:var(--tbc-soft);color:var(--tbc-accent);font-size:1.15rem}.tbc-kpi small{display:block;color:var(--tbc-muted);font-size:.66rem;font-weight:650}.tbc-kpi strong{display:block;overflow:hidden;margin-top:.05rem;font-size:1.08rem;font-variant-numeric:tabular-nums;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}.tbc-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--tbc-muted);font-size:.62rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.tbc-method{overflow:hidden}.tbc-method summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.tbc-method summary::-webkit-details-marker{display:none}.tbc-method summary span{display:flex;align-items:center;gap:.4rem}.tbc-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.tbc-method[open] summary>i{transform:rotate(180deg)}.tbc-method>div{padding:.85rem 1rem;color:#526071;font-size:.7rem;line-height:1.5}.tbc-method p{margin:0 0 .5rem}.tbc-method ul{display:flex;flex-wrap:wrap;gap:.4rem;margin:0;padding:0;list-style:none}.tbc-method li{padding:.25rem .5rem;border-radius:2rem;background:#edf4fd;color:#31577f}
+.tbc-panel{overflow:hidden}.tbc-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.tbc-section-label{color:var(--tbc-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.tbc-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.tbc-panel-head p{margin:.15rem 0 0;color:var(--tbc-muted);font-size:.7rem}.tbc-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--tbc-primary-dark);font-size:.67rem;font-weight:750}.tbc-table-wrap{display:block}.tbc-table{width:100%;border-collapse:collapse;table-layout:fixed}.tbc-table thead{background:#f8fafc}.tbc-table th{padding:.7rem .75rem;border-bottom:1px solid var(--tbc-border);color:var(--tbc-muted);font-size:.61rem;font-weight:800;letter-spacing:.035em;text-align:left;text-transform:uppercase}.tbc-table td{padding:.75rem;border-bottom:1px solid #edf0f4;font-size:.7rem;vertical-align:middle}.tbc-table tbody tr:last-child td{border-bottom:0}.tbc-table tbody tr:hover{background:#f8faff}.tbc-table th:nth-child(1){width:6%}.tbc-table th:nth-child(2){width:18%}.tbc-table th:nth-child(3){width:14%}.tbc-table th:nth-child(4){width:18%}.tbc-table th:nth-child(5){width:11%}.tbc-table th:nth-child(6){width:13%}.tbc-table th:nth-child(7){width:12%}.tbc-table th:nth-child(8){width:8%}.tbc-top-row{background:#fffdf7}.tbc-rank{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:#eef1f5;color:#526071;font-size:.7rem;font-weight:800}.tbc-rank-1{background:#fff0bd;color:#8a5b00}.tbc-rank-2{background:#e8ebef;color:#596271}.tbc-rank-3{background:#f7dfcc;color:#8a4e24}.tbc-person{display:flex;align-items:center;gap:.55rem;min-width:0}.tbc-avatar{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.35rem;height:2.35rem;border-radius:.65rem;background:linear-gradient(145deg,#2c7be5,#1c5fac);color:#fff;font-size:.68rem;font-weight:800}.tbc-person>span:last-child{min-width:0}.tbc-person strong,.tbc-person small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tbc-person strong{font-size:.73rem}.tbc-person small,.tbc-table td>small{margin-top:.16rem;color:var(--tbc-muted);font-size:.6rem}.tbc-money{font-variant-numeric:tabular-nums}.tbc-adherence{display:inline-flex;padding:.24rem .48rem;border-radius:2rem;font-size:.66rem;font-weight:750}.tbc-good{background:#e9f6ef;color:#18794e}.tbc-warning{background:#fff4e0;color:#8a5300}.tbc-bad{background:#fdecee;color:#b42332}.tbc-muted{color:#8b95a4}.tbc-due{color:#b42332}.tbc-score>strong{font-size:.8rem}.tbc-score>span{display:block;overflow:hidden;width:100%;height:.28rem;margin-top:.28rem;border-radius:1rem;background:#e8edf3}.tbc-score i{display:block;height:100%;border-radius:1rem;background:linear-gradient(90deg,#2c7be5,#6f42c1)}.tbc-actions-col{text-align:center!important}.tbc-actions-col>div{display:flex;justify-content:center;gap:.3rem}.tbc-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.05rem;height:2.05rem;border:1px solid #d6dde7;border-radius:.55rem;background:#fff;color:#526071;text-decoration:none}.tbc-icon-btn:hover{border-color:#9cbee9;background:#f4f8fe;color:var(--tbc-primary-dark)}.tbc-mobile-list{display:none}.tbc-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;padding:2rem;text-align:center}.tbc-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.8rem;height:3.8rem;border-radius:1rem;background:#edf4fd;color:var(--tbc-primary);font-size:1.45rem}.tbc-empty h3{margin:.7rem 0 0;font-size:.92rem}.tbc-empty p{margin:.25rem 0 0;color:var(--tbc-muted);font-size:.72rem}.sales-dashboard a:focus-visible,.sales-dashboard button:focus-visible,.sales-dashboard input:focus-visible,.sales-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.tbc-hero{grid-template-columns:auto minmax(0,1fr)}.tbc-hero-meta{grid-column:1/-1}.tbc-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tbc-table-wrap{display:none}.tbc-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}.tbc-card{overflow:hidden;border:1px solid var(--tbc-border);border-radius:.8rem;background:#fff}.tbc-card header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.tbc-card-score{padding:.26rem .45rem;border-radius:.45rem;background:#f1ebfb;color:#5c34a5;font-size:.72rem}.tbc-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem;margin:0;padding:.9rem}.tbc-card dt{color:var(--tbc-muted);font-size:.61rem;text-transform:uppercase}.tbc-card dd{margin:.12rem 0 0;font-size:.72rem;font-weight:700}.tbc-card footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.tbc-card footer .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.6rem;border-radius:.63rem;font-size:.7rem;font-weight:700}}
+@media(max-width:767.98px){.tbc-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.tbc-period-group{grid-column:1/-1}.tbc-reset{grid-column:1/-1;justify-content:center}.tbc-mobile-list{grid-template-columns:1fr}.tbc-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.tbc-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.tbc-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.tbc-hero-copy>p{font-size:.8rem}.tbc-hero-meta{grid-template-columns:1fr}.tbc-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.tbc-kpi-grid{grid-template-columns:1fr}.tbc-filter-card form{grid-template-columns:1fr}.tbc-period-group{grid-column:auto}.tbc-period-group>div{display:grid;grid-template-columns:1fr}.tbc-reset{grid-column:auto}.tbc-panel-head{flex-direction:column;padding:.9rem}.tbc-card dl{grid-template-columns:1fr}.tbc-method ul{display:grid}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    this.closest('form').submit();
-  });
-});
+(function(){var form=document.getElementById('filter-form'),startInput=document.getElementById('tbc-date-start'),endInput=document.getElementById('tbc-date-end');form.querySelectorAll('[data-autosubmit]').forEach(function(field){field.addEventListener('change',function(){form.submit()})});function pad(v){return v<10?'0'+v:String(v)}function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}var today=new Date();document.querySelectorAll('.tbc-period').forEach(function(button){var start=new Date(today);start.setDate(start.getDate()-parseInt(button.getAttribute('data-days'),10));var sv=iso(start),ev=iso(today);if(startInput.value===sv&&endInput.value===ev){button.classList.replace('btn-outline-secondary','btn-secondary');button.setAttribute('aria-pressed','true')}button.addEventListener('click',function(){startInput.value=sv;endInput.value=ev;form.submit()})})})();
 </script>
 {% endblock %}

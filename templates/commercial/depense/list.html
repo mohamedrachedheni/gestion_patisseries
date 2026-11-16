@@ -4,170 +4,150 @@
 {% block page_title %}Dépenses{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Dépenses</li>
+    <li class="breadcrumb-item active" aria-current="page">Dépenses</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
+<div class="expense-directory">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des dépenses par période</h4>
-  <a href="{% url 'commercial:depense-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouvelle dépense
-  </a>
-</div>
-
-{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-2 overflow-auto">
-
-        {% if is_administration %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Employé</label>
-          <select name="employe_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les employés —</option>
-            {% for u in employes_list %}
-            <option value="{{ u.pk }}" {% if employe_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Début période</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Fin période</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Fournisseur</label>
-          <select name="fournisseur_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les fournisseurs —</option>
-            {% for f in fournisseurs_list %}
-            <option value="{{ f.pk }}" {% if fournisseur_id == f.pk|stringformat:"s" %}selected{% endif %}>
-              {{ f.raison_sociale }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Statut</label>
-          <select name="statut" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les statuts —</option>
-            {% for value, label in statut_choices %}
-            <option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:depense-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
+  <header class="dpl-hero" aria-labelledby="dpl-page-title">
+    <span class="dpl-hero-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
+    <div class="dpl-hero-copy">
+      <div class="dpl-eyebrow"><i class="bi bi-cash-stack" aria-hidden="true"></i> Suivi financier</div>
+      <h1 id="dpl-page-title">Dépenses par période</h1>
+      <p>Analysez les montants engagés, les paiements réalisés et les soldes restant à régler.</p>
+    </div>
+    <div class="dpl-hero-actions">
+      <div class="dpl-hero-meta">
+        <span>Période affichée</span>
+        <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
       </div>
-    </form>
-  </div>
-</div>
+      <a href="{% url 'commercial:depense-create' %}" class="btn btn-light dpl-add-btn"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouvelle dépense</a>
+    </div>
+  </header>
 
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="dpl-filter-card" aria-labelledby="dpl-filter-title">
+    <div class="dpl-filter-head">
+      <span class="dpl-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span>
+      <div>
+        <h2 id="dpl-filter-title">Filtrer les dépenses</h2>
+        <p>Affinez la période, le fournisseur, le statut{% if is_administration %} ou l'employé{% endif %}.</p>
+      </div>
+      {% if fournisseur_id or statut or employe_id %}<span class="dpl-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i>Filtres actifs</span>{% endif %}
+    </div>
+
+    <form method="get" id="filter-form" class="dpl-filter-form {% if not is_administration %}dpl-filter-form-compact{% endif %}" autocomplete="off"
+          data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="dpl-date-group">
+        <span class="dpl-group-label">Période rapide</span>
+        <div class="dpl-period-buttons" role="group" aria-label="Période rapide">
+          <button type="button" class="btn btn-outline-secondary dpl-period" data-days="0">Aujourd'hui</button>
+          <button type="button" class="btn btn-outline-secondary dpl-period" data-days="6">7 jours</button>
+          <button type="button" class="btn btn-outline-secondary dpl-period" data-days="29">30 jours</button>
+        </div>
+      </div>
+
+      <div class="dpl-filter-field">
+        <label for="dpl-date-start">Du</label>
+        <input type="date" name="date_debut" id="dpl-date-start" value="{{ date_debut }}" class="form-control" data-autosubmit
+               autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      </div>
+      <div class="dpl-filter-field">
+        <label for="dpl-date-end">Au</label>
+        <input type="date" name="date_fin" id="dpl-date-end" value="{{ date_fin }}" class="form-control" data-autosubmit
+               autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      </div>
+
+      <div class="dpl-filter-field">
+        <label for="dpl-supplier">Fournisseur</label>
+        <select name="fournisseur_id" id="dpl-supplier" class="form-select" data-autosubmit>
+          <option value="">Tous les fournisseurs</option>
+          {% for f in fournisseurs_list %}<option value="{{ f.pk }}" {% if fournisseur_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div class="dpl-filter-field">
+        <label for="dpl-status">Statut</label>
+        <select name="statut" id="dpl-status" class="form-select" data-autosubmit>
+          <option value="">Tous les statuts</option>
+          {% for value, label in statut_choices %}<option value="{{ value }}" {% if statut == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+
+      {% if is_administration %}
+      <div class="dpl-filter-field">
+        <label for="dpl-employee">Employé</label>
+        <select name="employe_id" id="dpl-employee" class="form-select" data-autosubmit>
+          <option value="">Tous les employés</option>
+          {% for u in employes_list %}<option value="{{ u.pk }}" {% if employe_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <div class="dpl-locked-employee"><span>Employé connecté</span><strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong></div>
+      {% endif %}
+
+      <div class="dpl-filter-actions"><a href="{% url 'commercial:depense-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a></div>
+    </form>
+  </section>
+
+  <section class="dpl-kpi-grid" aria-label="Synthèse financière">
+    <article class="dpl-kpi dpl-kpi-blue"><span class="dpl-kpi-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span><span><small>Nombre de dépenses</small><strong>{{ total_count }}</strong><em>sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></span></article>
+    <article class="dpl-kpi dpl-kpi-violet"><span class="dpl-kpi-icon"><i class="bi bi-calculator" aria-hidden="true"></i></span><span><small>Montant total</small><strong>{{ total_montant|floatformat:3 }}</strong><em>TND engagés</em></span></article>
+    <article class="dpl-kpi dpl-kpi-green"><span class="dpl-kpi-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span><span><small>Total payé</small><strong>{{ total_paye|floatformat:3 }}</strong><em>TND réglés</em></span></article>
+    <article class="dpl-kpi {% if total_reste > 0 %}dpl-kpi-red{% else %}dpl-kpi-green{% endif %}"><span class="dpl-kpi-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><span><small>Reste à payer</small><strong>{{ total_reste|floatformat:3 }}</strong><em>TND en attente</em></span></article>
+  </section>
+
+  <section class="dpl-panel" aria-labelledby="dpl-results-title">
+    <header class="dpl-panel-head">
+      <div>
+        <div class="dpl-section-label">Historique financier</div>
+        <h2 id="dpl-results-title">Liste des dépenses</h2>
+        {% if page_obj.object_list %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ total_count }}.</p>{% else %}<p>Aucune dépense ne correspond aux critères actuels.</p>{% endif %}
+      </div>
+      <div class="dpl-status-summary" aria-label="Répartition des statuts">
+        <span class="dpl-summary-paid">{{ total_payees }} payée{{ total_payees|pluralize }}</span>
+        <span class="dpl-summary-partial">{{ total_partielles }} partielle{{ total_partielles|pluralize }}</span>
+        <span class="dpl-summary-unpaid">{{ total_non_payees }} non payée{{ total_non_payees|pluralize }}</span>
+      </div>
+    </header>
+
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            {% if is_administration %}
-            <th class="ps-3" style="min-width:180px;">Employé</th>
-            {% endif %}
-            <th {% if not is_administration %}class="ps-3"{% endif %} style="min-width:130px;">Date</th>
-            <th style="min-width:90px;">Numéro</th>
-            <th style="min-width:200px;">Fournisseur</th>
-            <th class="text-end" style="min-width:140px;">Montant (TND)</th>
-            <th class="text-end" style="min-width:150px;">Reste à payer (TND)</th>
-            <th style="min-width:170px;">Statut</th>
-            <th class="text-center pe-3" style="min-width:160px;">Actions</th>
-          </tr>
-        </thead>
+    <div class="dpl-table-wrap">
+      <table class="dpl-table">
+        <caption class="visually-hidden">Dépenses et situation de paiement</caption>
+        <thead><tr><th scope="col">Référence</th><th scope="col">Employé</th><th scope="col">Fournisseur</th><th scope="col">Situation financière</th><th scope="col">Statut</th><th scope="col" class="dpl-actions-col">Actions</th></tr></thead>
         <tbody>
           {% for d in page_obj.object_list %}
           <tr>
-            {% if is_administration %}
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
-                     value="{{ d.user.get_full_name|default:d.user.username }}" disabled>
+            <td>
+              <span class="dpl-reference"><span><i class="bi bi-receipt" aria-hidden="true"></i></span><strong>DEP-{{ d.depense_code.depense_numero }}</strong></span>
+              <span class="dpl-secondary-value"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ d.depense_code.depense_at|date:"d/m/Y" }}</span>
             </td>
-            {% endif %}
-            <td {% if not is_administration %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm" style="min-width:120px;"
-                     value="{{ d.depense_code.depense_at|date:'Y-m-d' }}" disabled>
+            <td><span class="dpl-primary-value">{{ d.user.get_full_name|default:d.user.username }}</span><span class="dpl-secondary-value">@{{ d.user.username }}</span></td>
+            <td><span class="dpl-primary-value">{{ d.depense_code.fournisseur.raison_sociale }}</span><span class="dpl-secondary-value"><i class="bi bi-credit-card" aria-hidden="true"></i>{{ d.mode_paiement }}</span></td>
+            <td>
+              <dl class="dpl-money-list">
+                <div><dt>Total</dt><dd>{{ d.total_montant|floatformat:3 }} TND</dd></div>
+                <div><dt>Payé</dt><dd class="dpl-paid-value">{{ d.total_acompte|floatformat:3 }} TND</dd></div>
+                <div><dt>Reste</dt><dd class="{% if d.reste_a_payer > 0 %}dpl-due-value{% else %}dpl-paid-value{% endif %}">{{ d.reste_a_payer|floatformat:3 }} TND</dd></div>
+              </dl>
             </td>
             <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:90px;"
-                     value="{{ d.depense_code.depense_numero }}" disabled>
+              {% if d.statut == 'Payé' %}<span class="dpl-status dpl-status-paid"><i class="bi bi-check-circle" aria-hidden="true"></i>Payé</span>
+              {% elif d.statut == 'Partiellement payé' %}<span class="dpl-status dpl-status-partial"><i class="bi bi-pie-chart" aria-hidden="true"></i>Partiellement payé</span>
+              {% else %}<span class="dpl-status dpl-status-unpaid"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ d.statut|default:"Non payé" }}</span>{% endif %}
             </td>
-            <td>
-              <select class="form-select form-select-sm" style="min-width:180px;" disabled>
-                {% for f in fournisseurs_list %}
-                <option value="{{ f.pk }}" {% if f.pk == d.depense_code.fournisseur_id %}selected{% endif %}>
-                  {{ f.raison_sociale }}
-                </option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001" style="min-width:120px;"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ d.total_montant|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001" style="min-width:130px;"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ d.reste_a_payer|stringformat:'.3f' }}" disabled>
-            </td>
-            <td>
-              <select class="form-select form-select-sm" style="min-width:150px;" disabled>
-                {% for value, label in statut_choices %}
-                <option value="{{ value }}" {% if value == d.statut %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="text-center pe-3 text-nowrap">
-              {% if is_administration %}
-              <a href="{% url 'commercial:depense-detail' d.pk %}" class="btn btn-sm btn-outline-secondary me-1" title="Visualiser">
-                <i class="bi bi-eye"></i>
-              </a>
-              {% endif %}
-              <a href="{% url 'commercial:depense-update' d.pk %}" class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </a>
-              {% if is_administration %}
-              <form method="post" action="{% url 'commercial:depense-delete' d.pk %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                        onclick="return confirm('Supprimer la dépense « {{ d.depense_code|escapejs }} » ?');">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
-              {% endif %}
+            <td class="dpl-actions-col">
+              <div class="dpl-row-actions">
+                {% if is_administration %}<a href="{% url 'commercial:depense-detail' d.pk %}" class="dpl-icon-btn" aria-label="Voir DEP-{{ d.depense_code.depense_numero }}" title="Visualiser"><i class="bi bi-eye" aria-hidden="true"></i></a>{% endif %}
+                <a href="{% url 'commercial:depense-update' d.pk %}" class="dpl-icon-btn dpl-icon-btn-primary" aria-label="Modifier DEP-{{ d.depense_code.depense_numero }}" title="Modifier"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                {% if is_administration %}<button type="button" class="dpl-icon-btn dpl-icon-btn-danger dpl-delete-btn" data-url="{% url 'commercial:depense-delete' d.pk %}" data-label="DEP-{{ d.depense_code.depense_numero }} du {{ d.depense_code.depense_at|date:'d/m/Y' }} — {{ d.depense_code.fournisseur.raison_sociale }}" aria-label="Supprimer DEP-{{ d.depense_code.depense_numero }}" title="Supprimer"><i class="bi bi-trash" aria-hidden="true"></i></button>{% endif %}
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -175,84 +155,69 @@
       </table>
     </div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} dépense{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&fournisseur_id={{ fournisseur_id }}&statut={{ statut }}&employe_id={{ employe_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&fournisseur_id={{ fournisseur_id }}&statut={{ statut }}&employe_id={{ employe_id }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&fournisseur_id={{ fournisseur_id }}&statut={{ statut }}&employe_id={{ employe_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
+    <div class="dpl-mobile-list">
+      {% for d in page_obj.object_list %}
+      <article class="dpl-card">
+        <header><span class="dpl-reference"><span><i class="bi bi-receipt" aria-hidden="true"></i></span><strong>DEP-{{ d.depense_code.depense_numero }}</strong></span>{% if d.statut == 'Payé' %}<span class="dpl-status dpl-status-paid">Payé</span>{% elif d.statut == 'Partiellement payé' %}<span class="dpl-status dpl-status-partial">Partiel</span>{% else %}<span class="dpl-status dpl-status-unpaid">Non payé</span>{% endif %}</header>
+        <dl>
+          <div><dt>Date</dt><dd>{{ d.depense_code.depense_at|date:"d/m/Y" }}</dd></div><div><dt>Employé</dt><dd>{{ d.user.get_full_name|default:d.user.username }}</dd></div>
+          <div class="dpl-detail-wide"><dt>Fournisseur</dt><dd>{{ d.depense_code.fournisseur.raison_sociale }}</dd></div>
+          <div><dt>Montant total</dt><dd>{{ d.total_montant|floatformat:3 }} TND</dd></div><div><dt>Payé</dt><dd class="dpl-paid-value">{{ d.total_acompte|floatformat:3 }} TND</dd></div>
+          <div><dt>Reste</dt><dd class="{% if d.reste_a_payer > 0 %}dpl-due-value{% else %}dpl-paid-value{% endif %}">{{ d.reste_a_payer|floatformat:3 }} TND</dd></div><div><dt>Paiement</dt><dd>{{ d.mode_paiement }}</dd></div>
+        </dl>
+        <footer class="{% if not is_administration %}dpl-card-actions-single{% endif %}">
+          {% if is_administration %}<a href="{% url 'commercial:depense-detail' d.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Voir</a>{% endif %}
+          <a href="{% url 'commercial:depense-update' d.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a>
+          {% if is_administration %}<button type="button" class="btn btn-outline-danger dpl-delete-btn" data-url="{% url 'commercial:depense-delete' d.pk %}" data-label="DEP-{{ d.depense_code.depense_numero }} du {{ d.depense_code.depense_at|date:'d/m/Y' }} — {{ d.depense_code.fournisseur.raison_sociale }}"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer</span></button>{% endif %}
+        </footer>
+      </article>
+      {% endfor %}
     </div>
+
+    {% if is_paginated %}
+    <footer class="dpl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des dépenses"><ul class="dpl-pagination">
+      {% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;fournisseur_id={{ fournisseur_id|urlencode }}&amp;statut={{ statut|urlencode }}&amp;employe_id={{ employe_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}
+      {% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;fournisseur_id={{ fournisseur_id|urlencode }}&amp;statut={{ statut|urlencode }}&amp;employe_id={{ employe_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}
+      {% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;fournisseur_id={{ fournisseur_id|urlencode }}&amp;statut={{ statut|urlencode }}&amp;employe_id={{ employe_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}
+    </ul></nav></footer>
     {% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-cash-stack fs-1 d-block mb-2 opacity-25"></i>
-      Aucune dépense sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if fournisseur_id or statut %}avec ces filtres{% endif %}.
-    </div>
+    <div class="dpl-empty"><span><i class="bi bi-wallet2" aria-hidden="true"></i></span><h2>Aucune dépense</h2><p>Aucune dépense enregistrée du {{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}{% if fournisseur_id or statut or employe_id %} avec ces filtres{% endif %}.</p><a href="{% url 'commercial:depense-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer une dépense</a></div>
     {% endif %}
-  </div>
+  </section>
 </div>
 
 {% if is_administration %}
-<div class="d-flex justify-content-start mt-4">
-  <a href="{% url 'commercial:home' %}" class="btn btn-outline-secondary">
-    <i class="bi bi-house-door me-1"></i>Revenir à l'accueil
-  </a>
-</div>
+<div class="modal fade" id="dpl-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="dpl-delete-title"><div class="modal-dialog modal-dialog-centered"><form method="post" class="modal-content" id="dpl-delete-form">{% csrf_token %}<div class="modal-header"><h2 class="modal-title fs-5" id="dpl-delete-title">Supprimer cette dépense ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="fw-semibold mb-2" id="dpl-delete-label"></p><div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>La suppression est définitive. Le serveur vérifiera que la dépense n’a pas été modifiée ou intégrée à un solde caisse.</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger" id="dpl-delete-confirm"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button></div></form></div></div>
 {% endif %}
+{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+/* ── Dépenses : interface ordinateur d'abord ──────────────────────────────── */
+.expense-directory{--dpl-primary:#2c7be5;--dpl-primary-dark:#1a4f9c;--dpl-ink:#172033;--dpl-muted:#667085;--dpl-border:#e2e8f0;--dpl-surface:#fff;--dpl-radius:1rem;max-width:1600px;margin:0 auto;color:var(--dpl-ink)}
+.dpl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.dpl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.4rem;height:4.4rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.dpl-hero-copy{min-width:0}.dpl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.dpl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.dpl-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.88rem;line-height:1.5}.dpl-hero-actions{display:flex;align-items:stretch;gap:.6rem}.dpl-hero-meta{display:flex;flex-direction:column;justify-content:center;min-width:210px;padding:.55rem .75rem;border:1px solid rgba(255,255,255,.18);border-radius:.75rem;background:rgba(8,31,61,.2)}.dpl-hero-meta span{color:rgba(255,255,255,.64);font-size:.64rem}.dpl-hero-meta strong{margin-top:.08rem;color:#fff;font-size:.73rem}.dpl-add-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:3.1rem;padding-inline:1rem;border-radius:.75rem;color:#194f89;font-size:.78rem;font-weight:750}
+.dpl-filter-card,.dpl-panel{margin-top:1rem;overflow:hidden;border:1px solid var(--dpl-border);border-radius:var(--dpl-radius);background:var(--dpl-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.dpl-filter-head{display:flex;align-items:center;gap:.7rem;min-height:72px;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dpl-filter-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--dpl-primary);font-size:1.02rem}.dpl-filter-head h2{margin:0;color:var(--dpl-ink);font-size:.94rem;font-weight:750}.dpl-filter-head p{margin:.12rem 0 0;color:var(--dpl-muted);font-size:.7rem}.dpl-active-filter{display:inline-flex;align-items:center;gap:.3rem;margin-left:auto;padding:.3rem .58rem;border-radius:2rem;background:#e9f6ef;color:#18794e;font-size:.68rem;font-weight:750;white-space:nowrap}.dpl-filter-form{display:grid;grid-template-columns:minmax(210px,1.1fr) repeat(2,minmax(125px,.65fr)) minmax(170px,1fr) minmax(145px,.8fr) minmax(160px,.9fr) auto;align-items:end;gap:.7rem;padding:1rem}.dpl-filter-form-compact{grid-template-columns:minmax(210px,1.1fr) repeat(2,minmax(125px,.65fr)) minmax(170px,1fr) minmax(145px,.8fr) minmax(160px,.9fr) auto}.dpl-date-group{min-width:0}.dpl-group-label,.dpl-filter-field label,.dpl-locked-employee>span{display:block;margin-bottom:.35rem;color:#344054;font-size:.7rem;font-weight:700}.dpl-period-buttons{display:flex;gap:.3rem}.dpl-period-buttons .btn{flex:1 1 auto;min-height:2.85rem;padding:.4rem .45rem;border-radius:.65rem;font-size:.68rem;font-weight:650;white-space:nowrap}.dpl-filter-field .form-control,.dpl-filter-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.65rem;color:var(--dpl-ink);font-size:.78rem}.dpl-filter-field .form-control:focus,.dpl-filter-field .form-select:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.dpl-locked-employee strong{display:flex;align-items:center;gap:.35rem;min-height:2.85rem;padding:.6rem .75rem;border:1px solid #e0e6ee;border-radius:.65rem;background:#f7f9fc;color:#344054;font-size:.76rem}.dpl-filter-actions .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.85rem;padding-inline:.75rem;border-radius:.65rem;font-size:.7rem;font-weight:700;white-space:nowrap}
+.dpl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.dpl-kpi{--dpl-accent:#2c7be5;--dpl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:100px;padding:.9rem;border:1px solid var(--dpl-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.dpl-kpi-blue{--dpl-accent:#2c7be5;--dpl-soft:#eaf2fd}.dpl-kpi-violet{--dpl-accent:#6f42c1;--dpl-soft:#f1ebfb}.dpl-kpi-green{--dpl-accent:#198754;--dpl-soft:#e9f6ef}.dpl-kpi-red{--dpl-accent:#dc3545;--dpl-soft:#fdecee}.dpl-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border-radius:.72rem;background:var(--dpl-soft);color:var(--dpl-accent);font-size:1.15rem}.dpl-kpi>span:last-child{min-width:0}.dpl-kpi small{display:block;color:var(--dpl-muted);font-size:.66rem;font-weight:650}.dpl-kpi strong{display:block;overflow:hidden;margin-top:.06rem;color:var(--dpl-ink);font-size:1.08rem;font-variant-numeric:tabular-nums;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}.dpl-kpi em{display:block;margin-top:.1rem;color:var(--dpl-muted);font-size:.62rem;font-style:normal}
+.dpl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:82px;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dpl-section-label{color:var(--dpl-primary-dark);font-size:.65rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.dpl-panel-head h2{margin:.18rem 0 0;color:var(--dpl-ink);font-size:1.05rem;font-weight:750}.dpl-panel-head p{margin:.18rem 0 0;color:var(--dpl-muted);font-size:.73rem}.dpl-status-summary{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.35rem}.dpl-status-summary span{padding:.28rem .5rem;border-radius:2rem;font-size:.65rem;font-weight:750}.dpl-summary-paid{background:#e9f6ef;color:#18794e}.dpl-summary-partial{background:#fff4e0;color:#8a5300}.dpl-summary-unpaid{background:#fdecee;color:#b42332}
+.dpl-table-wrap{display:block}.dpl-table{width:100%;border-collapse:collapse;table-layout:fixed}.dpl-table thead{background:#f8fafc}.dpl-table th{padding:.7rem 1rem;border-bottom:1px solid var(--dpl-border);color:var(--dpl-muted);font-size:.65rem;font-weight:800;letter-spacing:.05em;text-align:left;text-transform:uppercase}.dpl-table td{padding:.82rem 1rem;border-bottom:1px solid #edf0f4;color:var(--dpl-ink);font-size:.76rem;vertical-align:middle}.dpl-table tbody tr:last-child td{border-bottom:0}.dpl-table tbody tr{transition:background-color .14s ease}.dpl-table tbody tr:hover{background:#f8faff}.dpl-table th:nth-child(1){width:16%}.dpl-table th:nth-child(2){width:17%}.dpl-table th:nth-child(3){width:20%}.dpl-table th:nth-child(4){width:22%}.dpl-table th:nth-child(5){width:15%}.dpl-table th:nth-child(6){width:10%}.dpl-reference{display:flex;align-items:center;gap:.55rem}.dpl-reference>span{display:inline-flex;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.62rem;background:#eaf2fd;color:var(--dpl-primary)}.dpl-reference strong{white-space:nowrap}.dpl-primary-value{display:block;overflow:hidden;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.dpl-secondary-value{display:flex;align-items:center;gap:.3rem;overflow:hidden;margin-top:.2rem;color:var(--dpl-muted);font-size:.65rem;text-overflow:ellipsis;white-space:nowrap}.dpl-money-list{display:grid;gap:.2rem;margin:0}.dpl-money-list div{display:grid;grid-template-columns:3rem minmax(0,1fr);gap:.4rem}.dpl-money-list dt{color:var(--dpl-muted);font-size:.64rem}.dpl-money-list dd{margin:0;font-size:.68rem;font-weight:750;text-align:right;font-variant-numeric:tabular-nums}.dpl-paid-value{color:#18794e!important}.dpl-due-value{color:#b42332!important}.dpl-status{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .5rem;border-radius:2rem;font-size:.67rem;font-weight:750;white-space:nowrap}.dpl-status-paid{background:#e9f6ef;color:#18794e}.dpl-status-partial{background:#fff4e0;color:#8a5300}.dpl-status-unpaid{background:#fdecee;color:#b42332}.dpl-actions-col{text-align:center!important}.dpl-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.dpl-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;color:#596579;text-decoration:none;transition:border-color .14s ease,background-color .14s ease,color .14s ease}.dpl-icon-btn:hover{border-color:#aeb9c7;background:#f7f9fb;color:var(--dpl-ink)}.dpl-icon-btn-primary{border-color:#b8d0ef;color:var(--dpl-primary-dark)}.dpl-icon-btn-danger{border-color:#efc6cb;color:#b42332}.dpl-icon-btn-danger:hover{border-color:#df9da5;background:#fff5f6;color:#991c2a}.dpl-mobile-list{display:none}
+.dpl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--dpl-border);background:#fbfcfe}.dpl-pagination-footer>span{color:var(--dpl-muted);font-size:.72rem}.dpl-pagination{display:flex;align-items:center;gap:.25rem;margin:0;padding:0;list-style:none}.dpl-pagination a,.dpl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.25rem;height:2.25rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.55rem;background:#fff;color:#526071;font-size:.72rem;font-weight:700;text-decoration:none}.dpl-pagination a:hover{border-color:#9cbee9;background:#f4f8fe;color:var(--dpl-primary-dark)}.dpl-pagination .active{border-color:var(--dpl-primary);background:var(--dpl-primary);color:#fff}.dpl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:330px;padding:2rem;text-align:center}.dpl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;margin-bottom:.85rem;border-radius:1rem;background:#edf4fd;color:var(--dpl-primary);font-size:1.5rem}.dpl-empty h2{margin:0;color:var(--dpl-ink);font-size:1rem;font-weight:750}.dpl-empty p{max-width:470px;margin:.35rem 0 1rem;color:var(--dpl-muted);font-size:.76rem}.dpl-empty .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;border-radius:.68rem;font-size:.76rem;font-weight:700}.expense-directory a:focus-visible,.expense-directory button:focus-visible,.expense-directory input:focus-visible,.expense-directory select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1399.98px){.dpl-filter-form,.dpl-filter-form-compact{grid-template-columns:repeat(2,minmax(0,1fr))}.dpl-date-group{grid-column:1/-1}}
+@media(max-width:1199.98px){.dpl-hero{grid-template-columns:auto minmax(0,1fr)}.dpl-hero-actions{grid-column:1/-1}.dpl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dpl-table-wrap{display:none}.dpl-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}.dpl-card{overflow:hidden;border:1px solid var(--dpl-border);border-radius:.8rem;background:#fff}.dpl-card header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dpl-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem;margin:0;padding:.9rem}.dpl-card dt{color:var(--dpl-muted);font-size:.62rem;font-weight:650;text-transform:uppercase}.dpl-card dd{overflow-wrap:anywhere;margin:.12rem 0 0;font-size:.73rem;font-weight:700}.dpl-detail-wide{grid-column:1/-1}.dpl-card footer{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.dpl-card footer.dpl-card-actions-single{grid-template-columns:1fr}.dpl-card footer .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.65rem;border-radius:.65rem;font-size:.72rem;font-weight:700}}
+@media(max-width:767.98px){.dpl-filter-form,.dpl-filter-form-compact{grid-template-columns:1fr}.dpl-date-group{grid-column:auto}.dpl-mobile-list{grid-template-columns:1fr}.dpl-panel-head{align-items:flex-start}.dpl-hero-actions{flex-wrap:wrap}.dpl-hero-meta{flex:1 1 220px}.dpl-add-btn{flex:1 1 auto}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.dpl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.dpl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.dpl-hero-copy>p{font-size:.8rem}.dpl-hero-actions{align-items:stretch;flex-direction:column}.dpl-period-buttons{display:grid;grid-template-columns:1fr}.dpl-filter-head{align-items:flex-start;flex-wrap:wrap}.dpl-active-filter{margin-left:3.15rem}.dpl-kpi-grid{grid-template-columns:1fr}.dpl-panel-head{flex-direction:column;padding:.9rem}.dpl-card dl{grid-template-columns:1fr}.dpl-detail-wide{grid-column:auto}.dpl-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.dpl-table tbody tr,.dpl-icon-btn{transition:none}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
+(function(){
+  var form=document.getElementById('filter-form'),startInput=document.getElementById('dpl-date-start'),endInput=document.getElementById('dpl-date-end');
+  form.querySelectorAll('[data-autosubmit]').forEach(function(field){field.addEventListener('change',function(){form.submit();});});
+  function pad(v){return v<10?'0'+v:String(v)}function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  var today=new Date();document.querySelectorAll('.dpl-period').forEach(function(button){var start=new Date(today);start.setDate(start.getDate()-parseInt(button.getAttribute('data-days'),10));var sv=iso(start),ev=iso(today);if(startInput.value===sv&&endInput.value===ev){button.classList.replace('btn-outline-secondary','btn-secondary');button.setAttribute('aria-pressed','true')}button.addEventListener('click',function(){startInput.value=sv;endInput.value=ev;form.submit();});});
+  var modalEl=document.getElementById('dpl-delete-modal');if(!modalEl){return}var modal=new bootstrap.Modal(modalEl),deleteForm=document.getElementById('dpl-delete-form'),deleteLabel=document.getElementById('dpl-delete-label'),confirmButton=document.getElementById('dpl-delete-confirm');document.querySelectorAll('.dpl-delete-btn').forEach(function(button){button.addEventListener('click',function(){deleteForm.action=button.getAttribute('data-url');deleteLabel.textContent=button.getAttribute('data-label');modal.show();});});deleteForm.addEventListener('submit',function(){confirmButton.disabled=true;confirmButton.innerHTML='<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Suppression…';});
+})();
 </script>
 {% endblock %}

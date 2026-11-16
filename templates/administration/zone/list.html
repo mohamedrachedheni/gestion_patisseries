@@ -3,290 +3,64 @@
 {% block title %}Zones — Administration{% endblock %}
 {% block page_title %}Zones{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Zones</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Zones</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="zone-list-dashboard">
+  <header class="znl-hero" aria-labelledby="znl-page-title">
+    <span class="znl-hero-icon" aria-hidden="true"><i class="bi bi-pin-map"></i></span>
+    <div class="znl-hero-copy"><div class="znl-eyebrow"><i class="bi bi-map" aria-hidden="true"></i> Référentiel géographique</div><h1 id="znl-page-title">Zones</h1><p>Gérez le niveau géographique utilisé pour rattacher les clients à une délégation et analyser leur activité territoriale.</p></div>
+    <div class="znl-hero-meta"><div><span>Zones</span><strong>{{ total_zones }}</strong><small>entrée{{ total_zones|pluralize }} enregistrée{{ total_zones|pluralize }}</small></div><div><span>Couverture</span><strong>{{ nb_delegations_couvertes }} délégation{{ nb_delegations_couvertes|pluralize }}</strong><small>{{ nb_gouvernorats_couverts }} gouvernorat{{ nb_gouvernorats_couverts|pluralize }} couvert{{ nb_gouvernorats_couverts|pluralize }}</small></div></div>
+  </header>
 
-{# ── Partie 1 : filtres ───────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="row g-2 align-items-end">
+  <section class="znl-kpi-grid" aria-label="Synthèse des zones">
+    <article class="znl-kpi znl-kpi-blue"><span><i class="bi bi-pin-map" aria-hidden="true"></i></span><div><small>Zones</small><strong>{{ total_zones }}</strong><em>dernier niveau géographique</em></div></article>
+    <article class="znl-kpi znl-kpi-violet"><span><i class="bi bi-signpost-2" aria-hidden="true"></i></span><div><small>Délégations couvertes</small><strong>{{ nb_delegations_couvertes }}</strong><em>avec au moins une zone</em></div></article>
+    <article class="znl-kpi znl-kpi-green"><span><i class="bi bi-geo-alt" aria-hidden="true"></i></span><div><small>Gouvernorats couverts</small><strong>{{ nb_gouvernorats_couverts }}</strong><em>avec des zones enregistrées</em></div></article>
+    <article class="znl-kpi {% if nb_sans_client %}znl-kpi-orange{% else %}znl-kpi-green{% endif %}"><span><i class="bi bi-people" aria-hidden="true"></i></span><div><small>Sans client</small><strong>{{ nb_sans_client }}</strong><em>{% if nb_sans_client %}zone{{ nb_sans_client|pluralize }} disponible{{ nb_sans_client|pluralize }}{% else %}toutes les zones sont utilisées{% endif %}</em></div></article>
+  </section>
 
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Gouvernorat</label>
-          <select name="gouvernorat" id="zone-filter-gouvernorat" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les gouvernorats —</option>
-            {% for g in gouvernorats_list %}
-            <option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
-            {% endfor %}
-          </select>
-        </div>
+  <section class="znl-filter-card" aria-labelledby="znl-filter-title">
+    <div class="znl-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="znl-filter-title">Filtrer le référentiel</h2><p>Sélectionnez manuellement un gouvernorat, une délégation ou les deux.</p></div></div>
+    <form method="get" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="znl-filter-field"><label for="znl-filter-governorate">Gouvernorat</label><select name="gouvernorat" id="znl-filter-governorate" class="form-select" autocomplete="off"><option value="">Tous les gouvernorats</option>{% for g in gouvernorats_list %}<option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>{% endfor %}</select></div><div class="znl-filter-field"><label for="znl-filter-delegation">Délégation</label><select name="delegation" id="znl-filter-delegation" class="form-select" autocomplete="off"><option value="">Toutes les délégations</option>{% for d in delegations_list %}<option value="{{ d.pk }}" {% if delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.gouvernorat.nom }} — {{ d.nom_delegation }}</option>{% endfor %}</select></div><p class="znl-filter-note"><i class="bi bi-list-check" aria-hidden="true"></i>{{ filtered_count }} zone{{ filtered_count|pluralize }} dans le résultat</p><div class="znl-filter-actions"><a href="{% url 'administration:zone-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-check2" aria-hidden="true"></i>Appliquer</button></div></form>
+  </section>
 
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Délégation</label>
-          <select name="delegation" id="zone-filter-delegation" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Toutes les délégations —</option>
-            {% for d in delegations_list %}
-            {% if not gouvernorat_id or gouvernorat_id == d.gouvernorat_id|stringformat:"s" %}
-            <option value="{{ d.pk }}" {% if delegation_id == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.nom_delegation }}</option>
-            {% endif %}
-            {% endfor %}
-          </select>
-        </div>
+  <div class="znl-workspace">
+    <section class="znl-panel" aria-labelledby="znl-list-title">
+      <header class="znl-panel-head"><div><div class="znl-section-label">Référentiel existant</div><h2 id="znl-list-title">Zones enregistrées</h2>{% if zones %}<p>{% if delegation_selectionnee %}Résultats rattachés à {{ delegation_selectionnee.nom_delegation }}.{% elif gouvernorat_selectionne %}Résultats rattachés à {{ gouvernorat_selectionne.nom }}.{% else %}Modifiez la délégation ou le nom, puis enregistrez la ligne.{% endif %}</p>{% else %}<p>Aucune zone ne correspond au périmètre choisi.</p>{% endif %}</div>{% if zones %}<span class="znl-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ filtered_count }} résultat{{ filtered_count|pluralize }}</span>{% endif %}</header>
+      {% if zones %}
+      {% for z in zones %}<form id="znl-update-{{ z.pk }}" method="post" action="{% url 'administration:zone-update' z.pk %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}</form><form id="znl-delete-{{ z.pk }}" method="post" action="{% url 'administration:zone-delete' z.pk %}">{% csrf_token %}</form>{% endfor %}
+      <div class="znl-columns" aria-hidden="true"><span>Gouvernorat</span><span>Délégation</span><span>Zone</span><span>Clients</span><span>Actions</span></div>
+      <div class="znl-list" role="list">{% for z in zones %}<article class="znl-row" role="listitem">
+        <div class="znl-governorate"><span aria-hidden="true"><i class="bi bi-geo-alt"></i></span><strong>{{ z.delegation.gouvernorat.nom }}</strong></div>
+        <div class="znl-delegation-cell"><label class="visually-hidden" for="znl-delegation-{{ z.pk }}">Délégation de {{ z.nom }}</label><select name="delegation" id="znl-delegation-{{ z.pk }}" class="form-select" required form="znl-update-{{ z.pk }}" autocomplete="off">{% for d in delegations_list %}<option value="{{ d.pk }}" {% if d.pk == z.delegation_id %}selected{% endif %}>{{ d.gouvernorat.nom }} — {{ d.nom_delegation }}</option>{% endfor %}</select></div>
+        <div class="znl-name-cell"><span aria-hidden="true"><i class="bi bi-pin-map"></i></span><div><label class="visually-hidden" for="znl-name-{{ z.pk }}">Nom de la zone {{ z.nom }}</label><input type="text" id="znl-name-{{ z.pk }}" name="nom" value="{{ z.nom }}" maxlength="100" required class="form-control" form="znl-update-{{ z.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Nom unique</small></div></div>
+        <div class="znl-client-state">{% if z.nb_clients %}<span class="znl-status znl-status-used"><i class="bi bi-people" aria-hidden="true"></i>{{ z.nb_clients }}</span>{% else %}<span class="znl-status znl-status-free"><i class="bi bi-check-circle" aria-hidden="true"></i>Libre</span>{% endif %}</div>
+        <div class="znl-actions"><button type="submit" form="znl-update-{{ z.pk }}" class="btn btn-outline-primary"><i class="bi bi-check2" aria-hidden="true"></i>Enregistrer</button>{% if z.nb_clients %}<button type="button" class="btn btn-outline-danger" disabled title="Suppression impossible : des clients sont rattachés"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Suppression impossible</span></button>{% else %}<button type="submit" form="znl-delete-{{ z.pk }}" class="btn btn-outline-danger" title="Supprimer {{ z.nom }}" aria-label="Supprimer la zone {{ z.nom }}" onclick="return confirm('Supprimer la zone « {{ z.nom|escapejs }} » ?');"><i class="bi bi-trash" aria-hidden="true"></i></button>{% endif %}</div>
+      </article>{% endfor %}</div>
+      {% if is_paginated %}<footer class="znl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ filtered_count }} zone{{ filtered_count|pluralize }}</span><nav aria-label="Pagination des zones"><ul class="znl-pagination">{% if page_obj.has_previous %}<li><a href="?gouvernorat={{ gouvernorat_id|urlencode }}&amp;delegation={{ delegation_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?gouvernorat={{ gouvernorat_id|urlencode }}&amp;delegation={{ delegation_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?gouvernorat={{ gouvernorat_id|urlencode }}&amp;delegation={{ delegation_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+      {% else %}<div class="znl-empty"><span><i class="bi bi-pin-map" aria-hidden="true"></i></span><h3>Aucune zone trouvée</h3><p>{% if delegation_selectionnee %}Cette délégation ne contient aucune zone.{% elif gouvernorat_selectionne %}Ce gouvernorat ne contient aucune zone.{% else %}Utilisez le formulaire adjacent pour créer la première entrée.{% endif %}</p></div>{% endif %}
+    </section>
 
-        <div class="col-auto">
-          <a href="{% url 'administration:zone-list' %}"
-             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
-    </form>
+    <aside class="znl-create-panel" aria-labelledby="znl-create-title">
+      <header><span><i class="bi bi-plus-lg" aria-hidden="true"></i></span><div><div class="znl-section-label">Nouvelle entrée</div><h2 id="znl-create-title">Ajouter une zone</h2></div></header>
+      <form method="post" action="{% url 'administration:zone-create' %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}<div class="znl-create-field"><label for="znl-new-governorate">Gouvernorat</label><select name="gouvernorat" id="znl-new-governorate" class="form-select" required autocomplete="off"><option value="" selected>Choisir un gouvernorat</option>{% for g in gouvernorats_list %}<option value="{{ g.pk }}">{{ g.nom }}</option>{% endfor %}</select></div><div class="znl-create-field"><label for="znl-new-delegation">Délégation</label><select name="delegation" id="znl-new-delegation" class="form-select" required autocomplete="off"><option value="" selected>Choisir une délégation</option>{% for d in delegations_list %}<option value="{{ d.pk }}">{{ d.gouvernorat.nom }} — {{ d.nom_delegation }}</option>{% endfor %}</select><small>Les deux rattachements doivent correspondre.</small></div><div class="znl-create-field"><label for="znl-new-name">Nom de la zone</label><input type="text" name="nom" id="znl-new-name" value="" maxlength="100" required class="form-control" placeholder="Saisir un nom" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Le nom doit être unique et n’est jamais suggéré automatiquement.</small></div><button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter la zone</button></form>
+      <div class="znl-create-note"><i class="bi bi-info-circle" aria-hidden="true"></i><p>Une zone peut être supprimée uniquement tant qu’aucun client ne lui est rattaché.</p></div>
+    </aside>
   </div>
 </div>
-
-{# ── Partie 2 : liste des zones enregistrées ─────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-pin-map me-2 text-primary"></i>Zones enregistrées
-  </div>
-  <div class="card-body p-0">
-    {% if zones %}
-    {% comment %}
-      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
-      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
-      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
-    {% endcomment %}
-    {% for z in zones %}
-    <form id="zone-update-{{ z.pk }}" method="post" action="{% url 'administration:zone-update' z.pk %}"></form>
-    <form id="zone-delete-{{ z.pk }}" method="post" action="{% url 'administration:zone-delete' z.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Gouvernorat</th>
-            <th>Délégation</th>
-            <th>Zone</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for z in zones %}
-          <tr class="zone-gouv-deleg-group">
-            <td class="ps-3" style="min-width:160px;">
-              <select class="form-select form-select-sm zone-gouvernorat-select" style="min-width:160px;">
-                {% for g in gouvernorats_list %}
-                <option value="{{ g.pk }}" {% if g.pk == z.delegation.gouvernorat_id %}selected{% endif %}>{{ g.nom }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td style="min-width:160px;">
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="zone-update-{{ z.pk }}">
-              <select name="delegation" class="form-select form-select-sm zone-delegation-select" style="min-width:160px;" form="zone-update-{{ z.pk }}">
-                {% for d in delegations_list %}
-                {% if d.gouvernorat_id == z.delegation.gouvernorat_id %}
-                <option value="{{ d.pk }}" {% if d.pk == z.delegation_id %}selected{% endif %}>{{ d.nom_delegation }}</option>
-                {% endif %}
-                {% endfor %}
-              </select>
-            </td>
-            <td style="min-width:160px;">
-              <input type="text" name="nom" value="{{ z.nom }}"
-                     style="min-width:160px;"
-                     class="form-control form-control-sm" form="zone-update-{{ z.pk }}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="submit" form="zone-update-{{ z.pk }}"
-                      class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="zone-delete-{{ z.pk }}">
-              <button type="submit" form="zone-delete-{{ z.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                      onclick="return confirm('Supprimer la zone « {{ z.nom|escapejs }} » ?');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} zone{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?gouvernorat={{ gouvernorat_id }}&delegation={{ delegation_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?gouvernorat={{ gouvernorat_id }}&delegation={{ delegation_id }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?gouvernorat={{ gouvernorat_id }}&delegation={{ delegation_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-pin-map fs-1 d-block mb-2 opacity-25"></i>
-      Aucune zone enregistrée.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Partie 3 : ajout d'une nouvelle zone ─────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter une zone
-  </div>
-  <div class="card-body">
-    <form method="post" action="{% url 'administration:zone-create' %}">
-      {% csrf_token %}
-      <div class="row g-2 align-items-end zone-gouv-deleg-group" id="zone-create-group">
-        <div class="col-sm-4">
-          <label class="form-label small mb-1">Gouvernorat</label>
-          <select name="gouvernorat" class="form-select zone-gouvernorat-select">
-            <option value="" selected>— Choisir —</option>
-            {% for g in gouvernorats_list %}
-            <option value="{{ g.pk }}">{{ g.nom }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-sm-4">
-          <label class="form-label small mb-1">Délégation</label>
-          <select name="delegation" class="form-select zone-delegation-select">
-            <option value="" selected>— Choisir —</option>
-          </select>
-        </div>
-        <div class="col-sm-3">
-          <label class="form-label small mb-1">Zone</label>
-          <input type="text" name="nom" value="" class="form-control" id="zone-create-nom-input"
-                 list="zone-create-nom-datalist" autocomplete="off">
-          <datalist id="zone-create-nom-datalist"></datalist>
-        </div>
-        <div class="col-sm-1">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg"></i>
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
-<script>
-(function () {
-  var DELEGATIONS = {{ delegations_json|safe }};
-  var ZONES = {{ zones_json|safe }};
-
-  function buildDelegationOptions(gouvernoratId, selectedId) {
-    var html = '<option value="">— Choisir —</option>';
-    DELEGATIONS.forEach(function (d) {
-      if (!gouvernoratId || String(d.gouvernorat_id) !== String(gouvernoratId)) { return; }
-      var sel = (selectedId && String(d.id) === String(selectedId)) ? ' selected' : '';
-      html += '<option value="' + d.id + '"' + sel + '>' + d.nom + '</option>';
-    });
-    return html;
-  }
-
-  // ── Section « Ajouter une zone » : le champ Zone suggère (sans l'imposer)
-  // les noms des zones déjà enregistrées sous la délégation sélectionnée.
-  var zoneCreateNomDatalist = document.getElementById('zone-create-nom-datalist');
-
-  function refreshZoneNomOptions(delegationId) {
-    if (!zoneCreateNomDatalist) { return; }
-    zoneCreateNomDatalist.innerHTML = '';
-    ZONES.forEach(function (z) {
-      if (!delegationId || String(z.delegation_id) !== String(delegationId)) { return; }
-      var option = document.createElement('option');
-      option.value = z.nom;
-      zoneCreateNomDatalist.appendChild(option);
-    });
-  }
-
-  document.querySelectorAll('.zone-gouv-deleg-group').forEach(function (group) {
-    var gouvSelect = group.querySelector('.zone-gouvernorat-select');
-    var delegSelect = group.querySelector('.zone-delegation-select');
-    if (!gouvSelect || !delegSelect) { return; }
-    var isCreateGroup = group.id === 'zone-create-group';
-
-    gouvSelect.addEventListener('change', function () {
-      delegSelect.innerHTML = buildDelegationOptions(gouvSelect.value, null);
-      if (isCreateGroup) { refreshZoneNomOptions(null); }
-    });
-
-    delegSelect.addEventListener('change', function () {
-      var match = DELEGATIONS.find(function (d) { return String(d.id) === String(delegSelect.value); });
-      if (match) { gouvSelect.value = String(match.gouvernorat_id); }
-      if (isCreateGroup) { refreshZoneNomOptions(delegSelect.value); }
-    });
-  });
-})();
-</script>
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-// Chaque changement de filtre déclenche un rechargement complet (data-autosubmit) :
-// le serveur recalcule déjà les options Délégation en cascade au rendu suivant
-// (voir la condition dans le select ci-dessus). On efface seulement la valeur du
-// champ enfant devenue incompatible avant de soumettre, pour éviter qu'une
-// ancienne délégation filtre silencieusement le nouveau gouvernorat.
-var gouvSelect = document.getElementById('zone-filter-gouvernorat');
-var delegSelect = document.getElementById('zone-filter-delegation');
-
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-
-    if (this === gouvSelect) {
-      delegSelect.value = '';
-    }
-
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) { pageInput.remove(); }
-    form.submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Zones : espace de gestion ordinateur d'abord. */
+.zone-list-dashboard{--znl-primary:#2c7be5;--znl-primary-dark:#1a4f9c;--znl-ink:#172033;--znl-muted:#667085;--znl-border:#e2e8f0;--znl-radius:1rem;max-width:1700px;margin:0 auto;color:var(--znl-ink)}
+.znl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(340px,410px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.znl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.znl-hero-copy{min-width:0}.znl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.znl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.znl-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.znl-hero-meta{display:grid;grid-template-columns:.8fr 1.2fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.znl-hero-meta div{min-width:0;padding:.55rem}.znl-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.znl-hero-meta span,.znl-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.znl-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.znl-hero-meta small{margin-top:.1rem}
+.znl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.znl-kpi{--znl-accent:#2c7be5;--znl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--znl-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.znl-kpi-blue{--znl-accent:#2c7be5;--znl-soft:#eaf2fd}.znl-kpi-green{--znl-accent:#198754;--znl-soft:#e9f6ef}.znl-kpi-violet{--znl-accent:#6f42c1;--znl-soft:#f1ebfb}.znl-kpi-orange{--znl-accent:#d97706;--znl-soft:#fff4e0}.znl-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--znl-soft);color:var(--znl-accent);font-size:1.1rem}.znl-kpi small{display:block;color:var(--znl-muted);font-size:.64rem;font-weight:650}.znl-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.znl-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--znl-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.znl-filter-card,.znl-panel,.znl-create-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--znl-border);border-radius:var(--znl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.znl-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.znl-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--znl-primary)}.znl-filter-head h2{margin:0;font-size:.88rem;font-weight:750}.znl-filter-head p{margin:.12rem 0 0;color:var(--znl-muted);font-size:.65rem}.znl-filter-card form{display:grid;grid-template-columns:minmax(180px,260px) minmax(230px,330px) minmax(130px,1fr) auto;align-items:end;gap:.7rem;padding:.9rem 1rem}.znl-filter-field label{display:block;margin-bottom:.3rem;color:#344054;font-size:.65rem;font-weight:700}.znl-filter-field .form-select{min-height:2.65rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.7rem}.znl-filter-note{display:flex;align-items:center;gap:.35rem;min-height:2.65rem;margin:0;color:var(--znl-muted);font-size:.61rem}.znl-filter-actions{display:flex;gap:.45rem}.znl-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;min-height:2.65rem;padding-inline:.7rem;border-radius:.58rem;font-size:.63rem;font-weight:700;white-space:nowrap}
+.znl-workspace{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:1rem}.znl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.znl-section-label{color:var(--znl-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.znl-panel-head h2,.znl-create-panel h2{margin:.12rem 0 0;font-size:.94rem;font-weight:750}.znl-panel-head p{margin:.14rem 0 0;color:var(--znl-muted);font-size:.66rem}.znl-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--znl-primary-dark);font-size:.65rem;font-weight:750;white-space:nowrap}.znl-columns,.znl-row{display:grid;grid-template-columns:minmax(95px,.7fr) minmax(115px,.9fr) minmax(120px,1fr) 60px 125px;align-items:center;gap:.4rem}.znl-columns{padding:.58rem .8rem;border-bottom:1px solid var(--znl-border);background:#f8fafc;color:var(--znl-muted);font-size:.52rem;font-weight:800;letter-spacing:.025em;text-transform:uppercase}.znl-columns span:nth-child(4){text-align:center}.znl-row{padding:.68rem .8rem;border-bottom:1px solid #edf0f4}.znl-row:last-child{border-bottom:0}.znl-row:hover{background:#fbfcfe}.znl-governorate{display:flex;align-items:center;gap:.35rem;min-width:0}.znl-governorate>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:1.8rem;height:1.8rem;border-radius:.5rem;background:#f1ebfb;color:#6f42c1}.znl-governorate strong{overflow:hidden;font-size:.6rem;text-overflow:ellipsis;white-space:nowrap}.znl-delegation-cell .form-select,.znl-name-cell .form-control{min-height:2.35rem;border-color:#d5dde7;border-radius:.56rem;font-size:.64rem}.znl-name-cell{display:flex;align-items:center;gap:.42rem;min-width:0}.znl-name-cell>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:.56rem;background:#eaf2fd;color:var(--znl-primary)}.znl-name-cell>div{min-width:0}.znl-name-cell small{display:block;margin-top:.14rem;color:var(--znl-muted);font-size:.5rem}.znl-client-state{text-align:center}.znl-status{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;padding:.21rem .38rem;border-radius:2rem;font-size:.54rem;font-weight:750;white-space:nowrap}.znl-status-used{background:#eaf2fd;color:#31577f}.znl-status-free{background:#e9f6ef;color:#18794e}.znl-actions{display:flex;justify-content:flex-end;gap:.3rem}.znl-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-height:2.25rem;padding:.35rem .42rem;border-radius:.52rem;font-size:.55rem;font-weight:700}.znl-actions .btn:last-child{width:2.3rem;padding:0}.znl-actions .btn:disabled{cursor:not-allowed;opacity:.42}.znl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.znl-pagination-footer>span{color:var(--znl-muted);font-size:.62rem}.znl-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.znl-pagination a,.znl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.znl-pagination .active{border-color:var(--znl-primary);background:var(--znl-primary);color:#fff}.znl-empty{padding:3rem 1rem;text-align:center}.znl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.znl-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.znl-empty p{margin:0;color:var(--znl-muted);font-size:.68rem}
+.znl-create-panel{position:sticky;top:1rem}.znl-create-panel>header{display:flex;align-items:center;gap:.6rem;padding:.9rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.znl-create-panel>header>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--znl-primary)}.znl-create-panel form{padding:1rem}.znl-create-field+.znl-create-field{margin-top:.7rem}.znl-create-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.66rem;font-weight:700}.znl-create-field .form-control,.znl-create-field .form-select{min-height:2.7rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.68rem}.znl-create-field small{display:block;margin-top:.38rem;color:var(--znl-muted);font-size:.56rem;line-height:1.4}.znl-create-panel form .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.75rem;margin-top:.8rem;border-radius:.62rem;font-size:.68rem;font-weight:700}.znl-create-note{display:flex;align-items:flex-start;gap:.45rem;padding:.8rem 1rem;border-top:1px solid #edf0f4;background:#f8fafc;color:var(--znl-muted)}.znl-create-note p{margin:0;font-size:.6rem;line-height:1.45}.zone-list-dashboard a:focus-visible,.zone-list-dashboard button:focus-visible,.zone-list-dashboard input:focus-visible,.zone-list-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.znl-hero{grid-template-columns:auto minmax(0,1fr)}.znl-hero-meta{grid-column:1/-1}.znl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.znl-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.znl-filter-note{grid-column:1/-1}.znl-filter-actions{grid-column:1/-1;justify-content:flex-end}.znl-workspace{grid-template-columns:1fr}.znl-create-panel{position:static}.znl-columns,.znl-row{grid-template-columns:minmax(150px,.7fr) minmax(210px,.9fr) minmax(210px,1fr) 80px 150px}}
+@media(max-width:767.98px){.znl-filter-card form{grid-template-columns:1fr}.znl-filter-note,.znl-filter-actions{grid-column:auto}.znl-filter-actions{justify-content:flex-start}.znl-columns{display:none}.znl-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;padding:.8rem}.znl-governorate,.znl-delegation-cell,.znl-name-cell{grid-column:1/-1}.znl-client-state{text-align:left}.znl-actions{justify-content:flex-end}.znl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.znl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.znl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.znl-hero-copy>p{font-size:.8rem}.znl-hero-meta{grid-template-columns:1fr}.znl-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.znl-kpi-grid{grid-template-columns:1fr}.znl-panel-head{flex-direction:column;padding:.9rem}.znl-row{grid-template-columns:1fr}.znl-governorate,.znl-delegation-cell,.znl-name-cell,.znl-actions{grid-column:auto}.znl-actions{justify-content:flex-start}.znl-pagination-footer{align-items:flex-start;flex-direction:column}.znl-filter-actions{flex-direction:column}}
 {% endblock %}

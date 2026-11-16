@@ -3,177 +3,63 @@
 {% block title %}Chiffre d'affaires par commercial — Administration{% endblock %}
 {% block page_title %}Chiffre d'affaires par commercial{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Chiffre d'affaires par commercial</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Chiffre d'affaires par commercial</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="commercial-revenue-dashboard">
+  <header class="cac-hero" aria-labelledby="cac-page-title">
+    <span class="cac-hero-icon" aria-hidden="true"><i class="bi bi-person-lines-fill"></i></span>
+    <div class="cac-hero-copy"><div class="cac-eyebrow"><i class="bi bi-people" aria-hidden="true"></i> Performance commerciale</div><h1 id="cac-page-title">Chiffre d’affaires par commercial</h1><p>Comparez la contribution de chaque commercial au chiffre d’affaires et visualisez la répartition de l’activité sur la période.</p></div>
+    <div class="cac-hero-meta"><div><span>Période analysée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong><small>{{ nb_jours }} jour{{ nb_jours|pluralize }}</small></div><div><span>Équipe contributrice</span><strong>{% if total_count == 1 %}1 commercial{% else %}{{ total_count }} commerciaux{% endif %}</strong><small>avec ventes enregistrées</small></div></div>
+  </header>
 
-{# ── Filtres + total verrouillé ────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3 overflow-auto">
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total chiffre d'affaire (TND)</label>
-          <input type="text"
-                 class="form-control form-control-sm text-end font-monospace fw-semibold"
-                 value="{{ total_chiffre_affaire|stringformat:'.3f' }}" disabled>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:chiffre-affaire-commercial-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="cac-filter-card" aria-labelledby="cac-filter-title">
+    <div class="cac-filter-head"><span><i class="bi bi-calendar-range" aria-hidden="true"></i></span><div><h2 id="cac-filter-title">Période de l’analyse</h2><p>Le classement et les graphiques sont recalculés après validation des dates.</p></div></div>
+    <form method="get" id="cac-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="cac-filter-field"><label for="cac-date-start">Date de début</label><input type="date" name="date_debut" id="cac-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <div class="cac-filter-field"><label for="cac-date-end">Date de fin</label><input type="date" name="date_fin" id="cac-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <p class="cac-filter-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Seule la dernière version de chaque bon de livraison est comptabilisée.</p>
+      <div class="cac-filter-actions"><a href="{% url 'administration:chiffre-affaire-commercial-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Actualiser l’analyse</button></div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="cac-kpi-grid" aria-label="Synthèse du chiffre d’affaires par commercial">
+    <article class="cac-kpi cac-kpi-blue"><span><i class="bi bi-cash-stack" aria-hidden="true"></i></span><div><small>Chiffre d’affaires total</small><strong>{{ total_chiffre_affaire|stringformat:'.3f' }}</strong><em>TND sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></div></article>
+    <article class="cac-kpi cac-kpi-violet"><span><i class="bi bi-people" aria-hidden="true"></i></span><div><small>Commerciaux contributeurs</small><strong>{{ total_count }}</strong><em>avec au moins une livraison</em></div></article>
+    <article class="cac-kpi cac-kpi-orange"><span><i class="bi bi-calculator" aria-hidden="true"></i></span><div><small>CA moyen par commercial</small><strong>{{ ca_moyen|stringformat:'.3f' }}</strong><em>TND par contributeur</em></div></article>
+    <article class="cac-kpi cac-kpi-green"><span><i class="bi bi-trophy" aria-hidden="true"></i></span><div><small>Meilleure contribution</small><strong>{% if meilleur_commercial and meilleur_commercial.commercial %}{{ meilleur_commercial.commercial.get_full_name|default:meilleur_commercial.commercial.username }}{% elif meilleur_commercial %}Non identifié{% else %}—{% endif %}</strong><em>{% if meilleur_commercial and meilleur_commercial.part_ca is not None %}{{ meilleur_commercial.part_ca|stringformat:'.2f' }}% du CA total{% elif meilleur_commercial %}part non calculable{% else %}aucune vente sur la période{% endif %}</em></div></article>
+  </section>
+
+  <details class="cac-method">
+    <summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre le classement commercial</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+    <div><div><strong>Montant attribué</strong><p>Somme des derniers bons de livraison enregistrés par le commercial sur la période.</p></div><div><strong>Part du CA</strong><p>Contribution du commercial au chiffre d’affaires total de tous les contributeurs.</p></div><div><strong>Classement</strong><p>Les commerciaux sont triés du montant le plus élevé au plus faible, sur toutes les pages.</p></div></div>
+  </details>
+
+  <section class="cac-panel" aria-labelledby="cac-results-title">
+    <header class="cac-panel-head"><div><div class="cac-section-label">Classement de la période</div><h2 id="cac-results-title">Contribution par commercial</h2>{% if lignes %}<p>{% if total_count == 1 %}1 commercial classé{% else %}{{ total_count }} commerciaux classés{% endif %} selon le montant des ventes enregistrées.</p>{% else %}<p>Aucune vente n’a été attribuée à un commercial sur cette période.</p>{% endif %}</div>{% if lignes %}<span class="cac-result-badge"><i class="bi bi-list-ol" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:180px;">Commercial</th>
-            <th class="text-end" style="min-width:170px;">Total montant (TND)</th>
-            <th class="text-end pe-3" style="min-width:150px;">Part du CA (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:180px;"
-                     value="{{ l.commercial.get_full_name|default:l.commercial.username }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.total_montant|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end pe-3">
-              {% if l.part_ca is not None %}
-              <input type="text" class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.part_ca|stringformat:'.2f' }} %" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="cac-table-wrap"><table class="cac-table"><caption class="visually-hidden">Classement des commerciaux par chiffre d’affaires</caption><colgroup><col class="cac-col-rank"><col class="cac-col-commercial"><col class="cac-col-revenue"><col class="cac-col-share"></colgroup><thead><tr><th scope="col">Rang</th><th scope="col">Commercial</th><th scope="col" class="cac-number-col">Chiffre d’affaires</th><th scope="col">Part du chiffre d’affaires</th></tr></thead><tbody>{% for l in lignes %}<tr><td><span class="cac-rank {% if l.rang == 1 %}cac-rank-first{% endif %}">{{ l.rang }}</span></td><td><span class="cac-commercial"><span aria-hidden="true"><i class="bi bi-person"></i></span><span>{% if l.commercial %}<strong>{{ l.commercial.get_full_name|default:l.commercial.username }}</strong><small>{{ l.commercial.username }}</small>{% else %}<strong>Commercial non identifié</strong><small>Compte indisponible</small>{% endif %}</span></span></td><td class="cac-number-col"><strong class="cac-money">{{ l.total_montant|stringformat:'.3f' }}</strong><small>TND</small></td><td>{% if l.part_ca is not None %}<div class="cac-share"><strong>{{ l.part_ca|stringformat:'.2f' }}%</strong><span aria-hidden="true"><i style="width:{{ l.part_ca|stringformat:'s' }}%"></i></span></div>{% else %}<span class="cac-dash">—</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="cac-card-list">{% for l in lignes %}<article class="cac-card"><header><span class="cac-rank {% if l.rang == 1 %}cac-rank-first{% endif %}">{{ l.rang }}</span><span class="cac-commercial"><span aria-hidden="true"><i class="bi bi-person"></i></span><span>{% if l.commercial %}<strong>{{ l.commercial.get_full_name|default:l.commercial.username }}</strong><small>{{ l.commercial.username }}</small>{% else %}<strong>Commercial non identifié</strong>{% endif %}</span></span></header><dl><div><dt>Chiffre d’affaires</dt><dd>{{ l.total_montant|stringformat:'.3f' }} TND</dd></div><div><dt>Part du CA</dt><dd>{% if l.part_ca is not None %}{{ l.part_ca|stringformat:'.2f' }}%{% else %}—{% endif %}</dd></div></dl></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="cac-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {% if total_count == 1 %}1 commercial{% else %}{{ total_count }} commerciaux{% endif %}</span><nav aria-label="Pagination du chiffre d’affaires par commercial"><ul class="cac-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="cac-empty"><span><i class="bi bi-people" aria-hidden="true"></i></span><h3>Aucune vente sur cette période</h3><p>Élargissez la période ou vérifiez l’attribution des bons de livraison.</p></div>{% endif %}
+  </section>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} commercial{{ total_count|pluralize:"e,aux" }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
-      Aucune vente sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>.
-    </div>
-    {% endif %}
-  </div>
+  {% if chart_montant_b64 or chart_part_b64 %}<section class="cac-charts-panel" aria-labelledby="cac-charts-title"><header class="cac-charts-head"><div><div class="cac-section-label">Visualisations comparatives</div><h2 id="cac-charts-title">Répartition du chiffre d’affaires</h2><p>Les graphiques couvrent tous les commerciaux de la période, indépendamment de la page affichée.</p></div><i class="bi bi-bar-chart-line" aria-hidden="true"></i></header><div class="cac-charts-grid">{% if chart_montant_b64 %}<article class="cac-chart-card"><header><span><i class="bi bi-bar-chart" aria-hidden="true"></i></span><div><h3>Montant par commercial</h3><p>Comparaison des chiffres d’affaires en TND</p></div></header><figure><img src="data:image/png;base64,{{ chart_montant_b64 }}" width="1350" height="900" alt="Graphique du chiffre d’affaires total par commercial"><figcaption>Les montants sont classés du plus élevé au plus faible.</figcaption></figure></article>{% endif %}{% if chart_part_b64 %}<article class="cac-chart-card"><header><span><i class="bi bi-pie-chart" aria-hidden="true"></i></span><div><h3>Part du chiffre d’affaires</h3><p>Poids de chaque commercial dans le total</p></div></header><figure><img src="data:image/png;base64,{{ chart_part_b64 }}" width="1050" height="900" alt="Graphique de la part du chiffre d’affaires par commercial"><figcaption>La somme des contributions représente 100 % du chiffre d’affaires.</figcaption></figure></article>{% endif %}</div></section>{% endif %}
 </div>
-
-{# ── Graphiques ─────────────────────────────────────────────────────────────── #}
-{% if chart_montant_b64 %}
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-body text-center">
-    <img src="data:image/png;base64,{{ chart_montant_b64 }}" class="img-fluid" alt="Total montant par commercial">
-  </div>
-</div>
-{% endif %}
-
-{% if chart_part_b64 %}
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-body text-center">
-    <img src="data:image/png;base64,{{ chart_part_b64 }}" class="img-fluid" alt="Part du chiffre d'affaire par commercial">
-  </div>
-</div>
-{% endif %}
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Chiffre d'affaires par commercial : tableau de bord ordinateur d'abord. */
+.commercial-revenue-dashboard{--cac-primary:#2c7be5;--cac-primary-dark:#1a4f9c;--cac-ink:#172033;--cac-muted:#667085;--cac-border:#e2e8f0;--cac-radius:1rem;max-width:1700px;margin:0 auto;color:var(--cac-ink)}
+.cac-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(360px,430px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.cac-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.cac-hero-copy{min-width:0}.cac-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.cac-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.cac-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.cac-hero-meta{display:grid;grid-template-columns:1.3fr .7fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.cac-hero-meta div{min-width:0;padding:.55rem}.cac-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.cac-hero-meta span,.cac-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.cac-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.cac-hero-meta small{margin-top:.1rem}
+.cac-filter-card,.cac-method,.cac-panel,.cac-charts-panel{margin-top:1rem;border:1px solid var(--cac-border);border-radius:var(--cac-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04);overflow:hidden}.cac-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cac-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--cac-primary)}.cac-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.cac-filter-head p{margin:.12rem 0 0;color:var(--cac-muted);font-size:.68rem}.cac-filter-card form{display:grid;grid-template-columns:165px 165px minmax(180px,1fr) auto;align-items:end;gap:.75rem;padding:1rem}.cac-filter-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.cac-filter-field .form-control{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.cac-filter-note{display:flex;align-items:center;gap:.35rem;min-height:2.8rem;margin:0;color:var(--cac-muted);font-size:.64rem}.cac-filter-actions{display:flex;gap:.5rem}.cac-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:.75rem;border-radius:.62rem;font-size:.68rem;font-weight:700;white-space:nowrap}
+.cac-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.cac-kpi{--cac-accent:#2c7be5;--cac-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--cac-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.cac-kpi-blue{--cac-accent:#2c7be5;--cac-soft:#eaf2fd}.cac-kpi-green{--cac-accent:#198754;--cac-soft:#e9f6ef}.cac-kpi-violet{--cac-accent:#6f42c1;--cac-soft:#f1ebfb}.cac-kpi-orange{--cac-accent:#d97706;--cac-soft:#fff4e0}.cac-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--cac-soft);color:var(--cac-accent);font-size:1.1rem}.cac-kpi small{display:block;color:var(--cac-muted);font-size:.64rem;font-weight:650}.cac-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.08rem;font-variant-numeric:tabular-nums;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}.cac-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--cac-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.cac-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.cac-method summary::-webkit-details-marker{display:none}.cac-method summary span{display:flex;align-items:center;gap:.4rem}.cac-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.cac-method[open] summary>i{transform:rotate(180deg)}.cac-method>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;padding:.9rem}.cac-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.cac-method strong{font-size:.68rem}.cac-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.cac-panel-head,.cac-charts-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cac-section-label{color:var(--cac-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.cac-panel-head h2,.cac-charts-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.cac-panel-head p,.cac-charts-head p{margin:.15rem 0 0;color:var(--cac-muted);font-size:.7rem}.cac-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--cac-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.cac-table{width:100%;border-collapse:collapse;table-layout:fixed}.cac-col-rank{width:9%}.cac-col-commercial{width:39%}.cac-col-revenue{width:24%}.cac-col-share{width:28%}.cac-table thead{background:#f8fafc}.cac-table th{padding:.72rem .85rem;border-bottom:1px solid var(--cac-border);color:var(--cac-muted);font-size:.61rem;font-weight:800;letter-spacing:.03em;text-align:left;text-transform:uppercase}.cac-table td{padding:.78rem .85rem;border-bottom:1px solid #edf0f4;font-size:.7rem;vertical-align:middle}.cac-table tbody tr:last-child td{border-bottom:0}.cac-table tbody tr:hover{background:#f8faff}.cac-number-col{text-align:right!important}.cac-rank{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:.58rem;background:#eef2f6;color:#45576d;font-size:.7rem;font-weight:800}.cac-rank-first{background:#fff2cc;color:#805b00;box-shadow:inset 0 0 0 1px #f0d98c}.cac-commercial{display:flex;align-items:center;gap:.58rem;min-width:0}.cac-commercial>span:first-child{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.35rem;height:2.35rem;border-radius:50%;background:#eaf2fd;color:var(--cac-primary)}.cac-commercial>span:last-child{min-width:0}.cac-commercial strong,.cac-commercial small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cac-commercial small{margin-top:.08rem;color:var(--cac-muted);font-size:.58rem}.cac-money{display:block;font-size:.76rem;font-variant-numeric:tabular-nums}.cac-table td>small{display:block;margin-top:.08rem;color:var(--cac-muted);font-size:.57rem}.cac-share strong{display:block;color:#31577f;font-size:.68rem;font-variant-numeric:tabular-nums}.cac-share>span{display:block;overflow:hidden;height:.32rem;margin-top:.25rem;border-radius:2rem;background:#e9edf3}.cac-share>span i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2c7be5,#64a1ee)}.cac-dash{color:#98a2b3}.cac-card-list{display:none}
+.cac-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.cac-pagination-footer>span{color:var(--cac-muted);font-size:.65rem}.cac-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.cac-pagination a,.cac-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.cac-pagination .active{border-color:var(--cac-primary);background:var(--cac-primary);color:#fff}.cac-empty{padding:3rem 1rem;text-align:center}.cac-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.cac-empty h3{margin:.7rem 0 .25rem;font-size:.95rem}.cac-empty p{margin:0;color:var(--cac-muted);font-size:.72rem}
+.cac-charts-head>i{color:var(--cac-primary);font-size:1.45rem}.cac-charts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;padding:1rem;background:#f7f9fc}.cac-chart-card{overflow:hidden;border:1px solid var(--cac-border);border-radius:.8rem;background:#fff}.cac-chart-card>header{display:flex;align-items:center;gap:.6rem;padding:.75rem .85rem;border-bottom:1px solid #edf0f4}.cac-chart-card>header>span{display:inline-flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.62rem;background:#eaf2fd;color:var(--cac-primary)}.cac-chart-card h3{margin:0;font-size:.75rem;font-weight:750}.cac-chart-card header p{margin:.1rem 0 0;color:var(--cac-muted);font-size:.6rem}.cac-chart-card figure{margin:0;padding:.75rem}.cac-chart-card img{display:block;width:100%;height:auto;border-radius:.55rem}.cac-chart-card figcaption{margin-top:.45rem;color:var(--cac-muted);font-size:.6rem;text-align:center}.commercial-revenue-dashboard a:focus-visible,.commercial-revenue-dashboard button:focus-visible,.commercial-revenue-dashboard input:focus-visible,.commercial-revenue-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.cac-hero{grid-template-columns:auto minmax(0,1fr)}.cac-hero-meta{grid-column:1/-1}.cac-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.cac-filter-note{grid-column:1/-1}.cac-filter-actions{grid-column:1/-1;justify-content:flex-end}.cac-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cac-charts-grid{grid-template-columns:1fr}}
+@media(max-width:767.98px){.cac-table-wrap{display:none}.cac-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;padding:.8rem;background:#f7f9fc}.cac-card{overflow:hidden;border:1px solid var(--cac-border);border-radius:.78rem;background:#fff}.cac-card header{display:flex;align-items:center;gap:.55rem;padding:.7rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cac-card .cac-commercial{min-width:0}.cac-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:0;padding:.75rem}.cac-card dt{color:var(--cac-muted);font-size:.55rem;text-transform:uppercase}.cac-card dd{margin:.1rem 0 0;font-size:.68rem;font-weight:750}.cac-method>div{grid-template-columns:1fr}.cac-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.cac-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.cac-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.cac-hero-copy>p{font-size:.8rem}.cac-hero-meta{grid-template-columns:1fr}.cac-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.cac-filter-card form{grid-template-columns:1fr}.cac-filter-note,.cac-filter-actions{grid-column:auto}.cac-filter-actions{flex-direction:column}.cac-kpi-grid{grid-template-columns:1fr}.cac-panel-head{flex-direction:column;padding:.9rem}.cac-card-list{grid-template-columns:1fr}.cac-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}

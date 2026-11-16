@@ -3,185 +3,97 @@
 {% block title %}Produits — Production{% endblock %}
 {% block page_title %}Produits{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Produits</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Produits</li></ol></nav>{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des produits</h4>
-  <a href="{% url 'production:produit-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouveau produit
-  </a>
-</div>
+<div class="product-directory">
+  <header class="prd-hero" aria-labelledby="prd-page-title">
+    <span class="prd-hero-icon" aria-hidden="true"><i class="bi bi-cake2"></i></span>
+    <div class="prd-hero-copy"><div class="prd-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Catalogue de production</div><h1 id="prd-page-title">Catalogue des produits</h1><p>Consultez les produits, surveillez leur stock par rapport à la quantité minimale et modifiez leur prix ou leurs informations.</p></div>
+    <div class="prd-hero-actions"><div class="prd-count-card" aria-label="{{ total_count }} produits trouvés"><strong>{{ total_count }}</strong><span>produit{{ total_count|pluralize }}</span></div><a href="{% url 'production:produit-create' %}" class="btn btn-light prd-add-btn"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouveau produit</a></div>
+  </header>
 
-{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="row g-2 align-items-end">
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Nom</label>
-          <input type="text" name="nom" value="{{ nom }}"
-                 class="form-control form-control-sm" placeholder="Rechercher par nom…" data-autosubmit>
-        </div>
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Prix unitaire inférieur à</label>
-          <input type="number" step="0.001" name="prix_max" value="{{ prix_max }}"
-                 class="form-control form-control-sm no-spinner" placeholder="TND" data-autosubmit>
-        </div>
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <div class="form-check mt-4">
-            <input type="checkbox" name="stock_faible" value="1" id="stock_faible"
-                   class="form-check-input" {% if stock_faible %}checked{% endif %} data-autosubmit>
-            <label class="form-check-label small" for="stock_faible">
-              Stock inférieur à la quantité minimale
-            </label>
-          </div>
-        </div>
-
-        <div class="col-auto">
-          <a href="{% url 'production:produit-list' %}"
-             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="prd-filter-card" aria-labelledby="prd-filter-title">
+    <div class="prd-filter-head"><span class="prd-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="prd-filter-title">Filtrer le catalogue</h2><p>Sélectionnez un ou plusieurs critères, puis appliquez les filtres.</p></div>{% if nom or prix_max or stock_faible %}<span class="prd-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i> Filtres actifs</span>{% endif %}</div>
+    <form method="get" id="prd-filter-form" class="prd-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="prd-filter-field"><label for="prd-nom">Nom du produit</label><div class="prd-search-control"><i class="bi bi-search" aria-hidden="true"></i><input type="search" name="nom" id="prd-nom" value="{{ nom }}" class="form-control" placeholder="Rechercher par nom…" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></div></div>
+      <div class="prd-filter-field"><label for="prd-prix">Prix unitaire inférieur à (TND)</label><input type="number" step="0.001" min="0" name="prix_max" id="prd-prix" value="{{ prix_max }}" class="form-control no-spinner" placeholder="Ex. : 5.000" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      <div class="prd-filter-field prd-check"><div class="form-check form-switch"><input type="checkbox" name="stock_faible" value="1" id="stock_faible" class="form-check-input" role="switch" {% if stock_faible %}checked{% endif %}><label class="form-check-label" for="stock_faible">Stock sous le minimum</label></div></div>
+      <div class="prd-filter-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i>Appliquer</button>{% if nom or prix_max or stock_faible %}<a href="{% url 'production:produit-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>{% endif %}</div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="prd-panel" aria-labelledby="prd-results-title">
+    <header class="prd-panel-head"><div><div class="prd-section-label">Catalogue</div><h2 id="prd-results-title">{% if nom or prix_max or stock_faible %}Résultats filtrés{% else %}Tous les produits{% endif %}</h2>{% if page_obj.object_list %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ total_count }}, classés par nom.</p>{% else %}<p>Aucun produit ne correspond aux critères actuels.</p>{% endif %}</div>{% if page_obj.object_list %}<span class="prd-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ total_count }} produit{{ total_count|pluralize }}</span>{% endif %}</header>
+
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Nom</th>
-            <th class="text-end">Stock</th>
-            <th class="text-end">Quantité minimale</th>
-            <th class="text-end">Prix unitaire (TND)</th>
-            <th class="text-center pe-3" style="width:140px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in page_obj.object_list %}
-          <tr>
-            <td class="ps-3" style="min-width:180px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:180px;" value="{{ p.nom }}" readonly>
-            </td>
-            <td class="text-end" style="min-width:110px;">
-              <input type="number" class="form-control form-control-sm text-end no-spinner" style="min-width:110px;"
-                     value="{{ p.stock }}" readonly>
-            </td>
-            <td class="text-end">
-              <input type="number" class="form-control form-control-sm text-end no-spinner"
-                     value="{{ p.quantite_minimale }}" readonly>
-            </td>
-            <td class="text-end" style="min-width:150px;">
-              <input type="number" class="form-control form-control-sm text-end font-monospace no-spinner" style="min-width:150px;"
-                     value="{{ p.prix_unitaire|stringformat:'s' }}" readonly>
-            </td>
-            <td class="text-center pe-3">
-              <a href="{% url 'production:produit-detail' p.pk %}"
-                 class="btn btn-sm btn-outline-secondary" title="Voir le détail">
-                <i class="bi bi-eye"></i>
-              </a>
-              <a href="{% url 'production:produit-update' p.pk %}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'production:produit-delete' p.pk %}"
-                 class="btn btn-sm btn-outline-danger ms-1" title="Supprimer">
-                <i class="bi bi-trash"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="prd-table-wrap"><table class="prd-table"><caption class="visually-hidden">Liste des produits avec stock et prix</caption><thead><tr><th scope="col">Produit</th><th scope="col" class="prd-num">Stock</th><th scope="col" class="prd-num">Quantité minimale</th><th scope="col">État du stock</th><th scope="col" class="prd-num">Prix unitaire</th><th scope="col" class="prd-actions-col">Actions</th></tr></thead><tbody>
+      {% for p in page_obj.object_list %}<tr>
+        <td><div class="prd-identity"><span class="prd-icon" aria-hidden="true"><i class="bi bi-cake2"></i></span><a href="{% url 'production:produit-detail' p.pk %}" class="prd-name">{{ p.nom }}</a></div></td>
+        <td class="prd-num"><strong class="prd-val">{{ p.stock }}</strong></td>
+        <td class="prd-num"><span class="prd-val">{{ p.quantite_minimale }}</span></td>
+        <td>{% if p.stock < p.quantite_minimale %}<span class="prd-pill prd-pill-low"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Stock faible</span>{% else %}<span class="prd-pill prd-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Suffisant</span>{% endif %}</td>
+        <td class="prd-num"><strong class="prd-val">{{ p.prix_unitaire|stringformat:'s' }}</strong> <small>TND</small></td>
+        <td class="prd-actions-col"><div class="prd-row-actions"><a href="{% url 'production:produit-detail' p.pk %}" class="prd-icon-btn" aria-label="Voir {{ p.nom }}" title="Voir le détail"><i class="bi bi-eye" aria-hidden="true"></i></a><a href="{% url 'production:produit-update' p.pk %}" class="prd-icon-btn prd-icon-btn-primary" aria-label="Modifier {{ p.nom }}" title="Modifier"><i class="bi bi-pencil" aria-hidden="true"></i></a><a href="{% url 'production:produit-delete' p.pk %}" class="prd-icon-btn prd-icon-btn-danger" aria-label="Supprimer {{ p.nom }}" title="Supprimer"><i class="bi bi-trash" aria-hidden="true"></i></a></div></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} produit{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+    <div class="prd-mobile-list">{% for p in page_obj.object_list %}<article class="prd-card"><header class="prd-card-head"><span class="prd-icon prd-icon-large" aria-hidden="true"><i class="bi bi-cake2"></i></span><span class="prd-card-title"><a href="{% url 'production:produit-detail' p.pk %}">{{ p.nom }}</a>{% if p.stock < p.quantite_minimale %}<span class="prd-pill prd-pill-low"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Stock faible</span>{% else %}<span class="prd-pill prd-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Suffisant</span>{% endif %}</span></header><dl class="prd-card-details"><div><dt>Stock</dt><dd>{{ p.stock }}</dd></div><div><dt>Quantité minimale</dt><dd>{{ p.quantite_minimale }}</dd></div><div class="prd-wide"><dt>Prix unitaire</dt><dd>{{ p.prix_unitaire|stringformat:'s' }} TND</dd></div></dl><footer class="prd-card-actions"><a href="{% url 'production:produit-detail' p.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Voir</a><a href="{% url 'production:produit-update' p.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a><a href="{% url 'production:produit-delete' p.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer {{ p.nom }}</span></a></footer></article>{% endfor %}</div>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?nom={{ nom }}&prix_max={{ prix_max }}&stock_faible={{ stock_faible }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?nom={{ nom }}&prix_max={{ prix_max }}&stock_faible={{ stock_faible }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?nom={{ nom }}&prix_max={{ prix_max }}&stock_faible={{ stock_faible }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
+    {% if is_paginated %}<footer class="prd-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} produit{{ total_count|pluralize }}</span><nav aria-label="Pagination des produits"><ul class="prd-pagination">{% if page_obj.has_previous %}<li><a href="?nom={{ nom|urlencode }}&amp;prix_max={{ prix_max|urlencode }}&amp;stock_faible={{ stock_faible|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?nom={{ nom|urlencode }}&amp;prix_max={{ prix_max|urlencode }}&amp;stock_faible={{ stock_faible|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?nom={{ nom|urlencode }}&amp;prix_max={{ prix_max|urlencode }}&amp;stock_faible={{ stock_faible|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-cake2 fs-1 d-block mb-2 opacity-25"></i>
-      Aucun produit ne correspond à ces critères.
-      {% if nom or prix_max or stock_faible %}
-      <br>
-      <a href="{% url 'production:produit-list' %}" class="mt-2 d-inline-block">Effacer les filtres</a>
-      {% endif %}
+    <div class="prd-empty-state"><span class="prd-empty-icon"><i class="bi {% if nom or prix_max or stock_faible %}bi-search{% else %}bi-cake2{% endif %}" aria-hidden="true"></i></span>
+      {% if nom or prix_max or stock_faible %}<h2>Aucun produit trouvé</h2><p>Modifiez les critères ou réinitialisez les filtres pour afficher tout le catalogue.</p><a href="{% url 'production:produit-list' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser les filtres</a>
+      {% else %}<h2>Aucun produit enregistré</h2><p>Ajoutez votre premier produit pour commencer le catalogue.</p><a href="{% url 'production:produit-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter le premier produit</a>{% endif %}
     </div>
     {% endif %}
-  </div>
+  </section>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Catalogue produits : ordinateur d'abord, même système que Fournisseurs ── */
+.product-directory{--prd-primary:#2c7be5;--prd-primary-dark:#1a4f9c;--prd-ink:#172033;--prd-muted:#667085;--prd-border:#e2e8f0;--prd-radius:1rem;max-width:1600px;margin:0 auto;color:var(--prd-ink)}
+.prd-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}
+.prd-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}
+.prd-hero-copy{min-width:0}.prd-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.prd-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.5rem,2vw,2rem);font-weight:750;letter-spacing:-.02em}.prd-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.88rem;line-height:1.5}
+.prd-hero-actions{display:flex;align-items:stretch;gap:.65rem}.prd-count-card{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:92px;padding:.55rem .8rem;border:1px solid rgba(255,255,255,.2);border-radius:.78rem;background:rgba(8,31,61,.2)}.prd-count-card strong{font-size:1.35rem;font-variant-numeric:tabular-nums;line-height:1.05}.prd-count-card span{margin-top:.14rem;color:rgba(255,255,255,.72);font-size:.68rem}.prd-add-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:3.15rem;padding-inline:1rem;border-radius:.78rem;color:#194f89;font-size:.82rem;font-weight:750}
+.prd-filter-card,.prd-panel{margin-top:1.1rem;overflow:hidden;border:1px solid var(--prd-border);border-radius:var(--prd-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}
+.prd-filter-head{display:flex;align-items:center;gap:.7rem;min-height:72px;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.prd-filter-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--prd-primary);font-size:1.02rem}.prd-filter-head h2{margin:0;font-size:.94rem;font-weight:750}.prd-filter-head p{margin:.12rem 0 0;color:var(--prd-muted);font-size:.7rem}.prd-active-filter{display:inline-flex;align-items:center;gap:.3rem;margin-left:auto;padding:.3rem .58rem;border-radius:2rem;background:#e9f6ef;color:#18794e;font-size:.68rem;font-weight:750;white-space:nowrap}
+.prd-filter-form{display:grid;grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) minmax(200px,.8fr) auto;align-items:end;gap:.8rem;padding:1rem}.prd-filter-field{min-width:0}.prd-filter-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.72rem;font-weight:700}.prd-filter-field .form-control{min-height:2.9rem;border-color:#cfd7e3;border-radius:.68rem;font-size:.82rem}.prd-filter-field .form-control:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.prd-filter-field [data-autofill-lock][readonly]{background:#fff;cursor:text}
+.prd-search-control{position:relative}.prd-search-control>i{position:absolute;top:50%;left:.85rem;z-index:1;color:#98a2b3;transform:translateY(-50%)}.prd-search-control .form-control{padding-left:2.35rem}
+.prd-check{display:flex;align-items:center;min-height:2.9rem;padding:0 .9rem;border:1px solid #cfd7e3;border-radius:.68rem;background:#f8fafc}.prd-check .form-check{margin:0;min-height:0}.prd-check .form-check-label{margin:0;font-size:.78rem;font-weight:600}.prd-check .form-check-input{cursor:pointer}
+.prd-filter-actions{display:flex;align-items:center;gap:.45rem}.prd-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.9rem;padding-inline:.85rem;border-radius:.68rem;font-size:.75rem;font-weight:700;white-space:nowrap}
+.prd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:82px;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.prd-section-label{color:var(--prd-primary-dark);font-size:.65rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.prd-panel-head h2{margin:.18rem 0 0;font-size:1.05rem;font-weight:750}.prd-panel-head p{margin:.18rem 0 0;color:var(--prd-muted);font-size:.73rem}.prd-result-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .65rem;border-radius:2rem;background:#eaf2fd;color:var(--prd-primary-dark);font-size:.7rem;font-weight:750;white-space:nowrap}
+.prd-table{width:100%;border-collapse:collapse;table-layout:fixed}.prd-table thead{background:#f8fafc}.prd-table th{padding:.7rem 1rem;border-bottom:1px solid var(--prd-border);color:var(--prd-muted);font-size:.67rem;font-weight:800;letter-spacing:.055em;text-align:left;text-transform:uppercase}.prd-table td{padding:.82rem 1rem;border-bottom:1px solid #edf0f4;font-size:.78rem;vertical-align:middle}.prd-table tbody tr:last-child td{border-bottom:0}.prd-table tbody tr:hover{background:#f8faff}.prd-table th:nth-child(1){width:30%}.prd-table th:nth-child(2),.prd-table th:nth-child(3){width:11%}.prd-table th:nth-child(4){width:15%}.prd-table th:nth-child(5){width:15%}.prd-table th:nth-child(6){width:12%}
+.prd-num{text-align:right!important}.prd-val{font-variant-numeric:tabular-nums}.prd-table td small{color:var(--prd-muted);font-size:.64rem}
+.prd-identity{display:flex;align-items:center;gap:.7rem;min-width:0}.prd-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.7rem;height:2.7rem;border-radius:.75rem;background:#eaf2fd;color:var(--prd-primary);font-size:1.05rem}.prd-icon-large{width:3.1rem;height:3.1rem;border-radius:.85rem;font-size:1.2rem}.prd-name{display:block;overflow:hidden;color:var(--prd-ink);font-size:.82rem;font-weight:750;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}.prd-name:hover{color:var(--prd-primary-dark)}
+.prd-pill{display:inline-flex;align-items:center;gap:.28rem;padding:.24rem .55rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.prd-pill-ok{background:#e7f6ec;color:#146c2e}.prd-pill-low{background:#fdeceb;color:#b42318}
+.prd-actions-col{text-align:center!important}.prd-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.prd-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;color:#596579;text-decoration:none;transition:border-color .14s,background-color .14s,color .14s}.prd-icon-btn:hover{border-color:#aeb9c7;background:#f7f9fb;color:var(--prd-ink)}.prd-icon-btn-primary{border-color:#b8d0ef;color:var(--prd-primary-dark)}.prd-icon-btn-primary:hover{border-color:#8eb6ea;background:#eef5fe;color:#174c8f}.prd-icon-btn-danger{border-color:#efc6cb;color:#b42332}.prd-icon-btn-danger:hover{border-color:#df9da5;background:#fff5f6;color:#991c2a}
+.prd-mobile-list{display:none}.prd-card{overflow:hidden;border:1px solid var(--prd-border);border-radius:.85rem;background:#fff}.prd-card-head{display:flex;align-items:center;gap:.7rem;padding:.9rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.prd-card-title{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;min-width:0}.prd-card-title a{color:var(--prd-ink);font-size:.86rem;font-weight:750;text-decoration:none;overflow-wrap:anywhere}.prd-card-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem 1rem;margin:0;padding:1rem}.prd-card-details dt{margin-bottom:.15rem;color:var(--prd-muted);font-size:.64rem;font-weight:650;text-transform:uppercase}.prd-card-details dd{margin:0;font-size:.78rem;font-weight:700}.prd-wide{grid-column:1/-1}.prd-card-actions{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.prd-card-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.65rem;border-radius:.65rem;font-size:.74rem;font-weight:700}
+.prd-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--prd-border);background:#fbfcfe}.prd-pagination-footer>span{color:var(--prd-muted);font-size:.72rem}.prd-pagination{display:flex;gap:.25rem;margin:0;padding:0;list-style:none}.prd-pagination a,.prd-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.25rem;height:2.25rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.55rem;background:#fff;color:#526071;font-size:.72rem;font-weight:700;text-decoration:none}.prd-pagination a:hover{border-color:#9cbee9;background:#f4f8fe;color:var(--prd-primary-dark)}.prd-pagination .active{border-color:var(--prd-primary);background:var(--prd-primary);color:#fff}
+.prd-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;padding:2rem;text-align:center}.prd-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;margin-bottom:.9rem;border-radius:1rem;background:#edf4fd;color:var(--prd-primary);font-size:1.55rem}.prd-empty-state h2{margin:0;font-size:1rem;font-weight:750}.prd-empty-state p{max-width:440px;margin:.35rem 0 1rem;color:var(--prd-muted);font-size:.78rem}.prd-empty-state .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;border-radius:.68rem;font-size:.78rem;font-weight:700}
+.product-directory a:focus-visible,.product-directory button:focus-visible,.product-directory input:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.prd-filter-form{grid-template-columns:repeat(2,minmax(0,1fr))}.prd-table-wrap{display:none}.prd-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}}
+@media(max-width:991.98px){.prd-hero{grid-template-columns:auto minmax(0,1fr)}.prd-hero-actions{grid-column:1/-1}}
+@media(max-width:767.98px){.prd-filter-form{grid-template-columns:1fr}.prd-filter-actions{flex-wrap:wrap}.prd-mobile-list{grid-template-columns:1fr}.prd-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.prd-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.prd-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.prd-hero-actions{flex-direction:column}.prd-filter-head{flex-wrap:wrap}.prd-active-filter{margin-left:3.15rem}.prd-filter-actions .btn{flex:1 1 100%}.prd-panel-head{flex-direction:column;padding:.9rem}.prd-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.prd-icon-btn{transition:none}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
+(function () {
+  var form = document.getElementById('prd-filter-form');
+  if (!form) { return; }
+  // Empêche l'injection de données mémorisées par le navigateur.
+  form.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+    function unlock() { field.readOnly = false; field.removeAttribute('readonly'); field.removeAttribute('data-autofill-lock'); }
+    field.addEventListener('focus', unlock, { once: true });
+    field.addEventListener('pointerdown', function (e) { if (e.pointerType === 'touch') { unlock(); } }, { once: true });
   });
-});
+})();
 </script>
 {% endblock %}

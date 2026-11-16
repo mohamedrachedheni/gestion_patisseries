@@ -1,0 +1,42 @@
+<script>
+  (function () {
+    var sidebar = document.getElementById('sidebar');
+    if (!sidebar) { return; }
+
+    // Page en cours annoncée aux lecteurs d'écran ; libellé en info-bulle
+    // (utile quand le menu est réduit à ses seules icônes sur ordinateur).
+    sidebar.querySelectorAll('.sidebar-nav .nav-link').forEach(function (link) {
+      if (link.classList.contains('active')) { link.setAttribute('aria-current', 'page'); }
+      if (!link.title) { link.title = link.textContent.trim(); }
+    });
+
+    // Groupes repliables : ouverture / fermeture au toucher.
+    sidebar.querySelectorAll('.sidebar-group').forEach(function (group) {
+      var toggle = group.querySelector('.sidebar-group-toggle');
+      toggle.setAttribute('aria-expanded', group.classList.contains('sidebar-group-open') ? 'true' : 'false');
+      toggle.addEventListener('click', function () {
+        var open = group.classList.toggle('sidebar-group-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    });
+
+    // Téléphone / tablette : voile sombre derrière le menu ouvert ; un appui
+    // sur le voile ou la touche Échap referme le menu.
+    var backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+    var hamburgerInitial = document.getElementById('sidebarToggle');
+    if (hamburgerInitial) { hamburgerInitial.setAttribute('aria-expanded', 'false'); }
+    function fermer() { sidebar.classList.remove('show'); }
+    backdrop.addEventListener('click', fermer);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && sidebar.classList.contains('show')) { fermer(); }
+    });
+    new MutationObserver(function () {
+      var ouvert = sidebar.classList.contains('show');
+      backdrop.classList.toggle('show', ouvert);
+      var hamburger = document.getElementById('sidebarToggle');
+      if (hamburger) { hamburger.setAttribute('aria-expanded', ouvert ? 'true' : 'false'); }
+    }).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+  })();
+  </script>

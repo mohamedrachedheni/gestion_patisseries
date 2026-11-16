@@ -4,127 +4,184 @@
 {% block page_title %}Bons de restitution{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
+<nav aria-label="Fil d'Ariane">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Bons de restitution</li>
+    <li class="breadcrumb-item active" aria-current="page">Bons de restitution</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
+<div class="return-directory">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des bons de restitution</h4>
-  <a href="{% url 'commercial:bon-restitution-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouveau bon de restitution
-  </a>
-</div>
+  <header class="brl-hero" aria-labelledby="brl-page-title">
+    <span class="brl-hero-icon" aria-hidden="true"><i class="bi bi-arrow-return-left"></i></span>
+    <div class="brl-hero-copy">
+      <div class="brl-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Gestion des retours</div>
+      <h1 id="brl-page-title">Bons de restitution</h1>
+      <p>Suivez les produits restitués par les commerciaux et leur prise en compte dans les inventaires.</p>
+    </div>
+    <div class="brl-hero-actions">
+      <div class="brl-hero-meta">
+        <span>Période affichée</span>
+        <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
+      </div>
+      <a href="{% url 'commercial:bon-restitution-create' %}" class="btn btn-light brl-add-btn">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>Nouveau bon
+      </a>
+    </div>
+  </header>
 
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+  <section class="brl-filter-card" aria-labelledby="brl-filter-title">
+    <div class="brl-filter-head">
+      <span class="brl-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span>
+      <div>
+        <h2 id="brl-filter-title">Filtrer les restitutions</h2>
+        <p>Sélectionnez une période{% if not is_commercial %} et, si nécessaire, un commercial{% endif %}.</p>
+      </div>
+      {% if commercial_id %}<span class="brl-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i> Commercial filtré</span>{% endif %}
+    </div>
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
+    <form method="get" id="filter-form" class="brl-filter-form" autocomplete="off"
+          data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="brl-date-group">
+        <span class="brl-group-label">Période rapide</span>
+        <div class="brl-period-buttons" role="group" aria-label="Période rapide">
+          <button type="button" class="btn btn-outline-secondary brl-period" data-days="0">Aujourd'hui</button>
+          <button type="button" class="btn btn-outline-secondary brl-period" data-days="6">7 jours</button>
+          <button type="button" class="btn btn-outline-secondary brl-period" data-days="29">30 jours</button>
         </div>
+      </div>
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
+      <div class="brl-filter-field">
+        <label for="brl-date-start">Du</label>
+        <input type="date" name="date_debut" id="brl-date-start" value="{{ date_debut }}"
+               class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none"
+               data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      </div>
+      <div class="brl-filter-field">
+        <label for="brl-date-end">Au</label>
+        <input type="date" name="date_fin" id="brl-date-end" value="{{ date_fin }}"
+               class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none"
+               data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      </div>
 
-        {% if not is_commercial %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
+      {% if not is_commercial %}
+      <div class="brl-filter-field">
+        <label for="brl-commercial">Commercial</label>
+        <select name="commercial_id" id="brl-commercial" class="form-select" data-autosubmit>
+          <option value="">Tous les commerciaux</option>
+          {% for u in commerciaux_list %}
+          <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <div class="brl-locked-commercial">
+        <span>Commercial connecté</span>
+        <strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong>
+      </div>
+      {% endif %}
 
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:bon-restitution-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
+      <div class="brl-filter-actions">
+        <a href="{% url 'commercial:bon-restitution-list' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser
+        </a>
       </div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+  <section class="brl-kpi-grid" aria-label="Synthèse des restitutions">
+    <article class="brl-kpi brl-kpi-blue">
+      <span class="brl-kpi-icon"><i class="bi bi-files" aria-hidden="true"></i></span>
+      <span><small>Total des bons</small><strong>{{ total_bons }}</strong><em>sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></span>
+    </article>
+    <article class="brl-kpi brl-kpi-orange">
+      <span class="brl-kpi-icon"><i class="bi bi-pencil-square" aria-hidden="true"></i></span>
+      <span><small>Non soldés</small><strong>{{ total_non_soldes }}</strong><em>encore modifiables</em></span>
+    </article>
+    <article class="brl-kpi brl-kpi-green">
+      <span class="brl-kpi-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span>
+      <span><small>Soldés</small><strong>{{ total_soldes }}</strong><em>intégrés au stock</em></span>
+    </article>
+    <article class="brl-kpi brl-kpi-violet">
+      <span class="brl-kpi-icon"><i class="bi bi-person-check" aria-hidden="true"></i></span>
+      <span><small>Commercial</small><strong class="brl-kpi-name">{% if commercial_selectionne %}{{ commercial_selectionne.get_full_name|default:commercial_selectionne.username }}{% elif is_commercial %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Tous{% endif %}</strong><em>périmètre actuel</em></span>
+    </article>
+  </section>
+
+  <section class="brl-panel" aria-labelledby="brl-results-title">
+    <header class="brl-panel-head">
+      <div>
+        <div class="brl-section-label">Historique</div>
+        <h2 id="brl-results-title">Liste des bons de restitution</h2>
+        {% if bons_restitution %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>{% else %}<p>Aucun bon ne correspond aux critères actuels.</p>{% endif %}
+      </div>
+      {% if bons_restitution %}<span class="brl-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }}</span>{% endif %}
+    </header>
+
+    {% if bons_restitution %}
+    {# Grand écran : tableau dense avec toutes les données utiles. #}
+    <div class="brl-table-wrap">
+      <table class="brl-table">
+        <caption class="visually-hidden">Bons de restitution et état de traitement</caption>
+        <thead>
           <tr>
-            {% if not is_commercial %}
-            <th class="ps-3" style="min-width:170px;">Commercial</th>
-            {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %} style="min-width:120px;">Date</th>
-            <th class="text-center" style="min-width:100px;">Soldé</th>
-            <th class="text-center pe-3" style="width:150px">Actions</th>
+            <th scope="col">Référence</th>
+            <th scope="col">Commercial</th>
+            <th scope="col">Date</th>
+            <th scope="col" class="brl-number-col">Détails</th>
+            <th scope="col">Statut</th>
+            <th scope="col" class="brl-actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for br in page_obj.object_list %}
-          <tr>
-            {% if not is_commercial %}
-            <td class="ps-3" style="min-width:170px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:150px;"
-                     value="{{ br.user.get_full_name|default:br.user.username }}" disabled>
+          {% for br in bons_restitution %}
+          <tr class="{% if br.historique_stock_initial_id %}brl-sold-row{% endif %}">
+            <td>
+              <span class="brl-reference"><span><i class="bi bi-arrow-return-left" aria-hidden="true"></i></span><strong>BR-{{ br.pk }}</strong></span>
             </td>
-            {% endif %}
-            <td {% if is_commercial %}class="ps-3"{% endif %} style="min-width:120px;">
-              <input type="date" class="form-control form-control-sm" style="min-width:100px;"
-                     value="{{ br.restitution_at|date:'Y-m-d' }}" disabled>
+            <td>
+              <span class="brl-primary-value">{{ br.user.get_full_name|default:br.user.username }}</span>
+              <span class="brl-secondary-value">@{{ br.user.username }}</span>
             </td>
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input" disabled
-                     {% if br.historique_stock_initial_id %}checked{% endif %}
-                     title="{% if br.historique_stock_initial_id %}Soldé{% else %}Non soldé{% endif %}">
+            <td><span class="brl-date"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ br.restitution_at|date:"d/m/Y" }}</span></td>
+            <td class="brl-number-col">
+              <strong>{{ br.nb_lignes }}</strong> ligne{{ br.nb_lignes|pluralize }}
+              <span class="brl-secondary-value brl-quantity">{{ br.quantite_totale|default_if_none:"0"|floatformat:0 }} unités</span>
             </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                <button type="button" class="btn btn-sm btn-outline-secondary br-detail-btn"
-                        data-url="{% url 'commercial:bon-restitution-detail-popup' br.pk %}" title="Visualiser">
-                  <i class="bi bi-eye"></i>
+            <td>
+              {% if br.historique_stock_initial_id %}
+              <span class="brl-status brl-status-sold"><i class="bi bi-check-circle" aria-hidden="true"></i>Soldé</span>
+              <span class="brl-secondary-value">Intégré à l'inventaire</span>
+              {% else %}
+              <span class="brl-status brl-status-open"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Non soldé</span>
+              <span class="brl-secondary-value">Modification autorisée</span>
+              {% endif %}
+            </td>
+            <td class="brl-actions-col">
+              <div class="brl-row-actions">
+                <button type="button" class="brl-icon-btn brl-detail-btn" data-url="{% url 'commercial:bon-restitution-detail-popup' br.pk %}" aria-label="Voir BR-{{ br.pk }}" title="Visualiser">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
                 </button>
                 {% if br.historique_stock_initial_id %}
-                <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Modifier">
-                  <i class="bi bi-pencil"></i>
+                <button type="button" class="brl-icon-btn" disabled aria-label="Modification impossible : bon soldé" title="Un bon soldé ne peut pas être modifié">
+                  <i class="bi bi-lock" aria-hidden="true"></i>
                 </button>
                 {% else %}
-                <a href="{% url 'commercial:bon-restitution-update' br.pk %}"
-                   class="btn btn-sm btn-outline-primary" title="Modifier">
-                  <i class="bi bi-pencil"></i>
+                <a href="{% url 'commercial:bon-restitution-update' br.pk %}" class="brl-icon-btn brl-icon-btn-primary" aria-label="Modifier BR-{{ br.pk }}" title="Modifier">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>
                 </a>
                 {% endif %}
-                <form id="br-delete-{{ br.pk }}" method="post"
-                      action="{% url 'commercial:bon-restitution-delete' br.pk %}" class="d-inline">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
-                          data-can-delete="{% if br.erreur_suppression %}0{% else %}1{% endif %}"
-                          data-refus-message="{{ br.erreur_suppression }}"
-                          onclick="return brConfirmDelete(this);">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
+                <button type="button" class="brl-icon-btn brl-icon-btn-danger brl-delete-btn"
+                        data-url="{% url 'commercial:bon-restitution-delete' br.pk %}"
+                        data-label="BR-{{ br.pk }} du {{ br.restitution_at|date:'d/m/Y' }} — {{ br.user.get_full_name|default:br.user.username }}"
+                        data-can-delete="{% if br.erreur_suppression %}0{% else %}1{% endif %}"
+                        data-refus-message="{{ br.erreur_suppression }}"
+                        aria-label="Supprimer BR-{{ br.pk }}" title="Supprimer">
+                  <i class="bi bi-trash" aria-hidden="true"></i>
+                </button>
               </div>
             </td>
           </tr>
@@ -133,122 +190,295 @@
       </table>
     </div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
+    {# Tablette et mobile : cartes sans défilement horizontal. #}
+    <div class="brl-mobile-list">
+      {% for br in bons_restitution %}
+      <article class="brl-card {% if br.historique_stock_initial_id %}brl-card-sold{% endif %}">
+        <header>
+          <span class="brl-reference"><span><i class="bi bi-arrow-return-left" aria-hidden="true"></i></span><strong>BR-{{ br.pk }}</strong></span>
+          {% if br.historique_stock_initial_id %}<span class="brl-status brl-status-sold">Soldé</span>{% else %}<span class="brl-status brl-status-open">Non soldé</span>{% endif %}
+        </header>
+        <dl>
+          <div><dt>Commercial</dt><dd>{{ br.user.get_full_name|default:br.user.username }}</dd></div>
+          <div><dt>Date</dt><dd>{{ br.restitution_at|date:"d/m/Y" }}</dd></div>
+          <div><dt>Produits</dt><dd>{{ br.nb_lignes }} ligne{{ br.nb_lignes|pluralize }}</dd></div>
+          <div><dt>Quantité totale</dt><dd>{{ br.quantite_totale|default_if_none:"0"|floatformat:0 }}</dd></div>
+        </dl>
+        <footer>
+          <button type="button" class="btn btn-outline-secondary brl-detail-btn" data-url="{% url 'commercial:bon-restitution-detail-popup' br.pk %}"><i class="bi bi-eye" aria-hidden="true"></i>Voir</button>
+          {% if br.historique_stock_initial_id %}
+          <button type="button" class="btn btn-outline-secondary" disabled><i class="bi bi-lock" aria-hidden="true"></i>Soldé</button>
+          {% else %}
+          <a href="{% url 'commercial:bon-restitution-update' br.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a>
+          {% endif %}
+          <button type="button" class="btn btn-outline-danger brl-delete-btn"
+                  data-url="{% url 'commercial:bon-restitution-delete' br.pk %}"
+                  data-label="BR-{{ br.pk }} du {{ br.restitution_at|date:'d/m/Y' }} — {{ br.user.get_full_name|default:br.user.username }}"
+                  data-can-delete="{% if br.erreur_suppression %}0{% else %}1{% endif %}"
+                  data-refus-message="{{ br.erreur_suppression }}">
+            <i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer BR-{{ br.pk }}</span>
+          </button>
+        </footer>
+      </article>
+      {% endfor %}
+    </div>
+
     {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }} de restitution
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
+    <footer class="brl-pagination-footer">
+      <span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+      <nav aria-label="Pagination des bons de restitution">
+        <ul class="brl-pagination">
+          {% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}
           {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
+            {% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}
           {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
+          {% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}
         </ul>
       </nav>
-    </div>
+    </footer>
     {% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-arrow-return-left fs-1 d-block mb-2 opacity-25"></i>
-      Aucun bon de restitution sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if commercial_id %}avec ces filtres{% endif %}.
+    <div class="brl-empty">
+      <span><i class="bi bi-arrow-return-left" aria-hidden="true"></i></span>
+      <h2>Aucun bon de restitution</h2>
+      <p>Aucun bon enregistré du {{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}{% if commercial_id %} pour ce commercial{% endif %}.</p>
+      <a href="{% url 'commercial:bon-restitution-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer un bon</a>
     </div>
     {% endif %}
-  </div>
+  </section>
 </div>
 
-{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
-<div class="modal fade" id="bon-restitution-detail-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
+{# Pop-up de détail. #}
+<div class="modal fade" id="bon-restitution-detail-modal" tabindex="-1" aria-hidden="true" aria-labelledby="bon-restitution-detail-title">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Détail bon de restitution</h5>
+        <h2 class="modal-title fs-5" id="bon-restitution-detail-title">Détail du bon de restitution</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-      <div class="modal-body" id="bon-restitution-detail-modal-body">
-        <div class="text-center py-4 text-muted">
-          <div class="spinner-border spinner-border-sm"></div> Chargement…
-        </div>
+      <div class="modal-body" id="bon-restitution-detail-modal-body" aria-live="polite">
+        <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" aria-hidden="true"></div> Chargement…</div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button></div>
     </div>
   </div>
 </div>
 
+{# Confirmation ou explication du refus de suppression. #}
+<div class="modal fade" id="brl-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="brl-delete-title">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="brl-delete-form">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="brl-delete-title">Supprimer ce bon ?</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <p class="fw-semibold mb-2" id="brl-delete-label"></p>
+        <div class="alert alert-warning mb-0" id="brl-delete-warning"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>La suppression est définitive et supprimera également les lignes de produits associées.</div>
+        <div class="alert alert-danger mb-0 d-none" id="brl-delete-refusal"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="brl-delete-cancel">Annuler</button>
+        <button type="submit" class="btn btn-danger" id="brl-delete-confirm"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Bons de restitution : interface ordinateur d'abord ──────────────────── */
+.return-directory {
+  --brl-primary: #2c7be5;
+  --brl-primary-dark: #1a4f9c;
+  --brl-ink: #172033;
+  --brl-muted: #667085;
+  --brl-border: #e2e8f0;
+  --brl-surface: #fff;
+  --brl-radius: 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  color: var(--brl-ink);
+}
+.brl-hero { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1.15rem; min-height: 140px; padding: 1.4rem 1.55rem; border-radius: 1.05rem; background: linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%); box-shadow: 0 9px 28px rgba(25,74,128,.15); color: #fff; }
+.brl-hero-icon { display: inline-flex; align-items: center; justify-content: center; width: 4.4rem; height: 4.4rem; border: 2px solid rgba(255,255,255,.35); border-radius: 1rem; background: rgba(255,255,255,.14); font-size: 1.7rem; }
+.brl-hero-copy { min-width: 0; }
+.brl-eyebrow { display: flex; align-items: center; gap: .35rem; color: rgba(255,255,255,.68); font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.brl-hero h1 { margin: .2rem 0 .25rem; font-size: clamp(1.55rem,2vw,2.05rem); font-weight: 750; letter-spacing: -.02em; }
+.brl-hero-copy > p { margin: 0; max-width: 700px; color: rgba(255,255,255,.78); font-size: .88rem; line-height: 1.5; }
+.brl-hero-actions { display: flex; align-items: stretch; gap: .6rem; }
+.brl-hero-meta { display: flex; flex-direction: column; justify-content: center; min-width: 210px; padding: .55rem .75rem; border: 1px solid rgba(255,255,255,.18); border-radius: .75rem; background: rgba(8,31,61,.2); }
+.brl-hero-meta span { color: rgba(255,255,255,.64); font-size: .64rem; }
+.brl-hero-meta strong { margin-top: .08rem; color: #fff; font-size: .73rem; }
+.brl-add-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 3.1rem; padding-inline: 1rem; border-radius: .75rem; color: #194f89; font-size: .78rem; font-weight: 750; }
+
+.brl-filter-card,
+.brl-panel { margin-top: 1rem; overflow: hidden; border: 1px solid var(--brl-border); border-radius: var(--brl-radius); background: var(--brl-surface); box-shadow: 0 2px 9px rgba(16,24,40,.04); }
+.brl-filter-head { display: flex; align-items: center; gap: .7rem; min-height: 72px; padding: .85rem 1rem; border-bottom: 1px solid #edf0f4; background: #fbfcfe; }
+.brl-filter-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.45rem; height: 2.45rem; border-radius: .7rem; background: #eaf2fd; color: var(--brl-primary); font-size: 1.02rem; }
+.brl-filter-head h2 { margin: 0; color: var(--brl-ink); font-size: .94rem; font-weight: 750; }
+.brl-filter-head p { margin: .12rem 0 0; color: var(--brl-muted); font-size: .7rem; }
+.brl-active-filter { display: inline-flex; align-items: center; gap: .3rem; margin-left: auto; padding: .3rem .58rem; border-radius: 2rem; background: #e9f6ef; color: #18794e; font-size: .68rem; font-weight: 750; white-space: nowrap; }
+.brl-filter-form { display: grid; grid-template-columns: minmax(250px,1.2fr) minmax(150px,.65fr) minmax(150px,.65fr) minmax(220px,1fr) auto; align-items: end; gap: .75rem; padding: 1rem; }
+.brl-date-group { min-width: 0; }
+.brl-group-label,
+.brl-filter-field label,
+.brl-locked-commercial > span { display: block; margin-bottom: .35rem; color: #344054; font-size: .7rem; font-weight: 700; }
+.brl-period-buttons { display: flex; gap: .35rem; }
+.brl-period-buttons .btn { flex: 1 1 auto; min-height: 2.85rem; padding: .45rem .55rem; border-radius: .65rem; font-size: .7rem; font-weight: 650; white-space: nowrap; }
+.brl-filter-field .form-control,
+.brl-filter-field .form-select { min-height: 2.85rem; border-color: #cfd7e3; border-radius: .65rem; color: var(--brl-ink); font-size: .8rem; }
+.brl-filter-field .form-control:focus,
+.brl-filter-field .form-select:focus { border-color: #77a9e9; box-shadow: 0 0 0 .2rem rgba(44,123,229,.13); }
+.brl-locked-commercial strong { display: flex; align-items: center; gap: .35rem; min-height: 2.85rem; padding: .6rem .75rem; border: 1px solid #e0e6ee; border-radius: .65rem; background: #f7f9fc; color: #344054; font-size: .76rem; }
+.brl-filter-actions .btn { display: inline-flex; align-items: center; gap: .35rem; min-height: 2.85rem; padding-inline: .75rem; border-radius: .65rem; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+
+.brl-kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .85rem; margin-top: 1rem; }
+.brl-kpi { --brl-accent:#2c7be5;--brl-soft:#eaf2fd; display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: .7rem; min-height: 98px; padding: .9rem; border: 1px solid var(--brl-border); border-radius: .88rem; background: #fff; box-shadow: 0 2px 8px rgba(16,24,40,.035); }
+.brl-kpi-blue { --brl-accent:#2c7be5;--brl-soft:#eaf2fd; }
+.brl-kpi-orange { --brl-accent:#d97706;--brl-soft:#fff4e0; }
+.brl-kpi-green { --brl-accent:#198754;--brl-soft:#e9f6ef; }
+.brl-kpi-violet { --brl-accent:#6f42c1;--brl-soft:#f1ebfb; }
+.brl-kpi-icon { display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border-radius:.72rem;background:var(--brl-soft);color:var(--brl-accent);font-size:1.15rem; }
+.brl-kpi > span:last-child { min-width:0; }
+.brl-kpi small { display:block;color:var(--brl-muted);font-size:.66rem;font-weight:650; }
+.brl-kpi strong { display:block;overflow:hidden;margin-top:.06rem;color:var(--brl-ink);font-size:1.2rem;font-variant-numeric:tabular-nums;line-height:1.2;text-overflow:ellipsis;white-space:nowrap; }
+.brl-kpi .brl-kpi-name { font-size:.83rem; }
+.brl-kpi em { display:block;margin-top:.1rem;color:var(--brl-muted);font-size:.62rem;font-style:normal; }
+
+.brl-panel-head { display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:82px;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe; }
+.brl-section-label { color:var(--brl-primary-dark);font-size:.65rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase; }
+.brl-panel-head h2 { margin:.18rem 0 0;color:var(--brl-ink);font-size:1.05rem;font-weight:750; }
+.brl-panel-head p { margin:.18rem 0 0;color:var(--brl-muted);font-size:.73rem; }
+.brl-result-badge { display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .65rem;border-radius:2rem;background:#eaf2fd;color:var(--brl-primary-dark);font-size:.7rem;font-weight:750;white-space:nowrap; }
+.brl-table-wrap { display:block; }
+.brl-table { width:100%;border-collapse:collapse;table-layout:fixed; }
+.brl-table thead { background:#f8fafc; }
+.brl-table th { padding:.7rem 1rem;border-bottom:1px solid var(--brl-border);color:var(--brl-muted);font-size:.65rem;font-weight:800;letter-spacing:.05em;text-align:left;text-transform:uppercase; }
+.brl-table td { padding:.82rem 1rem;border-bottom:1px solid #edf0f4;color:var(--brl-ink);font-size:.76rem;vertical-align:middle; }
+.brl-table tbody tr:last-child td { border-bottom:0; }
+.brl-table tbody tr { transition:background-color .14s ease; }
+.brl-table tbody tr:hover { background:#f8faff; }
+.brl-table th:nth-child(1){width:15%;}.brl-table th:nth-child(2){width:22%;}.brl-table th:nth-child(3){width:15%;}.brl-table th:nth-child(4){width:16%;}.brl-table th:nth-child(5){width:20%;}.brl-table th:nth-child(6){width:12%;}
+.brl-reference { display:flex;align-items:center;gap:.55rem; }
+.brl-reference > span { display:inline-flex;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.62rem;background:#eaf2fd;color:var(--brl-primary); }
+.brl-reference strong { white-space:nowrap; }
+.brl-primary-value { display:block;overflow:hidden;font-weight:700;text-overflow:ellipsis;white-space:nowrap; }
+.brl-secondary-value { display:block;overflow:hidden;margin-top:.2rem;color:var(--brl-muted);font-size:.65rem;text-overflow:ellipsis;white-space:nowrap; }
+.brl-quantity { text-align:right; }
+.brl-date { display:flex;align-items:center;gap:.35rem;white-space:nowrap; }
+.brl-number-col { text-align:right!important;font-variant-numeric:tabular-nums; }
+.brl-status { display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .5rem;border-radius:2rem;font-size:.68rem;font-weight:750;white-space:nowrap; }
+.brl-status-sold { background:#e9f6ef;color:#18794e; }
+.brl-status-open { background:#fff4e0;color:#8a5300; }
+.brl-sold-row { background:#f8fcfa; }
+.brl-actions-col { text-align:center!important; }
+.brl-row-actions { display:flex;align-items:center;justify-content:center;gap:.3rem; }
+.brl-icon-btn { display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;color:#596579;text-decoration:none;transition:border-color .14s ease,background-color .14s ease,color .14s ease; }
+.brl-icon-btn:hover:not(:disabled) { border-color:#aeb9c7;background:#f7f9fb;color:var(--brl-ink); }
+.brl-icon-btn:disabled { opacity:.45;cursor:not-allowed; }
+.brl-icon-btn-primary { border-color:#b8d0ef;color:var(--brl-primary-dark); }
+.brl-icon-btn-danger { border-color:#efc6cb;color:#b42332; }
+.brl-icon-btn-danger:hover { border-color:#df9da5!important;background:#fff5f6!important;color:#991c2a!important; }
+.brl-mobile-list { display:none; }
+.brl-pagination-footer { display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--brl-border);background:#fbfcfe; }
+.brl-pagination-footer > span { color:var(--brl-muted);font-size:.72rem; }
+.brl-pagination { display:flex;align-items:center;gap:.25rem;margin:0;padding:0;list-style:none; }
+.brl-pagination a,.brl-pagination span { display:inline-flex;align-items:center;justify-content:center;min-width:2.25rem;height:2.25rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.55rem;background:#fff;color:#526071;font-size:.72rem;font-weight:700;text-decoration:none; }
+.brl-pagination a:hover { border-color:#9cbee9;background:#f4f8fe;color:var(--brl-primary-dark); }
+.brl-pagination .active { border-color:var(--brl-primary);background:var(--brl-primary);color:#fff; }
+.brl-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:330px;padding:2rem;text-align:center; }
+.brl-empty > span { display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;margin-bottom:.85rem;border-radius:1rem;background:#edf4fd;color:var(--brl-primary);font-size:1.5rem; }
+.brl-empty h2 { margin:0;color:var(--brl-ink);font-size:1rem;font-weight:750; }
+.brl-empty p { max-width:470px;margin:.35rem 0 1rem;color:var(--brl-muted);font-size:.76rem; }
+.brl-empty .btn { display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;border-radius:.68rem;font-size:.76rem;font-weight:700; }
+.return-directory a:focus-visible,.return-directory button:focus-visible,.return-directory input:focus-visible,.return-directory select:focus-visible { outline:3px solid #174c8f;outline-offset:2px; }
+
+@media (max-width:1199.98px){
+  .brl-hero{grid-template-columns:auto minmax(0,1fr)}.brl-hero-actions{grid-column:1/-1}.brl-filter-form{grid-template-columns:repeat(2,minmax(0,1fr))}.brl-date-group{grid-column:1/-1}.brl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brl-table-wrap{display:none}.brl-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}.brl-card{overflow:hidden;border:1px solid var(--brl-border);border-radius:.8rem;background:#fff}.brl-card-sold{border-color:#bedfcd}.brl-card header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.brl-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem;margin:0;padding:.9rem}.brl-card dt{color:var(--brl-muted);font-size:.62rem;font-weight:650;text-transform:uppercase}.brl-card dd{overflow-wrap:anywhere;margin:.12rem 0 0;font-size:.73rem;font-weight:700}.brl-card footer{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.brl-card footer .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.65rem;border-radius:.65rem;font-size:.72rem;font-weight:700}
+}
+@media (max-width:767.98px){.brl-filter-form{grid-template-columns:1fr}.brl-date-group{grid-column:auto}.brl-mobile-list{grid-template-columns:1fr}.brl-panel-head{align-items:flex-start}.brl-hero-actions{flex-wrap:wrap}.brl-hero-meta{flex:1 1 220px}.brl-add-btn{flex:1 1 auto}}
+@media (max-width:575.98px){#main-content{padding:1rem .75rem}.brl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.brl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.brl-hero-copy>p{font-size:.8rem}.brl-hero-actions{align-items:stretch;flex-direction:column}.brl-period-buttons{display:grid;grid-template-columns:1fr}.brl-filter-head{align-items:flex-start;flex-wrap:wrap}.brl-active-filter{margin-left:3.15rem}.brl-kpi-grid{grid-template-columns:1fr}.brl-panel-head{flex-direction:column;padding:.9rem}.brl-card dl{grid-template-columns:1fr}.brl-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media (prefers-reduced-motion:reduce){.brl-table tbody tr,.brl-icon-btn{transition:none}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-
-function brConfirmDelete(btn) {
-  if (btn.getAttribute('data-can-delete') !== '1') {
-    alert(btn.getAttribute('data-refus-message'));
-    return false;
-  }
-  return confirm('Voulez-vous vraiment supprimer ce bon de restitution ?');
-}
-
-// ── Pop-up « Détail » ───────────────────────────────────────────────────────
 (function () {
-  var modalEl = document.getElementById('bon-restitution-detail-modal');
-  var modalBody = document.getElementById('bon-restitution-detail-modal-body');
-  if (!modalEl || !modalBody) { return; }
-  var modal = new bootstrap.Modal(modalEl);
+  var filterForm = document.getElementById('filter-form');
+  var startInput = document.getElementById('brl-date-start');
+  var endInput = document.getElementById('brl-date-end');
 
-  document.querySelectorAll('.br-detail-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
-        '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
-      modal.show();
-      fetch(btn.getAttribute('data-url')).then(function (r) { return r.text(); }).then(function (html) {
-        modalBody.innerHTML = html;
-      });
+  filterForm.querySelectorAll('[data-autosubmit]').forEach(function (field) {
+    field.addEventListener('change', function () { filterForm.submit(); });
+  });
+
+  function pad(value) { return value < 10 ? '0' + value : String(value); }
+  function iso(date) { return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()); }
+  var today = new Date();
+  document.querySelectorAll('.brl-period').forEach(function (button) {
+    var start = new Date(today);
+    start.setDate(start.getDate() - parseInt(button.getAttribute('data-days'), 10));
+    var startValue = iso(start), endValue = iso(today);
+    if (startInput.value === startValue && endInput.value === endValue) {
+      button.classList.replace('btn-outline-secondary', 'btn-secondary');
+      button.setAttribute('aria-pressed', 'true');
+    }
+    button.addEventListener('click', function () {
+      startInput.value = startValue;
+      endInput.value = endValue;
+      filterForm.submit();
     });
+  });
+
+  var detailModalEl = document.getElementById('bon-restitution-detail-modal');
+  var detailBody = document.getElementById('bon-restitution-detail-modal-body');
+  var detailModal = new bootstrap.Modal(detailModalEl);
+  document.querySelectorAll('.brl-detail-btn').forEach(function (button) {
+    button.addEventListener('click', function () {
+      detailBody.setAttribute('aria-busy', 'true');
+      detailBody.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" aria-hidden="true"></div> Chargement…</div>';
+      detailModal.show();
+      fetch(button.getAttribute('data-url'))
+        .then(function (response) { if (!response.ok) { throw new Error(); } return response.text(); })
+        .then(function (html) { detailBody.innerHTML = html; })
+        .catch(function () { detailBody.innerHTML = '<div class="alert alert-danger mb-0">Le détail n’a pas pu être chargé.</div>'; })
+        .finally(function () { detailBody.removeAttribute('aria-busy'); });
+    });
+  });
+
+  var deleteModalEl = document.getElementById('brl-delete-modal');
+  var deleteModal = new bootstrap.Modal(deleteModalEl);
+  var deleteForm = document.getElementById('brl-delete-form');
+  var deleteLabel = document.getElementById('brl-delete-label');
+  var deleteWarning = document.getElementById('brl-delete-warning');
+  var deleteRefusal = document.getElementById('brl-delete-refusal');
+  var deleteTitle = document.getElementById('brl-delete-title');
+  var deleteConfirm = document.getElementById('brl-delete-confirm');
+  var deleteCancel = document.getElementById('brl-delete-cancel');
+
+  document.querySelectorAll('.brl-delete-btn').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var refused = button.getAttribute('data-can-delete') !== '1';
+      deleteForm.action = button.getAttribute('data-url');
+      deleteLabel.textContent = button.getAttribute('data-label');
+      deleteWarning.classList.toggle('d-none', refused);
+      deleteRefusal.classList.toggle('d-none', !refused);
+      deleteRefusal.textContent = refused ? button.getAttribute('data-refus-message') : '';
+      deleteTitle.textContent = refused ? 'Suppression impossible' : 'Supprimer ce bon ?';
+      deleteConfirm.classList.toggle('d-none', refused);
+      deleteCancel.textContent = refused ? 'Fermer' : 'Annuler';
+      deleteModal.show();
+    });
+  });
+
+  deleteForm.addEventListener('submit', function () {
+    deleteConfirm.disabled = true;
+    deleteConfirm.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Suppression…';
   });
 })();
 </script>

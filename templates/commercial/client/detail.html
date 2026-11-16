@@ -1,247 +1,72 @@
 {% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}{{ client }} — Clients{% endblock %}
-{% block page_title %}Détail client{% endblock %}
+{% block page_title %}Fiche client{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:client-list' %}">Clients</a></li>
-    <li class="breadcrumb-item active">{{ client }}</li>
-  </ol>
-</nav>
+<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:client-list' %}">Clients</a></li><li class="breadcrumb-item active" aria-current="page">{{ client }}</li></ol></nav>
 {% endblock %}
 
 {% block content %}
+<div class="client-profile">
+  <header class="cpd-hero" aria-labelledby="cpd-page-title">
+    <div class="cpd-avatar-wrap">{% if client.photo %}<a href="{{ client.photo.url }}" target="_blank" rel="noopener" title="Ouvrir la photo"><img src="{{ client.photo.url }}" alt="Photo de {{ client }}" class="cpd-avatar"></a>{% else %}<span class="cpd-avatar cpd-avatar-placeholder" aria-hidden="true"><i class="bi bi-shop"></i></span>{% endif %}</div>
+    <div class="cpd-hero-copy"><div class="cpd-eyebrow"><i class="bi bi-person-vcard" aria-hidden="true"></i> Fiche client 360°</div><h1 id="cpd-page-title">{{ client.raison_sociale|default:client.nom_client|default:"Client sans nom" }}</h1><p>{% if client.nom_client %}Contact : {{ client.nom_client }}{% else %}Contact principal non renseigné{% endif %}{% if client.zone %} · {{ client.zone.nom }}{% endif %}</p><div class="cpd-hero-tags">{% if client.is_active %}<span class="cpd-tag cpd-tag-active"><i class="bi bi-check-circle" aria-hidden="true"></i>Client actif</span>{% else %}<span class="cpd-tag cpd-tag-inactive"><i class="bi bi-pause-circle" aria-hidden="true"></i>Client inactif</span>{% endif %}{% if client.created_at %}<span class="cpd-tag"><i class="bi bi-calendar3" aria-hidden="true"></i>Créé le {{ client.created_at|date:"d/m/Y" }}</span>{% endif %}</div></div>
+    <div class="cpd-hero-actions"><a href="{% url 'commercial:client-list' %}" class="btn btn-outline-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Retour aux clients</a><a href="{% url 'commercial:client-update' client.pk %}" class="btn btn-light"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier la fiche</a></div>
+  </header>
 
-{% if derive_client %}
-<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
-  <i class="bi bi-graph-down-arrow"></i>
-  <div>
-    <strong>Client en dérive</strong> —
-    {% if derive_client.en_retard %}en retard ({{ derive_client.ratio_retard }}× son intervalle habituel de {{ derive_client.intervalle_moyen }} jours){% endif %}
-    {% if derive_client.en_retard and derive_client.en_baisse %} et {% endif %}
-    {% if derive_client.en_baisse %}volume récent à {{ derive_client.ratio_volume_pct }}% de l'attendu{% endif %}.
-    <a href="{% url 'commercial:client-derive-list' %}" class="alert-link">Voir le détail</a>
-  </div>
-</div>
-{% endif %}
+  {% if derive_client %}<section class="cpd-drift-alert" role="alert"><span><i class="bi bi-graph-down-arrow" aria-hidden="true"></i></span><div><strong>Client en dérive</strong><p>{% if derive_client.en_retard %}Retard de visite : {{ derive_client.ratio_retard }}× l'intervalle habituel de {{ derive_client.intervalle_moyen }} jours.{% endif %}{% if derive_client.en_retard and derive_client.en_baisse %} {% endif %}{% if derive_client.en_baisse %}Volume récent limité à {{ derive_client.ratio_volume_pct }}% de l'attendu.{% endif %}</p></div><a href="{% url 'commercial:client-derive-list' %}">Voir l'analyse<i class="bi bi-arrow-right" aria-hidden="true"></i></a></section>{% endif %}
 
-{# ── Fiche 360° : résumé en un coup d'œil ─────────────────────────────────── #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        {% if prochaine_visite %}
-        <div class="fs-6 fw-bold">{{ prochaine_visite|date:'d/m/Y' }}</div>
-        <div class="text-muted small">{{ prochaine_visite|date:'l' }}</div>
-        {% else %}
-        <div class="fs-6 fw-bold text-muted">—</div>
-        {% endif %}
-        <div class="text-muted small mt-1">Prochaine visite attendue</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-6 fw-bold {% if solde_impaye > 0 %}text-danger{% endif %}">
-          {{ solde_impaye|stringformat:'.3f' }} TND
-        </div>
-        <div class="text-muted small mt-1">Solde impayé cumulé</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-6 fw-bold">
-          {{ taux_adherence_client|default_if_none:'—' }}{% if taux_adherence_client is not None %}%{% endif %}
-        </div>
-        <div class="text-muted small mt-1">
-          Adhérence ({{ periode_adherence_jours }} derniers jours)
-          {% if taux_adherence_client is not None %}
-          <br>{{ nb_honorees_client }} honoré{{ nb_honorees_client|pluralize }} / {{ nb_manquees_client }} manqué{{ nb_manquees_client|pluralize }}
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        {% if dernier_bl_code %}
-        <div class="fs-6 fw-bold">{{ dernier_bl_code.bon_livraison_at|date:'d/m/Y' }}</div>
-        <div class="text-muted small">
-          BL-{{ dernier_bl_code.bon_livraison_numero }}
-          {% if dernier_bl %}· {{ dernier_bl.total_montant|stringformat:'.3f' }} TND · {{ dernier_bl.statut }}{% endif %}
-        </div>
-        {% else %}
-        <div class="fs-6 fw-bold text-muted">—</div>
-        {% endif %}
-        <div class="text-muted small mt-1">Dernier bon de livraison</div>
-      </div>
-    </div>
+  <section class="cpd-kpi-grid" aria-label="Synthèse du client">
+    <article class="cpd-kpi cpd-kpi-blue"><span class="cpd-kpi-icon"><i class="bi bi-calendar-check" aria-hidden="true"></i></span><span><small>Prochaine visite</small><strong class="cpd-kpi-date">{% if prochaine_visite %}{{ prochaine_visite|date:"d/m/Y" }}{% else %}—{% endif %}</strong><em>{% if prochaine_visite %}{{ prochaine_visite|date:"l" }}{% else %}non planifiée{% endif %}</em></span></article>
+    <article class="cpd-kpi {% if solde_impaye > 0 %}cpd-kpi-red{% else %}cpd-kpi-green{% endif %}"><span class="cpd-kpi-icon"><i class="bi bi-cash-coin" aria-hidden="true"></i></span><span><small>Solde impayé</small><strong>{{ solde_impaye|floatformat:3 }}</strong><em>TND cumulés</em></span></article>
+    <article class="cpd-kpi cpd-kpi-violet"><span class="cpd-kpi-icon"><i class="bi bi-calendar2-check" aria-hidden="true"></i></span><span><small>Adhérence sur {{ periode_adherence_jours }} jours</small><strong>{{ taux_adherence_client|default_if_none:"—" }}{% if taux_adherence_client is not None %}%{% endif %}</strong><em>{% if taux_adherence_client is not None %}{{ nb_honorees_client }} honorée{{ nb_honorees_client|pluralize }} · {{ nb_manquees_client }} manquée{{ nb_manquees_client|pluralize }}{% else %}non évaluée{% endif %}</em></span></article>
+    <article class="cpd-kpi cpd-kpi-orange"><span class="cpd-kpi-icon"><i class="bi bi-truck" aria-hidden="true"></i></span><span><small>Dernier bon de livraison</small><strong class="cpd-kpi-date">{% if dernier_bl_code %}{{ dernier_bl_code.bon_livraison_at|date:"d/m/Y" }}{% else %}—{% endif %}</strong><em>{% if dernier_bl_code %}BL-{{ dernier_bl_code.bon_livraison_numero }}{% if dernier_bl %} · {{ dernier_bl.total_montant|floatformat:3 }} TND{% endif %}{% else %}aucune livraison{% endif %}</em></span></article>
+  </section>
+
+  <div class="cpd-layout">
+    <main class="cpd-main">
+      <section class="cpd-card" aria-labelledby="cpd-contact-title"><header class="cpd-card-head"><span class="cpd-card-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span><div><h2 id="cpd-contact-title">Identité et localisation</h2><p>Coordonnées utilisées pour les visites et les livraisons.</p></div></header><dl class="cpd-info-grid">
+        <div><dt><i class="bi bi-person" aria-hidden="true"></i>Contact principal</dt><dd>{{ client.nom_client|default:"Non renseigné" }}</dd></div>
+        <div><dt><i class="bi bi-telephone" aria-hidden="true"></i>Téléphone</dt><dd>{% if client.telephone %}<a href="tel:{{ client.telephone }}">{{ client.telephone }}</a>{% else %}<span class="cpd-empty-value">Non renseigné</span>{% endif %}</dd></div>
+        <div><dt><i class="bi bi-map" aria-hidden="true"></i>Zone</dt><dd>{% if client.zone %}{{ client.zone.nom }}<small>{{ client.zone.delegation.nom_delegation }} · {{ client.zone.delegation.gouvernorat.nom }}</small>{% else %}<span class="cpd-empty-value">Non renseignée</span>{% endif %}</dd></div>
+        <div class="cpd-info-wide"><dt><i class="bi bi-pin-map" aria-hidden="true"></i>Adresse</dt><dd>{{ client.adresse|default:"Non renseignée" }}</dd></div>
+        <div><dt><i class="bi bi-calendar-check" aria-hidden="true"></i>Date de création</dt><dd>{% if client.created_at %}{{ client.created_at|date:"d/m/Y" }}{% else %}<span class="cpd-empty-value">Non renseignée</span>{% endif %}</dd></div>
+        <div><dt><i class="bi bi-activity" aria-hidden="true"></i>État du client</dt><dd>{% if client.is_active %}<span class="cpd-state-active">Actif</span>{% else %}<span class="cpd-state-inactive">Inactif</span>{% endif %}</dd></div>
+        <div><dt><i class="bi bi-compass" aria-hidden="true"></i>Google Maps</dt><dd>{% if client.google_mape %}<a href="https://www.google.com/maps/search/?api=1&amp;query={{ client.google_mape|urlencode }}" target="_blank" rel="noopener">Ouvrir la localisation<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>{% else %}<span class="cpd-empty-value">Non renseigné</span>{% endif %}</dd></div>
+      </dl></section>
+
+      <section class="cpd-card" aria-labelledby="cpd-relations-title"><header class="cpd-card-head"><span class="cpd-card-icon"><i class="bi bi-people" aria-hidden="true"></i></span><div><h2 id="cpd-relations-title">Organisation des visites</h2><p>Jours récurrents et commerciaux responsables du portefeuille.</p></div></header><div class="cpd-relations-grid"><div><h3><i class="bi bi-calendar-week" aria-hidden="true"></i>Jours de visite</h3>{% if jours_visite %}<div class="cpd-day-list">{% for jv in jours_visite %}<span>{{ jv.get_jour_semaine_display }}</span>{% endfor %}</div>{% else %}<p>Aucun jour récurrent défini.</p>{% endif %}</div><div><h3><i class="bi bi-person-lines-fill" aria-hidden="true"></i>Commerciaux affectés</h3>{% if commerciaux %}<div class="cpd-commercial-list">{% for cu in commerciaux %}<span><i class="bi bi-person-circle" aria-hidden="true"></i><strong>{{ cu.user.get_full_name|default:cu.user.username }}</strong><small>@{{ cu.user.username }}</small></span>{% endfor %}</div>{% else %}<p>Aucun commercial rattaché.</p>{% endif %}</div></div></section>
+
+      <section class="cpd-card" aria-labelledby="cpd-history-title"><header class="cpd-card-head"><span class="cpd-card-icon"><i class="bi bi-journal-text" aria-hidden="true"></i></span><div><h2 id="cpd-history-title">Historique des comptes-rendus</h2><p>Les 20 dernières actions planifiées ou réalisées pour ce client.</p></div>{% if historique_agenda %}<span class="cpd-history-count">{{ historique_agenda|length }} action{{ historique_agenda|length|pluralize }}</span>{% endif %}</header>
+        {% if historique_agenda %}<div class="cpd-history-table-wrap"><table class="cpd-history-table"><caption class="visually-hidden">Historique Agenda du client</caption><thead><tr><th scope="col">Date</th><th scope="col">Commercial</th><th scope="col">Compte-rendu</th><th scope="col">Statut</th></tr></thead><tbody>{% for a in historique_agenda %}<tr><td>{{ a.echeance_at|date:"d/m/Y" }}</td><td>{{ a.user.get_full_name|default:a.user.username }}</td><td>{{ a.detaille_action_planifier|default:"—" }}</td><td>{% if a.status == 'Réaliser' %}<span class="cpd-agenda-status cpd-agenda-done">Réalisé</span>{% elif a.status == 'Annuler' %}<span class="cpd-agenda-status cpd-agenda-cancelled">Annulé</span>{% else %}<span class="cpd-agenda-status cpd-agenda-pending">{{ a.status }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div><div class="cpd-history-mobile">{% for a in historique_agenda %}<article><header><strong>{{ a.echeance_at|date:"d/m/Y" }}</strong>{% if a.status == 'Réaliser' %}<span class="cpd-agenda-status cpd-agenda-done">Réalisé</span>{% elif a.status == 'Annuler' %}<span class="cpd-agenda-status cpd-agenda-cancelled">Annulé</span>{% else %}<span class="cpd-agenda-status cpd-agenda-pending">{{ a.status }}</span>{% endif %}</header><p>{{ a.detaille_action_planifier|default:"Aucun compte-rendu" }}</p><small><i class="bi bi-person" aria-hidden="true"></i>{{ a.user.get_full_name|default:a.user.username }}</small></article>{% endfor %}</div>{% else %}<div class="cpd-empty"><i class="bi bi-journal-text" aria-hidden="true"></i><strong>Aucun compte-rendu</strong><p>Aucune action Agenda n’a encore été enregistrée pour ce client.</p></div>{% endif %}
+      </section>
+    </main>
+
+    <aside class="cpd-aside" aria-label="Résumé et actions client"><div class="cpd-side-stack">
+      <section class="cpd-delivery-card" aria-labelledby="cpd-delivery-title"><div class="cpd-side-head"><span><i class="bi bi-truck" aria-hidden="true"></i></span><div><h2 id="cpd-delivery-title">Dernière livraison</h2><p>Situation du bon le plus récent.</p></div></div>{% if dernier_bl_code %}<div class="cpd-last-delivery"><strong>BL-{{ dernier_bl_code.bon_livraison_numero }}</strong><span>{{ dernier_bl_code.bon_livraison_at|date:"d/m/Y" }}</span>{% if dernier_bl %}<dl><div><dt>Montant</dt><dd>{{ dernier_bl.total_montant|floatformat:3 }} TND</dd></div><div><dt>Statut</dt><dd>{{ dernier_bl.statut }}</dd></div>{% if dernier_bl.reste_a_payer > 0 %}<div><dt>Reste</dt><dd class="cpd-due">{{ dernier_bl.reste_a_payer|floatformat:3 }} TND</dd></div>{% endif %}</dl>{% endif %}</div>{% else %}<p class="cpd-side-empty">Aucun bon de livraison enregistré.</p>{% endif %}</section>
+      <section class="cpd-note-card" aria-labelledby="cpd-note-title"><div class="cpd-side-head"><span class="cpd-note-icon"><i class="bi bi-chat-left-text" aria-hidden="true"></i></span><div><h2 id="cpd-note-title">Observation</h2><p>Information complémentaire.</p></div></div><div class="cpd-note-content">{% if client.observation %}{{ client.observation|linebreaksbr }}{% else %}<span>Aucune observation</span>{% endif %}</div></section>
+      <section class="cpd-actions-card" aria-labelledby="cpd-actions-title"><div class="cpd-side-head"><span class="cpd-actions-icon"><i class="bi bi-lightning" aria-hidden="true"></i></span><div><h2 id="cpd-actions-title">Actions rapides</h2><p>Gérez et suivez ce client.</p></div></div><a href="{% url 'commercial:bon-livraison-create' %}?client_id={{ client.pk }}" class="btn btn-primary cpd-action-btn"><i class="bi bi-truck" aria-hidden="true"></i>Nouveau bon de livraison</a><a href="{% url 'commercial:client-update' client.pk %}" class="btn btn-outline-primary cpd-action-btn"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier la fiche</a><a href="{% url 'commercial:agenda-list' %}?client_id={{ client.pk }}" class="btn btn-outline-secondary cpd-action-btn"><i class="bi bi-calendar-week" aria-hidden="true"></i>Ouvrir l'agenda</a><a href="{% url 'commercial:client-list' %}" class="btn btn-outline-secondary cpd-action-btn"><i class="bi bi-list-ul" aria-hidden="true"></i>Revenir aux clients</a>{% if is_administration_user %}<div class="cpd-danger-zone"><span><strong>Suppression du client</strong><small>Possible uniquement sans document lié.</small></span><button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cpd-delete-modal"><i class="bi bi-trash" aria-hidden="true"></i>Supprimer</button></div>{% endif %}</section>
+    </div></aside>
   </div>
 </div>
 
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-person-vcard me-2 text-primary"></i>Fiche client
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
+{% if is_administration_user %}<div class="modal fade" id="cpd-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="cpd-delete-title"><div class="modal-dialog modal-dialog-centered"><form method="post" action="{% url 'commercial:client-delete' client.pk %}" class="modal-content">{% csrf_token %}<div class="modal-header"><h2 class="modal-title fs-5" id="cpd-delete-title">Supprimer ce client ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="fw-semibold">{{ client }}</p><div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>La suppression sera refusée si ce client est lié à des ventes, livraisons ou actions Agenda.</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button></div></form></div></div>{% endif %}
+{% endblock %}
 
-      <div class="col-md-6">
-        <label class="form-label small mb-1">Raison sociale</label>
-        <input type="text" value="{{ client.raison_sociale|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label small mb-1">Nom client</label>
-        <input type="text" value="{{ client.nom_client|default:'' }}" class="form-control" disabled>
-      </div>
-
-      <div class="col-md-8">
-        <label class="form-label small mb-1">Adresse</label>
-        <input type="text" value="{{ client.adresse|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Zone</label>
-        <input type="text" value="{{ client.zone|default:'' }}" class="form-control" disabled>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Téléphone</label>
-        <input type="text" value="{{ client.telephone|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Date de création</label>
-        <input type="date" value="{{ client.created_at|date:'Y-m-d' }}" class="form-control" disabled>
-      </div>
-
-      <div class="col-md-8">
-        <label class="form-label small mb-1">Lien Google Maps</label>
-        <input type="text" value="{{ client.google_mape|default:'' }}" class="form-control" readonly
-               title="Double-cliquer pour ouvrir dans Google Maps"
-               ondblclick="if (!this.value) { return; }
-                           var v = this.value.trim();
-                           var url = /^https?:\/\//i.test(v) ? v : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v);
-                           window.open(url, '_blank');">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Actif</label>
-        <div class="form-check mt-2">
-          <input type="checkbox" class="form-check-input" {% if client.is_active %}checked{% endif %} disabled>
-          <label class="form-check-label">{{ client.is_active|yesno:"Oui,Non" }}</label>
-        </div>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Photo</label>
-        {% if client.photo %}
-        <div>
-          <img src="{{ client.photo.url }}" alt="{{ client }}"
-               style="width:96px;height:96px;border-radius:50%;object-fit:cover;cursor:pointer;"
-               title="Double-cliquer pour ouvrir le fichier"
-               ondblclick="window.open(this.src, '_blank');">
-        </div>
-        {% else %}
-        <input type="text" value="—" class="form-control" disabled>
-        {% endif %}
-      </div>
-      <div class="col-md-8">
-        <label class="form-label small mb-1">Observation</label>
-        <textarea class="form-control" rows="3" disabled>{{ client.observation|default:'' }}</textarea>
-      </div>
-
-    </div>
-  </div>
-  <div class="card-footer bg-transparent d-flex justify-content-end py-3">
-    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
-      <i class="bi bi-arrow-left me-1"></i>Revenir à la page précédente
-    </button>
-  </div>
-</div>
-
-{# ── Section Jours de visite récurrents ───────────────────────────────────── #}
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-calendar-week me-2 text-primary"></i>Jours de visite récurrents
-  </div>
-  <div class="card-body">
-    {% if jours_visite %}
-    <div class="d-flex flex-wrap gap-2">
-      {% for jv in jours_visite %}
-      <span class="badge text-bg-light border">{{ jv.get_jour_semaine_display }}</span>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-muted small mb-0">Aucun jour de visite récurrent défini pour ce client.</p>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Section Liste des commerciaux ────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-person-lines-fill me-2 text-primary"></i>Liste des commerciaux
-  </div>
-  <div class="card-body">
-    {% if commerciaux %}
-    {% for cu in commerciaux %}
-    <div class="d-flex flex-nowrap align-items-center gap-2 mb-2">
-      <div style="flex:1 1 auto;">
-        <input type="text" value="{{ cu.user.get_full_name|default:cu.user.username }}"
-               class="form-control form-control-sm" disabled>
-      </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <p class="text-muted small mb-0">Aucun commercial rattaché à ce client.</p>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Section Historique des comptes-rendus / actions ──────────────────────── #}
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-journal-text me-2 text-primary"></i>Historique des comptes-rendus
-  </div>
-  <div class="card-body p-0">
-    {% if historique_agenda %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:100px;">Date</th>
-            <th style="min-width:140px;">Commercial</th>
-            <th style="min-width:250px;">Note</th>
-            <th class="text-center pe-3" style="width:120px;">Statut</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in historique_agenda %}
-          <tr>
-            <td class="ps-3">{{ a.echeance_at|date:'d/m/Y' }}</td>
-            <td>{{ a.user.get_full_name|default:a.user.username }}</td>
-            <td>{{ a.detaille_action_planifier|default:'—' }}</td>
-            <td class="text-center pe-3">
-              <span class="badge
-                {% if a.status == 'Réaliser' %}text-bg-success
-                {% elif a.status == 'Annuler' %}text-bg-secondary
-                {% else %}text-bg-warning text-dark{% endif %}">
-                {{ a.status }}
-              </span>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-muted small mb-0 p-3">Aucun compte-rendu enregistré pour ce client.</p>
-    {% endif %}
-  </div>
-</div>
+{% block extra_css %}
+{{ block.super }}
+/* ── Fiche client 360° : consultation sans champs de saisie ───────────────── */
+.client-profile{--cpd-primary:#2c7be5;--cpd-primary-dark:#1a4f9c;--cpd-ink:#172033;--cpd-muted:#667085;--cpd-border:#e2e8f0;--cpd-surface:#fff;--cpd-radius:1rem;max-width:1600px;margin:0 auto;color:var(--cpd-ink)}
+.cpd-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.2rem;min-height:154px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.cpd-avatar{display:flex;align-items:center;justify-content:center;width:5.7rem;height:5.7rem;border:3px solid rgba(255,255,255,.62);border-radius:1.15rem;background:rgba(255,255,255,.15);box-shadow:0 7px 20px rgba(5,27,56,.2);object-fit:cover}.cpd-avatar-placeholder{color:#fff;font-size:1.75rem}.cpd-avatar-wrap a{text-decoration:none}.cpd-hero-copy{min-width:0}.cpd-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.cpd-hero h1{overflow:hidden;margin:.2rem 0 .18rem;color:#fff;font-size:clamp(1.55rem,2.1vw,2.1rem);font-weight:750;letter-spacing:-.02em;text-overflow:ellipsis;white-space:nowrap}.cpd-hero-copy>p{margin:0;color:rgba(255,255,255,.74);font-size:.82rem}.cpd-hero-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem}.cpd-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.26rem .58rem;border:1px solid rgba(255,255,255,.17);border-radius:2rem;background:rgba(8,31,61,.2);color:#fff;font-size:.68rem;font-weight:650}.cpd-tag-active{background:rgba(19,104,69,.38)}.cpd-tag-inactive{background:rgba(71,82,98,.4)}.cpd-hero-actions{display:flex;align-items:center;gap:.55rem}.cpd-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.85rem;padding-inline:.9rem;border-radius:.7rem;font-size:.76rem;font-weight:700}.cpd-hero-actions .btn-light{color:#194f89}
+.cpd-drift-alert{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.75rem;margin-top:1rem;padding:.8rem .9rem;border:1px solid #efc58d;border-left:4px solid #d97706;border-radius:.75rem;background:#fff8ed;color:#70430a}.cpd-drift-alert>span{display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:.65rem;background:#ffeac7;color:#a45e00}.cpd-drift-alert strong{font-size:.8rem}.cpd-drift-alert p{margin:.12rem 0 0;font-size:.7rem}.cpd-drift-alert a{display:inline-flex;align-items:center;gap:.3rem;color:#814d0b;font-size:.7rem;font-weight:750;text-decoration:none}
+.cpd-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.cpd-kpi{--cpd-accent:#2c7be5;--cpd-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:102px;padding:.9rem;border:1px solid var(--cpd-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.cpd-kpi-blue{--cpd-accent:#2c7be5;--cpd-soft:#eaf2fd}.cpd-kpi-green{--cpd-accent:#198754;--cpd-soft:#e9f6ef}.cpd-kpi-red{--cpd-accent:#dc3545;--cpd-soft:#fdecee}.cpd-kpi-violet{--cpd-accent:#6f42c1;--cpd-soft:#f1ebfb}.cpd-kpi-orange{--cpd-accent:#d97706;--cpd-soft:#fff4e0}.cpd-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border-radius:.72rem;background:var(--cpd-soft);color:var(--cpd-accent);font-size:1.15rem}.cpd-kpi>span:last-child{min-width:0}.cpd-kpi small{display:block;color:var(--cpd-muted);font-size:.66rem;font-weight:650}.cpd-kpi strong{display:block;overflow:hidden;margin-top:.06rem;color:var(--cpd-ink);font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}.cpd-kpi .cpd-kpi-date{font-size:.98rem}.cpd-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--cpd-muted);font-size:.62rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.cpd-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(330px,.82fr);align-items:start;gap:1rem;margin-top:1rem}.cpd-main{display:grid;gap:1rem;min-width:0}.cpd-card,.cpd-delivery-card,.cpd-note-card,.cpd-actions-card{overflow:hidden;border:1px solid var(--cpd-border);border-radius:var(--cpd-radius);background:var(--cpd-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.cpd-card-head{display:flex;align-items:center;gap:.7rem;min-height:76px;padding:.9rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cpd-card-icon,.cpd-side-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--cpd-primary);font-size:1.02rem}.cpd-card-head h2,.cpd-side-head h2{margin:0;color:var(--cpd-ink);font-size:.94rem;font-weight:750}.cpd-card-head p,.cpd-side-head p{margin:.12rem 0 0;color:var(--cpd-muted);font-size:.7rem}.cpd-history-count{margin-left:auto;padding:.3rem .55rem;border-radius:2rem;background:#eaf2fd;color:var(--cpd-primary-dark);font-size:.66rem;font-weight:750}.cpd-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0}.cpd-info-grid>div{min-width:0;min-height:100px;padding:1rem;border-right:1px solid #edf0f4;border-bottom:1px solid #edf0f4}.cpd-info-grid>div:nth-child(3n){border-right:0}.cpd-info-grid .cpd-info-wide{grid-column:1/-1;min-height:82px;border-right:0}.cpd-info-grid dt{display:flex;align-items:center;gap:.35rem;margin-bottom:.38rem;color:var(--cpd-muted);font-size:.66rem;font-weight:650}.cpd-info-grid dd{overflow-wrap:anywhere;margin:0;font-size:.8rem;font-weight:700;line-height:1.45}.cpd-info-grid dd small{display:block;margin-top:.12rem;color:var(--cpd-muted);font-size:.63rem;font-weight:500}.cpd-info-grid a{display:inline-flex;align-items:center;gap:.35rem;color:var(--cpd-primary-dark);text-decoration:none}.cpd-empty-value{color:#8b95a4;font-weight:500}.cpd-state-active{color:#18794e}.cpd-state-inactive{color:#7b8492}
+.cpd-relations-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-relations-grid>div{min-width:0;min-height:160px;padding:1rem}.cpd-relations-grid>div+div{border-left:1px solid #edf0f4}.cpd-relations-grid h3{display:flex;align-items:center;gap:.35rem;margin:0 0 .7rem;color:#344054;font-size:.76rem;font-weight:750}.cpd-relations-grid p{margin:0;color:var(--cpd-muted);font-size:.72rem}.cpd-day-list{display:flex;flex-wrap:wrap;gap:.4rem}.cpd-day-list span{padding:.3rem .55rem;border:1px solid #cfe0f5;border-radius:2rem;background:#f2f7fe;color:#31577f;font-size:.68rem;font-weight:700}.cpd-commercial-list{display:grid;gap:.45rem}.cpd-commercial-list>span{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:.45rem;padding:.45rem .55rem;border:1px solid #e3e9f0;border-radius:.6rem;background:#fafbfd}.cpd-commercial-list i{grid-row:1/3;align-self:center;color:var(--cpd-primary)}.cpd-commercial-list strong,.cpd-commercial-list small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cpd-commercial-list strong{font-size:.7rem}.cpd-commercial-list small{color:var(--cpd-muted);font-size:.61rem}
+.cpd-history-table-wrap{display:block}.cpd-history-table{width:100%;border-collapse:collapse;table-layout:fixed}.cpd-history-table thead{background:#f8fafc}.cpd-history-table th{padding:.68rem .9rem;border-bottom:1px solid var(--cpd-border);color:var(--cpd-muted);font-size:.64rem;font-weight:800;letter-spacing:.04em;text-align:left;text-transform:uppercase}.cpd-history-table td{padding:.75rem .9rem;border-bottom:1px solid #edf0f4;font-size:.72rem;vertical-align:top}.cpd-history-table tbody tr:last-child td{border-bottom:0}.cpd-history-table th:nth-child(1){width:13%}.cpd-history-table th:nth-child(2){width:20%}.cpd-history-table th:nth-child(3){width:52%}.cpd-history-table th:nth-child(4){width:15%}.cpd-agenda-status{display:inline-flex;padding:.24rem .48rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.cpd-agenda-done{background:#e9f6ef;color:#18794e}.cpd-agenda-cancelled{background:#eef0f3;color:#606a78}.cpd-agenda-pending{background:#fff4e0;color:#8a5300}.cpd-history-mobile{display:none}.cpd-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;padding:1.5rem;text-align:center;color:var(--cpd-muted)}.cpd-empty i{font-size:1.5rem;opacity:.55}.cpd-empty strong{margin-top:.4rem;color:var(--cpd-ink);font-size:.8rem}.cpd-empty p{margin:.2rem 0 0;font-size:.7rem}
+.cpd-side-stack{position:sticky;top:calc(var(--topbar-h) + 1rem);display:grid;gap:1rem}.cpd-delivery-card,.cpd-note-card,.cpd-actions-card{padding:1rem}.cpd-side-head{display:flex;align-items:center;gap:.7rem}.cpd-side-head .cpd-note-icon{background:#fff4e0;color:#8a5300}.cpd-side-head .cpd-actions-icon{background:#f1ebfb;color:#6f42c1}.cpd-last-delivery{margin-top:.85rem;padding:.75rem;border:1px solid #dfe7f0;border-radius:.72rem;background:#f8fafc}.cpd-last-delivery>strong{font-size:.88rem}.cpd-last-delivery>span{float:right;color:var(--cpd-muted);font-size:.68rem}.cpd-last-delivery dl{clear:both;margin:.65rem 0 0}.cpd-last-delivery dl div{display:grid;grid-template-columns:1fr auto;gap:.5rem;padding:.45rem 0;border-top:1px solid #e4e9ef}.cpd-last-delivery dt{color:var(--cpd-muted);font-size:.66rem}.cpd-last-delivery dd{margin:0;font-size:.7rem;font-weight:750}.cpd-due{color:#b42332}.cpd-side-empty{margin:.8rem 0 0;color:var(--cpd-muted);font-size:.72rem}.cpd-note-content{margin-top:.85rem;padding:.7rem;border:1px solid #e6e9ee;border-radius:.7rem;background:#fafbfc;color:#526071;font-size:.72rem;line-height:1.5}.cpd-note-content span{color:#8b95a4}.cpd-action-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:2.8rem;margin-top:.65rem;border-radius:.65rem;font-size:.72rem;font-weight:700}.cpd-danger-zone{display:flex;align-items:center;justify-content:space-between;gap:.65rem;margin-top:.85rem;padding-top:.85rem;border-top:1px solid #f0d8db}.cpd-danger-zone strong,.cpd-danger-zone small{display:block}.cpd-danger-zone strong{color:#8c2430;font-size:.68rem}.cpd-danger-zone small{color:var(--cpd-muted);font-size:.6rem}.cpd-danger-zone .btn{display:inline-flex;align-items:center;gap:.3rem;min-height:2.3rem;border-radius:.58rem;font-size:.64rem;font-weight:700}.client-profile a:focus-visible,.client-profile button:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.cpd-hero{grid-template-columns:auto minmax(0,1fr)}.cpd-hero-actions{grid-column:1/-1}.cpd-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-layout{grid-template-columns:1fr}.cpd-side-stack{position:static;grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:991.98px){.cpd-side-stack{grid-template-columns:1fr 1fr}.cpd-actions-card{grid-column:1/-1}}
+@media(max-width:767.98px){.cpd-drift-alert{grid-template-columns:auto minmax(0,1fr)}.cpd-drift-alert>a{grid-column:2}.cpd-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cpd-info-grid>div,.cpd-info-grid>div:nth-child(3n){border-right:1px solid #edf0f4}.cpd-info-grid>div:nth-child(2n){border-right:0}.cpd-info-grid .cpd-info-wide{grid-column:1/-1;border-right:0}.cpd-relations-grid{grid-template-columns:1fr}.cpd-relations-grid>div+div{border-top:1px solid #edf0f4;border-left:0}.cpd-history-table-wrap{display:none}.cpd-history-mobile{display:grid;gap:.65rem;padding:.8rem}.cpd-history-mobile article{padding:.75rem;border:1px solid var(--cpd-border);border-radius:.7rem;background:#fff}.cpd-history-mobile article header{display:flex;align-items:center;justify-content:space-between;gap:.5rem}.cpd-history-mobile article p{margin:.5rem 0;color:#526071;font-size:.72rem}.cpd-history-mobile article small{display:flex;align-items:center;gap:.3rem;color:var(--cpd-muted);font-size:.64rem}.cpd-side-stack{grid-template-columns:1fr}.cpd-actions-card{grid-column:auto}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.cpd-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.cpd-avatar{width:4.1rem;height:4.1rem;border-radius:.9rem;font-size:1.25rem}.cpd-hero h1{white-space:normal}.cpd-hero-actions{align-items:stretch;flex-direction:column-reverse}.cpd-hero-actions .btn{width:100%}.cpd-kpi-grid{grid-template-columns:1fr}.cpd-info-grid{grid-template-columns:1fr}.cpd-info-grid>div,.cpd-info-grid>div:nth-child(2n),.cpd-info-grid>div:nth-child(3n){min-height:auto;border-right:0}.cpd-info-grid .cpd-info-wide{grid-column:auto}.cpd-card-head{align-items:flex-start;flex-wrap:wrap}.cpd-history-count{margin-left:3.15rem}.cpd-danger-zone{align-items:stretch;flex-direction:column}.cpd-danger-zone .btn{justify-content:center;width:100%}}
 {% endblock %}

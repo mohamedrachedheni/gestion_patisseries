@@ -1,69 +1,66 @@
 {% extends "administration/base.html" %}
 
-{% block title %}Ajout de sauvegarde — Administration{% endblock %}
+{% block title %}Nouvelle sauvegarde — Administration{% endblock %}
 {% block page_title %}Ajout de sauvegarde de base de données{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'backups:sauvegarde-list' %}">Sauvegardes de la base de données</a></li>
-    <li class="breadcrumb-item active">Ajout de sauvegarde</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'backups:sauvegarde-list' %}">Sauvegardes</a></li><li class="breadcrumb-item active" aria-current="page">Nouvelle sauvegarde</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="sgf-dashboard">
+  <header class="sgf-hero" aria-labelledby="sgf-page-title">
+    <span class="sgf-hero-icon" aria-hidden="true"><i class="bi bi-hdd-stack"></i></span>
+    <div class="sgf-hero-copy"><div class="sgf-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> Sécurité des données</div><h1 id="sgf-page-title">Nouvelle sauvegarde de la base de données</h1><p>Créez une copie de sécurité complète de la base. Le nom est attribué automatiquement ; choisissez seulement si la sauvegarde est chiffrée et ajoutez une observation si besoin.</p></div>
+    <div class="sgf-hero-actions"><a href="{% url 'backups:sauvegarde-list' %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Revenir à la liste</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Ajout de sauvegarde de base de données</h4>
-</div>
-
-<div class="alert alert-info">
-  <i class="bi bi-info-circle me-1"></i>
-  L'enregistrement déclenche immédiatement une sauvegarde réelle de la base de données (mysqldump).
-  Cette opération peut prendre quelques instants selon la taille de la base.
-</div>
-
-<form method="post" novalidate>
-  {% csrf_token %}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-body py-3">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label small mb-1">Nom de la sauvegarde</label>
-          <input type="text" name="nom" value="{{ nom_value }}" class="form-control" disabled>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small mb-1">Type de sauvegarde</label>
-          <select name="type_sauvegarde" class="form-select" disabled>
-            {% for value, label in type_sauvegarde_choices %}
-            <option value="{{ value }}" {% if value == 'Complète' %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <div class="form-check mb-2">
-            <input type="checkbox" class="form-check-input" id="chiffre-input" name="chiffre" checked>
-            <label class="form-check-label" for="chiffre-input">Chiffré</label>
-          </div>
-        </div>
-        <div class="col-12">
-          <label class="form-label small mb-1">Observation</label>
-          <input type="text" name="observation" value="{{ observation_value }}" class="form-control">
-        </div>
+  <form method="post" id="sgf-form" novalidate autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    {% csrf_token %}
+    <section class="sgf-panel" aria-labelledby="sgf-panel-title">
+      <header class="sgf-panel-head"><span class="sgf-step" aria-hidden="true">1</span><div><h2 id="sgf-panel-title">Paramètres de la sauvegarde</h2><p>Les champs grisés sont définis automatiquement et ne peuvent pas être modifiés.</p></div></header>
+      <div class="sgf-notice" role="note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>L’enregistrement lance immédiatement une sauvegarde réelle de la base (mysqldump). Cela peut prendre quelques instants selon la taille de la base : ne fermez pas la page pendant l’opération.</span></div>
+      <div class="sgf-grid">
+        <div class="sgf-field sgf-wide"><label for="sgf-nom">Nom de la sauvegarde</label><input type="text" id="sgf-nom" value="{{ nom_value }}" class="form-control" disabled><small>Attribué automatiquement à partir de la date et de l’heure.</small></div>
+        <div class="sgf-field"><label for="sgf-type">Type de sauvegarde</label><select id="sgf-type" class="form-select" disabled autocomplete="off">{% for value, label in type_sauvegarde_choices %}<option value="{{ value }}" {% if value == 'Complète' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><small>Sauvegarde complète (structure et données).</small></div>
+        <div class="sgf-field sgf-check"><div class="form-check form-switch"><input type="checkbox" class="form-check-input" role="switch" id="chiffre-input" name="chiffre" checked><label class="form-check-label" for="chiffre-input">Chiffrer la sauvegarde</label></div><small>Recommandé : le fichier ne sera lisible que via l’application.</small></div>
+        <div class="sgf-field sgf-full"><label for="sgf-observation">Observation <span class="sgf-opt">(facultatif)</span></label><input type="text" name="observation" id="sgf-observation" value="{{ observation_value }}" maxlength="255" class="form-control" placeholder="Ex. : avant mise à jour des prix" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
       </div>
-    </div>
-  </div>
+      <footer class="sgf-footer"><a href="{% url 'backups:sauvegarde-list' %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg" aria-hidden="true"></i>Annuler</a><button type="submit" class="btn btn-primary" id="sgf-submit"><i class="bi bi-check-lg" aria-hidden="true"></i>Lancer la sauvegarde</button></footer>
+    </section>
+  </form>
+</div>
+{% endblock %}
 
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'backups:sauvegarde-list' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-    </a>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
-    </button>
-  </div>
-</form>
+{% block extra_css %}
+{{ block.super }}
+/* Nouvelle sauvegarde : ordinateur d'abord, même système que Sauvegardes / Transferts. */
+.sgf-dashboard{--sgf-primary:#2c7be5;--sgf-primary-dark:#1a4f9c;--sgf-ink:#172033;--sgf-muted:#667085;--sgf-border:#e2e8f0;max-width:1100px;margin:0 auto;color:var(--sgf-ink)}
+.sgf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.sgf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.sgf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.sgf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.5rem,2vw,2rem);font-weight:750;letter-spacing:-.02em}.sgf-hero-copy>p{margin:0;max-width:680px;color:rgba(255,255,255,.78);font-size:.84rem}.sgf-hero-actions .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:3rem;border-radius:.68rem;color:#194f89;font-size:.72rem;font-weight:750;white-space:nowrap}
+.sgf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--sgf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.sgf-panel-head{display:flex;align-items:center;gap:.8rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.sgf-step{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:var(--sgf-primary);color:#fff;font-size:.8rem;font-weight:800}.sgf-panel-head h2{margin:0;font-size:1rem;font-weight:750}.sgf-panel-head p{margin:.12rem 0 0;color:var(--sgf-muted);font-size:.72rem}
+.sgf-notice{display:flex;align-items:flex-start;gap:.6rem;margin:1rem 1.2rem 0;padding:.75rem .9rem;border:1px solid #bcd7fa;border-radius:.7rem;background:#eaf2fd;color:#16417a;font-size:.75rem}.sgf-notice i{margin-top:.1rem}
+.sgf-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:1rem;padding:1.1rem 1.2rem}.sgf-full{grid-column:1/-1}.sgf-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.75rem;font-weight:700}.sgf-field .form-control,.sgf-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.sgf-field small{display:block;margin-top:.3rem;color:var(--sgf-muted);font-size:.68rem}.sgf-opt{color:var(--sgf-muted);font-weight:500}.sgf-check{display:flex;flex-direction:column;justify-content:center;padding:.6rem .9rem;border:1px solid var(--sgf-border);border-radius:.7rem;background:#f8fafc}.sgf-check .form-check{margin:0;min-height:1.8rem}.sgf-check .form-check-label{margin:0;font-size:.8rem}.sgf-check .form-check-input{width:2.4rem;height:1.25rem;cursor:pointer}
+.sgf-footer{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.2rem;border-top:1px solid #edf0f4;background:#fbfcfe}.sgf-footer .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding-inline:1.1rem;border-radius:.6rem;font-size:.78rem;font-weight:700}
+.sgf-dashboard a:focus-visible,.sgf-dashboard button:focus-visible,.sgf-dashboard input:focus-visible,.sgf-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:991.98px){.sgf-hero{grid-template-columns:auto minmax(0,1fr)}.sgf-hero-actions{grid-column:1/-1}.sgf-grid{grid-template-columns:1fr 1fr}.sgf-wide{grid-column:1/-1}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.sgf-hero{padding:1rem}.sgf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.sgf-grid{grid-template-columns:1fr}.sgf-footer{flex-direction:column-reverse}}
+{% endblock %}
 
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+  var form = document.getElementById('sgf-form');
+  var btn = document.getElementById('sgf-submit');
+  if (!form || !btn) return;
+  form.addEventListener('submit', function () {
+    if (btn.disabled) return;
+    window.setTimeout(function () {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sauvegarde en cours…';
+    }, 0);
+  });
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type === 'text') e.preventDefault();
+  });
+})();
+</script>
 {% endblock %}

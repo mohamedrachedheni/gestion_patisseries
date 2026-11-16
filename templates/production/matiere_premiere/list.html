@@ -3,189 +3,99 @@
 {% block title %}Matières premières — Production{% endblock %}
 {% block page_title %}Matières premières{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Matières premières</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Matières premières</li></ol></nav>{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des matières premières</h4>
-  <a href="{% url 'production:matiere-premiere-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouvelle matière première
-  </a>
-</div>
+<div class="material-directory">
+  <header class="mpl-hero" aria-labelledby="mpl-page-title">
+    <span class="mpl-hero-icon" aria-hidden="true"><i class="bi bi-egg-fried"></i></span>
+    <div class="mpl-hero-copy"><div class="mpl-eyebrow"><i class="bi bi-basket" aria-hidden="true"></i> Approvisionnement de production</div><h1 id="mpl-page-title">Matières premières</h1><p>Consultez les ingrédients, leur famille et leur quantité en stock, et repérez ceux qui passent sous le stock minimum.</p></div>
+    <div class="mpl-hero-actions"><div class="mpl-count-card" aria-label="{{ total_count }} matières premières trouvées"><strong>{{ total_count }}</strong><span>matière{{ total_count|pluralize }}</span></div><a href="{% url 'production:matiere-premiere-create' %}" class="btn btn-light mpl-add-btn"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouvelle matière première</a></div>
+  </header>
 
-{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="row g-2 align-items-end">
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Nom</label>
-          <input type="text" name="nom" value="{{ nom }}"
-                 class="form-control form-control-sm" placeholder="Rechercher par nom…" data-autosubmit>
-        </div>
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Famille</label>
-          <select name="famille_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Toutes les familles —</option>
-            {% for f in familles_list %}
-            <option value="{{ f.pk }}" {% if famille_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.famille }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <div class="form-check mt-4">
-            <input type="checkbox" name="quantite_faible" value="1" id="quantite_faible"
-                   class="form-check-input" {% if quantite_faible %}checked{% endif %} data-autosubmit>
-            <label class="form-check-label small" for="quantite_faible">
-              Quantité inférieure au stock minimum
-            </label>
-          </div>
-        </div>
-
-        <div class="col-auto">
-          <a href="{% url 'production:matiere-premiere-list' %}"
-             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="mpl-filter-card" aria-labelledby="mpl-filter-title">
+    <div class="mpl-filter-head"><span class="mpl-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="mpl-filter-title">Filtrer les matières premières</h2><p>Sélectionnez un ou plusieurs critères, puis appliquez les filtres.</p></div>{% if nom or famille_id or quantite_faible %}<span class="mpl-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i> Filtres actifs</span>{% endif %}</div>
+    <form method="get" id="mpl-filter-form" class="mpl-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="mpl-filter-field"><label for="mpl-nom">Nom</label><div class="mpl-search-control"><i class="bi bi-search" aria-hidden="true"></i><input type="search" name="nom" id="mpl-nom" value="{{ nom }}" class="form-control" placeholder="Rechercher par nom…" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></div></div>
+      <div class="mpl-filter-field"><label for="mpl-famille">Famille</label><select name="famille_id" id="mpl-famille" class="form-select" autocomplete="off"><option value="">Toutes les familles</option>{% for f in familles_list %}<option value="{{ f.pk }}" {% if famille_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.famille }}</option>{% endfor %}</select></div>
+      <div class="mpl-filter-field mpl-check"><div class="form-check form-switch"><input type="checkbox" name="quantite_faible" value="1" id="quantite_faible" class="form-check-input" role="switch" {% if quantite_faible %}checked{% endif %}><label class="form-check-label" for="quantite_faible">Sous le stock minimum</label></div></div>
+      <div class="mpl-filter-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i>Appliquer</button>{% if nom or famille_id or quantite_faible %}<a href="{% url 'production:matiere-premiere-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>{% endif %}</div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="mpl-panel" aria-labelledby="mpl-results-title">
+    <header class="mpl-panel-head"><div><div class="mpl-section-label">Inventaire</div><h2 id="mpl-results-title">{% if nom or famille_id or quantite_faible %}Résultats filtrés{% else %}Toutes les matières premières{% endif %}</h2>{% if page_obj.object_list %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ total_count }}, classées par nom.</p>{% else %}<p>Aucune matière première ne correspond aux critères actuels.</p>{% endif %}</div>{% if page_obj.object_list %}<span class="mpl-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ total_count }} matière{{ total_count|pluralize }}</span>{% endif %}</header>
+
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Nom</th>
-            <th>Unité</th>
-            <th class="text-end">Quantité</th>
-            <th class="text-end">Stock minimum</th>
-            <th>Famille</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for mp in page_obj.object_list %}
-          <tr>
-            <td class="ps-3" style="min-width:180px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:180px;" value="{{ mp.nom }}" readonly>
-            </td>
-            <td>
-              <input type="text" class="form-control form-control-sm" value="{{ mp.get_unite_display|default:'' }}" readonly>
-            </td>
-            <td class="text-end">
-              <input type="number" class="form-control form-control-sm text-end no-spinner"
-                     value="{{ mp.quantite|default_if_none:''|stringformat:'s' }}" readonly>
-            </td>
-            <td class="text-end">
-              <input type="number" class="form-control form-control-sm text-end no-spinner"
-                     value="{{ mp.stock_minimum|default_if_none:''|stringformat:'s' }}" readonly>
-            </td>
-            <td style="min-width:160px;">
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
-                     value="{{ mp.matiere_premiere_famille.famille|default:'' }}" readonly>
-            </td>
-            <td class="text-center pe-3">
-              <a href="{% url 'production:matiere-premiere-detail' mp.pk %}"
-                 class="btn btn-sm btn-outline-secondary" title="Voir le détail">
-                <i class="bi bi-eye"></i>
-              </a>
-              <a href="{% url 'production:matiere-premiere-update' mp.pk %}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="mpl-table-wrap"><table class="mpl-table"><caption class="visually-hidden">Liste des matières premières avec quantité et stock minimum</caption><thead><tr><th scope="col">Matière première</th><th scope="col">Unité</th><th scope="col" class="mpl-num">Quantité</th><th scope="col" class="mpl-num">Stock minimum</th><th scope="col">Famille</th><th scope="col">État du stock</th><th scope="col" class="mpl-actions-col">Actions</th></tr></thead><tbody>
+      {% for mp in page_obj.object_list %}<tr>
+        <td><div class="mpl-identity"><span class="mpl-icon" aria-hidden="true"><i class="bi bi-egg-fried"></i></span><a href="{% url 'production:matiere-premiere-detail' mp.pk %}" class="mpl-name">{{ mp.nom }}</a></div></td>
+        <td>{{ mp.get_unite_display|default:"—" }}</td>
+        <td class="mpl-num"><strong class="mpl-val">{{ mp.quantite|default_if_none:"—" }}</strong></td>
+        <td class="mpl-num"><span class="mpl-val">{{ mp.stock_minimum|default_if_none:"—" }}</span></td>
+        <td>{% if mp.matiere_premiere_famille %}<span class="mpl-tag">{{ mp.matiere_premiere_famille.famille }}</span>{% else %}<span class="mpl-muted">Sans famille</span>{% endif %}</td>
+        <td>{% if mp.quantite is not None and mp.stock_minimum is not None and mp.quantite < mp.stock_minimum %}<span class="mpl-pill mpl-pill-low"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Stock faible</span>{% else %}<span class="mpl-pill mpl-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Suffisant</span>{% endif %}</td>
+        <td class="mpl-actions-col"><div class="mpl-row-actions"><a href="{% url 'production:matiere-premiere-detail' mp.pk %}" class="mpl-icon-btn" aria-label="Voir {{ mp.nom }}" title="Voir le détail"><i class="bi bi-eye" aria-hidden="true"></i></a><a href="{% url 'production:matiere-premiere-update' mp.pk %}" class="mpl-icon-btn mpl-icon-btn-primary" aria-label="Modifier {{ mp.nom }}" title="Modifier"><i class="bi bi-pencil" aria-hidden="true"></i></a></div></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} matière{{ total_count|pluralize }} première{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+    <div class="mpl-mobile-list">{% for mp in page_obj.object_list %}<article class="mpl-card"><header class="mpl-card-head"><span class="mpl-icon mpl-icon-large" aria-hidden="true"><i class="bi bi-egg-fried"></i></span><span class="mpl-card-title"><a href="{% url 'production:matiere-premiere-detail' mp.pk %}">{{ mp.nom }}</a>{% if mp.quantite is not None and mp.stock_minimum is not None and mp.quantite < mp.stock_minimum %}<span class="mpl-pill mpl-pill-low"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Stock faible</span>{% else %}<span class="mpl-pill mpl-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Suffisant</span>{% endif %}</span></header><dl class="mpl-card-details"><div><dt>Quantité</dt><dd>{{ mp.quantite|default_if_none:"—" }} {{ mp.unite|default:"" }}</dd></div><div><dt>Stock minimum</dt><dd>{{ mp.stock_minimum|default_if_none:"—" }}</dd></div><div class="mpl-wide"><dt>Famille</dt><dd>{{ mp.matiere_premiere_famille.famille|default:"Sans famille" }}</dd></div></dl><footer class="mpl-card-actions"><a href="{% url 'production:matiere-premiere-detail' mp.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Voir</a><a href="{% url 'production:matiere-premiere-update' mp.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a></footer></article>{% endfor %}</div>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?nom={{ nom }}&famille_id={{ famille_id }}&quantite_faible={{ quantite_faible }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?nom={{ nom }}&famille_id={{ famille_id }}&quantite_faible={{ quantite_faible }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?nom={{ nom }}&famille_id={{ famille_id }}&quantite_faible={{ quantite_faible }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
+    {% if is_paginated %}<footer class="mpl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} matière{{ total_count|pluralize }}</span><nav aria-label="Pagination des matières premières"><ul class="mpl-pagination">{% if page_obj.has_previous %}<li><a href="?nom={{ nom|urlencode }}&amp;famille_id={{ famille_id|urlencode }}&amp;quantite_faible={{ quantite_faible|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?nom={{ nom|urlencode }}&amp;famille_id={{ famille_id|urlencode }}&amp;quantite_faible={{ quantite_faible|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?nom={{ nom|urlencode }}&amp;famille_id={{ famille_id|urlencode }}&amp;quantite_faible={{ quantite_faible|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-egg-fried fs-1 d-block mb-2 opacity-25"></i>
-      Aucune matière première ne correspond à ces critères.
-      {% if nom or famille_id or quantite_faible %}
-      <br>
-      <a href="{% url 'production:matiere-premiere-list' %}" class="mt-2 d-inline-block">Effacer les filtres</a>
-      {% endif %}
+    <div class="mpl-empty-state"><span class="mpl-empty-icon"><i class="bi {% if nom or famille_id or quantite_faible %}bi-search{% else %}bi-egg-fried{% endif %}" aria-hidden="true"></i></span>
+      {% if nom or famille_id or quantite_faible %}<h2>Aucune matière première trouvée</h2><p>Modifiez les critères ou réinitialisez les filtres pour afficher tout l’inventaire.</p><a href="{% url 'production:matiere-premiere-list' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser les filtres</a>
+      {% else %}<h2>Aucune matière première enregistrée</h2><p>Ajoutez votre première matière première pour commencer l’inventaire.</p><a href="{% url 'production:matiere-premiere-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter la première matière première</a>{% endif %}
     </div>
     {% endif %}
-  </div>
+  </section>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Matières premières : ordinateur d'abord, même système que Fournisseurs ── */
+.material-directory{--mpl-primary:#2c7be5;--mpl-primary-dark:#1a4f9c;--mpl-ink:#172033;--mpl-muted:#667085;--mpl-border:#e2e8f0;--mpl-radius:1rem;max-width:1600px;margin:0 auto;color:var(--mpl-ink)}
+.mpl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}
+.mpl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}
+.mpl-hero-copy{min-width:0}.mpl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.mpl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.5rem,2vw,2rem);font-weight:750;letter-spacing:-.02em}.mpl-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.88rem;line-height:1.5}
+.mpl-hero-actions{display:flex;align-items:stretch;gap:.65rem}.mpl-count-card{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:92px;padding:.55rem .8rem;border:1px solid rgba(255,255,255,.2);border-radius:.78rem;background:rgba(8,31,61,.2)}.mpl-count-card strong{font-size:1.35rem;font-variant-numeric:tabular-nums;line-height:1.05}.mpl-count-card span{margin-top:.14rem;color:rgba(255,255,255,.72);font-size:.68rem}.mpl-add-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:3.15rem;padding-inline:1rem;border-radius:.78rem;color:#194f89;font-size:.82rem;font-weight:750}
+.mpl-filter-card,.mpl-panel{margin-top:1.1rem;overflow:hidden;border:1px solid var(--mpl-border);border-radius:var(--mpl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}
+.mpl-filter-head{display:flex;align-items:center;gap:.7rem;min-height:72px;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.mpl-filter-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--mpl-primary);font-size:1.02rem}.mpl-filter-head h2{margin:0;font-size:.94rem;font-weight:750}.mpl-filter-head p{margin:.12rem 0 0;color:var(--mpl-muted);font-size:.7rem}.mpl-active-filter{display:inline-flex;align-items:center;gap:.3rem;margin-left:auto;padding:.3rem .58rem;border-radius:2rem;background:#e9f6ef;color:#18794e;font-size:.68rem;font-weight:750;white-space:nowrap}
+.mpl-filter-form{display:grid;grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) minmax(200px,.8fr) auto;align-items:end;gap:.8rem;padding:1rem}.mpl-filter-field{min-width:0}.mpl-filter-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.72rem;font-weight:700}.mpl-filter-field .form-control{min-height:2.9rem;border-color:#cfd7e3;border-radius:.68rem;font-size:.82rem}.mpl-filter-field .form-control:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.mpl-filter-field [data-autofill-lock][readonly]{background:#fff;cursor:text}
+.mpl-search-control{position:relative}.mpl-search-control>i{position:absolute;top:50%;left:.85rem;z-index:1;color:#98a2b3;transform:translateY(-50%)}.mpl-search-control .form-control{padding-left:2.35rem}
+.mpl-check{display:flex;align-items:center;min-height:2.9rem;padding:0 .9rem;border:1px solid #cfd7e3;border-radius:.68rem;background:#f8fafc}.mpl-check .form-check{margin:0;min-height:0}.mpl-check .form-check-label{margin:0;font-size:.78rem;font-weight:600}.mpl-check .form-check-input{cursor:pointer}
+.mpl-filter-actions{display:flex;align-items:center;gap:.45rem}.mpl-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.9rem;padding-inline:.85rem;border-radius:.68rem;font-size:.75rem;font-weight:700;white-space:nowrap}
+.mpl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:82px;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.mpl-section-label{color:var(--mpl-primary-dark);font-size:.65rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.mpl-panel-head h2{margin:.18rem 0 0;font-size:1.05rem;font-weight:750}.mpl-panel-head p{margin:.18rem 0 0;color:var(--mpl-muted);font-size:.73rem}.mpl-result-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .65rem;border-radius:2rem;background:#eaf2fd;color:var(--mpl-primary-dark);font-size:.7rem;font-weight:750;white-space:nowrap}
+.mpl-table{width:100%;border-collapse:collapse;table-layout:fixed}.mpl-table thead{background:#f8fafc}.mpl-table th{padding:.7rem 1rem;border-bottom:1px solid var(--mpl-border);color:var(--mpl-muted);font-size:.67rem;font-weight:800;letter-spacing:.055em;text-align:left;text-transform:uppercase}.mpl-table td{padding:.82rem 1rem;border-bottom:1px solid #edf0f4;font-size:.78rem;vertical-align:middle}.mpl-table tbody tr:last-child td{border-bottom:0}.mpl-table tbody tr:hover{background:#f8faff}.mpl-table th:nth-child(1){width:24%}.mpl-table th:nth-child(2){width:8%}.mpl-table th:nth-child(3),.mpl-table th:nth-child(4){width:12%}.mpl-table th:nth-child(5){width:16%}.mpl-table th:nth-child(6){width:16%}.mpl-table th:nth-child(7){width:12%}
+.mpl-num{text-align:right!important}.mpl-val{font-variant-numeric:tabular-nums}.mpl-table td small{color:var(--mpl-muted);font-size:.64rem}
+.mpl-identity{display:flex;align-items:center;gap:.7rem;min-width:0}.mpl-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.7rem;height:2.7rem;border-radius:.75rem;background:#eaf2fd;color:var(--mpl-primary);font-size:1.05rem}.mpl-icon-large{width:3.1rem;height:3.1rem;border-radius:.85rem;font-size:1.2rem}.mpl-name{display:block;overflow:hidden;color:var(--mpl-ink);font-size:.82rem;font-weight:750;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}.mpl-name:hover{color:var(--mpl-primary-dark)}
+.mpl-tag{display:inline-flex;max-width:100%;overflow:hidden;padding:.18rem .5rem;border:1px solid #dce3eb;border-radius:2rem;background:#f8fafc;color:#526071;font-size:.68rem;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.mpl-muted{color:#8b95a4;font-size:.72rem}
+.mpl-pill{display:inline-flex;align-items:center;gap:.28rem;padding:.24rem .55rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.mpl-pill-ok{background:#e7f6ec;color:#146c2e}.mpl-pill-low{background:#fdeceb;color:#b42318}
+.mpl-actions-col{text-align:center!important}.mpl-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.mpl-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;color:#596579;text-decoration:none;transition:border-color .14s,background-color .14s,color .14s}.mpl-icon-btn:hover{border-color:#aeb9c7;background:#f7f9fb;color:var(--mpl-ink)}.mpl-icon-btn-primary{border-color:#b8d0ef;color:var(--mpl-primary-dark)}.mpl-icon-btn-primary:hover{border-color:#8eb6ea;background:#eef5fe;color:#174c8f}.mpl-icon-btn-danger{border-color:#efc6cb;color:#b42332}.mpl-icon-btn-danger:hover{border-color:#df9da5;background:#fff5f6;color:#991c2a}
+.mpl-mobile-list{display:none}.mpl-card{overflow:hidden;border:1px solid var(--mpl-border);border-radius:.85rem;background:#fff}.mpl-card-head{display:flex;align-items:center;gap:.7rem;padding:.9rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.mpl-card-title{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;min-width:0}.mpl-card-title a{color:var(--mpl-ink);font-size:.86rem;font-weight:750;text-decoration:none;overflow-wrap:anywhere}.mpl-card-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem 1rem;margin:0;padding:1rem}.mpl-card-details dt{margin-bottom:.15rem;color:var(--mpl-muted);font-size:.64rem;font-weight:650;text-transform:uppercase}.mpl-card-details dd{margin:0;font-size:.78rem;font-weight:700}.mpl-wide{grid-column:1/-1}.mpl-card-actions{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.mpl-card-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.65rem;border-radius:.65rem;font-size:.74rem;font-weight:700}
+.mpl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--mpl-border);background:#fbfcfe}.mpl-pagination-footer>span{color:var(--mpl-muted);font-size:.72rem}.mpl-pagination{display:flex;gap:.25rem;margin:0;padding:0;list-style:none}.mpl-pagination a,.mpl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.25rem;height:2.25rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.55rem;background:#fff;color:#526071;font-size:.72rem;font-weight:700;text-decoration:none}.mpl-pagination a:hover{border-color:#9cbee9;background:#f4f8fe;color:var(--mpl-primary-dark)}.mpl-pagination .active{border-color:var(--mpl-primary);background:var(--mpl-primary);color:#fff}
+.mpl-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;padding:2rem;text-align:center}.mpl-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;margin-bottom:.9rem;border-radius:1rem;background:#edf4fd;color:var(--mpl-primary);font-size:1.55rem}.mpl-empty-state h2{margin:0;font-size:1rem;font-weight:750}.mpl-empty-state p{max-width:440px;margin:.35rem 0 1rem;color:var(--mpl-muted);font-size:.78rem}.mpl-empty-state .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;border-radius:.68rem;font-size:.78rem;font-weight:700}
+.material-directory a:focus-visible,.material-directory button:focus-visible,.material-directory input:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.mpl-filter-form{grid-template-columns:repeat(2,minmax(0,1fr))}.mpl-table-wrap{display:none}.mpl-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}}
+@media(max-width:991.98px){.mpl-hero{grid-template-columns:auto minmax(0,1fr)}.mpl-hero-actions{grid-column:1/-1}}
+@media(max-width:767.98px){.mpl-filter-form{grid-template-columns:1fr}.mpl-filter-actions{flex-wrap:wrap}.mpl-mobile-list{grid-template-columns:1fr}.mpl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.mpl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.mpl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.mpl-hero-actions{flex-direction:column}.mpl-filter-head{flex-wrap:wrap}.mpl-active-filter{margin-left:3.15rem}.mpl-filter-actions .btn{flex:1 1 100%}.mpl-panel-head{flex-direction:column;padding:.9rem}.mpl-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.mpl-icon-btn{transition:none}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
+(function () {
+  var form = document.getElementById('mpl-filter-form');
+  if (!form) { return; }
+  // Empêche l'injection de données mémorisées par le navigateur.
+  form.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+    function unlock() { field.readOnly = false; field.removeAttribute('readonly'); field.removeAttribute('data-autofill-lock'); }
+    field.addEventListener('focus', unlock, { once: true });
+    field.addEventListener('pointerdown', function (e) { if (e.pointerType === 'touch') { unlock(); } }, { once: true });
   });
-});
+})();
 </script>
 {% endblock %}

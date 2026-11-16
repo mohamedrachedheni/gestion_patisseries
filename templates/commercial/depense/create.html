@@ -1,14 +1,14 @@
 {% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
-{% block title %}Nouvelle dépense — Commercial{% endblock %}
-{% block page_title %}Nouvelle dépense{% endblock %}
+{% block title %}{% if depense %}Modifier DEP-{{ depense_numero }}{% else %}Nouvelle dépense{% endif %} — Commercial{% endblock %}
+{% block page_title %}{% if depense %}Modification de la dépense{% else %}Nouvelle dépense{% endif %}{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:depense-list' %}">Dépenses</a></li>
-    <li class="breadcrumb-item active">Nouvelle dépense</li>
+    <li class="breadcrumb-item active" aria-current="page">{% if depense %}Modifier DEP-{{ depense_numero }}{% else %}Nouvelle dépense{% endif %}</li>
   </ol>
 </nav>
 {% endblock %}
@@ -20,8 +20,16 @@
    detail_libelle, detail_quantite, detail_valeur_unitaire, nouveau_acompte,
    mode_paiement, observation) sont ceux attendus par DepenseCreateView.post().
 {% endcomment %}
-<form method="post" id="depense-form" novalidate>
+<form method="post" id="depense-form" novalidate autocomplete="off"
+      data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
   {% csrf_token %}
+
+  {% if depense %}
+  <div class="blx-note blx-note-warn dep-update-note">
+    <i class="bi bi-clock-history me-1"></i>
+    La modification crée une nouvelle version de DEP-{{ depense_numero }}. Les paiements déjà enregistrés sont conservés.
+  </div>
+  {% endif %}
 
   {# ── Étape 1 : fournisseur et date ───────────────────────────────────────── #}
   <section class="blx-card" id="dep-step-infos">
@@ -29,7 +37,7 @@
       <span class="blx-step-num">1</span>
       <div>
         <div class="blx-step-title">Fournisseur et date</div>
-        <div class="blx-step-help">À qui avez-vous payé, et quand ?</div>
+        <div class="blx-step-help">{% if depense %}Vérifiez le fournisseur de cette dépense.{% else %}À qui avez-vous payé, et quand ?{% endif %}</div>
       </div>
     </div>
 
@@ -63,11 +71,17 @@
     <div class="blx-grid-2 blx-date-row">
       <div class="blx-field mb-0">
         <label class="blx-label" for="id_depense_at">Date <span class="blx-req">*</span></label>
-        <input type="date" name="depense_at" id="id_depense_at" value="{{ depense_at }}" class="form-control blx-input">
+        {% if depense %}
+        <div class="dep-readonly-value"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ depense_at|slice:"8:10" }}/{{ depense_at|slice:"5:7" }}/{{ depense_at|slice:":4" }}</div>
+        <input type="hidden" id="id_depense_at" value="{{ depense_at }}">
+        {% else %}
+        <input type="date" name="depense_at" id="id_depense_at" value="{{ depense_at }}" class="form-control blx-input"
+               autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+        {% endif %}
       </div>
       <div class="blx-field mb-0">
         <label class="blx-label" for="id_depense_numero">N° dépense</label>
-        <input type="text" id="id_depense_numero" value="{{ depense_numero }}" class="form-control blx-input blx-readonly" disabled>
+        <output id="id_depense_numero" class="dep-readonly-value">{{ depense_numero }}</output>
       </div>
     </div>
   </section>
@@ -100,7 +114,7 @@
       <span class="blx-step-num">3</span>
       <div>
         <div class="blx-step-title">Paiement</div>
-        <div class="blx-step-help">Indiquez combien vous avez payé au fournisseur.</div>
+        <div class="blx-step-help">{% if depense %}Ajoutez le nouveau règlement effectué pour cette version.{% else %}Indiquez combien vous avez payé au fournisseur.{% endif %}</div>
       </div>
     </div>
 
@@ -109,23 +123,30 @@
     <div class="blx-total-box">
       <span>Montant total</span>
       <div>
-        <input type="number" step="0.001" id="id_total_montant" value="0.000"
-               class="blx-total-value no-spinner" disabled aria-label="Montant total">
+        <output id="id_total_montant" class="blx-total-value" aria-label="Montant total">0.000</output>
         <span class="blx-currency">TND</span>
       </div>
     </div>
+
+    {% if depense %}
+    <div class="dep-existing-payment">
+      <span><i class="bi bi-check2-circle" aria-hidden="true"></i>Déjà payé avant cette modification</span>
+      <strong>{{ ancien_total_acompte|floatformat:3 }} TND</strong>
+    </div>
+    {% endif %}
 
     <div class="blx-field">
-      <label class="blx-label" for="id_nouveau_acompte">Montant payé</label>
+      <label class="blx-label" for="id_nouveau_acompte">{% if depense %}Nouveau paiement{% else %}Montant payé{% endif %}</label>
       <div class="blx-money-input">
         <input type="number" step="0.001" min="0" name="nouveau_acompte" id="id_nouveau_acompte"
-               value="{{ nouveau_acompte }}" class="form-control blx-input no-spinner" inputmode="decimal">
+               value="{{ nouveau_acompte }}" class="form-control blx-input no-spinner" inputmode="decimal"
+               autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
         <span class="blx-currency">TND</span>
       </div>
-      <div class="blx-hint">Rempli avec le montant total. Modifiez-le si vous n'avez payé qu'une partie.</div>
+      <div class="blx-hint">{% if depense %}Ce montant s'ajoutera aux {{ ancien_total_acompte|floatformat:3 }} TND déjà payés.{% else %}Rempli avec le montant total. Modifiez-le si vous n'avez payé qu'une partie.{% endif %}</div>
     </div>
 
-    {% if is_administration %}
+    {% if is_administration or depense %}
     <div class="blx-field">
       <span class="blx-label">Mode de paiement</span>
       <div class="blx-choices" role="radiogroup" aria-label="Mode de paiement">
@@ -145,8 +166,7 @@
     <div class="blx-reste-box" id="dep-reste-box">
       <span>Reste à payer</span>
       <div>
-        <input type="number" step="0.001" id="id_reste_a_payer" value="0.000"
-               class="blx-reste-value no-spinner" disabled aria-label="Reste à payer">
+        <output id="id_reste_a_payer" class="blx-reste-value" aria-label="Reste à payer">0.000</output>
         <span class="blx-currency">TND</span>
       </div>
       <span class="blx-status" id="id_statut"></span>
@@ -154,7 +174,9 @@
 
     <div class="blx-field mb-0">
       <label class="blx-label" for="id_observation">Remarque <span class="text-muted fw-normal">(facultatif)</span></label>
-      <input type="text" name="observation" id="id_observation" value="{{ observation }}" class="form-control blx-input">
+      <input type="text" name="observation" id="id_observation" value="{{ observation }}" class="form-control blx-input"
+             autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true"
+             data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">
     </div>
   </section>
 
@@ -172,7 +194,7 @@
       <strong id="dep-bar-total">0,000 TND</strong>
     </div>
     <button type="submit" id="depense-save-btn" class="btn btn-primary blx-bar-btn">
-      <i class="bi bi-check-lg me-1"></i>Vérifier et enregistrer
+      <i class="bi bi-check-lg me-1"></i>{% if depense %}Vérifier la modification{% else %}Vérifier et enregistrer{% endif %}
     </button>
   </div>
 </form>
@@ -182,7 +204,7 @@
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="dep-recap-title"><i class="bi bi-clipboard-check me-2"></i>Vérifiez la dépense</h5>
+        <h5 class="modal-title" id="dep-recap-title"><i class="bi bi-clipboard-check me-2"></i>{% if depense %}Vérifiez la modification{% else %}Vérifiez la dépense{% endif %}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
       <div class="modal-body" id="dep-recap-body"></div>
@@ -191,7 +213,7 @@
           <i class="bi bi-pencil me-1"></i>Modifier
         </button>
         <button type="button" class="btn btn-success blx-btn" id="dep-recap-confirm">
-          <i class="bi bi-check-lg me-1"></i>Confirmer et enregistrer
+          <i class="bi bi-check-lg me-1"></i>{% if depense %}Confirmer la modification{% else %}Confirmer et enregistrer{% endif %}
         </button>
       </div>
     </div>
@@ -204,14 +226,26 @@
 {% block extra_css %}
 {{ block.super }}
 {% include 'commercial/bon_livraison/_blx_styles.html' %}
+.dep-update-note { margin-bottom: 1rem; }
+.dep-readonly-value { display: flex; align-items: center; gap: .45rem; width: 100%; min-height: var(--blx-touch); padding: .65rem .75rem; border: 1px solid var(--blx-border); border-radius: var(--blx-radius-sm); background: #f5f7fa; color: var(--blx-text); font-size: .9rem; font-weight: 700; }
+output.dep-readonly-value { justify-content: flex-start; }
+.dep-existing-payment { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: .75rem 0; padding: .65rem .75rem; border: 1px solid #cfe1f8; border-radius: var(--blx-radius-sm); background: #f2f7fe; color: #31577f; font-size: .76rem; }
+.dep-existing-payment span { display: inline-flex; align-items: center; gap: .35rem; }
+.dep-existing-payment strong { color: #174c8f; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.blx [data-autofill-lock][readonly] { background: #fff; cursor: text; }
+output.blx-total-value,
+output.blx-reste-value { display: inline-block; min-width: 7rem; text-align: right; font-variant-numeric: tabular-nums; }
+output.blx-line-total { display: flex; align-items: center; justify-content: flex-end; min-height: var(--blx-touch); }
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
+  var IS_UPDATE = {% if depense %}true{% else %}false{% endif %};
   var NUMERO_URL = "{% url 'commercial:depense-numero-suivant' %}";
   var DETAIL_ROWS = {{ detail_rows_json|safe }};
   var IS_ADMINISTRATION = {{ is_administration|yesno:"true,false" }};
+  var ANCIEN_TOTAL_ACOMPTE = parseFloat("{{ ancien_total_acompte|default:'0' }}") || 0;
 
   var depenseForm        = document.getElementById('depense-form');
   var detailRowsContainer = document.getElementById('detail-rows');
@@ -235,6 +269,18 @@
   var recapModal         = new bootstrap.Modal(document.getElementById('dep-recap-modal'));
   var recapBody          = document.getElementById('dep-recap-body');
   var recapConfirmBtn    = document.getElementById('dep-recap-confirm');
+
+  function unlockAutofillField(field) {
+    field.readOnly = false;
+    field.removeAttribute('readonly');
+    field.removeAttribute('data-autofill-lock');
+  }
+  depenseForm.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+    field.addEventListener('focus', function () { unlockAutofillField(field); }, { once: true });
+    field.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'touch') { unlockAutofillField(field); }
+    }, { once: true });
+  });
 
   // ── Utilitaires ──────────────────────────────────────────────────────────
   function num(el) {
@@ -301,17 +347,19 @@
 
   // ── Numéro dépense : recalculé côté serveur à chaque changement de date ──
   var numeroRequestId = 0;
-  depenseAtInput.addEventListener('change', function () {
-    if (depenseAtInput.value) { showError(infosError, ''); }
-    var requestId = ++numeroRequestId;
-    var url = NUMERO_URL + '?depense_at=' + encodeURIComponent(depenseAtInput.value);
-    fetch(url, { credentials: 'same-origin' })
-      .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
-      .then(function (data) {
-        if (requestId === numeroRequestId) { depenseNumeroInput.value = data.depense_numero; }
-      })
-      .catch(function () { /* le numéro définitif est de toute façon recalculé à l'enregistrement */ });
-  });
+  if (!IS_UPDATE) {
+    depenseAtInput.addEventListener('change', function () {
+      if (depenseAtInput.value) { showError(infosError, ''); }
+      var requestId = ++numeroRequestId;
+      var url = NUMERO_URL + '?depense_at=' + encodeURIComponent(depenseAtInput.value);
+      fetch(url, { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+        .then(function (data) {
+          if (requestId === numeroRequestId) { depenseNumeroInput.value = data.depense_numero; }
+        })
+        .catch(function () { /* le numéro définitif est de toute façon recalculé à l'enregistrement */ });
+    });
+  }
 
   // ── Étape 3 : Montant total / Reste à payer / état du paiement ────────────
   var STATUT_AFFICHAGE = {
@@ -322,7 +370,8 @@
 
   function recalcResteEtStatut() {
     var total = num(totalMontantInput);
-    var reste = round3(total - num(montantPayeInput));
+    var totalPaye = round3(ANCIEN_TOTAL_ACOMPTE + num(montantPayeInput));
+    var reste = round3(total - totalPaye);
     resteInput.value = reste.toFixed(3);
 
     var statut = '';
@@ -380,7 +429,8 @@
   // Sur changement de Quantité ou de Valeur unitaire, Montant payé reprend la
   // valeur de Montant total — Reste à payer retombe donc à zéro.
   function syncMontantPayeAvecMontantTotal() {
-    montantPayeInput.value = totalMontantInput.value;
+    var montantDu = round3(num(totalMontantInput) - ANCIEN_TOTAL_ACOMPTE);
+    montantPayeInput.value = (montantDu > 0 ? montantDu : 0).toFixed(3);
     recalcResteEtStatut();
   }
 
@@ -395,7 +445,7 @@
     row.innerHTML =
       '<div class="blx-item-head">' +
         '<span class="blx-item-num"></span>' +
-        '<input type="text" name="detail_libelle" class="form-control blx-input libelle-input" placeholder="Libellé (ex. : carburant)" aria-label="Libellé">' +
+        '<input type="text" name="detail_libelle" class="form-control blx-input libelle-input" placeholder="Libellé (ex. : carburant)" aria-label="Libellé" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">' +
         '<button type="button" class="btn btn-outline-danger blx-remove remove-row" title="Retirer cette ligne" aria-label="Retirer cette ligne"><i class="bi bi-trash"></i></button>' +
       '</div>' +
       '<div class="blx-item-grid">' +
@@ -403,17 +453,17 @@
           '<span class="blx-sub-label">Quantité</span>' +
           '<div class="blx-stepper">' +
             '<button type="button" class="qte-moins" tabindex="-1" aria-label="Diminuer la quantité">−</button>' +
-            '<input type="number" step="1" min="0" name="detail_quantite" class="form-control blx-input no-spinner qte-input" value="1" inputmode="numeric" aria-label="Quantité">' +
+            '<input type="number" step="1" min="0" name="detail_quantite" class="form-control blx-input no-spinner qte-input" value="1" inputmode="numeric" aria-label="Quantité" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">' +
             '<button type="button" class="qte-plus" tabindex="-1" aria-label="Augmenter la quantité">+</button>' +
           '</div>' +
         '</div>' +
         '<div>' +
           '<span class="blx-sub-label">Valeur unitaire (TND)</span>' +
-          '<input type="number" step="0.001" min="0" name="detail_valeur_unitaire" class="form-control blx-input no-spinner prix-input" value="0" inputmode="decimal" aria-label="Valeur unitaire">' +
+          '<input type="number" step="0.001" min="0" name="detail_valeur_unitaire" class="form-control blx-input no-spinner prix-input" value="0" inputmode="decimal" aria-label="Valeur unitaire" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">' +
         '</div>' +
         '<div>' +
           '<span class="blx-sub-label text-end">Total</span>' +
-          '<input type="text" class="blx-line-total total-ligne-input" value="0,000" disabled aria-label="Total de la ligne">' +
+          '<output class="blx-line-total total-ligne-input" aria-label="Total de la ligne">0,000</output>' +
         '</div>' +
       '</div>' +
       '<div class="blx-item-warning"><i class="bi bi-exclamation-triangle me-1"></i>Indiquez un libellé, une quantité et une valeur unitaire, sinon cette ligne ne sera pas enregistrée.</div>';
@@ -513,7 +563,8 @@
 
   function construireRecap(res) {
     var total = num(totalMontantInput);
-    var paye = num(montantPayeInput);
+    var nouveauPaiement = num(montantPayeInput);
+    var totalPaye = round3(ANCIEN_TOTAL_ACOMPTE + nouveauPaiement);
     var reste = num(resteInput);
     // Bouton radio coché (Administration) ou champ caché « Espèces » (Commercial).
     var modeEl = depenseForm.querySelector('input[name="mode_paiement"]:checked') ||
@@ -544,7 +595,9 @@
 
     html += '<div class="blx-recap-section"><h6>Paiement</h6>' +
       '<div class="blx-recap-row blx-recap-big"><span>Montant total</span><strong>' + formatMontant(total) + '</strong></div>' +
-      '<div class="blx-recap-row"><span>Montant payé' + (modeEl ? ' (' + esc(modeEl.value) + ')' : '') + '</span><strong>' + formatMontant(paye) + '</strong></div>' +
+      (IS_UPDATE ? '<div class="blx-recap-row"><span>Déjà payé</span><strong>' + formatMontant(ANCIEN_TOTAL_ACOMPTE) + '</strong></div>' : '') +
+      '<div class="blx-recap-row"><span>' + (IS_UPDATE ? 'Nouveau paiement' : 'Montant payé') + (modeEl ? ' (' + esc(modeEl.value) + ')' : '') + '</span><strong>' + formatMontant(nouveauPaiement) + '</strong></div>' +
+      (IS_UPDATE ? '<div class="blx-recap-row"><span>Total payé après modification</span><strong>' + formatMontant(totalPaye) + '</strong></div>' : '') +
       '<div class="blx-recap-row"><span>Reste à payer</span><strong class="' + (reste > 0 ? 'text-danger' : 'text-success') + '">' + formatMontant(reste) + '</strong></div>' +
       '</div>';
     if (observation) {
@@ -569,7 +622,7 @@
     // Évite un double enregistrement en cas de double appui.
     recapConfirmBtn.disabled = true;
     saveBtn.disabled = true;
-    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + (IS_UPDATE ? 'Mise à jour…' : 'Enregistrement…');
     depenseForm.submit();
   });
 
@@ -587,7 +640,11 @@
   // Sur ordinateur, le curseur se place sur le Fournisseur ; sur téléphone on
   // s'en abstient pour ne pas ouvrir le clavier à l'arrivée.
   if (window.matchMedia('(min-width: 768px)').matches) {
-    fournisseurSelect.focus();
+    if (IS_UPDATE) {
+      montantPayeInput.focus();
+    } else {
+      fournisseurSelect.focus();
+    }
   }
 })();
 </script>

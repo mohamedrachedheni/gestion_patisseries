@@ -17,7 +17,7 @@ from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Max, Q, RestrictedError, Sum
+from django.db.models import Count, F, Max, Q, RestrictedError, Sum
 from django.forms.models import model_to_dict
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -159,7 +159,19 @@ class GouvernoratListView(GroupRequiredMixin, View):
     PAGINATE_BY = 5
 
     def get(self, request):
-        qs = Gouvernorat.objects.order_by('nom')
+        qs = (
+            Gouvernorat.objects
+            .annotate(
+                nb_delegations=Count('delegations', distinct=True),
+                nb_zones=Count('delegations__zones', distinct=True),
+            )
+            .order_by('nom')
+        )
+        totaux = Gouvernorat.objects.aggregate(
+            total_delegations=Count('delegations', distinct=True),
+            total_zones=Count('delegations__zones', distinct=True),
+        )
+        nb_sans_delegation = qs.filter(nb_delegations=0).count()
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
 
@@ -167,7 +179,10 @@ class GouvernoratListView(GroupRequiredMixin, View):
             'page_obj':      page_obj,
             'is_paginated':  page_obj.has_other_pages(),
             'gouvernorats':  page_obj.object_list,
-            'add_form':      GouvernoratForm(),
+            'total_count':   paginator.count,
+            'total_delegations': totaux['total_delegations'],
+            'total_zones':   totaux['total_zones'],
+            'nb_sans_delegation': nb_sans_delegation,
         })
 
 
@@ -245,10 +260,30 @@ class DelegationListView(GroupRequiredMixin, View):
 
     def get(self, request):
         gouvernorat_id = request.GET.get('gouvernorat_id', '').strip()
+        gouvernorats_list = list(Gouvernorat.objects.order_by('nom'))
+        gouvernorat_selectionne = next(
+            (gouvernorat for gouvernorat in gouvernorats_list if str(gouvernorat.pk) == gouvernorat_id),
+            None,
+        )
+        if gouvernorat_id and gouvernorat_selectionne is None:
+            messages.warning(request, "Le gouvernorat demandé n'existe pas.")
+            gouvernorat_id = ''
 
-        qs = Delegation.objects.select_related('gouvernorat').order_by('gouvernorat__nom', 'nom_delegation')
-        if gouvernorat_id:
-            qs = qs.filter(gouvernorat_id=gouvernorat_id)
+        qs = (
+            Delegation.objects
+            .select_related('gouvernorat')
+            .annotate(nb_zones=Count('zones', distinct=True))
+            .order_by('gouvernorat__nom', 'nom_delegation')
+        )
+        if gouvernorat_selectionne is not None:
+            qs = qs.filter(gouvernorat=gouvernorat_selectionne)
+
+        delegations_stats = Delegation.objects.annotate(nb_zones=Count('zones', distinct=True))
+        total_delegations = delegations_stats.count()
+        nb_sans_zone = delegations_stats.filter(nb_zones=0).count()
+        nb_gouvernorats_couverts = (
+            Delegation.objects.values('gouvernorat_id').distinct().count()
+        )
 
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
@@ -258,8 +293,13 @@ class DelegationListView(GroupRequiredMixin, View):
             'is_paginated':      page_obj.has_other_pages(),
             'delegations':       page_obj.object_list,
             'gouvernorat_id':    gouvernorat_id,
-            'gouvernorats_list': Gouvernorat.objects.order_by('nom'),
-            'add_form':          DelegationForm(),
+            'gouvernorat_selectionne': gouvernorat_selectionne,
+            'gouvernorats_list': gouvernorats_list,
+            'filtered_count':    paginator.count,
+            'total_delegations': total_delegations,
+            'total_zones':       Zone.objects.count(),
+            'nb_sans_zone':      nb_sans_zone,
+            'nb_gouvernorats_couverts': nb_gouvernorats_couverts,
         })
 
 
@@ -338,21 +378,56 @@ class ZoneListView(GroupRequiredMixin, View):
     def get(self, request):
         gouvernorat_id = request.GET.get('gouvernorat', '').strip()
         delegation_id = request.GET.get('delegation', '').strip()
-
-        qs = Zone.objects.select_related('delegation__gouvernorat').order_by(
-            'delegation__gouvernorat__nom', 'delegation__nom_delegation', 'nom',
+        gouvernorats_list = list(Gouvernorat.objects.order_by('nom'))
+        delegations_list = list(
+            Delegation.objects.select_related('gouvernorat').order_by(
+                'gouvernorat__nom', 'nom_delegation',
+            )
         )
-        if gouvernorat_id:
-            qs = qs.filter(delegation__gouvernorat_id=gouvernorat_id)
-        if delegation_id:
-            qs = qs.filter(delegation_id=delegation_id)
+        gouvernorat_selectionne = next(
+            (gouvernorat for gouvernorat in gouvernorats_list if str(gouvernorat.pk) == gouvernorat_id),
+            None,
+        )
+        delegation_selectionnee = next(
+            (delegation for delegation in delegations_list if str(delegation.pk) == delegation_id),
+            None,
+        )
+        if gouvernorat_id and gouvernorat_selectionne is None:
+            messages.warning(request, "Le gouvernorat demandé n'existe pas.")
+            gouvernorat_id = ''
+        if delegation_id and delegation_selectionnee is None:
+            messages.warning(request, "La délégation demandée n'existe pas.")
+            delegation_id = ''
+        if (
+            gouvernorat_selectionne is not None
+            and delegation_selectionnee is not None
+            and delegation_selectionnee.gouvernorat_id != gouvernorat_selectionne.pk
+        ):
+            messages.warning(request, "La délégation ne correspond pas au gouvernorat sélectionné.")
+            delegation_selectionnee = None
+            delegation_id = ''
+
+        qs = (
+            Zone.objects
+            .select_related('delegation__gouvernorat')
+            .annotate(nb_clients=Count('clients', distinct=True))
+            .order_by('delegation__gouvernorat__nom', 'delegation__nom_delegation', 'nom')
+        )
+        if gouvernorat_selectionne is not None:
+            qs = qs.filter(delegation__gouvernorat=gouvernorat_selectionne)
+        if delegation_selectionnee is not None:
+            qs = qs.filter(delegation=delegation_selectionnee)
+
+        zones_stats = Zone.objects.annotate(nb_clients=Count('clients', distinct=True))
+        total_zones = zones_stats.count()
+        nb_sans_client = zones_stats.filter(nb_clients=0).count()
+        nb_delegations_couvertes = Zone.objects.values('delegation_id').distinct().count()
+        nb_gouvernorats_couverts = (
+            Zone.objects.values('delegation__gouvernorat_id').distinct().count()
+        )
 
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
-
-        delegations_list = Delegation.objects.select_related('gouvernorat').order_by(
-            'gouvernorat__nom', 'nom_delegation',
-        )
 
         return render(request, self.template_name, {
             'page_obj':          page_obj,
@@ -360,16 +435,15 @@ class ZoneListView(GroupRequiredMixin, View):
             'zones':             page_obj.object_list,
             'gouvernorat_id':    gouvernorat_id,
             'delegation_id':     delegation_id,
-            'gouvernorats_list': Gouvernorat.objects.order_by('nom'),
+            'gouvernorat_selectionne': gouvernorat_selectionne,
+            'delegation_selectionnee': delegation_selectionnee,
+            'gouvernorats_list': gouvernorats_list,
             'delegations_list':  delegations_list,
-            'delegations_json':  json.dumps([
-                {'id': d.pk, 'nom': d.nom_delegation, 'gouvernorat_id': d.gouvernorat_id}
-                for d in delegations_list
-            ]),
-            'zones_json': json.dumps([
-                {'id': z.pk, 'nom': z.nom, 'delegation_id': z.delegation_id}
-                for z in Zone.objects.only('pk', 'nom', 'delegation_id')
-            ]),
+            'filtered_count':    paginator.count,
+            'total_zones':       total_zones,
+            'nb_sans_client':    nb_sans_client,
+            'nb_delegations_couvertes': nb_delegations_couvertes,
+            'nb_gouvernorats_couverts': nb_gouvernorats_couverts,
         })
 
 
@@ -471,6 +545,12 @@ class JourNonOuvreListView(GroupRequiredMixin, View):
 
     def get(self, request):
         qs = JourNonOuvre.objects.order_by('date')
+        today = date.today()
+        stats = qs.aggregate(
+            total=Count('pk'),
+            a_venir=Count('pk', filter=Q(date__gte=today)),
+            livraison=Count('pk', filter=Q(concerne_livraison=True)),
+        )
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
 
@@ -480,6 +560,11 @@ class JourNonOuvreListView(GroupRequiredMixin, View):
             'jours_non_ouvres':  page_obj.object_list,
             'add_form':          JourNonOuvreForm(),
             'type_choices':      JourNonOuvre.TYPE_CHOICES,
+            'today_date':        today,
+            'total_jours':       stats['total'] or 0,
+            'total_a_venir':     stats['a_venir'] or 0,
+            'total_passes':      (stats['total'] or 0) - (stats['a_venir'] or 0),
+            'total_livraison':   stats['livraison'] or 0,
         })
 
 
@@ -549,15 +634,30 @@ class AbsenceCommercialListView(GroupRequiredMixin, View):
 
     def get(self, request):
         qs = AbsenceCommercial.objects.select_related('user').order_by('-date_debut')
+        today = date.today()
+        stats = qs.aggregate(
+            total=Count('pk'),
+            en_cours=Count('pk', filter=Q(date_debut__lte=today, date_fin__gte=today)),
+            a_venir=Count('pk', filter=Q(date_debut__gt=today)),
+            passees=Count('pk', filter=Q(date_fin__lt=today)),
+        )
         paginator = Paginator(qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
+        absences = list(page_obj.object_list)
+        for absence in absences:
+            absence.nb_jours = (absence.date_fin - absence.date_debut).days + 1
 
         return render(request, self.template_name, {
             'page_obj':           page_obj,
             'is_paginated':       page_obj.has_other_pages(),
-            'absences':           page_obj.object_list,
+            'absences':           absences,
             'add_form':           AbsenceCommercialForm(),
             'commerciaux_list':   User.objects.filter(groups__name='Commercial', is_active=True).order_by('last_name', 'first_name'),
+            'today_date':         today,
+            'total_absences':     stats['total'] or 0,
+            'total_en_cours':     stats['en_cours'] or 0,
+            'total_a_venir':      stats['a_venir'] or 0,
+            'total_passees':      stats['passees'] or 0,
         })
 
 
@@ -790,7 +890,7 @@ class TransactionListView(GroupRequiredMixin, View):
         date_fin_str      = request.GET.get('date_fin',   '').strip()
         user_id           = request.GET.get('user_id',    '').strip()
         libelle_id        = request.GET.get('libelle_id', '').strip()
-        montant_non_zero  = request.GET.get('montant_non_zero', '').strip()
+        montant_non_zero  = request.GET.get('montant_non_zero', '').strip() == '1'
 
         # Valeurs par défaut : 7 derniers jours
         try:
@@ -805,6 +905,32 @@ class TransactionListView(GroupRequiredMixin, View):
             date_fin = today
             date_fin_str = date_fin.isoformat()
 
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=6)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
+
+        users_list = list(
+            User.objects
+            .filter(groups__name__in=['Administration', 'Commercial', 'Production'])
+            .distinct()
+            .order_by('last_name', 'first_name')
+        )
+        libelles_list = list(LibelleTransaction.objects.order_by('libelle'))
+        user_selectionne = next((user for user in users_list if str(user.pk) == user_id), None)
+        libelle_selectionne = next(
+            (libelle for libelle in libelles_list if str(libelle.pk) == libelle_id),
+            None,
+        )
+        if user_id and user_selectionne is None:
+            messages.warning(request, "L'employé demandé n'existe pas.")
+            user_id = ''
+        if libelle_id and libelle_selectionne is None:
+            messages.warning(request, "Le libellé demandé n'existe pas.")
+            libelle_id = ''
+
         # ── Queryset filtré ───────────────────────────────────────
         # USE_TZ = False : datetimes naïfs, comparaison directe sans CONVERT_TZ
         debut_dt = datetime.datetime.combine(date_debut, datetime.time.min)
@@ -814,10 +940,10 @@ class TransactionListView(GroupRequiredMixin, View):
             created_at__gte=debut_dt,
             created_at__lte=fin_dt,
         )
-        if user_id:
-            qs = qs.filter(user_id=user_id)
-        if libelle_id:
-            qs = qs.filter(libelle_id=libelle_id)
+        if user_selectionne is not None:
+            qs = qs.filter(user=user_selectionne)
+        if libelle_selectionne is not None:
+            qs = qs.filter(libelle=libelle_selectionne)
         if montant_non_zero:
             qs = qs.exclude(montant=0)
 
@@ -827,17 +953,14 @@ class TransactionListView(GroupRequiredMixin, View):
         totaux = qs.aggregate(
             credit=Sum('montant', filter=Q(montant__gte=0)),
             debit=Sum('montant',  filter=Q(montant__lt=0)),
+            nb_credits=Count('pk', filter=Q(montant__gte=0)),
+            nb_debits=Count('pk', filter=Q(montant__lt=0)),
+            nb_soldees=Count('pk', filter=Q(hist_solde_compte__isnull=False)),
+            nb_non_soldees=Count('pk', filter=Q(hist_solde_compte__isnull=True)),
         )
-        totaux['net'] = (totaux['credit'] or 0) + (totaux['debit'] or 0)
-
-        # ── Données pour les listes déroulantes ───────────────────
-        users_list = (
-            User.objects
-            .filter(groups__name__in=['Administration', 'Commercial', 'Production'])
-            .distinct()
-            .order_by('last_name', 'first_name')
-        )
-        libelles_list = LibelleTransaction.objects.order_by('libelle')
+        totaux['credit'] = totaux['credit'] or Decimal('0')
+        totaux['debit'] = totaux['debit'] or Decimal('0')
+        totaux['net'] = totaux['credit'] + totaux['debit']
 
         # ── Pagination ────────────────────────────────────────────
         paginator = Paginator(qs, self.PAGINATE_BY)
@@ -851,10 +974,13 @@ class TransactionListView(GroupRequiredMixin, View):
             'user_id':        user_id,
             'libelle_id':     libelle_id,
             'montant_non_zero': montant_non_zero,
+            'user_selectionne': user_selectionne,
+            'libelle_selectionne': libelle_selectionne,
             'users_list':     users_list,
             'libelles_list':  libelles_list,
             'totaux':         totaux,
             'total_count':    paginator.count,
+            'nb_jours':       (date_fin - date_debut).days + 1,
         })
 
 
@@ -1595,7 +1721,7 @@ class RuptureStockView(GroupRequiredMixin, View):
         ]
 
         # ── Nouvelle partie : commandes internes de la période non encore produites ─
-        commandes_internes_periode = (
+        commandes_internes_periode = list(
             CommandeInterne.objects
             .filter(
                 livraison_at__gte=date_debut, livraison_at__lte=date_fin,
@@ -1626,6 +1752,10 @@ class RuptureStockView(GroupRequiredMixin, View):
             'unite_choices':               Recette.UNITE_CHOICES,
             'recettes_json':               json.dumps(recettes_produit_unite_map()),
             'rupture_stock_url':           rupture_stock_url,
+            'nb_commandes_internes':        len(commandes_internes_periode),
+            'nb_matieres_critiques':        sum(1 for r in ruptures_totaux if r['manque'] > 0),
+            'nb_semi_finis_critiques':      sum(1 for r in ruptures_semi_finis if r['manque'] > 0),
+            'nb_jours':                     (date_fin - date_debut).days + 1,
         })
 
 
@@ -1954,6 +2084,11 @@ class CoutProductionListView(GroupRequiredMixin, View):
                 'benefice_max':       benefice_max,
             })
 
+        total_count = len(lignes)
+        nb_rentables = sum(1 for ligne in lignes if ligne['benefice_unitaire'] >= 0)
+        nb_deficitaires = total_count - nb_rentables
+        nb_optimises = sum(1 for ligne in lignes if ligne['cout_unitaire_max'] is not None)
+
         paginator = Paginator(lignes, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
 
@@ -1961,7 +2096,11 @@ class CoutProductionListView(GroupRequiredMixin, View):
             'page_obj':     page_obj,
             'is_paginated': page_obj.has_other_pages(),
             'lignes':       page_obj.object_list,
-            'total_count':  paginator.count,
+            'total_count':  total_count,
+            'nb_rentables': nb_rentables,
+            'nb_deficitaires': nb_deficitaires,
+            'nb_optimises': nb_optimises,
+            'nb_non_optimises': total_count - nb_optimises,
         })
 
 
@@ -2209,6 +2348,18 @@ class ChiffreAffaireParProduitView(GroupRequiredMixin, View):
         lignes, total_chiffre_affaire, total_benefice_brut = _construire_lignes_chiffre_affaire_produit(
             date_debut, date_fin,
         )
+        total_quantite = sum((ligne['total_qte'] for ligne in lignes), Decimal('0'))
+        taux_marge_brute = (
+            (total_benefice_brut / total_chiffre_affaire * 100).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP,
+            )
+            if total_chiffre_affaire else None
+        )
+        nb_produits_sans_cout = sum(1 for ligne in lignes if ligne['cout_unitaire'] is None)
+        nb_produits_deficitaires = sum(
+            1 for ligne in lignes
+            if ligne['benefice'] is not None and ligne['benefice'] < 0
+        )
 
         paginator = Paginator(lignes, self.PAGINATE_BY)
         page_obj = paginator.get_page(request.GET.get('page', 1))
@@ -2222,6 +2373,11 @@ class ChiffreAffaireParProduitView(GroupRequiredMixin, View):
             'date_fin':              date_fin_str,
             'total_chiffre_affaire': total_chiffre_affaire,
             'total_benefice_brut':   total_benefice_brut,
+            'total_quantite':        total_quantite,
+            'taux_marge_brute':      taux_marge_brute,
+            'nb_produits_sans_cout': nb_produits_sans_cout,
+            'nb_produits_deficitaires': nb_produits_deficitaires,
+            'nb_jours':              (date_fin - date_debut).days + 1,
         })
 
 
@@ -2319,7 +2475,9 @@ def _generer_graphique_barres_3d(labels, valeurs, titre):
     ax.set_yticks([])
     ax.set_zlabel('TND', fontsize=8)
     ax.set_title(titre, fontsize=11, fontweight='bold')
-    fig.tight_layout()
+    # Les axes 3D gèrent mal tight_layout ; réserver explicitement la place
+    # nécessaire aux noms inclinés évite de tronquer les libellés commerciaux.
+    fig.subplots_adjust(left=0.04, right=0.98, bottom=0.28, top=0.90)
 
     buffer = BytesIO()
     fig.savefig(buffer, format='png', dpi=150)
@@ -2416,9 +2574,10 @@ class ChiffreAffaireParCommercialView(GroupRequiredMixin, View):
         users_par_id = {u.pk: u for u in User.objects.filter(pk__in=[g['user_id'] for g in groupes])}
 
         lignes = []
-        for g in groupes:
+        for rang, g in enumerate(groupes, start=1):
             total_montant = g['total_montant'] or Decimal('0')
             lignes.append({
+                'rang':          rang,
                 'commercial':    users_par_id.get(g['user_id']),
                 'total_montant': total_montant,
                 'part_ca': (
@@ -2426,6 +2585,12 @@ class ChiffreAffaireParCommercialView(GroupRequiredMixin, View):
                     if total_chiffre_affaire else None
                 ),
             })
+
+        ca_moyen = (
+            (total_chiffre_affaire / len(lignes)).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+            if lignes else Decimal('0')
+        )
+        meilleur_commercial = lignes[0] if lignes else None
 
         chart_montant_b64 = None
         chart_part_b64 = None
@@ -2455,6 +2620,9 @@ class ChiffreAffaireParCommercialView(GroupRequiredMixin, View):
             'date_debut':            date_debut_str,
             'date_fin':              date_fin_str,
             'total_chiffre_affaire': total_chiffre_affaire,
+            'ca_moyen':              ca_moyen,
+            'meilleur_commercial':   meilleur_commercial,
+            'nb_jours':              (date_fin - date_debut).days + 1,
             'chart_montant_b64':     chart_montant_b64,
             'chart_part_b64':        chart_part_b64,
         })
@@ -2615,11 +2783,21 @@ class TableauDeBordCommerciauxView(GroupRequiredMixin, View):
             date_fin_str = date_fin.isoformat()
 
         lignes = _construire_lignes_tableau_bord_commerciaux(date_debut, date_fin)
+        total_ca = sum((ligne['ca'] for ligne in lignes), Decimal('0'))
+        total_impayes = sum((ligne['impayes'] for ligne in lignes), Decimal('0'))
+        adherences = [ligne['taux_adherence'] for ligne in lignes if ligne['taux_adherence'] is not None]
+        adherence_moyenne = round(sum(adherences) / len(adherences)) if adherences else None
 
         return render(request, self.template_name, {
             'lignes':       lignes,
             'date_debut':   date_debut_str,
             'date_fin':     date_fin_str,
+            'total_commerciaux': len(lignes),
+            'total_ca': total_ca,
+            'total_impayes': total_impayes,
+            'adherence_moyenne': adherence_moyenne,
+            'meilleur_commercial': lignes[0] if lignes else None,
+            'nb_jours': (date_fin - date_debut).days + 1,
         })
 
 
@@ -2699,10 +2877,10 @@ class ChiffreAffaireParZoneView(GroupRequiredMixin, View):
     sans zone assignée (Client.zone nullable) sont regroupés sous « Sans
     zone ».
 
-    Sous le tableau (paginé, 4 lignes/page) : deux boutons ouvrent chacun une
-    pop-up avec un graphique en 3D — barres pour le Total montant, camembert
-    pour la Part du chiffre d'affaire — calculés sur l'ensemble des zones de
-    la période, indépendamment de la pagination."""
+    Sous le tableau (paginé, 4 lignes/page) : deux graphiques en 3D — barres
+    pour le Total montant, camembert pour la Part du chiffre d'affaire — sont
+    calculés sur l'ensemble des zones de la période, indépendamment de la
+    pagination."""
     group_required = 'Administration'
     template_name = 'administration/production/chiffre_affaire_zone_list.html'
     PAGINATE_BY = 4
@@ -2737,7 +2915,12 @@ class ChiffreAffaireParZoneView(GroupRequiredMixin, View):
         groupes = list(
             BonLivraison.objects
             .filter(pk__in=dernier_bl_id_par_code)
-            .values('bon_livraison_code__client__zone_id', 'bon_livraison_code__client__zone__nom')
+            .values(
+                'bon_livraison_code__client__zone_id',
+                'bon_livraison_code__client__zone__nom',
+                'bon_livraison_code__client__zone__delegation__nom_delegation',
+                'bon_livraison_code__client__zone__delegation__gouvernorat__nom',
+            )
             .annotate(total_montant=Sum('total_montant'))
             .order_by('-total_montant')
         )
@@ -2747,16 +2930,32 @@ class ChiffreAffaireParZoneView(GroupRequiredMixin, View):
             total_chiffre_affaire += g['total_montant'] or Decimal('0')
 
         lignes = []
-        for g in groupes:
+        for rang, g in enumerate(groupes, start=1):
             total_montant = g['total_montant'] or Decimal('0')
             lignes.append({
+                'rang':          rang,
+                'zone_id':       g['bon_livraison_code__client__zone_id'],
                 'zone_nom':      g['bon_livraison_code__client__zone__nom'] or 'Sans zone',
+                'delegation_nom': g['bon_livraison_code__client__zone__delegation__nom_delegation'],
+                'gouvernorat_nom': g['bon_livraison_code__client__zone__delegation__gouvernorat__nom'],
                 'total_montant': total_montant,
                 'part_ca': (
                     (total_montant / total_chiffre_affaire * 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                     if total_chiffre_affaire else None
                 ),
             })
+
+        lignes_zones = [ligne for ligne in lignes if ligne['zone_id'] is not None]
+        ca_zones = sum((ligne['total_montant'] for ligne in lignes_zones), Decimal('0'))
+        ca_moyen = (
+            (ca_zones / len(lignes_zones)).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+            if lignes_zones else Decimal('0')
+        )
+        meilleure_zone = lignes_zones[0] if lignes_zones else None
+        ca_sans_zone = sum(
+            (ligne['total_montant'] for ligne in lignes if ligne['zone_id'] is None),
+            Decimal('0'),
+        )
 
         chart_montant_b64 = None
         chart_part_b64 = None
@@ -2783,6 +2982,11 @@ class ChiffreAffaireParZoneView(GroupRequiredMixin, View):
             'date_debut':            date_debut_str,
             'date_fin':              date_fin_str,
             'total_chiffre_affaire': total_chiffre_affaire,
+            'nb_zones_affectees':    len(lignes_zones),
+            'ca_moyen':              ca_moyen,
+            'meilleure_zone':        meilleure_zone,
+            'ca_sans_zone':          ca_sans_zone,
+            'nb_jours':              (date_fin - date_debut).days + 1,
             'chart_montant_b64':     chart_montant_b64,
             'chart_part_b64':        chart_part_b64,
         })
@@ -2831,33 +3035,59 @@ class HistoriqueSoldeCompteListView(GroupRequiredMixin, View):
             date_fin = today
             date_fin_str = date_fin.isoformat()
 
-        qs = HistoriqueSoldeCompte.objects.select_related('user').filter(
-            solde_at__gte=date_debut, solde_at__lte=date_fin,
-        )
-        if user_id:
-            qs = qs.filter(user_id=user_id)
-        qs = qs.order_by('-solde_at', '-pk')
+        if date_debut > date_fin:
+            messages.error(request, 'La date de début doit être antérieure ou égale à la date de fin.')
+            date_debut = today - timedelta(days=6)
+            date_fin = today
+            date_debut_str = date_debut.isoformat()
+            date_fin_str = date_fin.isoformat()
 
-        paginator = Paginator(qs, self.PAGINATE_BY)
-        page_obj = paginator.get_page(request.GET.get('page', 1))
-
-        users_list = (
+        users_list = list(
             User.objects
             .filter(is_active=True, groups__name__in=['Administration', 'Commercial', 'Production'])
             .exclude(is_superuser=True)
             .distinct()
             .order_by('last_name', 'first_name')
         )
+        user_selectionne = next(
+            (user for user in users_list if str(user.pk) == user_id),
+            None,
+        )
+        if user_id and user_selectionne is None:
+            messages.warning(request, "L'employé demandé n'existe pas ou n'est plus actif.")
+            user_id = ''
+
+        qs = HistoriqueSoldeCompte.objects.select_related('user').annotate(
+            ecart=F('correction_solde') - F('calcul_solde'),
+        ).filter(
+            solde_at__gte=date_debut,
+            solde_at__lte=date_fin,
+        )
+        if user_selectionne is not None:
+            qs = qs.filter(user=user_selectionne)
+        qs = qs.order_by('-solde_at', '-pk')
+
+        total_count = qs.count()
+        nb_ecarts = qs.exclude(calcul_solde=F('correction_solde')).count()
+        nb_employes = qs.values('user_id').distinct().count()
+
+        paginator = Paginator(qs, self.PAGINATE_BY)
+        page_obj = paginator.get_page(request.GET.get('page', 1))
 
         return render(request, self.template_name, {
             'page_obj':     page_obj,
             'is_paginated': page_obj.has_other_pages(),
             'lignes':       page_obj.object_list,
-            'total_count':  paginator.count,
+            'total_count':  total_count,
             'date_debut':   date_debut_str,
             'date_fin':     date_fin_str,
             'user_id':      user_id,
             'users_list':   users_list,
+            'user_selectionne': user_selectionne,
+            'nb_employes':  nb_employes,
+            'nb_ecarts':    nb_ecarts,
+            'nb_conformes': total_count - nb_ecarts,
+            'nb_jours':     (date_fin - date_debut).days + 1,
         })
 
 
@@ -2891,6 +3121,8 @@ class HistoriqueSoldeCompteTransactionsView(GroupRequiredMixin, View):
         totaux = qs.aggregate(
             credit=Sum('montant', filter=Q(montant__gte=0)),
             debit=Sum('montant', filter=Q(montant__lt=0)),
+            nb_credits=Count('pk', filter=Q(montant__gte=0)),
+            nb_debits=Count('pk', filter=Q(montant__lt=0)),
         )
         totaux['net'] = (totaux['credit'] or 0) + (totaux['debit'] or 0)
 
@@ -2903,6 +3135,7 @@ class HistoriqueSoldeCompteTransactionsView(GroupRequiredMixin, View):
             'is_paginated': page_obj.has_other_pages(),
             'total_count':  paginator.count,
             'totaux':       totaux,
+            'ecart_solde':  hist.correction_solde - hist.calcul_solde,
         })
 
 
@@ -2941,11 +3174,10 @@ class SoldeCaisseView(GroupRequiredMixin, View):
     - le compte destinataire exclut l'utilisateur déjà choisi comme compte
       source (et vice versa), pour qu'ils soient toujours différents ;
     - l'un des deux (compte source OU compte destinataire) doit
-      obligatoirement être l'employé sélectionné en Section 1 — dès que
-      l'un des deux champs est fixé sur un utilisateur différent de cet
-      employé, l'autre est automatiquement forcé sur cet employé (JS pour
-      l'ergonomie, revalidé côté serveur en dernier recours). La Section 4
-      n'est donc utilisable que si un employé est sélectionné en Section 1.
+      obligatoirement être l'employé sélectionné en Section 1. Les deux
+      comptes sont choisis manuellement et ces contraintes sont validées côté
+      serveur. La Section 4 n'est donc utilisable que si un employé est
+      sélectionné en Section 1.
 
     Le bouton « + Ajouter » applique par ailleurs la même logique
     d'enregistrement que TransfereCreateView (administration/transferts/
@@ -2987,20 +3219,38 @@ class SoldeCaisseView(GroupRequiredMixin, View):
 
         if compte_employe is not None:
             transactions_qs = self._transactions_non_soldees(compte_employe, solde_at)
-            calcul_solde = transactions_qs.aggregate(total=Sum('montant'))['total'] or Decimal('0')
+            transactions_totaux = transactions_qs.aggregate(
+                credit=Sum('montant', filter=Q(montant__gte=0)),
+                debit=Sum('montant', filter=Q(montant__lt=0)),
+                nb_credits=Count('pk', filter=Q(montant__gte=0)),
+                nb_debits=Count('pk', filter=Q(montant__lt=0)),
+            )
+            transactions_totaux['credit'] = transactions_totaux['credit'] or Decimal('0')
+            transactions_totaux['debit'] = transactions_totaux['debit'] or Decimal('0')
+            calcul_solde = transactions_totaux['credit'] + transactions_totaux['debit']
+            peut_enregistrer_solde = transactions_qs.exclude(
+                libelle__libelle=LIBELLE_MISE_A_JOUR_SOLDE,
+            ).exists()
         else:
             transactions_qs = TransactionModel.objects.none()
             calcul_solde = Decimal('0')
+            transactions_totaux = {
+                'credit': Decimal('0'),
+                'debit': Decimal('0'),
+                'nb_credits': 0,
+                'nb_debits': 0,
+            }
+            peut_enregistrer_solde = False
 
         paginator = Paginator(transactions_qs, self.PAGINATE_BY)
         page_obj = paginator.get_page(page)
 
         transfere_defaults = {
-            'transfere_at':          solde_at.isoformat(),
+            'transfere_at':          '',
             'compte_source_id':      '',
             'libelle':               '',
             'compte_destination_id': '',
-            'montant':               '0.000',
+            'montant':               '',
         }
         if transfere_overrides:
             transfere_defaults.update(transfere_overrides)
@@ -3016,12 +3266,15 @@ class SoldeCaisseView(GroupRequiredMixin, View):
             'solde_at':           solde_at,
             'employes_list':      self._employes_list(request),
             'user_id':            user_id or '',
+            'compte_employe':     compte_employe,
             'comptes_users_list': self._comptes_users_list(),
             'page_obj':           page_obj,
             'is_paginated':       page_obj.has_other_pages(),
             'lignes':             page_obj.object_list,
             'total_count':        paginator.count,
             'calcul_solde':       calcul_solde,
+            'transactions_totaux': transactions_totaux,
+            'peut_enregistrer_solde': peut_enregistrer_solde,
             **transfere_defaults,
             **solde_defaults,
         }
@@ -3133,7 +3386,7 @@ class SoldeCaisseView(GroupRequiredMixin, View):
                     'compte_source_id':      compte_source_id,
                     'libelle':               libelle,
                     'compte_destination_id': compte_destination_id,
-                    'montant':               montant_s or '0.000',
+                    'montant':               montant_s,
                 },
             )
             return render(request, self.template_name, context)

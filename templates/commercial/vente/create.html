@@ -3,194 +3,87 @@
 {% block title %}Nouvelle vente — Commercial{% endblock %}
 {% block page_title %}Nouvelle vente{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:vente-list' %}">Ventes</a></li>
-    <li class="breadcrumb-item active">Nouvelle vente</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:vente-list' %}">Ventes</a></li><li class="breadcrumb-item active" aria-current="page">Nouvelle vente</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="sale-form-dashboard">
+  <header class="vnf-hero" aria-labelledby="vnf-page-title">
+    <span class="vnf-hero-icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+    <div class="vnf-hero-copy"><div class="vnf-eyebrow"><i class="bi bi-cart-check" aria-hidden="true"></i> Suivi commercial</div><h1 id="vnf-page-title">Nouvelle vente</h1><p>Choisissez le client, cochez les bons de livraison à facturer, indiquez le montant payé, puis enregistrez la vente.</p></div>
+    <div class="vnf-hero-actions"><a href="{% url 'commercial:vente-list' %}" class="btn btn-light"><i class="bi bi-clock-history" aria-hidden="true"></i>Voir les ventes</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Nouvelle vente</h4>
-</div>
+  <form id="vente-create-form" method="post" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" novalidate>
+    {% csrf_token %}
 
-<form id="vente-create-form" method="post" novalidate>
-  {% csrf_token %}
-
-  {# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-funnel me-2 text-primary"></i>Filtres
-    </div>
-    <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto mb-3">
-
+    {# ── Section 1 : informations de la vente ─────────────────────────────── #}
+    <section class="vnf-panel" aria-labelledby="vnf-s1-title">
+      <header class="vnf-panel-head"><span aria-hidden="true">1</span><div><div class="vnf-section-label">Étape 1</div><h2 id="vnf-s1-title">Informations de la vente</h2><p>Sélectionnez le client, la date et le paiement reçu.</p></div></header>
+      <div class="vnf-grid vnf-grid-4">
         {% if is_administration %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select id="vente-commercial-select" name="commercial_id" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
-            <option value="">— Choisir —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        <div class="vnf-field"><label for="vente-commercial-select">Commercial</label>
+          <select id="vente-commercial-select" name="commercial_id" class="form-select" autocomplete="off" {% if saved_vente %}disabled{% endif %}>
+            <option value="">Choisir un commercial</option>
+            {% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if selected_commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+          </select></div>
         {% else %}
         <input type="hidden" id="vente-commercial-select" name="commercial_id" value="{{ request.user.pk }}">
         {% endif %}
-
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Zone</label>
-          <select id="vente-zone-select" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
-            <option value="">— Toutes les zones —</option>
-          </select>
-        </div>
-
-        <div style="width:260px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Client</label>
-          <select id="vente-client-select" name="client_id" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
-            <option value="">— Choisir —</option>
-          </select>
-        </div>
-
+        <div class="vnf-field"><label for="vente-zone-select">Zone</label><select id="vente-zone-select" class="form-select" autocomplete="off" {% if saved_vente %}disabled{% endif %}><option value="">Toutes les zones</option></select></div>
+        <div class="vnf-field"><label for="vente-client-select">Client</label><select id="vente-client-select" name="client_id" class="form-select" autocomplete="off" {% if saved_vente %}disabled{% endif %}><option value="">Choisir un client</option></select></div>
+        <div class="vnf-field"><label for="vente-date-input">Date de la vente</label><input type="date" id="vente-date-input" name="vente_at" value="{{ vente_at_value }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" {% if saved_vente %}disabled{% endif %}></div>
+        <div class="vnf-field"><label for="vente-numero-input">Numéro de la vente</label><input type="text" id="vente-numero-input" value="{{ numero_initial }}" class="form-control" disabled><small>Attribué automatiquement.</small></div>
+        <div class="vnf-field"><label for="vente-nouveau-acompte">Nouveau montant payé</label><div class="input-group"><input type="number" step="0.001" min="0" id="vente-nouveau-acompte" name="nouveau_acompte" class="form-control no-spinner" value="0" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" {% if saved_vente %}disabled{% endif %}><span class="input-group-text">TND</span></div></div>
+        <div class="vnf-field"><label for="vente-mode-paiement">Mode de paiement</label><select id="vente-mode-paiement" name="mode_paiement" class="form-select" autocomplete="off" {% if saved_vente %}disabled{% endif %}>{% for value, label in mode_paiement_choices %}<option value="{{ value }}" {% if value == 'Espèces' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="vnf-field"><label for="vente-observation">Observation</label><input type="text" id="vente-observation" name="observation" value="" class="form-control" placeholder="Commentaire facultatif" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" {% if saved_vente %}disabled{% endif %}></div>
       </div>
-
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date vente</label>
-          <input type="date" id="vente-date-input" name="vente_at" value="{{ vente_at_value }}"
-                 class="form-control form-control-sm" {% if saved_vente %}disabled{% endif %}>
-        </div>
-        <div style="width:140px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Numéro vente</label>
-          <input type="text" id="vente-numero-input" value="{{ numero_initial }}"
-                 class="form-control form-control-sm" disabled>
-        </div>
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total montant des BL</label>
-          <input type="number" step="0.001" id="vente-total-montant"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
-        </div>
-        <div style="width:190px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total montant payé des BL</label>
-          <input type="number" step="0.001" id="vente-total-paye"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
-        </div>
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Nouveau montant payé</label>
-          <input type="number" step="0.001" min="0" id="vente-nouveau-acompte" name="nouveau_acompte"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" value="0" {% if saved_vente %}disabled{% endif %}>
-        </div>
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Mode de paiement</label>
-          <select id="vente-mode-paiement" name="mode_paiement" class="form-select form-select-sm" {% if saved_vente %}disabled{% endif %}>
-            {% for value, label in mode_paiement_choices %}
-            <option value="{{ value }}" {% if value == 'Espèces' %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div style="width:190px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total reste à payer des BL</label>
-          <input type="number" step="0.001" id="vente-total-reste"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
-        </div>
+      <div class="vnf-totals" aria-label="Totaux des bons de livraison inclus">
+        <div class="vnf-total"><label for="vente-total-montant">Total des bons de livraison</label><div class="input-group"><input type="number" step="0.001" id="vente-total-montant" class="form-control no-spinner" value="" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="vnf-total"><label for="vente-total-paye">Total déjà payé</label><div class="input-group"><input type="number" step="0.001" id="vente-total-paye" class="form-control no-spinner" value="" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="vnf-total"><label for="vente-total-reste">Total reste à payer</label><div class="input-group"><input type="number" step="0.001" id="vente-total-reste" class="form-control no-spinner" value="" disabled><span class="input-group-text">TND</span></div></div>
       </div>
+    </section>
 
-      <div class="d-flex flex-nowrap align-items-end gap-2 mt-3">
-        <div style="flex:1 1 auto;">
-          <label class="form-label small mb-1">Observation</label>
-          <input type="text" id="vente-observation" name="observation" value=""
-                 class="form-control form-control-sm" {% if saved_vente %}disabled{% endif %}>
-        </div>
-      </div>
+    {# ── Section 2 : bons de livraison ────────────────────────────────────── #}
+    <section class="vnf-panel" aria-labelledby="vnf-s2-title">
+      <header class="vnf-panel-head"><span aria-hidden="true">2</span><div><div class="vnf-section-label">Étape 2</div><h2 id="vnf-s2-title">Bons de livraison à facturer</h2><p>Cochez les bons à inclure dans cette vente.</p></div>
+        <div class="vnf-head-actions"><div class="form-check mb-0"><input type="checkbox" class="form-check-input" id="vente-toggle-tout" {% if saved_vente %}disabled{% endif %}><label class="form-check-label" id="vente-toggle-tout-label" for="vente-toggle-tout">Tout cocher</label></div><button type="button" id="vente-reset-section2-btn" class="btn btn-outline-secondary" {% if saved_vente %}disabled{% endif %}><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</button></div></header>
+      <div class="vnf-table-wrap"><table class="vnf-table"><caption class="visually-hidden">Bons de livraison du client</caption><thead><tr><th scope="col">Date</th><th scope="col">Numéro</th><th scope="col" class="vnf-number-col">Montant total</th><th scope="col" class="vnf-number-col">Déjà payé</th><th scope="col" class="vnf-number-col">Reste à régler</th><th scope="col" class="vnf-center-col">Inclure</th><th scope="col" class="vnf-center-col">Retirer</th></tr></thead>
+        <tbody id="vente-section2-rows"><tr><td colspan="7" class="vnf-empty-cell">Sélectionnez un client pour afficher les bons de livraison.</td></tr></tbody></table></div>
+    </section>
+
+    {# ── Section 3 : produits ─────────────────────────────────────────────── #}
+    <section class="vnf-panel" aria-labelledby="vnf-s3-title">
+      <header class="vnf-panel-head"><span aria-hidden="true">3</span><div><div class="vnf-section-label">Étape 3</div><h2 id="vnf-s3-title">Liste des produits</h2><p>Récapitulatif des produits des bons cochés.</p></div></header>
+      <div class="vnf-table-wrap"><table class="vnf-table"><caption class="visually-hidden">Produits regroupés</caption><thead><tr><th scope="col">Produit</th><th scope="col" class="vnf-number-col">Quantité</th><th scope="col" class="vnf-number-col">Prix unitaire</th><th scope="col" class="vnf-number-col">Total ligne</th></tr></thead>
+        <tbody id="vente-section3-rows"><tr id="vente-section3-empty"><td colspan="4" class="vnf-empty-cell">Sélectionnez un client pour afficher les produits.</td></tr></tbody></table></div>
+    </section>
+
+    <div class="vnf-actions">
+      <a href="{% url 'commercial:vente-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>Revenir à la liste</a>
+      {% if saved_vente %}
+      <a href="{% url 'commercial:vente-pdf' saved_vente.pk %}" target="_blank" rel="noopener" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>État PDF</a>
+      {% else %}
+      <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>État PDF</a>
+      {% endif %}
+      <button type="submit" id="vente-save-btn" class="btn btn-primary" {% if saved_vente %}disabled{% endif %} style="display:none;"><i class="bi bi-check-lg" aria-hidden="true"></i>Enregistrer la vente</button>
     </div>
-  </div>
+  </form>
+</div>
+{% endblock %}
 
-  {# ── Section 2 : liste des bons de livraison ──────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
-      <span class="fw-semibold"><i class="bi bi-truck me-2 text-primary"></i>Liste des bons de livraison</span>
-      <div class="d-flex align-items-center gap-3">
-        <div class="form-check mb-0">
-          <input type="checkbox" class="form-check-input" id="vente-toggle-tout" {% if saved_vente %}disabled{% endif %}>
-          <label class="form-check-label small" id="vente-toggle-tout-label" for="vente-toggle-tout">Tout cocher</label>
-        </div>
-        <button type="button" id="vente-reset-section2-btn" class="btn btn-outline-secondary btn-sm" {% if saved_vente %}disabled{% endif %}>
-          <i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser
-        </button>
-      </div>
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Date bon de livraison</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Numéro bon de livraison</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total payé</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste à régler</span></div>
-          <div style="width:80px;flex:0 0 auto;text-align:center;"><span class="form-label small text-muted mb-0">Inclure</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="vente-section2-rows">
-          <div class="text-muted small py-2" id="vente-section2-empty">Sélectionnez un client pour afficher les bons de livraison.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ── Section 3 : liste des produits ───────────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-box-seam me-2 text-primary"></i>Liste des produits
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-3">Produit</th>
-              <th>Qté</th>
-              <th>Prix unitaire</th>
-              <th class="pe-3">Total ligne</th>
-            </tr>
-          </thead>
-          <tbody id="vente-section3-rows">
-            <tr id="vente-section3-empty">
-              <td colspan="4" class="text-center py-3 text-muted">Sélectionnez un client pour afficher les produits.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# ── Actions ───────────────────────────────────────────────────────────────── #}
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'commercial:vente-list' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-    </a>
-    {% if saved_vente %}
-    <a href="{% url 'commercial:vente-pdf' saved_vente.pk %}" target="_blank" class="btn btn-outline-primary">
-      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
-    </a>
-    {% else %}
-    <a href="#" class="btn btn-outline-primary disabled" tabindex="-1" aria-disabled="true">
-      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
-    </a>
-    {% endif %}
-    <button type="submit" id="vente-save-btn" class="btn btn-primary" {% if saved_vente %}disabled{% endif %}
-            style="display:none;">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
-    </button>
-  </div>
-
-</form>
-
+{% block extra_css %}
+{{ block.super }}
+/* Nouvelle vente : ordinateur d'abord, même système que Transferts. */
+.sale-form-dashboard{--vnf-primary:#2c7be5;--vnf-primary-dark:#1a4f9c;--vnf-ink:#172033;--vnf-muted:#667085;--vnf-border:#e2e8f0;max-width:1500px;margin:0 auto;color:var(--vnf-ink)}
+.vnf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.vnf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.vnf-hero-copy{min-width:0}.vnf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.vnf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.vnf-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.84rem}.vnf-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.9rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.vnf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--vnf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.vnf-panel-head{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.vnf-panel-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.65rem;background:#eaf2fd;color:var(--vnf-primary);font-size:.75rem;font-weight:800}.vnf-section-label{color:var(--vnf-primary-dark);font-size:.6rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.vnf-panel-head h2{margin:.1rem 0 0;font-size:.95rem;font-weight:750}.vnf-panel-head p{margin:.12rem 0 0;color:var(--vnf-muted);font-size:.65rem}.vnf-head-actions{display:flex;align-items:center;gap:.9rem;margin-left:auto;font-size:.7rem;font-weight:600}.vnf-head-actions .btn{display:inline-flex;align-items:center;gap:.3rem;min-height:2.5rem;border-radius:.58rem;font-size:.63rem;font-weight:700;white-space:nowrap}
+.vnf-grid{display:grid;gap:1rem;padding:1.1rem}.vnf-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.vnf-field label,.vnf-total label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.vnf-field .form-control,.vnf-field .form-select,.vnf-field .input-group-text,.vnf-total .form-control,.vnf-total .input-group-text{min-height:2.75rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.75rem}.vnf-field .input-group>.form-control,.vnf-total .input-group>.form-control{border-top-right-radius:0;border-bottom-right-radius:0}.vnf-field .input-group-text,.vnf-total .input-group-text{border-top-left-radius:0;border-bottom-left-radius:0;background:#f7f9fc;color:var(--vnf-muted)}.vnf-field small{display:block;margin-top:.3rem;color:var(--vnf-muted);font-size:.6rem}.vnf-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem 1.1rem;border-top:1px solid #edf0f4;background:#f6f9fd}.vnf-total .form-control{background:#fff;font-weight:750;font-variant-numeric:tabular-nums;text-align:right}.vnf-total .form-control:disabled{color:var(--vnf-ink)}
+.vnf-table{width:100%;border-collapse:collapse}.vnf-table thead{background:#f8fafc}.vnf-table th{padding:.68rem .8rem;border-bottom:1px solid var(--vnf-border);color:var(--vnf-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.vnf-table td{padding:.7rem .8rem;border-bottom:1px solid #edf0f4;font-size:.7rem;vertical-align:middle}.vnf-table tbody tr:last-child td{border-bottom:0}.vnf-table tbody tr:hover{background:#f8faff}.vnf-number-col{text-align:right!important;font-variant-numeric:tabular-nums}.vnf-center-col{text-align:center!important;width:90px}.vnf-empty-cell{padding:1.6rem .8rem!important;color:var(--vnf-muted);text-align:center}.vnf-table .form-check-input{width:1.25rem;height:1.25rem;cursor:pointer}.vnf-table .btn{display:inline-flex;align-items:center;justify-content:center;min-width:2.2rem;min-height:2.2rem;border-radius:.52rem}
+.vnf-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:.6rem;margin-top:1rem;padding:.9rem 1.1rem;border:1px solid var(--vnf-border);border-radius:1rem;background:#fbfcfe}.vnf-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:1rem;border-radius:.6rem;font-size:.72rem;font-weight:700}.sale-form-dashboard a:focus-visible,.sale-form-dashboard button:focus-visible,.sale-form-dashboard input:focus-visible,.sale-form-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.vnf-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}.vnf-hero{grid-template-columns:auto minmax(0,1fr)}.vnf-hero-actions{grid-column:1/-1}.vnf-table-wrap{overflow-x:auto}}
+@media(max-width:767.98px){.vnf-grid-4,.vnf-totals{grid-template-columns:1fr}.vnf-panel-head{flex-wrap:wrap}.vnf-head-actions{margin-left:0}.vnf-actions{flex-direction:column-reverse}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.vnf-hero{gap:.8rem;padding:1rem}.vnf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}}
 {% endblock %}
 
 {% block extra_js %}
@@ -227,6 +120,24 @@
     return isNaN(n) ? 0 : n;
   }
 
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(iso) {
+    var p = String(iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : esc(iso);
+  }
+
+  function emptyRow2(msg) {
+    section2Rows.innerHTML = '<tr><td colspan="7" class="vnf-empty-cell">' + msg + '</td></tr>';
+  }
+
+  function emptyRow3(msg) {
+    section3Rows.innerHTML = '<tr><td colspan="4" class="vnf-empty-cell">' + msg + '</td></tr>';
+  }
+
   // ── Cascade Commercial → Zone → Client (identique à bons-livraison/nouveau/) ──
   function clientIdsForCommercial(commercialId) {
     if (!commercialId) { return null; }
@@ -244,7 +155,7 @@
       if (allowed && !allowed.has(String(c.id))) { return; }
       if (c.zone_id) { zoneIdsAllowed.add(String(c.zone_id)); }
     });
-    var html = '<option value="">— Toutes les zones —</option>';
+    var html = '<option value="">Toutes les zones</option>';
     ZONES.forEach(function (z) {
       if (allowed && !zoneIdsAllowed.has(String(z.id))) { return; }
       var sel = (selectedId && String(z.id) === String(selectedId)) ? ' selected' : '';
@@ -255,7 +166,7 @@
 
   function buildClientOptions(zoneId, commercialId, selectedId) {
     var allowed = clientIdsForCommercial(commercialId);
-    var html = '<option value="">— Choisir —</option>';
+    var html = '<option value="">Choisir un client</option>';
     CLIENTS.forEach(function (c) {
       if (zoneId) {
         if (String(c.zone_id) !== String(zoneId)) { return; }
@@ -300,9 +211,7 @@
     });
   });
 
-  // Initialisation des listes déroulantes Zone / Client — si un client a été
-  // préservé (réaffichage après échec de validation), on retrouve sa zone
-  // pour garder les listes Zone → Client cohérentes.
+  // Initialisation Zone / Client (réaffichage après échec de validation).
   var initialZoneId = null;
   if (SELECTED_CLIENT_ID) {
     var preservedClient = CLIENTS.find(function (c) { return String(c.id) === String(SELECTED_CLIENT_ID); });
@@ -316,9 +225,7 @@
     saveBtn.style.display = clientSelect.value ? '' : 'none';
   }
 
-  // ── Section 1 : totaux calculés sur les lignes cochées "Inclure", plus
-  // Nouveau montant payé / Mode de paiement (modifiables) et Total reste à
-  // payer des BL = Total montant − Total montant payé − Nouveau montant payé.
+  // ── Totaux calculés sur les lignes cochées « Inclure » ────────────────────
   function recomputeTotals() {
     var totalMontant = 0, totalPaye = 0, hasChecked = false;
     section2Rows.querySelectorAll('.vente-bl-row').forEach(function (row) {
@@ -329,10 +236,7 @@
       totalPaye += num(row.querySelector('.vente-montant-paye-input').value);
     });
 
-    // Nouveau montant payé ne peut jamais dépasser ce qui reste réellement dû
-    // (indépendamment de sa propre valeur) — on le ramène silencieusement au
-    // plafond ici si un changement de la Section 2 vient de le dépasser (le
-    // refus avec infobulle, lui, n'a lieu que sur saisie directe, voir plus bas).
+    // Nouveau montant payé ne peut jamais dépasser ce qui reste réellement dû.
     var plafond = Math.max(0, totalMontant - totalPaye);
     var nouveau = Math.max(0, num(nouveauAcompteInput.value));
     if (nouveau > plafond) {
@@ -350,9 +254,7 @@
     totalResteInput.classList.toggle('text-danger', reste < 0);
   }
 
-  // ── Section 3 : regroupement Produit + Prix unitaire, UNIQUEMENT sur les
-  // lignes de la Section 2 actuellement cochées "Inclure" (et toujours
-  // présentes — une ligne supprimée n'y contribue plus) ─────────────────────
+  // ── Produits regroupés (Produit + Prix unitaire), lignes cochées seulement ──
   var detailsByCodeId = {};
 
   function recomputeSection3() {
@@ -375,8 +277,7 @@
 
     section3Rows.innerHTML = '';
     if (!ordre.length) {
-      section3Rows.innerHTML =
-        '<tr><td colspan="4" class="text-center py-3 text-muted">Aucun bon de livraison inclus.</td></tr>';
+      emptyRow3('Aucun bon de livraison inclus.');
       return;
     }
     ordre.sort(function (a, b) { return groupes[a].produit_nom.localeCompare(groupes[b].produit_nom); });
@@ -385,10 +286,10 @@
       var totalLigne = num(g.prix_unitaire) * g.quantite;
       var tr = document.createElement('tr');
       tr.innerHTML =
-        '<td class="ps-3">' + g.produit_nom + '</td>' +
-        '<td>' + g.quantite + '</td>' +
-        '<td>' + g.prix_unitaire + '</td>' +
-        '<td class="pe-3">' + totalLigne.toFixed(3) + '</td>';
+        '<td><strong>' + esc(g.produit_nom) + '</strong></td>' +
+        '<td class="vnf-number-col">' + esc(g.quantite) + '</td>' +
+        '<td class="vnf-number-col">' + esc(g.prix_unitaire) + '</td>' +
+        '<td class="vnf-number-col"><strong>' + totalLigne.toFixed(3) + '</strong></td>';
       section3Rows.appendChild(tr);
     });
   }
@@ -398,8 +299,7 @@
     recomputeSection3();
   }
 
-  // ── Nouveau montant payé : refus (infobulle native) si la saisie dépasse
-  // ce qui reste réellement dû (Total montant − Total montant payé) ─────────
+  // ── Nouveau montant payé : refus (infobulle native) si dépassement ───────
   nouveauAcompteInput.addEventListener('input', function () {
     var plafond = Math.max(0, num(totalMontantInput.value) - num(totalPayeInput.value));
     if (num(nouveauAcompteInput.value) > plafond) {
@@ -420,34 +320,23 @@
   function addSection2Row(l) {
     detailsByCodeId[l.bon_livraison_code_id] = l.details || [];
 
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 vente-bl-row';
+    var row = document.createElement('tr');
+    row.className = 'vente-bl-row';
     row.setAttribute('data-bl-code-id', l.bon_livraison_code_id);
     row.innerHTML =
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="hidden" name="bl_code_id" value="' + l.bon_livraison_code_id + '">' +
-        '<input type="date" class="form-control form-control-sm" value="' + l.date + '" disabled>' +
-      '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
-        '<input type="text" class="form-control form-control-sm" value="' + l.numero + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace vente-montant-total-input" value="' + l.montant_total + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace vente-montant-paye-input" value="' + l.montant_paye + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.reste + '" disabled>' +
-      '</div>' +
-      '<div style="width:80px;flex:0 0 auto;text-align:center;">' +
-        '<input type="checkbox" name="bl_inclure" value="' + l.bon_livraison_code_id + '" class="form-check-input vente-inclure-checkbox"' + (LOCKED ? ' disabled' : '') + '>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger vente-remove-row-btn" title="Supprimer la ligne"' + (LOCKED ? ' disabled' : '') + '>' +
-          '<i class="bi bi-trash"></i>' +
+      '<td><input type="hidden" name="bl_code_id" value="' + esc(l.bon_livraison_code_id) + '">' + fmtDate(l.date) + '</td>' +
+      '<td>' + esc(l.numero) + '</td>' +
+      '<td class="vnf-number-col"><input type="hidden" class="vente-montant-total-input" value="' + esc(l.montant_total) + '">' + esc(l.montant_total) + '</td>' +
+      '<td class="vnf-number-col"><input type="hidden" class="vente-montant-paye-input" value="' + esc(l.montant_paye) + '">' + esc(l.montant_paye) + '</td>' +
+      '<td class="vnf-number-col"><strong>' + esc(l.reste) + '</strong></td>' +
+      '<td class="vnf-center-col">' +
+        '<input type="checkbox" name="bl_inclure" value="' + esc(l.bon_livraison_code_id) + '" class="form-check-input vente-inclure-checkbox" aria-label="Inclure le bon ' + esc(l.numero) + '"' + (LOCKED ? ' disabled' : '') + '>' +
+      '</td>' +
+      '<td class="vnf-center-col">' +
+        '<button type="button" class="btn btn-sm btn-outline-danger vente-remove-row-btn" title="Retirer cette ligne de la liste" aria-label="Retirer le bon ' + esc(l.numero) + '"' + (LOCKED ? ' disabled' : '') + '>' +
+          '<i class="bi bi-trash" aria-hidden="true"></i>' +
         '</button>' +
-      '</div>';
+      '</td>';
 
     var checkbox = row.querySelector('.vente-inclure-checkbox');
     checkbox.checked = !!l.checked;
@@ -464,8 +353,7 @@
     section2Rows.innerHTML = '';
     detailsByCodeId = {};
     if (!lignes.length) {
-      section2Rows.innerHTML =
-        '<div class="text-muted small py-2">Aucun bon de livraison non facturé pour ce client.</div>';
+      emptyRow2('Aucun bon de livraison non facturé pour ce client.');
     } else {
       lignes.forEach(function (l) { addSection2Row(l); });
     }
@@ -478,10 +366,8 @@
     var clientId = clientSelect.value;
     if (!clientId) {
       renderSection2([]);
-      section2Rows.innerHTML =
-        '<div class="text-muted small py-2">Sélectionnez un client pour afficher les bons de livraison.</div>';
-      section3Rows.innerHTML =
-        '<tr><td colspan="4" class="text-center py-3 text-muted">Sélectionnez un client pour afficher les produits.</td></tr>';
+      emptyRow2('Sélectionnez un client pour afficher les bons de livraison.');
+      emptyRow3('Sélectionnez un client pour afficher les produits.');
       return;
     }
     var url = DEFAULTS_URL + '?client_id=' + encodeURIComponent(clientId);
@@ -500,16 +386,12 @@
     recompute();
   });
 
-  // ── Bouton Réinitialiser : ne touche qu'à la section 2 (et 3, mêmes
-  // données) — recharge depuis le serveur, annule suppressions/cases cochées.
+  // ── Réinitialiser : recharge les bons depuis le serveur ───────────────────
   resetBtn.addEventListener('click', function () {
     loadDefaults();
   });
 
-  // En cas de réaffichage après échec de validation, toutes les lignes
-  // précédemment présentes (cochées ou non) sont restaurées telles quelles
-  // — la Section 2 n'est PAS rechargée depuis le serveur dans ce cas, pour
-  // ne jamais perdre ni modifier l'état déjà saisi par l'utilisateur.
+  // Réaffichage après échec de validation : lignes restaurées telles quelles.
   if (PRESERVED_LIGNES.length) {
     renderSection2(PRESERVED_LIGNES);
   }

@@ -17,35 +17,57 @@
   </a>
   {% endif %}
 
-  <div class="sidebar-section">Catalogue</div>
-  <a href="{% url 'production:produit-list' %}"
-     class="nav-link {% if 'produit-' in request.resolver_match.url_name and 'semi-fini' not in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-cake2"></i> Produits
-  </a>
-  <a href="{% url 'production:matiere-premiere-list' %}"
-     class="nav-link {% if 'matiere-premiere' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-egg-fried"></i> Matières premières
-  </a>
-  <a href="{% url 'production:famille-list' %}"
-     class="nav-link {% if 'famille' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-tags"></i> Familles de matière première
-  </a>
-  <a href="{% url 'production:produit-semi-fini-list' %}"
-     class="nav-link {% if 'semi-fini' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-box2-heart"></i> Produits semi-finis
-  </a>
-  <a href="{% url 'production:recette-list' %}"
-     class="nav-link {% if 'recette' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-journal-text"></i> Recettes
-  </a>
+  {% with url_name=request.resolver_match.url_name %}
+  <div class="sidebar-group {% if 'produit' in url_name or 'matiere-premiere' in url_name or 'famille' in url_name or 'recette' in url_name %}sidebar-group-active sidebar-group-open{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle" aria-controls="sidebar-submenu-catalogue">
+      <i class="bi bi-journal-bookmark"></i> Catalogue
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu" id="sidebar-submenu-catalogue">
+      <a href="{% url 'production:produit-list' %}"
+         class="nav-link {% if 'produit-' in url_name and 'semi-fini' not in url_name %}active{% endif %}">
+        <i class="bi bi-cake2"></i> Produits
+      </a>
+      <a href="{% url 'production:matiere-premiere-list' %}"
+         class="nav-link {% if 'matiere-premiere' in url_name %}active{% endif %}">
+        <i class="bi bi-egg-fried"></i> Matières premières
+      </a>
+      <a href="{% url 'production:famille-list' %}"
+         class="nav-link {% if 'famille' in url_name %}active{% endif %}">
+        <i class="bi bi-tags"></i> Familles de matière première
+      </a>
+      <a href="{% url 'production:produit-semi-fini-list' %}"
+         class="nav-link {% if 'semi-fini' in url_name %}active{% endif %}">
+        <i class="bi bi-box2-heart"></i> Produits semi-finis
+      </a>
+      <a href="{% url 'production:recette-list' %}"
+         class="nav-link {% if 'recette' in url_name %}active{% endif %}">
+        <i class="bi bi-journal-text"></i> Recettes
+      </a>
+    </div>
+  </div>
 
-  <div class="sidebar-section">Production</div>
-  <a href="{% url 'production:commande-interne-list' %}"
-     class="nav-link {% if 'commande-interne' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-clipboard-check"></i> Commandes internes
-  </a>
-  <a href="{% url 'administration:rupture-stock-list' %}"
-     class="nav-link {% if 'rupture-stock' in request.resolver_match.url_name %}active{% endif %}">
-    <i class="bi bi-exclamation-triangle"></i> Rupture stock
-  </a>
+  <div class="sidebar-group {% if 'commande-interne' in url_name or 'rupture-stock' in url_name %}sidebar-group-active sidebar-group-open{% endif %}">
+    <button type="button" class="nav-link sidebar-group-toggle" aria-controls="sidebar-submenu-production">
+      <i class="bi bi-gear"></i> Production
+      <i class="bi bi-chevron-down sidebar-group-chevron ms-auto"></i>
+    </button>
+    <div class="sidebar-submenu" id="sidebar-submenu-production">
+      <a href="{% url 'production:commande-interne-list' %}"
+         class="nav-link {% if 'commande-interne' in url_name %}active{% endif %}">
+        <i class="bi bi-clipboard-check"></i> Commandes internes
+      </a>
+      <a href="{% url 'administration:rupture-stock-list' %}"
+         class="nav-link {% if 'rupture-stock' in url_name %}active{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i> Rupture stock
+      </a>
+    </div>
+  </div>
+  {% endwith %}
+
+  {% include "partials/sidebar_menu_js.html" %}
+{% endblock %}
+
+{% block extra_css %}
+{% include "partials/sidebar_menu.css" %}
 {% endblock %}

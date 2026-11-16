@@ -3,235 +3,80 @@
 {% block title %}Chiffre d'affaires par produit — Administration{% endblock %}
 {% block page_title %}Chiffre d'affaires par produit{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Chiffre d'affaires par produit</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Chiffre d'affaires par produit</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="product-revenue-dashboard">
+  <header class="cap-hero" aria-labelledby="cap-page-title">
+    <span class="cap-hero-icon" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></span>
+    <div class="cap-hero-copy"><div class="cap-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Performance des ventes</div><h1 id="cap-page-title">Chiffre d’affaires par produit</h1><p>Identifiez les produits qui contribuent au chiffre d’affaires et mesurez leur rentabilité brute sur la période choisie.</p></div>
+    <div class="cap-hero-meta"><div><span>Période analysée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong><small>{{ nb_jours }} jour{{ nb_jours|pluralize }}</small></div><div><span>Volume vendu</span><strong>{{ total_quantite|stringformat:'.0f' }} unités</strong><small>{{ total_count }} produit{{ total_count|pluralize }} concerné{{ total_count|pluralize }}</small></div></div>
+  </header>
 
-{# ── Filtres + totaux verrouillés ──────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3 overflow-auto">
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total chiffre d'affaire (TND)</label>
-          <input type="text"
-                 class="form-control form-control-sm text-end font-monospace fw-semibold"
-                 value="{{ total_chiffre_affaire|stringformat:'.3f' }}" disabled>
-        </div>
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total bénéfice brut (TND)</label>
-          <input type="text"
-                 class="form-control form-control-sm text-end font-monospace fw-semibold {% if total_benefice_brut < 0 %}text-danger{% endif %}"
-                 value="{{ total_benefice_brut|stringformat:'.3f' }}" disabled>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:chiffre-affaire-produit-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="cap-filter-card" aria-labelledby="cap-filter-title">
+    <div class="cap-filter-head"><span><i class="bi bi-calendar-range" aria-hidden="true"></i></span><div><h2 id="cap-filter-title">Période de l’analyse</h2><p>Les ventes, coûts et bénéfices sont recalculés après validation des dates.</p></div></div>
+    <form method="get" id="cap-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="cap-filter-field"><label for="cap-date-start">Date de début</label><input type="date" name="date_debut" id="cap-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <div class="cap-filter-field"><label for="cap-date-end">Date de fin</label><input type="date" name="date_fin" id="cap-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <p class="cap-filter-note"><i class="bi bi-info-circle" aria-hidden="true"></i> Les dernières versions des bons de livraison sont prises en compte.</p>
+      <div class="cap-filter-actions"><a href="{% url 'administration:chiffre-affaire-produit-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Actualiser l’analyse</button></div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="cap-kpi-grid" aria-label="Synthèse du chiffre d’affaires par produit">
+    <article class="cap-kpi cap-kpi-blue"><span><i class="bi bi-cash-stack" aria-hidden="true"></i></span><div><small>Chiffre d’affaires total</small><strong>{{ total_chiffre_affaire|stringformat:'.3f' }}</strong><em>TND sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></div></article>
+    <article class="cap-kpi {% if total_benefice_brut < 0 %}cap-kpi-red{% else %}cap-kpi-green{% endif %}"><span><i class="bi bi-graph-up" aria-hidden="true"></i></span><div><small>Bénéfice brut total</small><strong>{{ total_benefice_brut|stringformat:'.3f' }}</strong><em>{{ nb_produits_deficitaires }} produit{{ nb_produits_deficitaires|pluralize }} à marge négative</em></div></article>
+    <article class="cap-kpi {% if taux_marge_brute is not None and taux_marge_brute < 0 %}cap-kpi-red{% else %}cap-kpi-violet{% endif %}"><span><i class="bi bi-percent" aria-hidden="true"></i></span><div><small>Taux de marge brute</small><strong>{{ taux_marge_brute|default_if_none:"—" }}{% if taux_marge_brute is not None %}%{% endif %}</strong><em>{{ nb_produits_sans_cout }} produit{{ nb_produits_sans_cout|pluralize }} sans coût calculable</em></div></article>
+    <article class="cap-kpi cap-kpi-orange"><span><i class="bi bi-boxes" aria-hidden="true"></i></span><div><small>Produits vendus</small><strong>{{ total_count }}</strong><em>{{ total_quantite|stringformat:'.0f' }} unités livrées</em></div></article>
+  </section>
+
+  <details class="cap-method">
+    <summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre les indicateurs du rapport</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+    <div><div><strong>Chiffre d’affaires</strong><p>Somme des montants livrés pour la dernière version de chaque bon sur la période.</p></div><div><strong>Part du CA</strong><p>Contribution du produit au chiffre d’affaires total de la période.</p></div><div><strong>Bénéfice brut</strong><p>Montant vendu moins quantité livrée multipliée par le coût unitaire de production.</p></div><div><strong>Coût indisponible</strong><p>Sans recette exploitable, le bénéfice et sa part ne sont pas calculés pour le produit.</p></div></div>
+  </details>
+
+  <section class="cap-panel" aria-labelledby="cap-results-title">
+    <header class="cap-panel-head"><div><div class="cap-section-label">Analyse commerciale</div><h2 id="cap-results-title">Contribution et rentabilité par produit</h2>{% if lignes %}<p>{{ total_count }} produit{{ total_count|pluralize }} classé{{ total_count|pluralize }} du chiffre d’affaires le plus élevé au plus faible.</p>{% else %}<p>Aucune vente n’a été enregistrée sur cette période.</p>{% endif %}</div>{% if lignes %}<span class="cap-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:180px;">Produit</th>
-            <th class="text-end">Quantité totale</th>
-            <th class="text-end">Montant total (TND)</th>
-            <th class="text-end">Part du CA (%)</th>
-            <th class="text-end">Coût unitaire de production (TND)</th>
-            <th class="text-end col-benefice">Bénéfice (TND)</th>
-            <th class="text-end pe-3 col-benefice">Part du bénéfice (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:180px;" value="{{ l.produit_nom }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="1"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.total_qte|stringformat:'.0f' }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.total_montant|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end">
-              {% if l.part_ca is not None %}
-              <input type="text"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.part_ca|stringformat:'.2f' }} %" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              {% if l.cout_unitaire is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.cout_unitaire|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end col-benefice">
-              {% if l.benefice is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner {% if l.benefice < 0 %}text-danger{% endif %}"
-                     value="{{ l.benefice|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end pe-3 col-benefice">
-              {% if l.part_benefice is not None %}
-              <input type="text"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.part_benefice|stringformat:'.2f' }} %" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
+    <div class="cap-table-wrap">
+      <table class="cap-table">
+        <caption class="visually-hidden">Chiffre d’affaires, coûts et bénéfices par produit</caption>
+        <colgroup><col class="cap-col-product"><col class="cap-col-quantity"><col class="cap-col-revenue"><col class="cap-col-share"><col class="cap-col-cost"><col class="cap-col-profit"><col class="cap-col-share"></colgroup>
+        <thead><tr class="cap-group-head"><th scope="col" rowspan="2">Produit</th><th scope="colgroup" colspan="3" class="cap-group-sales">Ventes</th><th scope="colgroup" colspan="3" class="cap-group-profit">Rentabilité</th></tr><tr><th scope="col" class="cap-number-col">Quantité</th><th scope="col" class="cap-number-col">Montant total</th><th scope="col">Part du CA</th><th scope="col" class="cap-number-col">Coût unitaire</th><th scope="col" class="cap-number-col">Bénéfice brut</th><th scope="col" class="cap-number-col">Part du bénéfice</th></tr></thead>
+        <tbody>{% for l in lignes %}<tr class="{% if l.benefice is not None and l.benefice < 0 %}cap-row-deficit{% endif %}">
+          <td><span class="cap-product"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><strong>{{ l.produit_nom }}</strong></span></td>
+          <td class="cap-number-col"><strong class="cap-number">{{ l.total_qte|stringformat:'.0f' }}</strong><small>unités</small></td>
+          <td class="cap-number-col"><strong class="cap-money">{{ l.total_montant|stringformat:'.3f' }}</strong><small>TND</small></td>
+          <td>{% if l.part_ca is not None %}<div class="cap-share"><strong>{{ l.part_ca|stringformat:'.2f' }}%</strong><span aria-hidden="true"><i style="width:{{ l.part_ca|stringformat:'s' }}%"></i></span></div>{% else %}<span class="cap-dash">—</span>{% endif %}</td>
+          <td class="cap-number-col">{% if l.cout_unitaire is not None %}<strong class="cap-money">{{ l.cout_unitaire|stringformat:'.3f' }}</strong><small>TND / unité</small>{% else %}<span class="cap-unavailable"><i class="bi bi-dash-circle" aria-hidden="true"></i>Indisponible</span>{% endif %}</td>
+          <td class="cap-number-col">{% if l.benefice is not None %}<strong class="cap-money {% if l.benefice < 0 %}cap-negative{% else %}cap-positive{% endif %}">{{ l.benefice|stringformat:'.3f' }}</strong><span class="cap-status {% if l.benefice < 0 %}cap-status-danger{% else %}cap-status-safe{% endif %}">{% if l.benefice < 0 %}<i class="bi bi-arrow-down" aria-hidden="true"></i>Négatif{% else %}<i class="bi bi-arrow-up" aria-hidden="true"></i>Positif{% endif %}</span>{% else %}<span class="cap-dash">—</span>{% endif %}</td>
+          <td class="cap-number-col">{% if l.part_benefice is not None %}<strong class="cap-number {% if l.part_benefice < 0 %}cap-negative{% else %}cap-positive{% endif %}">{{ l.part_benefice|stringformat:'.2f' }}%</strong>{% else %}<span class="cap-dash">—</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
       </table>
     </div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} produit{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+    <div class="cap-card-list">{% for l in lignes %}<article class="cap-card {% if l.benefice is not None and l.benefice < 0 %}cap-card-deficit{% endif %}"><header><span class="cap-product"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><strong>{{ l.produit_nom }}</strong></span>{% if l.benefice is not None %}<span class="cap-status {% if l.benefice < 0 %}cap-status-danger{% else %}cap-status-safe{% endif %}">{% if l.benefice < 0 %}Marge négative{% else %}Marge positive{% endif %}</span>{% else %}<span class="cap-status cap-status-muted">Coût indisponible</span>{% endif %}</header><div class="cap-card-section"><h3>Ventes</h3><dl><div><dt>Quantité</dt><dd>{{ l.total_qte|stringformat:'.0f' }}</dd></div><div><dt>Montant</dt><dd>{{ l.total_montant|stringformat:'.3f' }} TND</dd></div><div><dt>Part du CA</dt><dd>{% if l.part_ca is not None %}{{ l.part_ca|stringformat:'.2f' }}%{% else %}—{% endif %}</dd></div></dl></div><div class="cap-card-section cap-card-profit"><h3>Rentabilité</h3><dl><div><dt>Coût unitaire</dt><dd>{% if l.cout_unitaire is not None %}{{ l.cout_unitaire|stringformat:'.3f' }} TND{% else %}—{% endif %}</dd></div><div><dt>Bénéfice brut</dt><dd class="{% if l.benefice is not None and l.benefice < 0 %}cap-negative{% elif l.benefice is not None %}cap-positive{% endif %}">{% if l.benefice is not None %}{{ l.benefice|stringformat:'.3f' }} TND{% else %}—{% endif %}</dd></div><div><dt>Part du bénéfice</dt><dd>{% if l.part_benefice is not None %}{{ l.part_benefice|stringformat:'.2f' }}%{% else %}—{% endif %}</dd></div></dl></div></article>{% endfor %}</div>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
+    {% if is_paginated %}<footer class="cap-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} produit{{ total_count|pluralize }}</span><nav aria-label="Pagination du chiffre d’affaires par produit"><ul class="cap-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="cap-empty"><span><i class="bi bi-graph-up" aria-hidden="true"></i></span><h3>Aucune vente sur cette période</h3><p>Élargissez la période ou vérifiez que des bons de livraison y sont enregistrés.</p></div>{% endif %}
+  </section>
 
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
-      Aucune vente sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>.
-    </div>
-    {% endif %}
-  </div>
+  {% if lignes %}<section class="cap-report-panel" aria-labelledby="cap-reports-title"><div class="cap-report-head"><div><div class="cap-section-label">Exports graphiques</div><h2 id="cap-reports-title">Visualiser les résultats en PDF</h2><p>Chaque document reprend tous les produits de la période, sans pagination.</p></div><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i></div><div class="cap-report-buttons"><a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'montant-total' %}?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>Montant total</a><a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'part-ca' %}?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>Part du CA</a><a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'benefice' %}?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" target="_blank" rel="noopener" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>Bénéfice brut</a><a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'part-benefice' %}?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" target="_blank" rel="noopener" class="btn btn-primary"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>Part du bénéfice</a></div></section>{% endif %}
 </div>
-
-{# ── Export PDF des graphiques ─────────────────────────────────────────────── #}
-{% if lignes %}
-<div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
-  <a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'montant-total' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-     target="_blank" class="btn btn-outline-primary btn-sm">
-    <i class="bi bi-file-earmark-pdf me-1"></i>Montant total PDF
-  </a>
-  <a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'part-ca' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-     target="_blank" class="btn btn-outline-primary btn-sm">
-    <i class="bi bi-file-earmark-pdf me-1"></i>Part du CA (%) PDF
-  </a>
-  <a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'benefice' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-     target="_blank" class="btn btn-outline-primary btn-sm">
-    <i class="bi bi-file-earmark-pdf me-1"></i>Bénéfice (TND) PDF
-  </a>
-  <a href="{% url 'administration:chiffre-affaire-produit-graphique-pdf' 'part-benefice' %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-     target="_blank" class="btn btn-outline-primary btn-sm">
-    <i class="bi bi-file-earmark-pdf me-1"></i>Part du bénéfice (%) PDF
-  </a>
-</div>
-{% endif %}
-
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
-td.col-benefice, th.col-benefice {
-  background-color: #eaf2fb;
-}
-td.col-benefice .form-control {
-  background-color: transparent;
-}
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-</script>
+/* Chiffre d'affaires par produit : tableau de bord ordinateur d'abord. */
+.product-revenue-dashboard{--cap-primary:#2c7be5;--cap-primary-dark:#1a4f9c;--cap-ink:#172033;--cap-muted:#667085;--cap-border:#e2e8f0;--cap-radius:1rem;max-width:1700px;margin:0 auto;color:var(--cap-ink)}
+.cap-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(360px,430px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.cap-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.cap-hero-copy{min-width:0}.cap-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.cap-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.cap-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.cap-hero-meta{display:grid;grid-template-columns:1.3fr .7fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.cap-hero-meta div{min-width:0;padding:.55rem}.cap-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.cap-hero-meta span,.cap-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.cap-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.cap-hero-meta small{margin-top:.1rem}
+.cap-filter-card,.cap-method,.cap-panel,.cap-report-panel{margin-top:1rem;border:1px solid var(--cap-border);border-radius:var(--cap-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04);overflow:hidden}.cap-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cap-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--cap-primary)}.cap-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.cap-filter-head p{margin:.12rem 0 0;color:var(--cap-muted);font-size:.68rem}.cap-filter-card form{display:grid;grid-template-columns:165px 165px minmax(180px,1fr) auto;align-items:end;gap:.75rem;padding:1rem}.cap-filter-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.cap-filter-field .form-control{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.cap-filter-note{display:flex;align-items:center;gap:.35rem;min-height:2.8rem;margin:0;color:var(--cap-muted);font-size:.64rem}.cap-filter-actions{display:flex;gap:.5rem}.cap-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:.75rem;border-radius:.62rem;font-size:.68rem;font-weight:700;white-space:nowrap}
+.cap-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.cap-kpi{--cap-accent:#2c7be5;--cap-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--cap-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.cap-kpi-blue{--cap-accent:#2c7be5;--cap-soft:#eaf2fd}.cap-kpi-green{--cap-accent:#198754;--cap-soft:#e9f6ef}.cap-kpi-red{--cap-accent:#dc3545;--cap-soft:#fdecee}.cap-kpi-violet{--cap-accent:#6f42c1;--cap-soft:#f1ebfb}.cap-kpi-orange{--cap-accent:#d97706;--cap-soft:#fff4e0}.cap-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--cap-soft);color:var(--cap-accent);font-size:1.1rem}.cap-kpi small{display:block;color:var(--cap-muted);font-size:.64rem;font-weight:650}.cap-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.08rem;font-variant-numeric:tabular-nums;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}.cap-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--cap-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.cap-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.cap-method summary::-webkit-details-marker{display:none}.cap-method summary span{display:flex;align-items:center;gap:.4rem}.cap-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.cap-method[open] summary>i{transform:rotate(180deg)}.cap-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.cap-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.cap-method strong{font-size:.68rem}.cap-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.cap-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cap-section-label{color:var(--cap-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.cap-panel-head h2,.cap-report-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.cap-panel-head p,.cap-report-head p{margin:.15rem 0 0;color:var(--cap-muted);font-size:.7rem}.cap-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--cap-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.cap-table{width:100%;border-collapse:collapse;table-layout:fixed}.cap-col-product{width:20%}.cap-col-quantity{width:9%}.cap-col-revenue{width:14%}.cap-col-share{width:14%}.cap-col-cost{width:14%}.cap-col-profit{width:15%}.cap-table thead{background:#f8fafc}.cap-table th{padding:.62rem .58rem;border-bottom:1px solid var(--cap-border);color:var(--cap-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase;vertical-align:middle}.cap-table td{padding:.72rem .58rem;border-bottom:1px solid #edf0f4;font-size:.67rem;vertical-align:middle}.cap-table tbody tr:last-child td{border-bottom:0}.cap-table tbody tr:hover{background:#f8faff}.cap-table .cap-group-sales{background:#edf4fd;color:#31577f;text-align:center}.cap-table .cap-group-profit{background:#edf8f2;color:#18794e;text-align:center}.cap-table .cap-group-head th:first-child{background:#f8fafc}.cap-row-deficit{background:#fffafa}.cap-product{display:flex;align-items:center;gap:.52rem;min-width:0}.cap-product>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.62rem;background:#eaf2fd;color:var(--cap-primary)}.cap-product strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cap-number-col{text-align:right!important}.cap-number,.cap-money{display:block;font-size:.72rem;font-variant-numeric:tabular-nums;white-space:nowrap}.cap-table td>small{display:block;margin-top:.08rem;color:var(--cap-muted);font-size:.56rem}.cap-positive{color:#18794e}.cap-negative{color:#b42332}.cap-status{display:inline-flex;align-items:center;gap:.2rem;margin-top:.18rem;padding:.18rem .36rem;border-radius:2rem;font-size:.56rem;font-weight:750;white-space:nowrap}.cap-status-safe{background:#e9f6ef;color:#18794e}.cap-status-danger{background:#fdecee;color:#b42332}.cap-status-muted{background:#eef1f5;color:#667085}.cap-share strong{display:block;color:#31577f;font-size:.66rem;font-variant-numeric:tabular-nums}.cap-share>span{display:block;overflow:hidden;height:.28rem;margin-top:.22rem;border-radius:2rem;background:#e9edf3}.cap-share>span i{display:block;height:100%;border-radius:inherit;background:#4e79a7}.cap-unavailable{display:inline-flex;align-items:center;gap:.25rem;color:var(--cap-muted);font-size:.57rem}.cap-dash{color:#98a2b3}.cap-card-list{display:none}
+.cap-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.cap-pagination-footer>span{color:var(--cap-muted);font-size:.65rem}.cap-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.cap-pagination a,.cap-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.cap-pagination .active{border-color:var(--cap-primary);background:var(--cap-primary);color:#fff}.cap-empty{padding:3rem 1rem;text-align:center}.cap-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.cap-empty h3{margin:.7rem 0 .25rem;font-size:.95rem}.cap-empty p{margin:0;color:var(--cap-muted);font-size:.72rem}
+.cap-report-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cap-report-head>i{color:#b42332;font-size:1.5rem}.cap-report-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;padding:1rem}.cap-report-buttons .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.75rem;border-radius:.65rem;font-size:.68rem;font-weight:700}.product-revenue-dashboard a:focus-visible,.product-revenue-dashboard button:focus-visible,.product-revenue-dashboard input:focus-visible,.product-revenue-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.cap-hero{grid-template-columns:auto minmax(0,1fr)}.cap-hero-meta{grid-column:1/-1}.cap-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.cap-filter-note{grid-column:1/-1}.cap-filter-actions{grid-column:1/-1;justify-content:flex-end}.cap-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cap-table-wrap{display:none}.cap-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem;background:#f7f9fc}.cap-card{overflow:hidden;border:1px solid var(--cap-border);border-radius:.8rem;background:#fff}.cap-card-deficit{border-color:#edbcc2}.cap-card>header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cap-card-section{padding:.8rem}.cap-card-section+.cap-card-section{border-top:1px solid #edf0f4}.cap-card-section h3{margin:0 0 .6rem;color:#31577f;font-size:.64rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.cap-card-profit h3{color:#18794e}.cap-card-section dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:0}.cap-card-section dt{color:var(--cap-muted);font-size:.55rem;text-transform:uppercase}.cap-card-section dd{margin:.1rem 0 0;font-size:.67rem;font-weight:750}.cap-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.cap-card-list{grid-template-columns:1fr}.cap-panel-head{align-items:flex-start}.cap-report-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.cap-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.cap-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.cap-hero-copy>p{font-size:.8rem}.cap-hero-meta{grid-template-columns:1fr}.cap-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.cap-filter-card form{grid-template-columns:1fr}.cap-filter-note,.cap-filter-actions{grid-column:auto}.cap-filter-actions{flex-direction:column}.cap-kpi-grid{grid-template-columns:1fr}.cap-method>div{grid-template-columns:1fr}.cap-panel-head{flex-direction:column;padding:.9rem}.cap-card>header{align-items:flex-start;flex-direction:column}.cap-card-section dl{grid-template-columns:1fr}.cap-pagination-footer{align-items:flex-start;flex-direction:column}.cap-report-buttons{grid-template-columns:1fr}}
 {% endblock %}

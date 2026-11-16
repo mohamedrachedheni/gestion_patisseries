@@ -1,51 +1,70 @@
 {% extends "production/base.html" %}
-{% load crispy_forms_tags %}
 
 {% block title %}{{ title }} — Production{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'production:produit-list' %}">Produits</a></li>
-    {% if produit %}
-    <li class="breadcrumb-item">
-      <a href="{% url 'production:produit-detail' produit.pk %}">{{ produit.nom }}</a>
-    </li>
-    {% endif %}
-    <li class="breadcrumb-item active">{{ title }}</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'production:produit-list' %}">Produits</a></li>{% if produit %}<li class="breadcrumb-item"><a href="{% url 'production:produit-detail' produit.pk %}">{{ produit.nom }}</a></li>{% endif %}<li class="breadcrumb-item active" aria-current="page">{% if is_update %}Modifier{% else %}Nouveau produit{% endif %}</li></ol></nav>{% endblock %}
 
 {% block content %}
-<div class="row g-4">
+<div class="product-form">
+  <header class="prf-hero" aria-labelledby="prf-page-title">
+    <span class="prf-hero-icon" aria-hidden="true"><i class="bi {% if is_update %}bi-pencil-square{% else %}bi-cake2{% endif %}"></i></span>
+    <div class="prf-hero-copy"><div class="prf-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Catalogue de production</div><h1 id="prf-page-title">{% if is_update %}Modifier le produit « {{ produit.nom }} »{% else %}Nouveau produit{% endif %}</h1><p>{% if is_update %}Corrigez les informations du produit, son prix ou ses seuils de stock.{% else %}Renseignez le nom, le prix et le stock du produit. Les champs marqués d’un astérisque sont obligatoires.{% endif %}</p></div>
+    <div class="prf-hero-actions"><a href="{% if produit %}{% url 'production:produit-detail' produit.pk %}{% else %}{% url 'production:produit-list' %}{% endif %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>{% if produit %}Retour à la fiche{% else %}Revenir à la liste{% endif %}</a></div>
+  </header>
 
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-transparent fw-semibold py-3">
-        <i class="bi bi-cake2 me-2 text-primary"></i>Informations produit
+  <form method="post" id="prf-form" novalidate autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="prf-alert" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>{% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div></div>{% elif form.errors %}<div class="prf-alert" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>Le produit n’a pas été enregistré. Vos informations sont conservées : corrigez les champs signalés ci-dessous puis réessayez.</div></div>{% endif %}
+
+    <section class="prf-panel" aria-labelledby="prf-s1">
+      <header class="prf-panel-head"><span class="prf-step" aria-hidden="true">1</span><div><h2 id="prf-s1">Identification</h2><p>Comment le produit s’appelle et à quoi il ressemble.</p></div></header>
+      <div class="prf-grid prf-grid-3">
+        <div class="prf-field prf-span-2"><label for="{{ form.nom.id_for_label }}">Nom du produit <span class="prf-req" aria-hidden="true">*</span></label>{{ form.nom }}{% for e in form.nom.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="prf-field"><label for="{{ form.taille.id_for_label }}">Taille</label>{{ form.taille }}{% for e in form.taille.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="prf-field"><label for="{{ form.poids.id_for_label }}">Poids <span class="prf-opt">(facultatif)</span></label><div class="input-group">{{ form.poids }}<span class="input-group-text">g</span></div><small>Poids d’une unité, en grammes.</small>{% for e in form.poids.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="prf-field prf-span-2"><label for="{{ form.observation.id_for_label }}">Observation <span class="prf-opt">(facultatif)</span></label>{{ form.observation }}{% for e in form.observation.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
       </div>
-      <div class="card-body">
-        <form method="post" novalidate>
-          {% csrf_token %}
-          {% crispy form %}
+    </section>
 
-          <div class="d-flex gap-2 justify-content-end mt-2">
-            <a href="{% if produit %}{% url 'production:produit-detail' produit.pk %}{% else %}{% url 'production:produit-list' %}{% endif %}"
-               class="btn btn-outline-secondary">
-              Annuler
-            </a>
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-check-lg me-1"></i>
-              {% if is_update %}Enregistrer les modifications{% else %}Créer un nouveau produit{% endif %}
-            </button>
-          </div>
-        </form>
+    <section class="prf-panel" aria-labelledby="prf-s2">
+      <header class="prf-panel-head"><span class="prf-step" aria-hidden="true">2</span><div><h2 id="prf-s2">Prix et stock</h2><p>Le prix de vente et les seuils qui déclenchent l’alerte « Stock faible ».</p></div></header>
+      <div class="prf-grid prf-grid-3">
+        <div class="prf-field"><label for="{{ form.prix_unitaire.id_for_label }}">Prix unitaire <span class="prf-req" aria-hidden="true">*</span></label><div class="input-group">{{ form.prix_unitaire }}<span class="input-group-text">TND</span></div>{% for e in form.prix_unitaire.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="prf-field"><label for="{{ form.stock.id_for_label }}">Stock actuel <span class="prf-req" aria-hidden="true">*</span></label>{{ form.stock }}<small>Nombre d’unités disponibles.</small>{% for e in form.stock.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="prf-field"><label for="{{ form.quantite_minimale.id_for_label }}">Quantité minimale <span class="prf-req" aria-hidden="true">*</span></label>{{ form.quantite_minimale }}<small>Sous ce seuil, le stock est signalé comme faible.</small>{% for e in form.quantite_minimale.errors %}<div class="prf-error" role="alert">{{ e }}</div>{% endfor %}</div>
       </div>
-    </div>
-  </div>
-
+      <footer class="prf-footer"><a href="{% if produit %}{% url 'production:produit-detail' produit.pk %}{% else %}{% url 'production:produit-list' %}{% endif %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg" aria-hidden="true"></i>Annuler</a><button type="submit" class="btn btn-primary" id="prf-submit"><i class="bi bi-check-lg" aria-hidden="true"></i>{% if is_update %}Enregistrer les modifications{% else %}Créer le produit{% endif %}</button></footer>
+    </section>
+  </form>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* Formulaire produit : ordinateur d'abord, même système que le catalogue produits. */
+.product-form{--prf-primary:#2c7be5;--prf-primary-dark:#1a4f9c;--prf-ink:#172033;--prf-muted:#667085;--prf-border:#e2e8f0;max-width:1100px;margin:0 auto;color:var(--prf-ink)}
+.prf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.prf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}.prf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.prf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.4rem,2vw,1.9rem);font-weight:750;letter-spacing:-.02em;overflow-wrap:anywhere}.prf-hero-copy>p{margin:0;max-width:680px;color:rgba(255,255,255,.78);font-size:.85rem}.prf-hero-actions .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:3rem;border-radius:.68rem;color:#194f89;font-size:.72rem;font-weight:750;white-space:nowrap}
+.prf-alert{display:flex;align-items:flex-start;gap:.6rem;margin-top:1rem;padding:.8rem 1rem;border:1px solid #f1b8b3;border-radius:.7rem;background:#fdeceb;color:#8a1f15;font-size:.8rem}.prf-alert i{margin-top:.1rem}
+.prf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--prf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.prf-panel-head{display:flex;align-items:center;gap:.8rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.prf-step{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:var(--prf-primary);color:#fff;font-size:.8rem;font-weight:800}.prf-panel-head h2{margin:0;font-size:1rem;font-weight:750}.prf-panel-head p{margin:.12rem 0 0;color:var(--prf-muted);font-size:.72rem}
+.prf-grid{display:grid;gap:1rem;padding:1.1rem 1.2rem}.prf-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.prf-span-2{grid-column:span 2}.prf-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.75rem;font-weight:700}.prf-field .form-control,.prf-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.prf-field .input-group .form-control{border-radius:.6rem 0 0 .6rem}.prf-field .input-group-text{border-color:#cfd7e3;border-radius:0 .6rem .6rem 0;background:#f8fafc;font-size:.75rem;font-weight:700}.prf-field textarea.form-control{min-height:5.2rem}.prf-field .form-control:focus,.prf-field .form-select:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.prf-field small{display:block;margin-top:.3rem;color:var(--prf-muted);font-size:.68rem}.prf-req{color:#b42318}.prf-opt{color:var(--prf-muted);font-weight:500}.prf-error{margin-top:.3rem;color:#b42318;font-size:.72rem;font-weight:600}
+.prf-footer{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.2rem;border-top:1px solid #edf0f4;background:#fbfcfe}.prf-footer .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding-inline:1.1rem;border-radius:.6rem;font-size:.78rem;font-weight:700}
+.product-form a:focus-visible,.product-form button:focus-visible,.product-form input:focus-visible,.product-form select:focus-visible,.product-form textarea:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:991.98px){.prf-hero{grid-template-columns:auto minmax(0,1fr)}.prf-hero-actions{grid-column:1/-1}.prf-grid-3{grid-template-columns:1fr 1fr}.prf-span-2{grid-column:1/-1}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.prf-hero{padding:1rem}.prf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.prf-grid-3{grid-template-columns:1fr}.prf-footer{flex-direction:column-reverse}}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var form = document.getElementById('prf-form'), btn = document.getElementById('prf-submit');
+  if (!form || !btn) { return; }
+  form.addEventListener('submit', function () {
+    window.setTimeout(function () { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement…'; }, 0);
+  });
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); }
+  });
+})();
+</script>
 {% endblock %}

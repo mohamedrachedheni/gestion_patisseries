@@ -3,183 +3,66 @@
 {% block title %}Absences commerciaux — Administration{% endblock %}
 {% block page_title %}Absences commerciaux{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Absences commerciaux</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Absences commerciaux</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="absence-dashboard">
+  <header class="acm-hero" aria-labelledby="acm-page-title"><span class="acm-hero-icon" aria-hidden="true"><i class="bi bi-person-dash"></i></span><div class="acm-hero-copy"><div class="acm-eyebrow"><i class="bi bi-calendar2-minus" aria-hidden="true"></i> Disponibilité commerciale</div><h1 id="acm-page-title">Absences des commerciaux</h1><p>Neutralisez les jours d’absence dans le calcul d’adhérence et organisez la continuité des visites clients.</p></div><div class="acm-hero-meta"><span>Date du jour</span><strong>{{ today_date|date:"d/m/Y" }}</strong><small>{{ today_date|date:"l" }}</small></div></header>
 
-<p class="text-muted small mb-4">
-  Une absence déclarée ici n'empêche aucune action technique — elle sert uniquement à ne pas compter un jour comme
-  « manqué » dans le rapport d'adhérence de ce commercial quand aucune preuve de visite n'existe par ailleurs. Pour
-  qu'un collègue puisse couvrir les clients concernés pendant l'absence, ajoutez-le temporairement dans la section
-  « Liste des commerciaux » de la fiche de chaque client, puis retirez-le au retour du titulaire.
-</p>
+  <section class="acm-kpi-grid" aria-label="Synthèse des absences"><article class="acm-kpi acm-kpi-blue"><span><i class="bi bi-calendar3" aria-hidden="true"></i></span><div><small>Total enregistré</small><strong>{{ total_absences }}</strong><em>absence{{ total_absences|pluralize }}</em></div></article><article class="acm-kpi acm-kpi-red"><span><i class="bi bi-person-x" aria-hidden="true"></i></span><div><small>En cours</small><strong>{{ total_en_cours }}</strong><em>absence{{ total_en_cours|pluralize }} active{{ total_en_cours|pluralize }}</em></div></article><article class="acm-kpi acm-kpi-orange"><span><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><div><small>À venir</small><strong>{{ total_a_venir }}</strong><em>planifiée{{ total_a_venir|pluralize }}</em></div></article><article class="acm-kpi acm-kpi-muted"><span><i class="bi bi-clock-history" aria-hidden="true"></i></span><div><small>Terminées</small><strong>{{ total_passees }}</strong><em>historique</em></div></article></section>
 
-{# ── Partie 1 : liste des absences enregistrées ───────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-person-dash me-2 text-primary"></i>Absences enregistrées
-  </div>
-  <div class="card-body p-0">
-    {% if absences %}
-    {% comment %}
-      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
-      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
-      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
-    {% endcomment %}
-    {% for a in absences %}
-    <form id="absence-update-{{ a.pk }}" method="post" action="{% url 'administration:absence-commercial-update' a.pk %}"></form>
-    <form id="absence-delete-{{ a.pk }}" method="post" action="{% url 'administration:absence-commercial-delete' a.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:180px;">Commercial</th>
-            <th style="min-width:150px;">Date début</th>
-            <th style="min-width:150px;">Date fin</th>
-            <th style="min-width:180px;">Motif</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in absences %}
-          <tr>
-            <td class="ps-3">
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="absence-update-{{ a.pk }}">
-              <select name="user" class="form-select form-select-sm" style="min-width:170px;" form="absence-update-{{ a.pk }}">
-                {% for u in commerciaux_list %}
-                <option value="{{ u.pk }}" {% if a.user_id == u.pk %}selected{% endif %}>
-                  {{ u.get_full_name|default:u.username }}
-                </option>
-                {% endfor %}
-              </select>
-            </td>
-            <td>
-              <input type="date" name="date_debut" value="{{ a.date_debut|date:'Y-m-d' }}"
-                     class="form-control form-control-sm" form="absence-update-{{ a.pk }}">
-            </td>
-            <td>
-              <input type="date" name="date_fin" value="{{ a.date_fin|date:'Y-m-d' }}"
-                     class="form-control form-control-sm" form="absence-update-{{ a.pk }}">
-            </td>
-            <td>
-              <input type="text" name="motif" value="{{ a.motif|default:'' }}"
-                     class="form-control form-control-sm" style="min-width:170px;" form="absence-update-{{ a.pk }}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="submit" form="absence-update-{{ a.pk }}"
-                      class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="absence-delete-{{ a.pk }}">
-              <button type="submit" form="absence-delete-{{ a.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                      onclick="return confirm('Supprimer cette absence ?');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <div class="acm-layout">
+    <main class="acm-main"><section class="acm-panel" aria-labelledby="acm-list-title"><header class="acm-panel-head"><div><div class="acm-section-label">Planning</div><h2 id="acm-list-title">Absences enregistrées</h2>{% if absences %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>{% else %}<p>Aucune absence enregistrée pour le moment.</p>{% endif %}</div>{% if absences %}<span class="acm-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} absence{{ page_obj.paginator.count|pluralize }}</span>{% endif %}</header>
+      {% if absences %}
+      {% for a in absences %}<form id="acm-update-{{ a.pk }}" method="post" action="{% url 'administration:absence-commercial-update' a.pk %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}</form>{% endfor %}
+      <div class="acm-table-wrap"><table class="acm-table"><caption class="visually-hidden">Absences commerciales modifiables</caption><thead><tr><th scope="col">Commercial</th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col">Durée</th><th scope="col">Motif</th><th scope="col">Situation</th><th scope="col" class="acm-actions-col">Actions</th></tr></thead><tbody>
+        {% for a in absences %}<tr class="{% if a.date_fin < today_date %}acm-past-row{% elif a.date_debut <= today_date and a.date_fin >= today_date %}acm-current-row{% endif %}">
+          <td data-label="Commercial"><select name="user" class="form-select acm-input" form="acm-update-{{ a.pk }}" required>{% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if a.user_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></td>
+          <td data-label="Début"><input type="date" name="date_debut" value="{{ a.date_debut|date:'Y-m-d' }}" class="form-control acm-input acm-start-date" form="acm-update-{{ a.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></td>
+          <td data-label="Fin"><input type="date" name="date_fin" value="{{ a.date_fin|date:'Y-m-d' }}" min="{{ a.date_debut|date:'Y-m-d' }}" class="form-control acm-input acm-end-date" form="acm-update-{{ a.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></td>
+          <td data-label="Durée"><span class="acm-duration"><strong>{{ a.nb_jours }}</strong> jour{{ a.nb_jours|pluralize }}</span></td>
+          <td data-label="Motif"><input type="text" name="motif" value="{{ a.motif|default:'' }}" class="form-control acm-input" form="acm-update-{{ a.pk }}" placeholder="Motif facultatif" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></td>
+          <td data-label="Situation">{% if a.date_fin < today_date %}<span class="acm-status acm-status-past"><i class="bi bi-clock-history" aria-hidden="true"></i>Terminée</span>{% elif a.date_debut <= today_date and a.date_fin >= today_date %}<span class="acm-status acm-status-current"><i class="bi bi-circle-fill" aria-hidden="true"></i>En cours</span>{% else %}<span class="acm-status acm-status-upcoming"><i class="bi bi-calendar-check" aria-hidden="true"></i>À venir</span>{% endif %}</td>
+          <td data-label="Actions" class="acm-actions-col"><div class="acm-row-actions"><button type="submit" form="acm-update-{{ a.pk }}" class="acm-icon-btn acm-icon-btn-primary" aria-label="Enregistrer l'absence de {{ a.user }}" title="Enregistrer"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="acm-action-text">Enregistrer</span></button><button type="button" class="acm-icon-btn acm-icon-btn-danger acm-delete-btn" data-url="{% url 'administration:absence-commercial-delete' a.pk %}" data-label="{{ a.user.get_full_name|default:a.user.username }} — {{ a.date_debut|date:'d/m/Y' }} au {{ a.date_fin|date:'d/m/Y' }}" aria-label="Supprimer cette absence" title="Supprimer"><i class="bi bi-trash" aria-hidden="true"></i><span class="acm-action-text">Supprimer</span></button></div></td>
+        </tr>{% endfor %}
+      </tbody></table></div>
+      {% if is_paginated %}<footer class="acm-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des absences"><ul class="acm-pagination">{% if page_obj.has_previous %}<li><a href="?page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+      {% else %}<div class="acm-empty"><span><i class="bi bi-person-check" aria-hidden="true"></i></span><h3>Aucune absence enregistrée</h3><p>Utilisez le formulaire d’ajout pour planifier une indisponibilité.</p></div>{% endif %}
+    </section></main>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} absence{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-person-dash fs-1 d-block mb-2 opacity-25"></i>
-      Aucune absence enregistrée.
-    </div>
-    {% endif %}
+    <aside class="acm-aside" aria-label="Ajouter une absence"><div class="acm-side-stack"><section class="acm-add-card" aria-labelledby="acm-add-title"><div class="acm-side-head"><span><i class="bi bi-person-plus" aria-hidden="true"></i></span><div><h2 id="acm-add-title">Ajouter une absence</h2><p>Déclarez une période d’indisponibilité.</p></div></div><form method="post" action="{% url 'administration:absence-commercial-create' %}" id="acm-add-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}
+      <div class="acm-add-field"><label for="acm-add-user">Commercial <span>*</span></label><select name="user" id="acm-add-user" class="form-select" required><option value="">— Choisir —</option>{% for u in commerciaux_list %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+      <div class="acm-add-grid"><div class="acm-add-field"><label for="acm-add-start">Date début <span>*</span></label><input type="date" name="date_debut" id="acm-add-start" value="{{ add_form.date_debut.value|default:'' }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div><div class="acm-add-field"><label for="acm-add-end">Date fin <span>*</span></label><input type="date" name="date_fin" id="acm-add-end" value="{{ add_form.date_fin.value|default:'' }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div></div>
+      <div class="acm-add-field"><label for="acm-add-reason">Motif <small>(facultatif)</small></label><input type="text" name="motif" id="acm-add-reason" value="{{ add_form.motif.value|default:'' }}" class="form-control" placeholder="Ex. : Maladie, congé…" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></div>
+      <button type="submit" class="btn btn-primary acm-add-submit"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter au planning</button>
+    </form></section><section class="acm-help-card"><span><i class="bi bi-lightbulb" aria-hidden="true"></i></span><div><strong>Impact sur l’adhérence</strong><p>Une absence déclarée évite de compter une visite non réalisée comme manquée lorsque le commercial ne pouvait pas intervenir.</p><p>Pour une couverture temporaire, affectez un collègue depuis la fiche du client.</p></div></section></div></aside>
   </div>
 </div>
 
-{# ── Partie 2 : ajout d'une nouvelle absence ──────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter une absence
-  </div>
-  <div class="card-body">
-    <form method="post" action="{% url 'administration:absence-commercial-create' %}">
-      {% csrf_token %}
-      <div class="row g-2 align-items-end">
-        <div class="col-sm-3">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="user" class="form-select">
-            <option value="">— Choisir —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-sm-2">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ add_form.date_debut.value|default:'' }}" class="form-control">
-        </div>
-        <div class="col-sm-2">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ add_form.date_fin.value|default:'' }}" class="form-control">
-        </div>
-        <div class="col-sm-4">
-          <label class="form-label small mb-1">Motif</label>
-          <input type="text" name="motif" value="{{ add_form.motif.value|default:'' }}" class="form-control"
-                 placeholder="Ex : Maladie, Congé">
-        </div>
-        <div class="col-sm-1">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg"></i>
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
+<div class="modal fade" id="acm-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="acm-delete-title"><div class="modal-dialog modal-dialog-centered"><form method="post" class="modal-content" id="acm-delete-form">{% csrf_token %}<div class="modal-header"><h2 class="modal-title fs-5" id="acm-delete-title">Supprimer cette absence ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="fw-semibold mb-2" id="acm-delete-label"></p><div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Cette période sera réintégrée dans le calcul d’adhérence.</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger" id="acm-delete-confirm"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button></div></form></div></div>
+{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+/* ── Absences commerciaux : interface ordinateur d'abord ─────────────────── */
+.absence-dashboard{--acm-primary:#2c7be5;--acm-primary-dark:#1a4f9c;--acm-ink:#172033;--acm-muted:#667085;--acm-border:#e2e8f0;--acm-surface:#fff;--acm-radius:1rem;max-width:1600px;margin:0 auto;color:var(--acm-ink)}
+.acm-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.acm-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.4rem;height:4.4rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.acm-hero-copy{min-width:0}.acm-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.acm-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.acm-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.acm-hero-meta{display:flex;flex-direction:column;min-width:150px;padding:.65rem .8rem;border:1px solid rgba(255,255,255,.18);border-radius:.75rem;background:rgba(8,31,61,.2)}.acm-hero-meta span,.acm-hero-meta small{color:rgba(255,255,255,.65);font-size:.64rem}.acm-hero-meta strong{font-size:.9rem}
+.acm-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.acm-kpi{--acm-accent:#2c7be5;--acm-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:96px;padding:.9rem;border:1px solid var(--acm-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.acm-kpi-blue{--acm-accent:#2c7be5;--acm-soft:#eaf2fd}.acm-kpi-red{--acm-accent:#dc3545;--acm-soft:#fdecee}.acm-kpi-orange{--acm-accent:#d97706;--acm-soft:#fff4e0}.acm-kpi-muted{--acm-accent:#667085;--acm-soft:#eef0f3}.acm-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.7rem;height:2.7rem;border-radius:.7rem;background:var(--acm-soft);color:var(--acm-accent);font-size:1.12rem}.acm-kpi small{display:block;color:var(--acm-muted);font-size:.66rem;font-weight:650}.acm-kpi strong{display:block;margin-top:.05rem;font-size:1.2rem;font-variant-numeric:tabular-nums;line-height:1.15}.acm-kpi em{display:block;color:var(--acm-muted);font-size:.62rem;font-style:normal}
+.acm-layout{display:grid;grid-template-columns:minmax(0,2.15fr) minmax(350px,.72fr);align-items:start;gap:1rem;margin-top:1rem}.acm-panel,.acm-add-card,.acm-help-card{overflow:hidden;border:1px solid var(--acm-border);border-radius:var(--acm-radius);background:var(--acm-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.acm-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:80px;padding:.95rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.acm-section-label{color:var(--acm-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.acm-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.acm-panel-head p{margin:.15rem 0 0;color:var(--acm-muted);font-size:.7rem}.acm-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--acm-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.acm-table-wrap{display:block}.acm-table{width:100%;border-collapse:collapse;table-layout:fixed}.acm-table thead{background:#f8fafc}.acm-table th{padding:.7rem .7rem;border-bottom:1px solid var(--acm-border);color:var(--acm-muted);font-size:.62rem;font-weight:800;letter-spacing:.04em;text-align:left;text-transform:uppercase}.acm-table td{padding:.66rem .7rem;border-bottom:1px solid #edf0f4;font-size:.72rem;vertical-align:middle}.acm-table tbody tr:last-child td{border-bottom:0}.acm-table th:nth-child(1){width:20%}.acm-table th:nth-child(2),.acm-table th:nth-child(3){width:13%}.acm-table th:nth-child(4){width:9%}.acm-table th:nth-child(5){width:20%}.acm-table th:nth-child(6){width:13%}.acm-table th:nth-child(7){width:12%}.acm-input{min-height:2.5rem;border-color:#d3dae4;border-radius:.58rem;font-size:.72rem}.acm-input:focus{border-color:#77a9e9;box-shadow:0 0 0 .18rem rgba(44,123,229,.12)}.acm-table [data-autofill-lock][readonly],.acm-add-card [data-autofill-lock][readonly]{background:#fff;cursor:text}.acm-duration{display:inline-flex;align-items:baseline;gap:.2rem;color:#526071;font-size:.66rem}.acm-duration strong{color:var(--acm-ink);font-size:.82rem}.acm-status{display:inline-flex;align-items:center;gap:.3rem;padding:.24rem .48rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.acm-status i.bi-circle-fill{font-size:.4rem}.acm-status-past{background:#eef0f3;color:#667085}.acm-status-current{background:#fdecee;color:#b42332}.acm-status-upcoming{background:#fff4e0;color:#8a5300}.acm-past-row{background:#fafbfc}.acm-current-row{background:#fff9fa}.acm-actions-col{text-align:center!important}.acm-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.acm-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;border:1px solid #d6dde7;border-radius:.56rem;background:#fff}.acm-icon-btn-primary{border-color:#b8d0ef;color:var(--acm-primary-dark)}.acm-icon-btn-danger{border-color:#efc6cb;color:#b42332}.acm-action-text{display:none}.acm-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--acm-border);background:#fbfcfe}.acm-pagination-footer>span{color:var(--acm-muted);font-size:.7rem}.acm-pagination{display:flex;align-items:center;gap:.25rem;margin:0;padding:0;list-style:none}.acm-pagination a,.acm-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.2rem;height:2.2rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.52rem;background:#fff;color:#526071;font-size:.7rem;font-weight:700;text-decoration:none}.acm-pagination .active{border-color:var(--acm-primary);background:var(--acm-primary);color:#fff}.acm-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:270px;padding:2rem;text-align:center}.acm-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.8rem;height:3.8rem;border-radius:1rem;background:#e9f6ef;color:#198754;font-size:1.45rem}.acm-empty h3{margin:.7rem 0 0;font-size:.92rem}.acm-empty p{margin:.25rem 0 0;color:var(--acm-muted);font-size:.72rem}
+.acm-side-stack{position:sticky;top:calc(var(--topbar-h) + 1rem);display:grid;gap:1rem}.acm-add-card{padding:1rem}.acm-side-head{display:flex;align-items:center;gap:.7rem}.acm-side-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--acm-primary);font-size:1.02rem}.acm-side-head h2{margin:0;font-size:.94rem;font-weight:750}.acm-side-head p{margin:.1rem 0 0;color:var(--acm-muted);font-size:.68rem}.acm-add-field{margin-top:.85rem}.acm-add-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}.acm-add-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.7rem;font-weight:700}.acm-add-field label>span{color:#c62838}.acm-add-field label small{color:var(--acm-muted);font-weight:500}.acm-add-field .form-control,.acm-add-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.65rem;font-size:.8rem}.acm-add-submit{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:2.9rem;margin-top:.9rem;border-radius:.68rem;font-size:.76rem;font-weight:700}.acm-help-card{display:flex;align-items:flex-start;gap:.65rem;padding:.85rem;background:#fffaf0}.acm-help-card>span{color:#d97706}.acm-help-card strong{font-size:.7rem}.acm-help-card p{margin:.15rem 0 0;color:#72511e;font-size:.64rem;line-height:1.45}.absence-dashboard a:focus-visible,.absence-dashboard button:focus-visible,.absence-dashboard input:focus-visible,.absence-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.acm-hero{grid-template-columns:auto minmax(0,1fr)}.acm-hero-meta{grid-column:1/-1}.acm-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.acm-layout{grid-template-columns:1fr}.acm-side-stack{position:static;grid-template-columns:minmax(0,1fr) minmax(300px,.65fr)}}
+@media(max-width:767.98px){.acm-side-stack{grid-template-columns:1fr}.acm-table thead{display:none}.acm-table,.acm-table tbody,.acm-table tr,.acm-table td{display:block;width:100%}.acm-table-wrap{padding:.75rem;background:#f7f9fc}.acm-table tr{overflow:hidden;margin-bottom:.75rem;border:1px solid var(--acm-border);border-radius:.75rem;background:#fff}.acm-table tr:last-child{margin-bottom:0}.acm-table td{display:grid;grid-template-columns:7rem minmax(0,1fr);align-items:center;gap:.6rem;padding:.62rem .75rem;border-bottom:1px solid #edf0f4;text-align:left!important}.acm-table td:last-child{border-bottom:0}.acm-table td:before{content:attr(data-label);color:var(--acm-muted);font-size:.62rem;font-weight:700;text-transform:uppercase}.acm-row-actions{justify-content:flex-start}.acm-icon-btn{width:auto;min-height:2.4rem;padding:0 .65rem;gap:.32rem}.acm-action-text{display:inline;font-size:.68rem;font-weight:700}.acm-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.acm-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.acm-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.acm-hero-copy>p{font-size:.8rem}.acm-kpi-grid{grid-template-columns:1fr}.acm-panel-head{flex-direction:column;padding:.9rem}.acm-table td{grid-template-columns:1fr;gap:.28rem}.acm-add-grid{grid-template-columns:1fr}.acm-pagination-footer{align-items:flex-start;flex-direction:column}}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  document.querySelectorAll('[data-autofill-lock="true"]').forEach(function(field){function unlock(){field.readOnly=false;field.removeAttribute('readonly');field.removeAttribute('data-autofill-lock')}field.addEventListener('focus',unlock,{once:true});field.addEventListener('pointerdown',function(event){if(event.pointerType==='touch'){unlock()}},{once:true});if(document.activeElement===field){unlock()}});
+  function bindDateRange(start,end){function sync(){end.min=start.value;if(end.value&&start.value&&end.value<start.value){end.setCustomValidity('La date de fin doit être postérieure ou égale à la date de début.')}else{end.setCustomValidity('')}}start.addEventListener('change',sync);end.addEventListener('change',sync);sync()}
+  document.querySelectorAll('form[id^="acm-update-"]').forEach(function(form){var start=document.querySelector('[form="'+form.id+'"][name="date_debut"]'),end=document.querySelector('[form="'+form.id+'"][name="date_fin"]');bindDateRange(start,end);form.addEventListener('submit',function(){var button=document.querySelector('[form="'+form.id+'"][type="submit"]');if(button){button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span class="acm-action-text">Enregistrement…</span>'}})});
+  var addForm=document.getElementById('acm-add-form'),addStart=document.getElementById('acm-add-start'),addEnd=document.getElementById('acm-add-end');bindDateRange(addStart,addEnd);addForm.addEventListener('submit',function(){var button=addForm.querySelector('[type="submit"]');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Ajout…'});
+  var modalEl=document.getElementById('acm-delete-modal'),modal=new bootstrap.Modal(modalEl),deleteForm=document.getElementById('acm-delete-form'),deleteLabel=document.getElementById('acm-delete-label'),deleteConfirm=document.getElementById('acm-delete-confirm');document.querySelectorAll('.acm-delete-btn').forEach(function(button){button.addEventListener('click',function(){deleteForm.action=button.getAttribute('data-url');deleteLabel.textContent=button.getAttribute('data-label');modal.show()})});deleteForm.addEventListener('submit',function(){deleteConfirm.disabled=true;deleteConfirm.innerHTML='<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Suppression…'});
+})();
+</script>
 {% endblock %}

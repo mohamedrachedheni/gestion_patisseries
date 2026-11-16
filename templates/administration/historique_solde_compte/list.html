@@ -3,191 +3,52 @@
 {% block title %}Soldes comptes caisses — Administration{% endblock %}
 {% block page_title %}Soldes comptes caisses{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Soldes comptes caisses</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Soldes comptes caisses</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="cash-balance-dashboard">
+  <header class="scl-hero" aria-labelledby="scl-page-title">
+    <span class="scl-hero-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
+    <div class="scl-hero-copy"><div class="scl-eyebrow"><i class="bi bi-cash-coin" aria-hidden="true"></i> Contrôle des comptes</div><h1 id="scl-page-title">Soldes comptes caisses</h1><p>Consultez les contrôles de caisse, comparez les soldes calculés aux montants réels et accédez aux transactions justificatives.</p></div>
+    <div class="scl-hero-actions"><div class="scl-hero-meta"><div><span>Période</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong><small>{{ nb_jours }} jour{{ nb_jours|pluralize }}</small></div><div><span>Employé</span><strong>{% if user_selectionne %}{{ user_selectionne.get_full_name|default:user_selectionne.username }}{% else %}Tous les employés{% endif %}</strong><small>{{ total_count }} contrôle{{ total_count|pluralize }}</small></div></div><a href="{% url 'administration:solde-caisse' %}" class="btn btn-light"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouvelle mise à jour</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des soldes comptes caisses des Employés</h4>
-  <a href="{% url 'administration:solde-caisse' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Ajout d'une mise à jour du solde compte caisse
-  </a>
+  <section class="scl-kpi-grid" aria-label="Synthèse des contrôles de caisse">
+    <article class="scl-kpi scl-kpi-blue"><span><i class="bi bi-journal-check" aria-hidden="true"></i></span><div><small>Contrôles enregistrés</small><strong>{{ total_count }}</strong><em>sur la période filtrée</em></div></article>
+    <article class="scl-kpi scl-kpi-violet"><span><i class="bi bi-people" aria-hidden="true"></i></span><div><small>Employés contrôlés</small><strong>{{ nb_employes }}</strong><em>compte{{ nb_employes|pluralize }} de caisse distinct{{ nb_employes|pluralize }}</em></div></article>
+    <article class="scl-kpi scl-kpi-green"><span><i class="bi bi-check2-circle" aria-hidden="true"></i></span><div><small>Soldes conformes</small><strong>{{ nb_conformes }}</strong><em>calcul et réel identiques</em></div></article>
+    <article class="scl-kpi {% if nb_ecarts %}scl-kpi-red{% else %}scl-kpi-green{% endif %}"><span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span><div><small>Écarts détectés</small><strong>{{ nb_ecarts }}</strong><em>{% if nb_ecarts %}contrôle{{ nb_ecarts|pluralize }} à vérifier{% else %}aucune anomalie{% endif %}</em></div></article>
+  </section>
+
+  <section class="scl-filter-card" aria-labelledby="scl-filter-title">
+    <div class="scl-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="scl-filter-title">Périmètre de consultation</h2><p>Choisissez les dates et l’employé, puis appliquez explicitement les filtres.</p></div></div>
+    <form method="get" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="scl-filter-field"><label for="scl-date-start">Date de début</label><input type="date" name="date_debut" id="scl-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div><div class="scl-filter-field"><label for="scl-date-end">Date de fin</label><input type="date" name="date_fin" id="scl-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div><div class="scl-filter-field scl-filter-user"><label for="scl-user">Employé</label><select name="user_id" id="scl-user" class="form-select" autocomplete="off"><option value="">Tous les employés</option>{% for u in users_list %}<option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div><p class="scl-filter-note"><i class="bi bi-list-check" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</p><div class="scl-filter-actions"><a href="{% url 'administration:solde-caisse-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-check2" aria-hidden="true"></i>Appliquer</button></div></form>
+  </section>
+
+  <details class="scl-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre le contrôle de caisse</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><div><strong>Solde calculé</strong><p>Somme des transactions non soldées rattachées à l’employé au moment du contrôle.</p></div><div><strong>Solde réel</strong><p>Montant effectivement constaté et saisi lors de la mise à jour de caisse.</p></div><div><strong>Écart</strong><p>Différence entre le solde réel et le solde calculé. Zéro indique une concordance.</p></div><div><strong>Détail</strong><p>La vue Transactions présente les écritures incluses dans le contrôle sélectionné.</p></div></div></details>
+
+  <section class="scl-panel" aria-labelledby="scl-results-title">
+    <header class="scl-panel-head"><div><div class="scl-section-label">Historique des contrôles</div><h2 id="scl-results-title">Soldes de caisse enregistrés</h2>{% if lignes %}<p>{{ total_count }} enregistrement{{ total_count|pluralize }} classé{{ total_count|pluralize }} du plus récent au plus ancien.</p>{% else %}<p>Aucun contrôle ne correspond au périmètre actuel.</p>{% endif %}</div>{% if lignes %}<span class="scl-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</span>{% endif %}</header>
+    {% if lignes %}
+    <div class="scl-table-wrap"><table class="scl-table"><caption class="visually-hidden">Historique des soldes calculés et réels par employé</caption><colgroup><col class="scl-col-date"><col class="scl-col-user"><col class="scl-col-money"><col class="scl-col-money"><col class="scl-col-gap"><col class="scl-col-note"><col class="scl-col-action"></colgroup><thead><tr><th scope="col">Date</th><th scope="col">Employé</th><th scope="col" class="scl-number-col">Solde calculé</th><th scope="col" class="scl-number-col">Solde réel</th><th scope="col" class="scl-number-col">Écart</th><th scope="col">Observation</th><th scope="col">Action</th></tr></thead><tbody>{% for h in lignes %}<tr class="{% if h.ecart != 0 %}scl-row-alert{% endif %}"><td><time datetime="{{ h.solde_at|date:'Y-m-d' }}">{{ h.solde_at|date:'d/m/Y' }}</time></td><td><span class="scl-user"><span aria-hidden="true"><i class="bi bi-person"></i></span><span><strong>{{ h.user.get_full_name|default:h.user.username }}</strong><small>{{ h.user.username }}</small></span></span></td><td class="scl-number-col"><strong class="scl-money">{{ h.calcul_solde|stringformat:'.3f' }}</strong><small>TND</small></td><td class="scl-number-col"><strong class="scl-money {% if h.ecart != 0 %}scl-negative{% endif %}">{{ h.correction_solde|stringformat:'.3f' }}</strong><small>TND</small></td><td class="scl-number-col"><strong class="scl-money {% if h.ecart != 0 %}scl-negative{% else %}scl-positive{% endif %}">{{ h.ecart|stringformat:'.3f' }}</strong>{% if h.ecart != 0 %}<span class="scl-status scl-status-alert">À vérifier</span>{% else %}<span class="scl-status scl-status-safe">Conforme</span>{% endif %}</td><td><span class="scl-observation">{{ h.observation|default:"Aucune observation" }}</span></td><td><a href="{% url 'administration:solde-caisse-transactions' h.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Visualiser</a></td></tr>{% endfor %}</tbody></table></div>
+    <div class="scl-card-list">{% for h in lignes %}<article class="scl-card {% if h.ecart != 0 %}scl-card-alert{% endif %}"><header><span class="scl-user"><span aria-hidden="true"><i class="bi bi-person"></i></span><span><strong>{{ h.user.get_full_name|default:h.user.username }}</strong><small>{{ h.solde_at|date:'d/m/Y' }}</small></span></span>{% if h.ecart != 0 %}<span class="scl-status scl-status-alert">À vérifier</span>{% else %}<span class="scl-status scl-status-safe">Conforme</span>{% endif %}</header><dl><div><dt>Solde calculé</dt><dd>{{ h.calcul_solde|stringformat:'.3f' }} TND</dd></div><div><dt>Solde réel</dt><dd>{{ h.correction_solde|stringformat:'.3f' }} TND</dd></div><div><dt>Écart</dt><dd class="{% if h.ecart != 0 %}scl-negative{% else %}scl-positive{% endif %}">{{ h.ecart|stringformat:'.3f' }} TND</dd></div></dl><p>{{ h.observation|default:"Aucune observation" }}</p><a href="{% url 'administration:solde-caisse-transactions' h.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Visualiser les transactions</a></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="scl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} enregistrement{{ total_count|pluralize }}</span><nav aria-label="Pagination des soldes de caisse"><ul class="scl-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;user_id={{ user_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;user_id={{ user_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;user_id={{ user_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="scl-empty"><span><i class="bi bi-wallet2" aria-hidden="true"></i></span><h3>Aucun solde de caisse</h3><p>Aucun contrôle n’est disponible pour cette période et cet employé.</p><a href="{% url 'administration:solde-caisse' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer une mise à jour</a></div>{% endif %}
+  </section>
 </div>
-
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Employé</label>
-          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les users —</option>
-            {% for u in users_list %}
-            <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:solde-caisse-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
-    </form>
-  </div>
-</div>
-
-{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:120px;">Date</th>
-            <th style="min-width:180px;">Employé</th>
-            <th style="min-width:150px;">Solde caisse calculé</th>
-            <th style="min-width:150px;">Solde caisse réel</th>
-            <th style="min-width:200px;">Observation</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for h in page_obj.object_list %}
-          <tr>
-            <td class="ps-3">
-              <input type="date" class="form-control form-control-sm" style="min-width:120px;"
-                     value="{{ h.solde_at|date:'Y-m-d' }}" disabled>
-            </td>
-            <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:180px;"
-                     value="{{ h.user.get_full_name|default:h.user.username }}" disabled>
-            </td>
-            <td>
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner font-monospace" style="min-width:150px;"
-                     value="{{ h.calcul_solde|stringformat:'s' }}" disabled>
-            </td>
-            <td>
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm no-spinner font-monospace{% if h.calcul_solde != h.correction_solde %} text-danger{% endif %}"
-                     style="min-width:150px;"
-                     value="{{ h.correction_solde|stringformat:'s' }}" disabled>
-            </td>
-            <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:200px;"
-                     value="{{ h.observation|default:'' }}" disabled>
-            </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                <a href="{% url 'administration:solde-caisse-transactions' h.pk %}"
-                   class="btn btn-sm btn-outline-secondary" title="Visualiser">
-                  <i class="bi bi-eye"></i>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} enregistrement{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-wallet2 fs-1 d-block mb-2 opacity-25"></i>
-      Aucun solde compte caisse sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if user_id %}avec ces filtres{% endif %}.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Soldes de caisse : tableau de bord ordinateur d'abord. */
+.cash-balance-dashboard{--scl-primary:#2c7be5;--scl-primary-dark:#1a4f9c;--scl-ink:#172033;--scl-muted:#667085;--scl-border:#e2e8f0;--scl-radius:1rem;max-width:1700px;margin:0 auto;color:var(--scl-ink)}
+.scl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.scl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.scl-hero-copy{min-width:0}.scl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.scl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.scl-hero-copy>p{margin:0;max-width:690px;color:rgba(255,255,255,.78);font-size:.84rem}.scl-hero-actions{display:flex;align-items:stretch;gap:.55rem}.scl-hero-meta{display:grid;grid-template-columns:1.2fr .8fr;min-width:390px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.scl-hero-meta div{min-width:0;padding:.5rem}.scl-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.scl-hero-meta span,.scl-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.61rem}.scl-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}.scl-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.75rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.scl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.scl-kpi{--scl-accent:#2c7be5;--scl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--scl-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.scl-kpi-blue{--scl-accent:#2c7be5;--scl-soft:#eaf2fd}.scl-kpi-green{--scl-accent:#198754;--scl-soft:#e9f6ef}.scl-kpi-violet{--scl-accent:#6f42c1;--scl-soft:#f1ebfb}.scl-kpi-red{--scl-accent:#dc3545;--scl-soft:#fdecee}.scl-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--scl-soft);color:var(--scl-accent);font-size:1.1rem}.scl-kpi small{display:block;color:var(--scl-muted);font-size:.64rem;font-weight:650}.scl-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.scl-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--scl-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.scl-filter-card,.scl-method,.scl-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--scl-border);border-radius:var(--scl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.scl-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.scl-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--scl-primary)}.scl-filter-head h2{margin:0;font-size:.88rem;font-weight:750}.scl-filter-head p{margin:.12rem 0 0;color:var(--scl-muted);font-size:.65rem}.scl-filter-card form{display:grid;grid-template-columns:155px 155px minmax(220px,300px) minmax(110px,1fr) auto;align-items:end;gap:.7rem;padding:.9rem 1rem}.scl-filter-field label{display:block;margin-bottom:.3rem;color:#344054;font-size:.65rem;font-weight:700}.scl-filter-field .form-control,.scl-filter-field .form-select{min-height:2.65rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.7rem}.scl-filter-note{display:flex;align-items:center;gap:.35rem;min-height:2.65rem;margin:0;color:var(--scl-muted);font-size:.61rem}.scl-filter-actions{display:flex;gap:.45rem}.scl-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;min-height:2.65rem;padding-inline:.7rem;border-radius:.58rem;font-size:.63rem;font-weight:700;white-space:nowrap}
+.scl-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.scl-method summary::-webkit-details-marker{display:none}.scl-method summary span{display:flex;align-items:center;gap:.4rem}.scl-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.scl-method[open] summary>i{transform:rotate(180deg)}.scl-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.scl-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.scl-method strong{font-size:.68rem}.scl-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.scl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.scl-section-label{color:var(--scl-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.scl-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.scl-panel-head p{margin:.15rem 0 0;color:var(--scl-muted);font-size:.7rem}.scl-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--scl-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.scl-table{width:100%;border-collapse:collapse;table-layout:fixed}.scl-col-date{width:10%}.scl-col-user{width:19%}.scl-col-money{width:13%}.scl-col-gap{width:13%}.scl-col-note{width:22%}.scl-col-action{width:10%}.scl-table thead{background:#f8fafc}.scl-table th{padding:.68rem .62rem;border-bottom:1px solid var(--scl-border);color:var(--scl-muted);font-size:.57rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.scl-table td{padding:.72rem .62rem;border-bottom:1px solid #edf0f4;font-size:.65rem;vertical-align:middle}.scl-table tbody tr:last-child td{border-bottom:0}.scl-table tbody tr:hover{background:#f8faff}.scl-row-alert{background:#fffafa}.scl-number-col{text-align:right!important}.scl-user{display:flex;align-items:center;gap:.5rem;min-width:0}.scl-user>span:first-child{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:50%;background:#eaf2fd;color:var(--scl-primary)}.scl-user>span:last-child{min-width:0}.scl-user strong,.scl-user small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.scl-user small{margin-top:.08rem;color:var(--scl-muted);font-size:.55rem}.scl-money{display:block;font-size:.7rem;font-variant-numeric:tabular-nums;white-space:nowrap}.scl-table td>small{display:block;margin-top:.06rem;color:var(--scl-muted);font-size:.53rem}.scl-positive{color:#18794e}.scl-negative{color:#b42332}.scl-status{display:inline-flex;align-items:center;margin-top:.16rem;padding:.18rem .35rem;border-radius:2rem;font-size:.53rem;font-weight:750;white-space:nowrap}.scl-status-safe{background:#e9f6ef;color:#18794e}.scl-status-alert{background:#fdecee;color:#b42332}.scl-observation{display:-webkit-box;overflow:hidden;color:#526071;font-size:.61rem;line-height:1.35;-webkit-box-orient:vertical;-webkit-line-clamp:2}.scl-table td>.btn{display:inline-flex;align-items:center;justify-content:center;gap:.25rem;min-height:2.2rem;padding:.35rem .48rem;border-radius:.52rem;font-size:.56rem;font-weight:700}.scl-card-list{display:none}
+.scl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.scl-pagination-footer>span{color:var(--scl-muted);font-size:.62rem}.scl-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.scl-pagination a,.scl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.scl-pagination .active{border-color:var(--scl-primary);background:var(--scl-primary);color:#fff}.scl-empty{padding:3rem 1rem;text-align:center}.scl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.scl-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.scl-empty p{margin:0;color:var(--scl-muted);font-size:.68rem}.scl-empty .btn{display:inline-flex;align-items:center;gap:.3rem;margin-top:.8rem;border-radius:.58rem;font-size:.65rem;font-weight:700}.cash-balance-dashboard a:focus-visible,.cash-balance-dashboard button:focus-visible,.cash-balance-dashboard input:focus-visible,.cash-balance-dashboard select:focus-visible,.cash-balance-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.scl-hero{grid-template-columns:auto minmax(0,1fr)}.scl-hero-actions{grid-column:1/-1}.scl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scl-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.scl-filter-note{grid-column:1/-1}.scl-filter-actions{grid-column:1/-1;justify-content:flex-end}.scl-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}.scl-table-wrap{display:none}.scl-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem;background:#f7f9fc}.scl-card{overflow:hidden;border:1px solid var(--scl-border);border-radius:.8rem;background:#fff}.scl-card-alert{border-color:#edbcc2}.scl-card>header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.scl-card dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:0;padding:.8rem}.scl-card dt{color:var(--scl-muted);font-size:.55rem;text-transform:uppercase}.scl-card dd{margin:.1rem 0 0;font-size:.67rem;font-weight:750}.scl-card>p{margin:0;padding:0 .8rem .8rem;color:#526071;font-size:.63rem}.scl-card>.btn{display:flex;align-items:center;justify-content:center;gap:.3rem;margin:0 .8rem .8rem;border-radius:.55rem;font-size:.62rem;font-weight:700}}
+@media(max-width:767.98px){.scl-hero-actions{align-items:stretch;flex-direction:column}.scl-hero-meta{min-width:0}.scl-card-list{grid-template-columns:1fr}.scl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.scl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.scl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.scl-hero-copy>p{font-size:.8rem}.scl-hero-meta{grid-template-columns:1fr}.scl-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.scl-kpi-grid{grid-template-columns:1fr}.scl-filter-card form{grid-template-columns:1fr}.scl-filter-note,.scl-filter-actions{grid-column:auto}.scl-filter-actions{flex-direction:column}.scl-method>div{grid-template-columns:1fr}.scl-panel-head{flex-direction:column;padding:.9rem}.scl-card dl{grid-template-columns:1fr}.scl-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}

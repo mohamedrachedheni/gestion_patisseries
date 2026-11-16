@@ -317,19 +317,23 @@ class TransfereForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['libelle'].required = True
+        # Rendu manuel dans le template : pas de saisie automatique du navigateur
+        # ni de liste de suggestions.
+        anti_auto = {
+            'autocomplete': 'new-password', 'aria-autocomplete': 'none',
+            'data-lpignore': 'true', 'data-1p-ignore': 'true', 'data-bwignore': 'true',
+        }
+        for name, css in (('transfere_at', 'form-control'), ('libelle', 'form-control'),
+                          ('montant', 'form-control no-spinner')):
+            w = self.fields[name].widget
+            w.attrs.pop('list', None)
+            w.attrs.update(anti_auto, **{'class': css, 'id': 'trf-' + name})
+        for name in ('compte_source', 'compte_destination'):
+            self.fields[name].widget.attrs.update(
+                {'class': 'form-select', 'autocomplete': 'off', 'id': 'trf-' + name},
+            )
         self.helper = FormHelper()
         self.helper.form_tag = False
-        self.helper.layout = Layout(
-            Row(
-                Column('transfere_at', css_class='col-md-4'),
-                Column('libelle',      css_class='col-md-8'),
-            ),
-            Row(
-                Column('compte_source',      css_class='col-md-6'),
-                Column('compte_destination', css_class='col-md-6'),
-            ),
-            'montant',
-        )
 
 
 class GouvernoratForm(forms.ModelForm):

@@ -3,261 +3,118 @@
 {% block title %}Produits semi-finis — Production{% endblock %}
 {% block page_title %}Produits semi-finis{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Produits semi-finis</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Produits semi-finis</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="family-directory">
+  <header class="fml-hero" aria-labelledby="fml-page-title">
+    <span class="fml-hero-icon" aria-hidden="true"><i class="bi bi-egg-fried"></i></span>
+    <div class="fml-hero-copy"><div class="fml-eyebrow"><i class="bi bi-basket" aria-hidden="true"></i> Approvisionnement de production</div><h1 id="fml-page-title">Produits semi-finis</h1><p>Préparations intermédiaires (crèmes, pâtes, garnitures…) utilisées dans vos recettes. Modifiez un produit directement dans sa ligne.</p></div>
+    <div class="fml-hero-actions"><div class="fml-count-card" aria-label="{{ total_count }} produits semi-finis"><strong>{{ total_count }}</strong><span>produit{{ total_count|pluralize }}</span></div></div>
+  </header>
 
-{# ── Partie 1 : liste des produits semi-finis ────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-egg-fried me-2 text-primary"></i>Produits semi-finis enregistrés
-  </div>
-
-  {# ── Barre de filtres ────────────────────────────────────────────────── #}
-  <div class="card-body py-3 border-bottom">
-    <form method="get" id="filter-form">
-      <div class="row g-2 align-items-end">
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Nom</label>
-          <input type="text" name="nom" value="{{ nom }}"
-                 class="form-control form-control-sm" placeholder="Rechercher par nom…" data-autosubmit>
-        </div>
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Famille</label>
-          <select name="famille_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Toutes les familles —</option>
-            {% for f in familles_list %}
-            <option value="{{ f.pk }}" {% if famille_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.famille }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <div class="form-check mt-4">
-            <input type="checkbox" name="quantite_faible" value="1" id="quantite_faible"
-                   class="form-check-input" {% if quantite_faible %}checked{% endif %} data-autosubmit>
-            <label class="form-check-label small" for="quantite_faible">
-              Quantité inférieure au stock minimum
-            </label>
-          </div>
-        </div>
-
-        <div class="col-auto">
-          <a href="{% url 'production:produit-semi-fini-list' %}"
-             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
-    </form>
-  </div>
-
-  {# ── Tableau ──────────────────────────────────────────────────────────── #}
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    {% comment %}
-      Les <form> vivent hors du tableau (foster parenting HTML5) ; les
-      champs de chaque ligne s'y rattachent via l'attribut form="...".
-    {% endcomment %}
-    {% for mp in page_obj.object_list %}
-    <form id="psf-update-{{ mp.pk }}" method="post" action="{% url 'production:produit-semi-fini-update' mp.pk %}"></form>
-    <form id="psf-delete-{{ mp.pk }}" method="post" action="{% url 'production:produit-semi-fini-delete' mp.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Nom</th>
-            <th>Famille</th>
-            <th>Unité</th>
-            <th class="text-end">Quantité</th>
-            <th class="text-end">Stock minimum</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for mp in page_obj.object_list %}
-          <tr>
-            <td class="ps-3" style="min-width:180px;">
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="psf-update-{{ mp.pk }}">
-              <input type="text" name="nom" value="{{ mp.nom }}" style="min-width:180px;"
-                     class="form-control form-control-sm" form="psf-update-{{ mp.pk }}">
-            </td>
-            <td style="min-width:160px;">
-              <select name="matiere_premiere_famille" class="form-select form-select-sm" style="min-width:160px;" form="psf-update-{{ mp.pk }}">
-                <option value="">— Aucune —</option>
-                {% for f in familles_list %}
-                <option value="{{ f.pk }}" {% if f.pk == mp.matiere_premiere_famille_id %}selected{% endif %}>{{ f.famille }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td style="min-width:130px;">
-              <select name="unite" class="form-select form-select-sm" style="min-width:130px;" form="psf-update-{{ mp.pk }}">
-                <option value="">—</option>
-                {% for value, label in unite_choices %}
-                <option value="{{ value }}" {% if value == mp.unite %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001" name="quantite"
-                     value="{{ mp.quantite|default_if_none:'0'|stringformat:'s' }}"
-                     class="form-control form-control-sm text-end no-spinner" form="psf-update-{{ mp.pk }}">
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001" name="stock_minimum"
-                     value="{{ mp.stock_minimum|default_if_none:'0'|stringformat:'s' }}"
-                     class="form-control form-control-sm text-end no-spinner" form="psf-update-{{ mp.pk }}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="submit" form="psf-update-{{ mp.pk }}"
-                      class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="psf-delete-{{ mp.pk }}">
-              <button type="submit" form="psf-delete-{{ mp.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                      onclick="return confirm('Supprimer le produit semi-fini « {{ mp.nom|escapejs }} » ?');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination (max 4 lignes) ───────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} produit{{ total_count|pluralize }} semi-fini{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?nom={{ nom }}&famille_id={{ famille_id }}&quantite_faible={{ quantite_faible }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?nom={{ nom }}&famille_id={{ famille_id }}&quantite_faible={{ quantite_faible }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?nom={{ nom }}&famille_id={{ famille_id }}&quantite_faible={{ quantite_faible }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-egg-fried fs-1 d-block mb-2 opacity-25"></i>
-      Aucun produit semi-fini ne correspond à ces critères.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Partie 2 : ajout d'un nouveau produit semi-fini ─────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter un produit semi-fini
-  </div>
-  <div class="card-body">
-    <form method="post" action="{% url 'production:produit-semi-fini-create' %}">
+  <section class="fml-panel" aria-labelledby="fml-add-title">
+    <header class="fml-panel-head"><span class="fml-step" aria-hidden="true"><i class="bi bi-plus-lg"></i></span><div><h2 id="fml-add-title">Ajouter un produit semi-fini</h2><p>Le nom doit être unique parmi les produits et les matières premières.</p></div></header>
+    <form method="post" action="{% url 'production:produit-semi-fini-create' %}" id="fml-add-form" class="psf-add-form" novalidate autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
       {% csrf_token %}
-      <div class="row g-2 align-items-end">
-
-        <div class="col-sm-6 col-md-3">
-          <label class="form-label small mb-1">Nom du produit semi-fini</label>
-          <input type="text" name="nom" class="form-control" {% if focus_nom %}autofocus{% endif %}>
-        </div>
-
-        <div class="col-sm-6 col-md-3">
-          <label class="form-label small mb-1">Famille</label>
-          <select name="matiere_premiere_famille" class="form-select">
-            <option value="">— Aucune —</option>
-            {% for f in familles_list %}
-            <option value="{{ f.pk }}">{{ f.famille }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-sm-4 col-md-2">
-          <label class="form-label small mb-1">Unité</label>
-          <select name="unite" class="form-select">
-            <option value="">—</option>
-            {% for value, label in unite_choices %}
-            <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div class="col-sm-4 col-md-2">
-          <label class="form-label small mb-1">Quantité</label>
-          <input type="number" step="0.001" name="quantite" value="0" class="form-control no-spinner">
-        </div>
-
-        <div class="col-sm-4 col-md-2">
-          <label class="form-label small mb-1">Stock minimum</label>
-          <input type="number" step="0.001" name="stock_minimum" value="0" class="form-control no-spinner">
-        </div>
-
-      </div>
-      <div class="d-flex justify-content-end mt-3">
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-plus-lg me-1"></i>Créer un nouveau produit semi-fini
-        </button>
-      </div>
+      <div class="fml-field psf-c2"><label for="psf-new-nom">Nom du produit semi-fini <span class="fml-req" aria-hidden="true">*</span></label><input type="text" name="nom" id="psf-new-nom" required maxlength="100" class="form-control" placeholder="Ex. : Crème pâtissière" {% if focus_nom %}autofocus{% endif %} autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      <div class="fml-field"><label for="psf-new-famille">Famille <span class="fml-opt">(facultatif)</span></label><select name="matiere_premiere_famille" id="psf-new-famille" class="form-select" autocomplete="off"><option value="">— Aucune —</option>{% for f in familles_list %}<option value="{{ f.pk }}">{{ f.famille }}</option>{% endfor %}</select></div>
+      <div class="fml-field"><label for="psf-new-unite">Unité <span class="fml-opt">(facultatif)</span></label><select name="unite" id="psf-new-unite" class="form-select" autocomplete="off"><option value="">—</option>{% for value, label in unite_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <div class="fml-field"><label for="psf-new-quantite">Quantité en stock</label><input type="number" step="0.001" name="quantite" id="psf-new-quantite" value="0" class="form-control no-spinner" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      <div class="fml-field"><label for="psf-new-min">Stock minimum</label><input type="number" step="0.001" name="stock_minimum" id="psf-new-min" value="0" class="form-control no-spinner" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      <div class="fml-add-action psf-cfull"><button type="submit" class="btn btn-primary" id="fml-add-submit"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer le produit semi-fini</button></div>
     </form>
-  </div>
-</div>
+  </section>
 
+  <section class="fml-panel" aria-labelledby="fml-filter-title">
+    <header class="fml-panel-head"><span class="fml-step" aria-hidden="true"><i class="bi bi-funnel"></i></span><div><h2 id="fml-filter-title">Filtrer les produits semi-finis</h2><p>Choisissez vos critères, puis appliquez les filtres.</p></div>{% if nom or famille_id or quantite_faible %}<span class="psf-active"><i class="bi bi-check-circle" aria-hidden="true"></i> Filtres actifs</span>{% endif %}</header>
+    <form method="get" id="psf-filter-form" class="psf-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="fml-field"><label for="psf-nom">Nom</label><input type="search" name="nom" id="psf-nom" value="{{ nom }}" class="form-control" placeholder="Rechercher par nom…" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></div>
+      <div class="fml-field"><label for="psf-famille">Famille</label><select name="famille_id" id="psf-famille" class="form-select" autocomplete="off"><option value="">Toutes les familles</option>{% for f in familles_list %}<option value="{{ f.pk }}" {% if famille_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.famille }}</option>{% endfor %}</select></div>
+      <div class="fml-field psf-check"><div class="form-check form-switch"><input type="checkbox" name="quantite_faible" value="1" id="quantite_faible" class="form-check-input" role="switch" {% if quantite_faible %}checked{% endif %}><label class="form-check-label" for="quantite_faible">Sous le stock minimum</label></div></div>
+      <div class="psf-filter-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i>Appliquer</button>{% if nom or famille_id or quantite_faible %}<a href="{% url 'production:produit-semi-fini-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>{% endif %}</div>
+    </form>
+  </section>
+
+  <section class="fml-panel" aria-labelledby="fml-list-title">
+    <header class="fml-panel-head"><span class="fml-step" aria-hidden="true"><i class="bi bi-list-ul"></i></span><div><h2 id="fml-list-title">{% if nom or famille_id or quantite_faible %}Résultats filtrés{% else %}Produits semi-finis enregistrés{% endif %}</h2>{% if page_obj.object_list %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ total_count }}, classés par nom.</p>{% else %}<p>Aucun produit ne correspond aux critères actuels.</p>{% endif %}</div></header>
+
+    {% if page_obj.object_list %}
+    {# Les <form> vivent hors du tableau (HTML5) ; les champs s'y rattachent via form="…". #}
+    {% for mp in page_obj.object_list %}
+    <form id="psf-update-{{ mp.pk }}" method="post" action="{% url 'production:produit-semi-fini-update' mp.pk %}" autocomplete="off" data-form-type="other">{% csrf_token %}</form>
+    <form id="psf-delete-{{ mp.pk }}" method="post" action="{% url 'production:produit-semi-fini-delete' mp.pk %}">{% csrf_token %}</form>
+    {% endfor %}
+
+    <div class="fml-table-wrap"><table class="fml-table psf-table"><caption class="visually-hidden">Liste des produits semi-finis, modifiables directement</caption><thead><tr><th scope="col">Nom</th><th scope="col">Famille</th><th scope="col">Unité</th><th scope="col" class="psf-num">Quantité</th><th scope="col" class="psf-num">Stock minimum</th><th scope="col" class="fml-actions-col">Actions</th></tr></thead><tbody>
+      {% for mp in page_obj.object_list %}<tr>
+        <td data-label="Nom"><label class="visually-hidden" for="psf-n-{{ mp.pk }}">Nom</label><input type="text" name="nom" id="psf-n-{{ mp.pk }}" value="{{ mp.nom }}" maxlength="100" required class="form-control" form="psf-update-{{ mp.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% if mp.quantite is not None and mp.stock_minimum is not None and mp.quantite < mp.stock_minimum %}<span class="psf-low"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Stock faible</span>{% endif %}</td>
+        <td data-label="Famille"><label class="visually-hidden" for="psf-f-{{ mp.pk }}">Famille</label><select name="matiere_premiere_famille" id="psf-f-{{ mp.pk }}" class="form-select" form="psf-update-{{ mp.pk }}" autocomplete="off"><option value="">— Aucune —</option>{% for f in familles_list %}<option value="{{ f.pk }}" {% if f.pk == mp.matiere_premiere_famille_id %}selected{% endif %}>{{ f.famille }}</option>{% endfor %}</select></td>
+        <td data-label="Unité"><label class="visually-hidden" for="psf-u-{{ mp.pk }}">Unité</label><select name="unite" id="psf-u-{{ mp.pk }}" class="form-select" form="psf-update-{{ mp.pk }}" autocomplete="off"><option value="">—</option>{% for value, label in unite_choices %}<option value="{{ value }}" {% if value == mp.unite %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+        <td data-label="Quantité" class="psf-num"><label class="visually-hidden" for="psf-q-{{ mp.pk }}">Quantité</label><input type="number" step="0.001" name="quantite" id="psf-q-{{ mp.pk }}" value="{{ mp.quantite|default_if_none:'0'|stringformat:'s' }}" class="form-control text-end no-spinner" form="psf-update-{{ mp.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></td>
+        <td data-label="Stock minimum" class="psf-num"><label class="visually-hidden" for="psf-m-{{ mp.pk }}">Stock minimum</label><input type="number" step="0.001" name="stock_minimum" id="psf-m-{{ mp.pk }}" value="{{ mp.stock_minimum|default_if_none:'0'|stringformat:'s' }}" class="form-control text-end no-spinner" form="psf-update-{{ mp.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></td>
+        <td class="fml-actions-col"><div class="fml-row-actions"><button type="submit" form="psf-update-{{ mp.pk }}" class="btn btn-outline-primary" aria-label="Enregistrer {{ mp.nom }}"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="psf-btn-text">Enregistrer</span></button><button type="button" class="btn btn-outline-danger fml-delete-btn" data-form="psf-delete-{{ mp.pk }}" data-name="{{ mp.nom }}" aria-label="Supprimer {{ mp.nom }}"><i class="bi bi-trash" aria-hidden="true"></i><span class="psf-btn-text">Supprimer</span></button></div></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+
+    {% if is_paginated %}<footer class="fml-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} produit{{ total_count|pluralize }}</span><nav aria-label="Pagination des produits semi-finis"><ul class="fml-pagination">{% if page_obj.has_previous %}<li><a href="?nom={{ nom|urlencode }}&amp;famille_id={{ famille_id|urlencode }}&amp;quantite_faible={{ quantite_faible|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?nom={{ nom|urlencode }}&amp;famille_id={{ famille_id|urlencode }}&amp;quantite_faible={{ quantite_faible|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?nom={{ nom|urlencode }}&amp;famille_id={{ famille_id|urlencode }}&amp;quantite_faible={{ quantite_faible|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}
+    <div class="fml-empty-state"><span class="fml-empty-icon"><i class="bi {% if nom or famille_id or quantite_faible %}bi-search{% else %}bi-egg-fried{% endif %}" aria-hidden="true"></i></span>{% if nom or famille_id or quantite_faible %}<h2>Aucun produit semi-fini trouvé</h2><p>Modifiez les critères ou réinitialisez les filtres.</p>{% else %}<h2>Aucun produit semi-fini enregistré</h2><p>Ajoutez le premier avec le formulaire ci-dessus.</p>{% endif %}</div>
+    {% endif %}
+  </section>
+
+  <div class="modal fade" id="fml-confirm-modal" tabindex="-1" aria-labelledby="fml-confirm-title" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="fml-confirm-title">Supprimer ce produit semi-fini ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="mb-1">Vous allez supprimer <strong id="fml-confirm-name"></strong>.</p><p class="mb-0 text-muted small">La matière première associée est supprimée avec lui. Si le produit est utilisé (recettes, achats, commandes…), la suppression sera refusée.</p></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" id="fml-confirm-ok"><i class="bi bi-trash" aria-hidden="true"></i> Supprimer le produit</button></div></div></div></div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* Produits semi-finis : ordinateur d'abord, même système que le catalogue produits. */
+.family-directory{--fml-primary:#2c7be5;--fml-muted:#667085;--fml-border:#e2e8f0;--fml-ink:#172033;max-width:1100px;margin:0 auto;color:var(--fml-ink)}
+.fml-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.fml-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}.fml-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.fml-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.4rem,2vw,1.9rem);font-weight:750;letter-spacing:-.02em}.fml-hero-copy>p{margin:0;max-width:680px;color:rgba(255,255,255,.78);font-size:.85rem}.fml-count-card{display:flex;flex-direction:column;align-items:center;min-width:5.5rem;padding:.6rem .9rem;border:1px solid rgba(255,255,255,.3);border-radius:.8rem;background:rgba(255,255,255,.14)}.fml-count-card strong{font-size:1.6rem;line-height:1}.fml-count-card span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em}
+.fml-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--fml-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.fml-panel-head{display:flex;align-items:center;gap:.8rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.fml-step{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:var(--fml-primary);color:#fff;font-size:.85rem}.fml-panel-head h2{margin:0;font-size:1rem;font-weight:750}.fml-panel-head p{margin:.12rem 0 0;color:var(--fml-muted);font-size:.72rem}
+.fml-add-form{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,5fr) auto;align-items:end;gap:1rem;padding:1.1rem 1.2rem}.fml-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.75rem;font-weight:700}.fml-req{color:#b42318}.fml-opt{color:var(--fml-muted);font-weight:500}
+.fml-panel .form-control{min-height:2.7rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.fml-panel .form-control:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}
+.fml-panel .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.7rem;padding-inline:1rem;border-radius:.6rem;font-size:.78rem;font-weight:700;white-space:nowrap}
+.fml-table-wrap{overflow-x:auto}.fml-table{width:100%;border-collapse:collapse;table-layout:fixed}.fml-table th{padding:.7rem 1rem;border-bottom:1px solid #edf0f4;background:#f7f9fc;color:#526071;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-align:left;text-transform:uppercase}.fml-table td{padding:.6rem 1rem;border-bottom:1px solid #f0f2f6;vertical-align:middle}.fml-table tbody tr:hover{background:#fafcff}.fml-table th:nth-child(1){width:32%}.fml-table th:nth-child(3){width:25%}.fml-actions-col{text-align:right}.fml-row-actions{display:flex;justify-content:flex-end;gap:.4rem}
+.fml-pagination-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem 1.2rem;border-top:1px solid #edf0f4;color:var(--fml-muted);font-size:.75rem}.fml-pagination{display:flex;gap:.3rem;margin:0;padding:0;list-style:none}.fml-pagination a,.fml-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.2rem;height:2.2rem;border:1px solid #dce3eb;border-radius:.5rem;color:#344054;font-size:.78rem;font-weight:700;text-decoration:none}.fml-pagination a:hover{background:#f1f6fd}.fml-pagination .active{border-color:var(--fml-primary);background:var(--fml-primary);color:#fff}
+.fml-empty-state{padding:2.6rem 1rem;text-align:center}.fml-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:3.6rem;height:3.6rem;border-radius:50%;background:#eef4fc;color:var(--fml-primary);font-size:1.5rem}.fml-empty-state h2{margin:.8rem 0 .2rem;font-size:1.05rem;font-weight:750}.fml-empty-state p{margin:0;color:var(--fml-muted);font-size:.82rem}
+.family-directory a:focus-visible,.family-directory button:focus-visible,.family-directory input:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:991.98px){.fml-hero{grid-template-columns:auto minmax(0,1fr)}.fml-hero-actions{grid-column:1/-1}.fml-add-form{grid-template-columns:1fr 1fr}.fml-add-action{grid-column:1/-1}.fml-add-action .btn{width:100%}
+.fml-table thead{display:none}.fml-table,.fml-table tbody,.fml-table tr,.fml-table td{display:block;width:100%}.fml-table tr{padding:.8rem 1rem;border-bottom:1px solid #edf0f4}.fml-table td{padding:.3rem 0;border:0}.fml-table td[data-label]::before{content:attr(data-label);display:block;margin-bottom:.2rem;color:#526071;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.fml-row-actions{justify-content:stretch}.fml-row-actions .btn{flex:1}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.fml-hero{padding:1rem}.fml-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.fml-add-form{grid-template-columns:1fr}}
+.psf-add-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;padding:1.1rem 1.2rem}.psf-c2{grid-column:span 2}.psf-cfull{grid-column:1/-1;display:flex;justify-content:flex-end}.psf-filter-form{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,3fr) minmax(0,3fr) auto;align-items:end;gap:1rem;padding:1.1rem 1.2rem}.psf-check{padding-bottom:.6rem}.psf-filter-actions{display:flex;gap:.5rem}.psf-active{margin-left:auto;color:#067647;font-size:.72rem;font-weight:700}.fml-panel .form-select{min-height:2.7rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.fml-table td .form-control,.fml-table td .form-select{min-height:2.5rem}.psf-table th:nth-child(1){width:24%}.psf-table th:nth-child(2){width:17%}.psf-table th:nth-child(3){width:12%}.psf-table th:nth-child(4),.psf-table th:nth-child(5){width:13%}.psf-table th:nth-child(6){width:21%}.psf-num{text-align:right!important}.psf-low{display:inline-flex;align-items:center;gap:.3rem;margin-top:.3rem;padding:.12rem .5rem;border-radius:2rem;background:#fef3f2;color:#b42318;font-size:.66rem;font-weight:700}@media(max-width:1199.98px){.psf-btn-text{display:none}.psf-table th:nth-child(6){width:14%}}@media(max-width:991.98px){.psf-add-form{grid-template-columns:1fr 1fr}.psf-filter-form{grid-template-columns:1fr 1fr}.psf-filter-actions{grid-column:1/-1}.psf-btn-text{display:inline}.psf-num{text-align:left!important}}@media(max-width:575.98px){.psf-add-form,.psf-filter-form{grid-template-columns:1fr}.psf-c2{grid-column:auto}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
+(function () {
+  var modalEl = document.getElementById('fml-confirm-modal');
+  var nameEl = document.getElementById('fml-confirm-name');
+  var okBtn = document.getElementById('fml-confirm-ok');
+  var pending = null;
+  document.querySelectorAll('.fml-delete-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      pending = document.getElementById(b.getAttribute('data-form'));
+      nameEl.textContent = '« ' + b.getAttribute('data-name') + ' »';
+      if (window.bootstrap && modalEl) { bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
+      else if (window.confirm('Supprimer la famille ' + b.getAttribute('data-name') + ' ?')) { pending.submit(); }
+    });
   });
-});
+  okBtn.addEventListener('click', function () {
+    if (!pending) { return; }
+    okBtn.disabled = true;
+    pending.submit();
+  });
+  var add = document.getElementById('fml-add-form'), addBtn = document.getElementById('fml-add-submit');
+  if (add && addBtn) {
+    add.addEventListener('submit', function () {
+      window.setTimeout(function () { addBtn.disabled = true; addBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Ajout…'; }, 0);
+    });
+  }
+  var s = document.getElementById('psf-nom');
+  if (s) { s.addEventListener('focus', function () { s.removeAttribute('readonly'); }); }
+  // Entrée dans une ligne = enregistrer cette ligne (comportement natif via form="…").
+})();
 </script>
 {% endblock %}

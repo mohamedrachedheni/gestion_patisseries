@@ -1,51 +1,68 @@
 {% extends "production/base.html" %}
-{% load crispy_forms_tags %}
 
 {% block title %}{{ title }} — Production{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'production:matiere-premiere-list' %}">Matières premières</a></li>
-    {% if matiere_premiere %}
-    <li class="breadcrumb-item">
-      <a href="{% url 'production:matiere-premiere-detail' matiere_premiere.pk %}">{{ matiere_premiere.nom }}</a>
-    </li>
-    {% endif %}
-    <li class="breadcrumb-item active">{{ title }}</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'production:matiere-premiere-list' %}">Matières premières</a></li>{% if matiere_premiere %}<li class="breadcrumb-item"><a href="{% url 'production:matiere-premiere-detail' matiere_premiere.pk %}">{{ matiere_premiere.nom }}</a></li>{% endif %}<li class="breadcrumb-item active" aria-current="page">{% if is_update %}Modifier{% else %}Nouvelle matière première{% endif %}</li></ol></nav>{% endblock %}
 
 {% block content %}
-<div class="row g-4">
+<div class="material-form">
+  <header class="mpf-hero" aria-labelledby="mpf-page-title">
+    <span class="mpf-hero-icon" aria-hidden="true"><i class="bi {% if is_update %}bi-pencil-square{% else %}bi-egg-fried{% endif %}"></i></span>
+    <div class="mpf-hero-copy"><div class="mpf-eyebrow"><i class="bi bi-basket" aria-hidden="true"></i> Approvisionnement de production</div><h1 id="mpf-page-title">{% if is_update %}Modifier la matière première « {{ matiere_premiere.nom }} »{% else %}Nouvelle matière première{% endif %}</h1><p>{% if is_update %}Corrigez le nom, la famille, l’unité ou les quantités de cette matière première.{% else %}Renseignez le nom, l’unité et les quantités. Les champs marqués d’un astérisque sont obligatoires.{% endif %}</p></div>
+    <div class="mpf-hero-actions"><a href="{% if matiere_premiere %}{% url 'production:matiere-premiere-detail' matiere_premiere.pk %}{% else %}{% url 'production:matiere-premiere-list' %}{% endif %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>{% if matiere_premiere %}Retour à la fiche{% else %}Revenir à la liste{% endif %}</a></div>
+  </header>
 
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-transparent fw-semibold py-3">
-        <i class="bi bi-egg-fried me-2 text-primary"></i>Informations matière première
+  <form method="post" id="mpf-form" novalidate autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="mpf-alert" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>{% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div></div>{% elif form.errors %}<div class="mpf-alert" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div>La matière première n’a pas été enregistrée. Vos informations sont conservées : corrigez les champs signalés ci-dessous puis réessayez.</div></div>{% endif %}
+
+    <section class="mpf-panel" aria-labelledby="mpf-s1">
+      <header class="mpf-panel-head"><span class="mpf-step" aria-hidden="true">1</span><div><h2 id="mpf-s1">Identification</h2><p>Le nom de l’ingrédient et la famille à laquelle il appartient.</p></div></header>
+      <div class="mpf-grid mpf-grid-2">
+        <div class="mpf-field"><label for="{{ form.nom.id_for_label }}">Nom de la matière première <span class="mpf-req" aria-hidden="true">*</span></label>{{ form.nom }}{% for e in form.nom.errors %}<div class="mpf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="mpf-field"><label for="{{ form.matiere_premiere_famille.id_for_label }}">Famille <span class="mpf-opt">(facultatif)</span></label>{{ form.matiere_premiere_famille }}{% for e in form.matiere_premiere_famille.errors %}<div class="mpf-error" role="alert">{{ e }}</div>{% endfor %}</div>
       </div>
-      <div class="card-body">
-        <form method="post" novalidate>
-          {% csrf_token %}
-          {% crispy form %}
+    </section>
 
-          <div class="d-flex gap-2 justify-content-end mt-2">
-            <a href="{% if matiere_premiere %}{% url 'production:matiere-premiere-detail' matiere_premiere.pk %}{% else %}{% url 'production:matiere-premiere-list' %}{% endif %}"
-               class="btn btn-outline-secondary">
-              Annuler
-            </a>
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-check-lg me-1"></i>
-              {% if is_update %}Enregistrer les modifications{% else %}Créer une nouvelle matière première{% endif %}
-            </button>
-          </div>
-        </form>
+    <section class="mpf-panel" aria-labelledby="mpf-s2">
+      <header class="mpf-panel-head"><span class="mpf-step" aria-hidden="true">2</span><div><h2 id="mpf-s2">Unité et stock</h2><p>L’unité de mesure, la quantité en stock et le seuil qui déclenche l’alerte « Stock faible ».</p></div></header>
+      <div class="mpf-grid mpf-grid-3">
+        <div class="mpf-field"><label for="{{ form.unite.id_for_label }}">Unité</label>{{ form.unite }}{% for e in form.unite.errors %}<div class="mpf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="mpf-field"><label for="{{ form.quantite.id_for_label }}">Quantité en stock <span class="mpf-opt">(facultatif)</span></label>{{ form.quantite }}<small>Quantité actuellement disponible.</small>{% for e in form.quantite.errors %}<div class="mpf-error" role="alert">{{ e }}</div>{% endfor %}</div>
+        <div class="mpf-field"><label for="{{ form.stock_minimum.id_for_label }}">Stock minimum <span class="mpf-opt">(facultatif)</span></label>{{ form.stock_minimum }}<small>Sous ce seuil, le stock est signalé comme faible.</small>{% for e in form.stock_minimum.errors %}<div class="mpf-error" role="alert">{{ e }}</div>{% endfor %}</div>
       </div>
-    </div>
-  </div>
-
+      <footer class="mpf-footer"><a href="{% if matiere_premiere %}{% url 'production:matiere-premiere-detail' matiere_premiere.pk %}{% else %}{% url 'production:matiere-premiere-list' %}{% endif %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg" aria-hidden="true"></i>Annuler</a><button type="submit" class="btn btn-primary" id="mpf-submit"><i class="bi bi-check-lg" aria-hidden="true"></i>{% if is_update %}Enregistrer les modifications{% else %}Créer la matière première{% endif %}</button></footer>
+    </section>
+  </form>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* Formulaire matière première : ordinateur d'abord, même système que le formulaire produit. */
+.material-form{--mpf-primary:#2c7be5;--mpf-muted:#667085;--mpf-border:#e2e8f0;--mpf-ink:#172033;max-width:1100px;margin:0 auto;color:var(--mpf-ink)}
+.mpf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.mpf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}.mpf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.mpf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.4rem,2vw,1.9rem);font-weight:750;letter-spacing:-.02em;overflow-wrap:anywhere}.mpf-hero-copy>p{margin:0;max-width:680px;color:rgba(255,255,255,.78);font-size:.85rem}.mpf-hero-actions .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:3rem;border-radius:.68rem;color:#194f89;font-size:.72rem;font-weight:750;white-space:nowrap}
+.mpf-alert{display:flex;align-items:flex-start;gap:.6rem;margin-top:1rem;padding:.8rem 1rem;border:1px solid #f1b8b3;border-radius:.7rem;background:#fdeceb;color:#8a1f15;font-size:.8rem}.mpf-alert i{margin-top:.1rem}
+.mpf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--mpf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.mpf-panel-head{display:flex;align-items:center;gap:.8rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.mpf-step{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:var(--mpf-primary);color:#fff;font-size:.8rem;font-weight:800}.mpf-panel-head h2{margin:0;font-size:1rem;font-weight:750}.mpf-panel-head p{margin:.12rem 0 0;color:var(--mpf-muted);font-size:.72rem}
+.mpf-grid{display:grid;gap:1rem;padding:1.1rem 1.2rem}.mpf-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.mpf-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.mpf-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.75rem;font-weight:700}.mpf-field .form-control,.mpf-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.85rem}.mpf-field .form-control:focus,.mpf-field .form-select:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.mpf-field small{display:block;margin-top:.3rem;color:var(--mpf-muted);font-size:.68rem}.mpf-req{color:#b42318}.mpf-opt{color:var(--mpf-muted);font-weight:500}.mpf-error{margin-top:.3rem;color:#b42318;font-size:.72rem;font-weight:600}
+.mpf-footer{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.2rem;border-top:1px solid #edf0f4;background:#fbfcfe}.mpf-footer .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;padding-inline:1.1rem;border-radius:.6rem;font-size:.78rem;font-weight:700}
+.material-form a:focus-visible,.material-form button:focus-visible,.material-form input:focus-visible,.material-form select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:991.98px){.mpf-hero{grid-template-columns:auto minmax(0,1fr)}.mpf-hero-actions{grid-column:1/-1}.mpf-grid-3{grid-template-columns:1fr 1fr}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.mpf-hero{padding:1rem}.mpf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.mpf-grid-2,.mpf-grid-3{grid-template-columns:1fr}.mpf-footer{flex-direction:column-reverse}}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var form = document.getElementById('mpf-form'), btn = document.getElementById('mpf-submit');
+  if (!form || !btn) { return; }
+  form.addEventListener('submit', function () {
+    window.setTimeout(function () { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement…'; }, 0);
+  });
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); }
+  });
+})();
+</script>
 {% endblock %}

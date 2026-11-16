@@ -3,198 +3,64 @@
 {% block title %}Délégations — Administration{% endblock %}
 {% block page_title %}Délégations{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Délégations</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Délégations</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="delegation-dashboard">
+  <header class="dgl-hero" aria-labelledby="dgl-page-title">
+    <span class="dgl-hero-icon" aria-hidden="true"><i class="bi bi-signpost-2"></i></span>
+    <div class="dgl-hero-copy"><div class="dgl-eyebrow"><i class="bi bi-map" aria-hidden="true"></i> Référentiel géographique</div><h1 id="dgl-page-title">Délégations</h1><p>Gérez le niveau intermédiaire entre les gouvernorats et les zones utilisées pour localiser les clients et analyser l’activité.</p></div>
+    <div class="dgl-hero-meta"><div><span>Délégations</span><strong>{{ total_delegations }}</strong><small>entrée{{ total_delegations|pluralize }} enregistrée{{ total_delegations|pluralize }}</small></div><div><span>Couverture</span><strong>{{ nb_gouvernorats_couverts }} gouvernorat{{ nb_gouvernorats_couverts|pluralize }}</strong><small>{{ total_zones }} zone{{ total_zones|pluralize }} rattachée{{ total_zones|pluralize }}</small></div></div>
+  </header>
 
-{# ── Section de filtres ───────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+  <section class="dgl-kpi-grid" aria-label="Synthèse des délégations">
+    <article class="dgl-kpi dgl-kpi-blue"><span><i class="bi bi-signpost-2" aria-hidden="true"></i></span><div><small>Délégations</small><strong>{{ total_delegations }}</strong><em>niveau territorial intermédiaire</em></div></article>
+    <article class="dgl-kpi dgl-kpi-violet"><span><i class="bi bi-geo-alt" aria-hidden="true"></i></span><div><small>Gouvernorats couverts</small><strong>{{ nb_gouvernorats_couverts }}</strong><em>avec au moins une délégation</em></div></article>
+    <article class="dgl-kpi dgl-kpi-green"><span><i class="bi bi-pin-map" aria-hidden="true"></i></span><div><small>Zones rattachées</small><strong>{{ total_zones }}</strong><em>dernier niveau géographique</em></div></article>
+    <article class="dgl-kpi {% if nb_sans_zone %}dgl-kpi-orange{% else %}dgl-kpi-green{% endif %}"><span><i class="bi bi-diagram-3" aria-hidden="true"></i></span><div><small>Sans zone</small><strong>{{ nb_sans_zone }}</strong><em>{% if nb_sans_zone %}structure à compléter{% else %}référentiel entièrement structuré{% endif %}</em></div></article>
+  </section>
 
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Gouvernorat</label>
-          <select name="gouvernorat_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les gouvernorats —</option>
-            {% for g in gouvernorats_list %}
-            <option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>
-              {{ g.nom }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
+  <section class="dgl-filter-card" aria-labelledby="dgl-filter-title">
+    <div class="dgl-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="dgl-filter-title">Filtrer le référentiel</h2><p>Limitez la liste à un gouvernorat, puis appliquez explicitement le filtre.</p></div></div>
+    <form method="get" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="dgl-filter-field"><label for="dgl-filter-governorate">Gouvernorat</label><select name="gouvernorat_id" id="dgl-filter-governorate" class="form-select" autocomplete="off"><option value="">Tous les gouvernorats</option>{% for g in gouvernorats_list %}<option value="{{ g.pk }}" {% if gouvernorat_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>{% endfor %}</select></div><p class="dgl-filter-note"><i class="bi bi-list-check" aria-hidden="true"></i>{{ filtered_count }} délégation{{ filtered_count|pluralize }} dans le résultat actuel</p><div class="dgl-filter-actions"><a href="{% url 'administration:delegation-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-check2" aria-hidden="true"></i>Appliquer</button></div></form>
+  </section>
 
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:delegation-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
+  <div class="dgl-workspace">
+    <section class="dgl-panel" aria-labelledby="dgl-list-title">
+      <header class="dgl-panel-head"><div><div class="dgl-section-label">Référentiel existant</div><h2 id="dgl-list-title">Délégations enregistrées</h2>{% if delegations %}<p>{% if gouvernorat_selectionne %}Résultats rattachés à {{ gouvernorat_selectionne.nom }}.{% else %}Modifiez le rattachement ou le nom, puis enregistrez la ligne.{% endif %}</p>{% else %}<p>Aucune délégation ne correspond au périmètre choisi.</p>{% endif %}</div>{% if delegations %}<span class="dgl-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ filtered_count }} résultat{{ filtered_count|pluralize }}</span>{% endif %}</header>
+      {% if delegations %}
+      {% for d in delegations %}<form id="dgl-update-{{ d.pk }}" method="post" action="{% url 'administration:delegation-update' d.pk %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}</form><form id="dgl-delete-{{ d.pk }}" method="post" action="{% url 'administration:delegation-delete' d.pk %}">{% csrf_token %}</form>{% endfor %}
+      <div class="dgl-columns" aria-hidden="true"><span>Gouvernorat</span><span>Délégation</span><span>Zones</span><span>État</span><span>Actions</span></div>
+      <div class="dgl-list" role="list">{% for d in delegations %}<article class="dgl-row" role="listitem">
+        <div class="dgl-governorate-cell"><label class="visually-hidden" for="dgl-governorate-{{ d.pk }}">Gouvernorat de {{ d.nom_delegation }}</label><select name="gouvernorat" id="dgl-governorate-{{ d.pk }}" class="form-select" required form="dgl-update-{{ d.pk }}" autocomplete="off">{% for g in gouvernorats_list %}<option value="{{ g.pk }}" {% if g.pk == d.gouvernorat_id %}selected{% endif %}>{{ g.nom }}</option>{% endfor %}</select></div>
+        <div class="dgl-name-cell"><span aria-hidden="true"><i class="bi bi-signpost-2"></i></span><div><label class="visually-hidden" for="dgl-name-{{ d.pk }}">Nom de la délégation {{ d.nom_delegation }}</label><input type="text" id="dgl-name-{{ d.pk }}" name="nom_delegation" value="{{ d.nom_delegation }}" maxlength="100" required class="form-control" form="dgl-update-{{ d.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Nom unique dans le référentiel</small></div></div>
+        <div class="dgl-metric"><small>Zones</small><strong>{{ d.nb_zones }}</strong></div>
+        <div class="dgl-state">{% if d.nb_zones %}<span class="dgl-status dgl-status-safe"><i class="bi bi-diagram-3" aria-hidden="true"></i>Structurée</span>{% else %}<span class="dgl-status dgl-status-warning"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>À compléter</span>{% endif %}</div>
+        <div class="dgl-actions"><button type="submit" form="dgl-update-{{ d.pk }}" class="btn btn-outline-primary"><i class="bi bi-check2" aria-hidden="true"></i>Enregistrer</button>{% if d.nb_zones %}<button type="button" class="btn btn-outline-danger" disabled title="Suppression impossible : des zones sont rattachées"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Suppression impossible</span></button>{% else %}<button type="submit" form="dgl-delete-{{ d.pk }}" class="btn btn-outline-danger" title="Supprimer {{ d.nom_delegation }}" aria-label="Supprimer la délégation {{ d.nom_delegation }}" onclick="return confirm('Supprimer la délégation « {{ d.nom_delegation|escapejs }} » ?');"><i class="bi bi-trash" aria-hidden="true"></i></button>{% endif %}</div>
+      </article>{% endfor %}</div>
+      {% if is_paginated %}<footer class="dgl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ filtered_count }} délégation{{ filtered_count|pluralize }}</span><nav aria-label="Pagination des délégations"><ul class="dgl-pagination">{% if page_obj.has_previous %}<li><a href="?gouvernorat_id={{ gouvernorat_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?gouvernorat_id={{ gouvernorat_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?gouvernorat_id={{ gouvernorat_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+      {% else %}<div class="dgl-empty"><span><i class="bi bi-signpost-2" aria-hidden="true"></i></span><h3>Aucune délégation trouvée</h3><p>{% if gouvernorat_selectionne %}Ce gouvernorat ne contient aucune délégation.{% else %}Utilisez le formulaire adjacent pour créer la première entrée.{% endif %}</p></div>{% endif %}
+    </section>
 
-      </div>
-    </form>
+    <aside class="dgl-create-panel" aria-labelledby="dgl-create-title">
+      <header><span><i class="bi bi-plus-lg" aria-hidden="true"></i></span><div><div class="dgl-section-label">Nouvelle entrée</div><h2 id="dgl-create-title">Ajouter une délégation</h2></div></header>
+      <form method="post" action="{% url 'administration:delegation-create' %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}<div class="dgl-create-field"><label for="dgl-new-governorate">Gouvernorat</label><select name="gouvernorat" id="dgl-new-governorate" class="form-select" required autocomplete="off"><option value="" selected>Choisir un gouvernorat</option>{% for g in gouvernorats_list %}<option value="{{ g.pk }}">{{ g.nom }}</option>{% endfor %}</select></div><div class="dgl-create-field"><label for="dgl-new-name">Nom de la délégation</label><input type="text" name="nom_delegation" id="dgl-new-name" value="" maxlength="100" required class="form-control" placeholder="Saisir un nom" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Le nom doit être unique et comporter au maximum 100 caractères.</small></div><button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter la délégation</button></form>
+      <div class="dgl-create-note"><i class="bi bi-info-circle" aria-hidden="true"></i><p>Après création, la délégation pourra recevoir les zones de son gouvernorat.</p></div>
+    </aside>
   </div>
 </div>
-
-{# ── Partie 1 : liste des délégations enregistrées ───────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-signpost-2 me-2 text-primary"></i>Délégations enregistrées
-  </div>
-  <div class="card-body p-0">
-    {% if delegations %}
-    {% comment %}
-      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
-      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
-      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
-    {% endcomment %}
-    {% for d in delegations %}
-    <form id="delegation-update-{{ d.pk }}" method="post" action="{% url 'administration:delegation-update' d.pk %}"></form>
-    <form id="delegation-delete-{{ d.pk }}" method="post" action="{% url 'administration:delegation-delete' d.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:160px;">Gouvernorat</th>
-            <th style="min-width:180px;">Délégation</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in delegations %}
-          <tr>
-            <td class="ps-3">
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="delegation-update-{{ d.pk }}">
-              <select name="gouvernorat" class="form-select form-select-sm" style="min-width:160px;" form="delegation-update-{{ d.pk }}">
-                {% for g in gouvernorats_list %}
-                <option value="{{ g.pk }}" {% if g.pk == d.gouvernorat_id %}selected{% endif %}>{{ g.nom }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td>
-              <input type="text" name="nom_delegation" value="{{ d.nom_delegation }}"
-                     class="form-control form-control-sm" style="min-width:180px;" form="delegation-update-{{ d.pk }}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="submit" form="delegation-update-{{ d.pk }}"
-                      class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="delegation-delete-{{ d.pk }}">
-              <button type="submit" form="delegation-delete-{{ d.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                      onclick="return confirm('Supprimer la délégation « {{ d.nom_delegation|escapejs }} » ?');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} délégation{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?gouvernorat_id={{ gouvernorat_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?gouvernorat_id={{ gouvernorat_id }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?gouvernorat_id={{ gouvernorat_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-signpost-2 fs-1 d-block mb-2 opacity-25"></i>
-      Aucune délégation enregistrée.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Partie 2 : ajout d'une nouvelle délégation ───────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter une délégation
-  </div>
-  <div class="card-body">
-    <form method="post" action="{% url 'administration:delegation-create' %}">
-      {% csrf_token %}
-      <div class="row g-2 align-items-end">
-        <div class="col-sm-5">
-          <label class="form-label small mb-1">Gouvernorat</label>
-          <select name="gouvernorat" class="form-select">
-            <option value="" selected>— Choisir —</option>
-            {% for g in gouvernorats_list %}
-            <option value="{{ g.pk }}">{{ g.nom }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-sm-5">
-          <label class="form-label small mb-1">Délégation</label>
-          <input type="text" name="nom_delegation" value="" class="form-control">
-        </div>
-        <div class="col-sm-2">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg me-1"></i>Ajouter
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Délégations : espace de gestion ordinateur d'abord. */
+.delegation-dashboard{--dgl-primary:#2c7be5;--dgl-primary-dark:#1a4f9c;--dgl-ink:#172033;--dgl-muted:#667085;--dgl-border:#e2e8f0;--dgl-radius:1rem;max-width:1700px;margin:0 auto;color:var(--dgl-ink)}
+.dgl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(340px,410px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.dgl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.dgl-hero-copy{min-width:0}.dgl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.dgl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.dgl-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.dgl-hero-meta{display:grid;grid-template-columns:.8fr 1.2fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.dgl-hero-meta div{min-width:0;padding:.55rem}.dgl-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.dgl-hero-meta span,.dgl-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.dgl-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.dgl-hero-meta small{margin-top:.1rem}
+.dgl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.dgl-kpi{--dgl-accent:#2c7be5;--dgl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--dgl-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.dgl-kpi-blue{--dgl-accent:#2c7be5;--dgl-soft:#eaf2fd}.dgl-kpi-green{--dgl-accent:#198754;--dgl-soft:#e9f6ef}.dgl-kpi-violet{--dgl-accent:#6f42c1;--dgl-soft:#f1ebfb}.dgl-kpi-orange{--dgl-accent:#d97706;--dgl-soft:#fff4e0}.dgl-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--dgl-soft);color:var(--dgl-accent);font-size:1.1rem}.dgl-kpi small{display:block;color:var(--dgl-muted);font-size:.64rem;font-weight:650}.dgl-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.dgl-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--dgl-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.dgl-filter-card,.dgl-panel,.dgl-create-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--dgl-border);border-radius:var(--dgl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.dgl-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dgl-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--dgl-primary)}.dgl-filter-head h2{margin:0;font-size:.88rem;font-weight:750}.dgl-filter-head p{margin:.12rem 0 0;color:var(--dgl-muted);font-size:.65rem}.dgl-filter-card form{display:grid;grid-template-columns:minmax(220px,300px) minmax(180px,1fr) auto;align-items:end;gap:.75rem;padding:.9rem 1rem}.dgl-filter-field label{display:block;margin-bottom:.3rem;color:#344054;font-size:.65rem;font-weight:700}.dgl-filter-field .form-select{min-height:2.65rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.72rem}.dgl-filter-note{display:flex;align-items:center;gap:.35rem;min-height:2.65rem;margin:0;color:var(--dgl-muted);font-size:.62rem}.dgl-filter-actions{display:flex;gap:.45rem}.dgl-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;min-height:2.65rem;padding-inline:.72rem;border-radius:.58rem;font-size:.64rem;font-weight:700;white-space:nowrap}
+.dgl-workspace{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:1rem}.dgl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dgl-section-label{color:var(--dgl-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.dgl-panel-head h2,.dgl-create-panel h2{margin:.12rem 0 0;font-size:.94rem;font-weight:750}.dgl-panel-head p{margin:.14rem 0 0;color:var(--dgl-muted);font-size:.66rem}.dgl-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--dgl-primary-dark);font-size:.65rem;font-weight:750;white-space:nowrap}.dgl-columns,.dgl-row{display:grid;grid-template-columns:minmax(115px,.8fr) minmax(135px,1fr) 45px 85px 128px;align-items:center;gap:.4rem}.dgl-columns{padding:.58rem .8rem;border-bottom:1px solid var(--dgl-border);background:#f8fafc;color:var(--dgl-muted);font-size:.54rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase}.dgl-columns span:nth-child(3){text-align:center}.dgl-row{padding:.68rem .8rem;border-bottom:1px solid #edf0f4}.dgl-row:last-child{border-bottom:0}.dgl-row:hover{background:#fbfcfe}.dgl-governorate-cell .form-select,.dgl-name-cell .form-control{min-height:2.35rem;border-color:#d5dde7;border-radius:.56rem;font-size:.67rem}.dgl-name-cell{display:flex;align-items:center;gap:.48rem;min-width:0}.dgl-name-cell>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:.6rem;background:#eaf2fd;color:var(--dgl-primary)}.dgl-name-cell>div{min-width:0}.dgl-name-cell small{display:block;overflow:hidden;margin-top:.16rem;color:var(--dgl-muted);font-size:.51rem;text-overflow:ellipsis;white-space:nowrap}.dgl-metric{text-align:center}.dgl-metric small{display:none}.dgl-metric strong{font-size:.72rem;font-variant-numeric:tabular-nums}.dgl-status{display:inline-flex;align-items:center;gap:.22rem;padding:.21rem .4rem;border-radius:2rem;font-size:.54rem;font-weight:750;white-space:nowrap}.dgl-status-safe{background:#e9f6ef;color:#18794e}.dgl-status-warning{background:#fff4e0;color:#8a5300}.dgl-actions{display:flex;justify-content:flex-end;gap:.3rem}.dgl-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-height:2.25rem;padding:.35rem .42rem;border-radius:.52rem;font-size:.55rem;font-weight:700}.dgl-actions .btn:last-child{width:2.3rem;padding:0}.dgl-actions .btn:disabled{cursor:not-allowed;opacity:.42}.dgl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.dgl-pagination-footer>span{color:var(--dgl-muted);font-size:.62rem}.dgl-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.dgl-pagination a,.dgl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.dgl-pagination .active{border-color:var(--dgl-primary);background:var(--dgl-primary);color:#fff}.dgl-empty{padding:3rem 1rem;text-align:center}.dgl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.dgl-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.dgl-empty p{margin:0;color:var(--dgl-muted);font-size:.68rem}
+.dgl-create-panel{position:sticky;top:1rem}.dgl-create-panel>header{display:flex;align-items:center;gap:.6rem;padding:.9rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.dgl-create-panel>header>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--dgl-primary)}.dgl-create-panel form{padding:1rem}.dgl-create-field+.dgl-create-field{margin-top:.72rem}.dgl-create-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.66rem;font-weight:700}.dgl-create-field .form-control,.dgl-create-field .form-select{min-height:2.7rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.72rem}.dgl-create-field small{display:block;margin-top:.4rem;color:var(--dgl-muted);font-size:.58rem;line-height:1.4}.dgl-create-panel form .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.75rem;margin-top:.8rem;border-radius:.62rem;font-size:.68rem;font-weight:700}.dgl-create-note{display:flex;align-items:flex-start;gap:.45rem;padding:.8rem 1rem;border-top:1px solid #edf0f4;background:#f8fafc;color:var(--dgl-muted)}.dgl-create-note p{margin:0;font-size:.6rem;line-height:1.45}.delegation-dashboard a:focus-visible,.delegation-dashboard button:focus-visible,.delegation-dashboard input:focus-visible,.delegation-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.dgl-hero{grid-template-columns:auto minmax(0,1fr)}.dgl-hero-meta{grid-column:1/-1}.dgl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dgl-workspace{grid-template-columns:1fr}.dgl-create-panel{position:static}.dgl-columns,.dgl-row{grid-template-columns:minmax(170px,.8fr) minmax(210px,1fr) 70px 105px 150px}}
+@media(max-width:767.98px){.dgl-filter-card form{grid-template-columns:1fr}.dgl-filter-actions{justify-content:flex-start}.dgl-columns{display:none}.dgl-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;padding:.8rem}.dgl-governorate-cell,.dgl-name-cell{grid-column:1/-1}.dgl-metric{padding:.55rem;border-radius:.55rem;background:#f6f8fb;text-align:left}.dgl-metric small{display:block;color:var(--dgl-muted);font-size:.54rem;text-transform:uppercase}.dgl-metric strong{display:block;margin-top:.08rem}.dgl-state{align-self:center}.dgl-actions{justify-content:flex-end}.dgl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.dgl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.dgl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.dgl-hero-copy>p{font-size:.8rem}.dgl-hero-meta{grid-template-columns:1fr}.dgl-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.dgl-kpi-grid{grid-template-columns:1fr}.dgl-panel-head{flex-direction:column;padding:.9rem}.dgl-row{grid-template-columns:1fr}.dgl-governorate-cell,.dgl-name-cell,.dgl-state,.dgl-actions{grid-column:auto}.dgl-actions{justify-content:flex-start}.dgl-pagination-footer{align-items:flex-start;flex-direction:column}.dgl-filter-actions{flex-direction:column}}
 {% endblock %}

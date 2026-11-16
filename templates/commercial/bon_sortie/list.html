@@ -4,252 +4,84 @@
 {% block page_title %}Bons de sortie{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Bons de sortie</li>
-  </ol>
-</nav>
+<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Bons de sortie</li></ol></nav>
 {% endblock %}
 
 {% block content %}
+<div class="dispatch-directory">
+  <header class="bsl-hero" aria-labelledby="bsl-page-title">
+    <span class="bsl-hero-icon" aria-hidden="true"><i class="bi bi-box-arrow-up-right"></i></span>
+    <div class="bsl-hero-copy"><div class="bsl-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Mouvements sortants</div><h1 id="bsl-page-title">Bons de sortie</h1><p>Suivez les produits confiés aux commerciaux et leur intégration dans les inventaires de stock.</p></div>
+    <div class="bsl-hero-actions"><div class="bsl-hero-meta"><span>Période affichée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong></div><a href="{% url 'commercial:bon-sortie-create' %}" class="btn btn-light bsl-add-btn"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouveau bon</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des bons de sortie</h4>
-  <a href="{% url 'commercial:bon-sortie-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouveau bon de sortie
-  </a>
-</div>
-
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        {% if not is_commercial %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:bon-sortie-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="bsl-filter-card" aria-labelledby="bsl-filter-title">
+    <div class="bsl-filter-head"><span class="bsl-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="bsl-filter-title">Filtrer les sorties</h2><p>Sélectionnez une période{% if not is_commercial %} et, si nécessaire, un commercial{% endif %}.</p></div>{% if commercial_id %}<span class="bsl-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i>Commercial filtré</span>{% endif %}</div>
+    <form method="get" id="filter-form" class="bsl-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="bsl-date-group"><span class="bsl-group-label">Période rapide</span><div class="bsl-period-buttons" role="group" aria-label="Période rapide"><button type="button" class="btn btn-outline-secondary bsl-period" data-days="0">Aujourd'hui</button><button type="button" class="btn btn-outline-secondary bsl-period" data-days="6">7 jours</button><button type="button" class="btn btn-outline-secondary bsl-period" data-days="29">30 jours</button></div></div>
+      <div class="bsl-filter-field"><label for="bsl-date-start">Du</label><input type="date" name="date_debut" id="bsl-date-start" value="{{ date_debut }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      <div class="bsl-filter-field"><label for="bsl-date-end">Au</label><input type="date" name="date_fin" id="bsl-date-end" value="{{ date_fin }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      {% if not is_commercial %}<div class="bsl-filter-field"><label for="bsl-commercial">Commercial</label><select name="commercial_id" id="bsl-commercial" class="form-select" data-autosubmit><option value="">Tous les commerciaux</option>{% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>{% else %}<div class="bsl-locked-commercial"><span>Commercial connecté</span><strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong></div>{% endif %}
+      <div class="bsl-filter-actions"><a href="{% url 'commercial:bon-sortie-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a></div>
     </form>
-  </div>
+  </section>
+
+  <section class="bsl-kpi-grid" aria-label="Synthèse des bons de sortie">
+    <article class="bsl-kpi bsl-kpi-blue"><span class="bsl-kpi-icon"><i class="bi bi-files" aria-hidden="true"></i></span><span><small>Total des bons</small><strong>{{ total_bons }}</strong><em>sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></span></article>
+    <article class="bsl-kpi bsl-kpi-orange"><span class="bsl-kpi-icon"><i class="bi bi-pencil-square" aria-hidden="true"></i></span><span><small>Non soldés</small><strong>{{ total_non_soldes }}</strong><em>encore modifiables</em></span></article>
+    <article class="bsl-kpi bsl-kpi-green"><span class="bsl-kpi-icon"><i class="bi bi-check2-circle" aria-hidden="true"></i></span><span><small>Soldés</small><strong>{{ total_soldes }}</strong><em>intégrés au stock</em></span></article>
+    <article class="bsl-kpi bsl-kpi-violet"><span class="bsl-kpi-icon"><i class="bi bi-person-check" aria-hidden="true"></i></span><span><small>Commercial</small><strong class="bsl-kpi-name">{% if commercial_selectionne %}{{ commercial_selectionne.get_full_name|default:commercial_selectionne.username }}{% elif is_commercial %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Tous{% endif %}</strong><em>périmètre actuel</em></span></article>
+  </section>
+
+  <section class="bsl-panel" aria-labelledby="bsl-results-title">
+    <header class="bsl-panel-head"><div><div class="bsl-section-label">Historique</div><h2 id="bsl-results-title">Liste des bons de sortie</h2>{% if bons_sortie %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>{% else %}<p>Aucun bon ne correspond aux critères actuels.</p>{% endif %}</div>{% if bons_sortie %}<span class="bsl-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }}</span>{% endif %}</header>
+
+    {% if bons_sortie %}
+    <div class="bsl-table-wrap"><table class="bsl-table"><caption class="visually-hidden">Bons de sortie et état de traitement</caption><thead><tr><th scope="col">Référence</th><th scope="col">Commercial</th><th scope="col">Date</th><th scope="col" class="bsl-number-col">Détails</th><th scope="col">Statut</th><th scope="col" class="bsl-actions-col">Actions</th></tr></thead><tbody>
+      {% for bs in bons_sortie %}<tr class="{% if bs.historique_stock_initial_id %}bsl-sold-row{% endif %}">
+        <td><span class="bsl-reference"><span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span><strong>BS-{{ bs.pk }}</strong></span></td>
+        <td><span class="bsl-primary-value">{{ bs.user.get_full_name|default:bs.user.username }}</span><span class="bsl-secondary-value">@{{ bs.user.username }}</span></td>
+        <td><span class="bsl-date"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ bs.sortie_at|date:"d/m/Y" }}</span></td>
+        <td class="bsl-number-col"><strong>{{ bs.nb_lignes }}</strong> ligne{{ bs.nb_lignes|pluralize }}<span class="bsl-secondary-value bsl-quantity">{{ bs.quantite_totale|default_if_none:"0"|floatformat:0 }} unités</span></td>
+        <td>{% if bs.historique_stock_initial_id %}<span class="bsl-status bsl-status-sold"><i class="bi bi-check-circle" aria-hidden="true"></i>Soldé</span><span class="bsl-secondary-value">Intégré à l'inventaire</span>{% else %}<span class="bsl-status bsl-status-open"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Non soldé</span><span class="bsl-secondary-value">Modification autorisée</span>{% endif %}</td>
+        <td class="bsl-actions-col"><div class="bsl-row-actions"><button type="button" class="bsl-icon-btn bsl-detail-btn" data-url="{% url 'commercial:bon-sortie-detail-popup' bs.pk %}" aria-label="Voir BS-{{ bs.pk }}" title="Visualiser"><i class="bi bi-eye" aria-hidden="true"></i></button>{% if bs.historique_stock_initial_id %}<button type="button" class="bsl-icon-btn" disabled aria-label="Modification impossible : bon soldé" title="Un bon soldé ne peut pas être modifié"><i class="bi bi-lock" aria-hidden="true"></i></button>{% else %}<a href="{% url 'commercial:bon-sortie-update' bs.pk %}" class="bsl-icon-btn bsl-icon-btn-primary" aria-label="Modifier BS-{{ bs.pk }}" title="Modifier"><i class="bi bi-pencil" aria-hidden="true"></i></a>{% endif %}<button type="button" class="bsl-icon-btn bsl-icon-btn-danger bsl-delete-btn" data-url="{% url 'commercial:bon-sortie-delete' bs.pk %}" data-label="BS-{{ bs.pk }} du {{ bs.sortie_at|date:'d/m/Y' }} — {{ bs.user.get_full_name|default:bs.user.username }}" data-can-delete="{% if bs.erreur_suppression %}0{% else %}1{% endif %}" data-refus-message="{{ bs.erreur_suppression }}" aria-label="Supprimer BS-{{ bs.pk }}" title="Supprimer"><i class="bi bi-trash" aria-hidden="true"></i></button></div></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
+
+    <div class="bsl-mobile-list">{% for bs in bons_sortie %}<article class="bsl-card {% if bs.historique_stock_initial_id %}bsl-card-sold{% endif %}"><header><span class="bsl-reference"><span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span><strong>BS-{{ bs.pk }}</strong></span>{% if bs.historique_stock_initial_id %}<span class="bsl-status bsl-status-sold">Soldé</span>{% else %}<span class="bsl-status bsl-status-open">Non soldé</span>{% endif %}</header><dl><div><dt>Commercial</dt><dd>{{ bs.user.get_full_name|default:bs.user.username }}</dd></div><div><dt>Date</dt><dd>{{ bs.sortie_at|date:"d/m/Y" }}</dd></div><div><dt>Produits</dt><dd>{{ bs.nb_lignes }} ligne{{ bs.nb_lignes|pluralize }}</dd></div><div><dt>Quantité totale</dt><dd>{{ bs.quantite_totale|default_if_none:"0"|floatformat:0 }}</dd></div></dl><footer><button type="button" class="btn btn-outline-secondary bsl-detail-btn" data-url="{% url 'commercial:bon-sortie-detail-popup' bs.pk %}"><i class="bi bi-eye" aria-hidden="true"></i>Voir</button>{% if bs.historique_stock_initial_id %}<button type="button" class="btn btn-outline-secondary" disabled><i class="bi bi-lock" aria-hidden="true"></i>Soldé</button>{% else %}<a href="{% url 'commercial:bon-sortie-update' bs.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a>{% endif %}<button type="button" class="btn btn-outline-danger bsl-delete-btn" data-url="{% url 'commercial:bon-sortie-delete' bs.pk %}" data-label="BS-{{ bs.pk }} du {{ bs.sortie_at|date:'d/m/Y' }} — {{ bs.user.get_full_name|default:bs.user.username }}" data-can-delete="{% if bs.erreur_suppression %}0{% else %}1{% endif %}" data-refus-message="{{ bs.erreur_suppression }}"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer BS-{{ bs.pk }}</span></button></footer></article>{% endfor %}</div>
+
+    {% if is_paginated %}<footer class="bsl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des bons de sortie"><ul class="bsl-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="bsl-empty"><span><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></span><h2>Aucun bon de sortie</h2><p>Aucun bon enregistré du {{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}{% if commercial_id %} pour ce commercial{% endif %}.</p><a href="{% url 'commercial:bon-sortie-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer un bon</a></div>{% endif %}
+  </section>
 </div>
 
-{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            {% if not is_commercial %}
-            <th class="ps-3" style="min-width:180px;">Commercial</th>
-            {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %} style="min-width:130px;">Date</th>
-            <th class="text-center" style="min-width:90px;">Soldé</th>
-            <th class="text-center pe-3" style="min-width:150px;width:150px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for bs in page_obj.object_list %}
-          <tr>
-            {% if not is_commercial %}
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
-                     value="{{ bs.user.get_full_name|default:bs.user.username }}" disabled>
-            </td>
-            {% endif %}
-            <td {% if is_commercial %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm" style="min-width:120px;"
-                     value="{{ bs.sortie_at|date:'Y-m-d' }}" disabled>
-            </td>
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input" disabled
-                     {% if bs.historique_stock_initial_id %}checked{% endif %}
-                     title="{% if bs.historique_stock_initial_id %}Soldé{% else %}Non soldé{% endif %}">
-            </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                <button type="button" class="btn btn-sm btn-outline-secondary bs-detail-btn"
-                        data-url="{% url 'commercial:bon-sortie-detail-popup' bs.pk %}" title="Visualiser">
-                  <i class="bi bi-eye"></i>
-                </button>
-                {% if bs.historique_stock_initial_id %}
-                <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Modifier">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                {% else %}
-                <a href="{% url 'commercial:bon-sortie-update' bs.pk %}"
-                   class="btn btn-sm btn-outline-primary" title="Modifier">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                {% endif %}
-                <form id="bs-delete-{{ bs.pk }}" method="post"
-                      action="{% url 'commercial:bon-sortie-delete' bs.pk %}" class="d-inline">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"
-                          data-can-delete="{% if bs.erreur_suppression %}0{% else %}1{% endif %}"
-                          data-refus-message="{{ bs.erreur_suppression }}"
-                          onclick="return bsConfirmDelete(this);">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+<div class="modal fade" id="bon-sortie-detail-modal" tabindex="-1" aria-hidden="true" aria-labelledby="bon-sortie-detail-title"><div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="bon-sortie-detail-title">Détail du bon de sortie</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body" id="bon-sortie-detail-modal-body" aria-live="polite"><div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" aria-hidden="true"></div> Chargement…</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button></div></div></div></div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} bon{{ page_obj.paginator.count|pluralize }} de sortie
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+<div class="modal fade" id="bsl-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="bsl-delete-title"><div class="modal-dialog modal-dialog-centered"><form method="post" class="modal-content" id="bsl-delete-form">{% csrf_token %}<div class="modal-header"><h2 class="modal-title fs-5" id="bsl-delete-title">Supprimer ce bon ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="fw-semibold mb-2" id="bsl-delete-label"></p><div class="alert alert-warning mb-0" id="bsl-delete-warning"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>La suppression est définitive et supprimera également les lignes de produits associées.</div><div class="alert alert-danger mb-0 d-none" id="bsl-delete-refusal"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="bsl-delete-cancel">Annuler</button><button type="submit" class="btn btn-danger" id="bsl-delete-confirm"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button></div></form></div></div>
+{% endblock %}
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-box-seam fs-1 d-block mb-2 opacity-25"></i>
-      Aucun bon de sortie sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if commercial_id %}avec ces filtres{% endif %}.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
-<div class="modal fade" id="bon-sortie-detail-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Détail bon de sortie</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body" id="bon-sortie-detail-modal-body">
-        <div class="text-center py-4 text-muted">
-          <div class="spinner-border spinner-border-sm"></div> Chargement…
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+/* ── Bons de sortie : interface ordinateur d'abord ────────────────────────── */
+.dispatch-directory{--bsl-primary:#2c7be5;--bsl-primary-dark:#1a4f9c;--bsl-ink:#172033;--bsl-muted:#667085;--bsl-border:#e2e8f0;--bsl-surface:#fff;--bsl-radius:1rem;max-width:1600px;margin:0 auto;color:var(--bsl-ink)}
+.bsl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.bsl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.4rem;height:4.4rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.bsl-hero-copy{min-width:0}.bsl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.bsl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.bsl-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.88rem;line-height:1.5}.bsl-hero-actions{display:flex;align-items:stretch;gap:.6rem}.bsl-hero-meta{display:flex;flex-direction:column;justify-content:center;min-width:210px;padding:.55rem .75rem;border:1px solid rgba(255,255,255,.18);border-radius:.75rem;background:rgba(8,31,61,.2)}.bsl-hero-meta span{color:rgba(255,255,255,.64);font-size:.64rem}.bsl-hero-meta strong{margin-top:.08rem;color:#fff;font-size:.73rem}.bsl-add-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:3.1rem;padding-inline:1rem;border-radius:.75rem;color:#194f89;font-size:.78rem;font-weight:750}
+.bsl-filter-card,.bsl-panel{margin-top:1rem;overflow:hidden;border:1px solid var(--bsl-border);border-radius:var(--bsl-radius);background:var(--bsl-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.bsl-filter-head{display:flex;align-items:center;gap:.7rem;min-height:72px;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.bsl-filter-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--bsl-primary);font-size:1.02rem}.bsl-filter-head h2{margin:0;color:var(--bsl-ink);font-size:.94rem;font-weight:750}.bsl-filter-head p{margin:.12rem 0 0;color:var(--bsl-muted);font-size:.7rem}.bsl-active-filter{display:inline-flex;align-items:center;gap:.3rem;margin-left:auto;padding:.3rem .58rem;border-radius:2rem;background:#e9f6ef;color:#18794e;font-size:.68rem;font-weight:750;white-space:nowrap}.bsl-filter-form{display:grid;grid-template-columns:minmax(250px,1.2fr) minmax(150px,.65fr) minmax(150px,.65fr) minmax(220px,1fr) auto;align-items:end;gap:.75rem;padding:1rem}.bsl-group-label,.bsl-filter-field label,.bsl-locked-commercial>span{display:block;margin-bottom:.35rem;color:#344054;font-size:.7rem;font-weight:700}.bsl-period-buttons{display:flex;gap:.35rem}.bsl-period-buttons .btn{flex:1 1 auto;min-height:2.85rem;padding:.45rem .55rem;border-radius:.65rem;font-size:.7rem;font-weight:650;white-space:nowrap}.bsl-filter-field .form-control,.bsl-filter-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.65rem;color:var(--bsl-ink);font-size:.8rem}.bsl-filter-field .form-control:focus,.bsl-filter-field .form-select:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.bsl-locked-commercial strong{display:flex;align-items:center;gap:.35rem;min-height:2.85rem;padding:.6rem .75rem;border:1px solid #e0e6ee;border-radius:.65rem;background:#f7f9fc;color:#344054;font-size:.76rem}.bsl-filter-actions .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.85rem;padding-inline:.75rem;border-radius:.65rem;font-size:.72rem;font-weight:700;white-space:nowrap}
+.bsl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.bsl-kpi{--bsl-accent:#2c7be5;--bsl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:98px;padding:.9rem;border:1px solid var(--bsl-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.bsl-kpi-blue{--bsl-accent:#2c7be5;--bsl-soft:#eaf2fd}.bsl-kpi-orange{--bsl-accent:#d97706;--bsl-soft:#fff4e0}.bsl-kpi-green{--bsl-accent:#198754;--bsl-soft:#e9f6ef}.bsl-kpi-violet{--bsl-accent:#6f42c1;--bsl-soft:#f1ebfb}.bsl-kpi-icon{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;border-radius:.72rem;background:var(--bsl-soft);color:var(--bsl-accent);font-size:1.15rem}.bsl-kpi>span:last-child{min-width:0}.bsl-kpi small{display:block;color:var(--bsl-muted);font-size:.66rem;font-weight:650}.bsl-kpi strong{display:block;overflow:hidden;margin-top:.06rem;color:var(--bsl-ink);font-size:1.2rem;font-variant-numeric:tabular-nums;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}.bsl-kpi .bsl-kpi-name{font-size:.83rem}.bsl-kpi em{display:block;margin-top:.1rem;color:var(--bsl-muted);font-size:.62rem;font-style:normal}
+.bsl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:82px;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.bsl-section-label{color:var(--bsl-primary-dark);font-size:.65rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.bsl-panel-head h2{margin:.18rem 0 0;color:var(--bsl-ink);font-size:1.05rem;font-weight:750}.bsl-panel-head p{margin:.18rem 0 0;color:var(--bsl-muted);font-size:.73rem}.bsl-result-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .65rem;border-radius:2rem;background:#eaf2fd;color:var(--bsl-primary-dark);font-size:.7rem;font-weight:750;white-space:nowrap}.bsl-table-wrap{display:block}.bsl-table{width:100%;border-collapse:collapse;table-layout:fixed}.bsl-table thead{background:#f8fafc}.bsl-table th{padding:.7rem 1rem;border-bottom:1px solid var(--bsl-border);color:var(--bsl-muted);font-size:.65rem;font-weight:800;letter-spacing:.05em;text-align:left;text-transform:uppercase}.bsl-table td{padding:.82rem 1rem;border-bottom:1px solid #edf0f4;color:var(--bsl-ink);font-size:.76rem;vertical-align:middle}.bsl-table tbody tr:last-child td{border-bottom:0}.bsl-table tbody tr{transition:background-color .14s ease}.bsl-table tbody tr:hover{background:#f8faff}.bsl-table th:nth-child(1){width:15%}.bsl-table th:nth-child(2){width:22%}.bsl-table th:nth-child(3){width:15%}.bsl-table th:nth-child(4){width:16%}.bsl-table th:nth-child(5){width:20%}.bsl-table th:nth-child(6){width:12%}.bsl-reference{display:flex;align-items:center;gap:.55rem}.bsl-reference>span{display:inline-flex;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.62rem;background:#eaf2fd;color:var(--bsl-primary)}.bsl-reference strong{white-space:nowrap}.bsl-primary-value{display:block;overflow:hidden;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.bsl-secondary-value{display:block;overflow:hidden;margin-top:.2rem;color:var(--bsl-muted);font-size:.65rem;text-overflow:ellipsis;white-space:nowrap}.bsl-quantity{text-align:right}.bsl-date{display:flex;align-items:center;gap:.35rem;white-space:nowrap}.bsl-number-col{text-align:right!important;font-variant-numeric:tabular-nums}.bsl-status{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .5rem;border-radius:2rem;font-size:.68rem;font-weight:750;white-space:nowrap}.bsl-status-sold{background:#e9f6ef;color:#18794e}.bsl-status-open{background:#fff4e0;color:#8a5300}.bsl-sold-row{background:#f8fcfa}.bsl-actions-col{text-align:center!important}.bsl-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.bsl-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;color:#596579;text-decoration:none;transition:border-color .14s ease,background-color .14s ease,color .14s ease}.bsl-icon-btn:hover:not(:disabled){border-color:#aeb9c7;background:#f7f9fb;color:var(--bsl-ink)}.bsl-icon-btn:disabled{opacity:.45;cursor:not-allowed}.bsl-icon-btn-primary{border-color:#b8d0ef;color:var(--bsl-primary-dark)}.bsl-icon-btn-danger{border-color:#efc6cb;color:#b42332}.bsl-icon-btn-danger:hover{border-color:#df9da5!important;background:#fff5f6!important;color:#991c2a!important}.bsl-mobile-list{display:none}.bsl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--bsl-border);background:#fbfcfe}.bsl-pagination-footer>span{color:var(--bsl-muted);font-size:.72rem}.bsl-pagination{display:flex;align-items:center;gap:.25rem;margin:0;padding:0;list-style:none}.bsl-pagination a,.bsl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.25rem;height:2.25rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.55rem;background:#fff;color:#526071;font-size:.72rem;font-weight:700;text-decoration:none}.bsl-pagination a:hover{border-color:#9cbee9;background:#f4f8fe;color:var(--bsl-primary-dark)}.bsl-pagination .active{border-color:var(--bsl-primary);background:var(--bsl-primary);color:#fff}.bsl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:330px;padding:2rem;text-align:center}.bsl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;margin-bottom:.85rem;border-radius:1rem;background:#edf4fd;color:var(--bsl-primary);font-size:1.5rem}.bsl-empty h2{margin:0;color:var(--bsl-ink);font-size:1rem;font-weight:750}.bsl-empty p{max-width:470px;margin:.35rem 0 1rem;color:var(--bsl-muted);font-size:.76rem}.bsl-empty .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;border-radius:.68rem;font-size:.76rem;font-weight:700}.dispatch-directory a:focus-visible,.dispatch-directory button:focus-visible,.dispatch-directory input:focus-visible,.dispatch-directory select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.bsl-hero{grid-template-columns:auto minmax(0,1fr)}.bsl-hero-actions{grid-column:1/-1}.bsl-filter-form{grid-template-columns:repeat(2,minmax(0,1fr))}.bsl-date-group{grid-column:1/-1}.bsl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bsl-table-wrap{display:none}.bsl-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}.bsl-card{overflow:hidden;border:1px solid var(--bsl-border);border-radius:.8rem;background:#fff}.bsl-card-sold{border-color:#bedfcd}.bsl-card header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.bsl-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem;margin:0;padding:.9rem}.bsl-card dt{color:var(--bsl-muted);font-size:.62rem;font-weight:650;text-transform:uppercase}.bsl-card dd{overflow-wrap:anywhere;margin:.12rem 0 0;font-size:.73rem;font-weight:700}.bsl-card footer{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.bsl-card footer .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.65rem;border-radius:.65rem;font-size:.72rem;font-weight:700}}
+@media(max-width:767.98px){.bsl-filter-form{grid-template-columns:1fr}.bsl-date-group{grid-column:auto}.bsl-mobile-list{grid-template-columns:1fr}.bsl-panel-head{align-items:flex-start}.bsl-hero-actions{flex-wrap:wrap}.bsl-hero-meta{flex:1 1 220px}.bsl-add-btn{flex:1 1 auto}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.bsl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.bsl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.bsl-hero-copy>p{font-size:.8rem}.bsl-hero-actions{align-items:stretch;flex-direction:column}.bsl-period-buttons{display:grid;grid-template-columns:1fr}.bsl-filter-head{align-items:flex-start;flex-wrap:wrap}.bsl-active-filter{margin-left:3.15rem}.bsl-kpi-grid{grid-template-columns:1fr}.bsl-panel-head{flex-direction:column;padding:.9rem}.bsl-card dl{grid-template-columns:1fr}.bsl-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.bsl-table tbody tr,.bsl-icon-btn{transition:none}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-
-function bsConfirmDelete(btn) {
-  if (btn.getAttribute('data-can-delete') !== '1') {
-    alert(btn.getAttribute('data-refus-message'));
-    return false;
-  }
-  return confirm('Voulez-vous vraiment supprimer ce bon de sortie ?');
-}
-
-// ── Pop-up « Détail » ───────────────────────────────────────────────────────
-(function () {
-  var modalEl = document.getElementById('bon-sortie-detail-modal');
-  var modalBody = document.getElementById('bon-sortie-detail-modal-body');
-  if (!modalEl || !modalBody) { return; }
-  var modal = new bootstrap.Modal(modalEl);
-
-  document.querySelectorAll('.bs-detail-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
-        '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
-      modal.show();
-      fetch(btn.getAttribute('data-url')).then(function (r) { return r.text(); }).then(function (html) {
-        modalBody.innerHTML = html;
-      });
-    });
-  });
+(function(){
+  var form=document.getElementById('filter-form'),startInput=document.getElementById('bsl-date-start'),endInput=document.getElementById('bsl-date-end');
+  form.querySelectorAll('[data-autosubmit]').forEach(function(field){field.addEventListener('change',function(){form.submit();});});
+  function pad(v){return v<10?'0'+v:String(v)}function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}var today=new Date();document.querySelectorAll('.bsl-period').forEach(function(button){var start=new Date(today);start.setDate(start.getDate()-parseInt(button.getAttribute('data-days'),10));var sv=iso(start),ev=iso(today);if(startInput.value===sv&&endInput.value===ev){button.classList.replace('btn-outline-secondary','btn-secondary');button.setAttribute('aria-pressed','true')}button.addEventListener('click',function(){startInput.value=sv;endInput.value=ev;form.submit();});});
+  var detailModalEl=document.getElementById('bon-sortie-detail-modal'),detailBody=document.getElementById('bon-sortie-detail-modal-body'),detailModal=new bootstrap.Modal(detailModalEl);document.querySelectorAll('.bsl-detail-btn').forEach(function(button){button.addEventListener('click',function(){detailBody.setAttribute('aria-busy','true');detailBody.innerHTML='<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" aria-hidden="true"></div> Chargement…</div>';detailModal.show();fetch(button.getAttribute('data-url')).then(function(response){if(!response.ok){throw new Error()}return response.text()}).then(function(html){detailBody.innerHTML=html}).catch(function(){detailBody.innerHTML='<div class="alert alert-danger mb-0">Le détail n’a pas pu être chargé.</div>'}).finally(function(){detailBody.removeAttribute('aria-busy')});});});
+  var deleteModalEl=document.getElementById('bsl-delete-modal'),deleteModal=new bootstrap.Modal(deleteModalEl),deleteForm=document.getElementById('bsl-delete-form'),deleteLabel=document.getElementById('bsl-delete-label'),deleteWarning=document.getElementById('bsl-delete-warning'),deleteRefusal=document.getElementById('bsl-delete-refusal'),deleteTitle=document.getElementById('bsl-delete-title'),deleteConfirm=document.getElementById('bsl-delete-confirm'),deleteCancel=document.getElementById('bsl-delete-cancel');document.querySelectorAll('.bsl-delete-btn').forEach(function(button){button.addEventListener('click',function(){var refused=button.getAttribute('data-can-delete')!=='1';deleteForm.action=button.getAttribute('data-url');deleteLabel.textContent=button.getAttribute('data-label');deleteWarning.classList.toggle('d-none',refused);deleteRefusal.classList.toggle('d-none',!refused);deleteRefusal.textContent=refused?button.getAttribute('data-refus-message'):'';deleteTitle.textContent=refused?'Suppression impossible':'Supprimer ce bon ?';deleteConfirm.classList.toggle('d-none',refused);deleteCancel.textContent=refused?'Fermer':'Annuler';deleteModal.show();});});deleteForm.addEventListener('submit',function(){deleteConfirm.disabled=true;deleteConfirm.innerHTML='<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Suppression…';});
 })();
 </script>
 {% endblock %}

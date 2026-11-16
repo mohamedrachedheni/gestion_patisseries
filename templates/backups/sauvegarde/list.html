@@ -3,206 +3,125 @@
 {% block title %}Sauvegardes — Administration{% endblock %}
 {% block page_title %}Sauvegardes de la base de données{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Sauvegardes de la base de données</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Sauvegardes</li></ol></nav>{% endblock %}
 
 {% block content %}
+{% with total=page_obj.paginator.count %}
+<div class="sgd-dashboard">
+  <header class="sgd-hero" aria-labelledby="sgd-page-title">
+    <span class="sgd-hero-icon" aria-hidden="true"><i class="bi bi-hdd-stack"></i></span>
+    <div class="sgd-hero-copy"><div class="sgd-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> Sécurité des données</div><h1 id="sgd-page-title">Sauvegardes de la base de données</h1><p>Créez une copie de sécurité, téléchargez-la ou restaurez la base à partir d’une sauvegarde complète. Une sauvegarde de sécurité est créée automatiquement avant chaque restauration.</p></div>
+    <div class="sgd-hero-actions"><div class="sgd-hero-meta"><div><span>Résultats</span><strong>{{ total }} sauvegarde{{ total|pluralize }}</strong></div></div><a href="{% url 'backups:sauvegarde-create' %}" class="btn btn-light"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouvelle sauvegarde</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Sauvegardes de la base de données</h4>
-  <a href="{% url 'backups:sauvegarde-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Ajouter sauvegarde base de données
-  </a>
-</div>
-
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-3 overflow-auto">
-
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date</label>
-          <select name="ordre" class="form-select form-select-sm" data-autosubmit>
-            <option value="desc" {% if ordre == 'desc' %}selected{% endif %}>Décroissant</option>
-            <option value="asc" {% if ordre == 'asc' %}selected{% endif %}>Croissant</option>
-          </select>
-        </div>
-
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Chiffré</label>
-          <select name="chiffre" class="form-select form-select-sm" data-autosubmit>
-            <option value="" {% if chiffre_filtre == '' %}selected{% endif %}>-- Tous les enregistrement--</option>
-            <option value="oui" {% if chiffre_filtre == 'oui' %}selected{% endif %}>Chiffré</option>
-            <option value="non" {% if chiffre_filtre == 'non' %}selected{% endif %}>Non chiffré</option>
-          </select>
-        </div>
-
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Réussie</label>
-          <select name="reussie" class="form-select form-select-sm" data-autosubmit>
-            <option value="" {% if reussie_filtre == '' %}selected{% endif %}>-- Tous les enregistrement--</option>
-            <option value="oui" {% if reussie_filtre == 'oui' %}selected{% endif %}>Réussie</option>
-            <option value="non" {% if reussie_filtre == 'non' %}selected{% endif %}>Non réussie</option>
-          </select>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'backups:sauvegarde-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
+  <section class="sgd-filter-card" aria-labelledby="sgd-filter-title">
+    <div class="sgd-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="sgd-filter-title">Périmètre de consultation</h2><p>Choisissez l’ordre et les critères, puis appliquez explicitement les filtres.</p></div></div>
+    <form method="get" id="filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="sgd-filter-field"><label for="sgd-ordre">Date de création</label><select name="ordre" id="sgd-ordre" class="form-select" autocomplete="off"><option value="desc" {% if ordre == 'desc' %}selected{% endif %}>Du plus récent au plus ancien</option><option value="asc" {% if ordre == 'asc' %}selected{% endif %}>Du plus ancien au plus récent</option></select></div>
+      <div class="sgd-filter-field"><label for="sgd-chiffre">Chiffrement</label><select name="chiffre" id="sgd-chiffre" class="form-select" autocomplete="off"><option value="" {% if chiffre_filtre == '' %}selected{% endif %}>Toutes les sauvegardes</option><option value="oui" {% if chiffre_filtre == 'oui' %}selected{% endif %}>Chiffrées</option><option value="non" {% if chiffre_filtre == 'non' %}selected{% endif %}>Non chiffrées</option></select></div>
+      <div class="sgd-filter-field"><label for="sgd-reussie">Résultat</label><select name="reussie" id="sgd-reussie" class="form-select" autocomplete="off"><option value="" {% if reussie_filtre == '' %}selected{% endif %}>Toutes les sauvegardes</option><option value="oui" {% if reussie_filtre == 'oui' %}selected{% endif %}>Réussies</option><option value="non" {% if reussie_filtre == 'non' %}selected{% endif %}>En échec</option></select></div>
+      <div class="sgd-filter-actions"><a href="{% url 'backups:sauvegarde-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-check2" aria-hidden="true"></i>Appliquer</button></div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Section 2 : liste des sauvegardes ────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="sgd-panel" aria-labelledby="sgd-results-title">
+    <header class="sgd-panel-head"><div><div class="sgd-section-label">Historique des sauvegardes</div><h2 id="sgd-results-title">Sauvegardes enregistrées</h2>{% if page_obj.object_list %}<p>{{ total }} enregistrement{{ total|pluralize }} classé{{ total|pluralize }} par date de création.</p>{% else %}<p>Aucune sauvegarde ne correspond aux filtres actuels.</p>{% endif %}</div>{% if page_obj.object_list %}<span class="sgd-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ total }} résultat{{ total|pluralize }}</span>{% endif %}</header>
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Nom de la sauvegarde</th>
-            <th>Type</th>
-            <th class="text-center">Chiffré</th>
-            <th class="text-end">Taille</th>
-            <th>Date de création</th>
-            <th class="text-center">Réussie</th>
-            <th>Observation</th>
-            <th class="text-center pe-3" style="width:160px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in page_obj.object_list %}
-          <tr>
-            <td class="ps-3">{{ s.nom }}</td>
-            <td>{{ s.type_sauvegarde }}</td>
-            <td class="text-center">
-              {% if s.chiffre %}<i class="bi bi-lock-fill text-success" title="Chiffré"></i>
-              {% else %}<i class="bi bi-unlock text-muted" title="Non chiffré"></i>{% endif %}
-            </td>
-            <td class="text-end font-monospace">{{ s.taille|default:0|filesizeformat }}</td>
-            <td>{{ s.created_at|date:'d/m/Y H:i' }}</td>
-            <td class="text-center">
-              {% if s.reussie %}<span class="badge bg-success">Oui</span>
-              {% else %}<span class="badge bg-danger" title="{{ s.message_erreur|default:'' }}">Non</span>{% endif %}
-            </td>
-            <td class="text-truncate" style="max-width:220px;" title="{{ s.observation|default:'' }}">
-              {{ s.observation|default:'' }}
-            </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                {% if s.reussie %}
-                <a href="{% url 'backups:sauvegarde-download' s.pk %}"
-                   class="btn btn-sm btn-outline-primary" title="Télécharger">
-                  <i class="bi bi-download"></i>
-                </a>
-                {% if s.type_sauvegarde == 'Complète' %}
-                <form method="post" action="{% url 'backups:sauvegarde-restore' s.pk %}" class="d-inline"
-                      onsubmit="return confirm('Restaurer la base de données depuis « {{ s.nom }} » ?\n\nCeci va REMPLACER TOUT le contenu actuel de la base par celui de cette sauvegarde. Une sauvegarde de sécurité de l\'état actuel sera créée automatiquement avant, mais cette opération reste irréversible sur le fonctionnement en cours. Continuer ?');">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-warning" title="Restaurer">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                  </button>
-                </form>
-                {% else %}
-                <button type="button" class="btn btn-sm btn-outline-warning" disabled
-                        title="Seule une sauvegarde « Complète » peut être restaurée">
-                  <i class="bi bi-arrow-counterclockwise"></i>
-                </button>
-                {% endif %}
-                {% else %}
-                <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Sauvegarde en échec">
-                  <i class="bi bi-download"></i>
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-warning" disabled title="Sauvegarde en échec">
-                  <i class="bi bi-arrow-counterclockwise"></i>
-                </button>
-                {% endif %}
-                <form method="post" action="{% url 'backups:sauvegarde-delete' s.pk %}" class="d-inline"
-                      onsubmit="return confirm('Voulez-vous vraiment supprimer cette sauvegarde ?');">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </form>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="sgd-table-wrap"><table class="sgd-table"><caption class="visually-hidden">Liste des sauvegardes de la base de données</caption><colgroup><col class="sgd-col-name"><col class="sgd-col-type"><col class="sgd-col-small"><col class="sgd-col-small"><col class="sgd-col-date"><col class="sgd-col-small"><col class="sgd-col-obs"><col class="sgd-col-action"></colgroup><thead><tr><th scope="col">Nom</th><th scope="col">Type</th><th scope="col">Chiffrement</th><th scope="col" class="sgd-number-col">Taille</th><th scope="col">Création</th><th scope="col">Résultat</th><th scope="col">Observation</th><th scope="col">Actions</th></tr></thead><tbody>{% for s in page_obj.object_list %}<tr><td><span class="sgd-name">{{ s.nom }}</span></td><td>{{ s.type_sauvegarde }}</td><td>{% if s.chiffre %}<span class="sgd-pill sgd-pill-info"><i class="bi bi-lock-fill" aria-hidden="true"></i>Chiffrée</span>{% else %}<span class="sgd-pill sgd-pill-muted"><i class="bi bi-unlock" aria-hidden="true"></i>Non chiffrée</span>{% endif %}</td><td class="sgd-number-col"><strong class="sgd-mono">{{ s.taille|default:0|filesizeformat }}</strong></td><td><time datetime="{{ s.created_at|date:'Y-m-d H:i' }}">{{ s.created_at|date:'d/m/Y H:i' }}</time></td><td>{% if s.reussie %}<span class="sgd-pill sgd-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Réussie</span>{% else %}<span class="sgd-pill sgd-pill-ko"><i class="bi bi-x-circle" aria-hidden="true"></i>Échec</span>{% if s.message_erreur %}<small class="sgd-error-text">{{ s.message_erreur|truncatechars:70 }}</small>{% endif %}{% endif %}</td><td><span class="sgd-obs">{{ s.observation|default:"—" }}</span></td><td><div class="sgd-actions">
+      {% if s.reussie %}<a href="{% url 'backups:sauvegarde-download' s.pk %}" class="btn btn-outline-primary"><i class="bi bi-download" aria-hidden="true"></i>Télécharger</a>
+      {% if s.type_sauvegarde == 'Complète' %}<form method="post" action="{% url 'backups:sauvegarde-restore' s.pk %}" class="sgd-confirm-form" data-confirm-kind="restore" data-confirm-name="{{ s.nom }}">{% csrf_token %}<button type="submit" class="btn btn-outline-warning"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button></form>{% else %}<button type="button" class="btn btn-outline-warning" disabled title="Seule une sauvegarde « Complète » peut être restaurée"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button>{% endif %}
+      {% else %}<button type="button" class="btn btn-outline-primary" disabled title="Sauvegarde en échec"><i class="bi bi-download" aria-hidden="true"></i>Télécharger</button><button type="button" class="btn btn-outline-warning" disabled title="Sauvegarde en échec"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button>{% endif %}
+      <form method="post" action="{% url 'backups:sauvegarde-delete' s.pk %}" class="sgd-confirm-form" data-confirm-kind="delete" data-confirm-name="{{ s.nom }}">{% csrf_token %}<button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash" aria-hidden="true"></i>Supprimer</button></form></div></td></tr>{% endfor %}</tbody></table></div>
 
-    {% if page_obj.paginator.num_pages > 1 %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} sauvegarde{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?ordre={{ ordre }}&chiffre={{ chiffre_filtre }}&reussie={{ reussie_filtre }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?ordre={{ ordre }}&chiffre={{ chiffre_filtre }}&reussie={{ reussie_filtre }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?ordre={{ ordre }}&chiffre={{ chiffre_filtre }}&reussie={{ reussie_filtre }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
+    <div class="sgd-card-list">{% for s in page_obj.object_list %}<article class="sgd-card"><header><span class="sgd-name-wrap"><span aria-hidden="true"><i class="bi bi-hdd"></i></span><span><strong>{{ s.nom }}</strong><small>{{ s.created_at|date:'d/m/Y H:i' }}</small></span></span>{% if s.reussie %}<span class="sgd-pill sgd-pill-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Réussie</span>{% else %}<span class="sgd-pill sgd-pill-ko"><i class="bi bi-x-circle" aria-hidden="true"></i>Échec</span>{% endif %}</header><dl><div><dt>Type</dt><dd>{{ s.type_sauvegarde }}</dd></div><div><dt>Taille</dt><dd>{{ s.taille|default:0|filesizeformat }}</dd></div><div><dt>Chiffrement</dt><dd>{% if s.chiffre %}Chiffrée{% else %}Non chiffrée{% endif %}</dd></div><div><dt>Observation</dt><dd>{{ s.observation|default:"—" }}</dd></div>{% if not s.reussie and s.message_erreur %}<div class="sgd-card-wide"><dt>Erreur</dt><dd>{{ s.message_erreur|truncatechars:140 }}</dd></div>{% endif %}</dl><div class="sgd-card-actions">
+      {% if s.reussie %}<a href="{% url 'backups:sauvegarde-download' s.pk %}" class="btn btn-outline-primary"><i class="bi bi-download" aria-hidden="true"></i>Télécharger</a>
+      {% if s.type_sauvegarde == 'Complète' %}<form method="post" action="{% url 'backups:sauvegarde-restore' s.pk %}" class="sgd-confirm-form" data-confirm-kind="restore" data-confirm-name="{{ s.nom }}">{% csrf_token %}<button type="submit" class="btn btn-outline-warning"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button></form>{% else %}<button type="button" class="btn btn-outline-warning" disabled title="Seule une sauvegarde « Complète » peut être restaurée"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Restaurer</button>{% endif %}{% endif %}
+      <form method="post" action="{% url 'backups:sauvegarde-delete' s.pk %}" class="sgd-confirm-form" data-confirm-kind="delete" data-confirm-name="{{ s.nom }}">{% csrf_token %}<button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash" aria-hidden="true"></i>Supprimer</button></form></div></article>{% endfor %}</div>
 
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-hdd-stack fs-1 d-block mb-2 opacity-25"></i>
-      Aucune sauvegarde avec ces filtres.
-    </div>
-    {% endif %}
-  </div>
+    {% if page_obj.paginator.num_pages > 1 %}<footer class="sgd-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total }} enregistrement{{ total|pluralize }}</span><nav aria-label="Pagination des sauvegardes"><ul class="sgd-pagination">{% if page_obj.has_previous %}<li><a href="?ordre={{ ordre|urlencode }}&amp;chiffre={{ chiffre_filtre|urlencode }}&amp;reussie={{ reussie_filtre|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?ordre={{ ordre|urlencode }}&amp;chiffre={{ chiffre_filtre|urlencode }}&amp;reussie={{ reussie_filtre|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?ordre={{ ordre|urlencode }}&amp;chiffre={{ chiffre_filtre|urlencode }}&amp;reussie={{ reussie_filtre|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="sgd-empty"><span><i class="bi bi-hdd-stack" aria-hidden="true"></i></span><h3>Aucune sauvegarde</h3><p>Aucune sauvegarde n’est disponible{% if chiffre_filtre or reussie_filtre %} avec ces filtres{% endif %}.</p><a href="{% url 'backups:sauvegarde-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer une sauvegarde</a></div>{% endif %}
+  </section>
 </div>
 
+<div class="modal fade" id="sgd-confirm-modal" tabindex="-1" aria-labelledby="sgd-confirm-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content sgd-modal">
+      <div class="modal-header"><h5 class="modal-title" id="sgd-confirm-title">Confirmation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <div class="modal-body"><p id="sgd-confirm-text" class="mb-0"></p></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-primary" id="sgd-confirm-ok">Confirmer</button></div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* Sauvegardes : tableau de bord ordinateur d'abord, même système que Transferts. */
+.sgd-dashboard{--sgd-primary:#2c7be5;--sgd-primary-dark:#1a4f9c;--sgd-ink:#172033;--sgd-muted:#667085;--sgd-border:#e2e8f0;--sgd-radius:1rem;max-width:1700px;margin:0 auto;color:var(--sgd-ink)}
+.sgd-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.sgd-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.sgd-hero-copy{min-width:0}.sgd-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.sgd-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.sgd-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.84rem}.sgd-hero-actions{display:flex;align-items:stretch;gap:.55rem}.sgd-hero-meta{display:grid;min-width:170px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.sgd-hero-meta div{min-width:0;padding:.5rem}.sgd-hero-meta span{display:block;color:rgba(255,255,255,.62);font-size:.61rem}.sgd-hero-meta strong{display:block;margin-top:.1rem;font-size:.75rem;white-space:nowrap}.sgd-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.75rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.sgd-filter-card,.sgd-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--sgd-border);border-radius:var(--sgd-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.sgd-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.sgd-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--sgd-primary)}.sgd-filter-head h2{margin:0;font-size:.88rem;font-weight:750}.sgd-filter-head p{margin:.12rem 0 0;color:var(--sgd-muted);font-size:.65rem}.sgd-filter-card form{display:grid;grid-template-columns:minmax(220px,1fr) minmax(200px,1fr) minmax(200px,1fr) auto;align-items:end;gap:.7rem;padding:.9rem 1rem}.sgd-filter-field label{display:block;margin-bottom:.3rem;color:#344054;font-size:.65rem;font-weight:700}.sgd-filter-field .form-select{min-height:2.65rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.7rem}.sgd-filter-actions{display:flex;gap:.45rem}.sgd-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;min-height:2.65rem;padding-inline:.7rem;border-radius:.58rem;font-size:.63rem;font-weight:700;white-space:nowrap}
+.sgd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.sgd-section-label{color:var(--sgd-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.sgd-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.sgd-panel-head p{margin:.15rem 0 0;color:var(--sgd-muted);font-size:.7rem}.sgd-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--sgd-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}
+.sgd-table{width:100%;border-collapse:collapse;table-layout:fixed}.sgd-col-name{width:17%}.sgd-col-type{width:8%}.sgd-col-small{width:10%}.sgd-col-date{width:10%}.sgd-col-obs{width:13%}.sgd-col-action{width:24%}.sgd-table thead{background:#f8fafc}.sgd-table th{padding:.68rem .62rem;border-bottom:1px solid var(--sgd-border);color:var(--sgd-muted);font-size:.57rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.sgd-table td{padding:.72rem .62rem;border-bottom:1px solid #edf0f4;font-size:.65rem;vertical-align:middle}.sgd-table tbody tr:last-child td{border-bottom:0}.sgd-table tbody tr:hover{background:#f8faff}.sgd-number-col{text-align:right!important}.sgd-name{font-weight:650;overflow-wrap:anywhere}.sgd-mono{font-variant-numeric:tabular-nums;white-space:nowrap}.sgd-obs{display:block;overflow:hidden;color:#475467;text-overflow:ellipsis;white-space:nowrap}.sgd-error-text{display:block;margin-top:.2rem;color:#b42318;font-size:.55rem}
+.sgd-pill{display:inline-flex;align-items:center;gap:.28rem;padding:.24rem .5rem;border-radius:2rem;font-size:.58rem;font-weight:750;white-space:nowrap}.sgd-pill-ok{background:#e7f6ec;color:#146c2e}.sgd-pill-ko{background:#fdeceb;color:#b42318}.sgd-pill-info{background:#eaf2fd;color:#1a4f9c}.sgd-pill-muted{background:#f2f4f7;color:#475467}
+.sgd-actions,.sgd-card-actions{display:flex;flex-wrap:wrap;gap:.35rem}.sgd-confirm-form{margin:0}.sgd-actions .btn,.sgd-card-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.25rem;min-height:2.2rem;padding:.35rem .55rem;border-radius:.52rem;font-size:.58rem;font-weight:700;white-space:nowrap}.sgd-card-list{display:none}
+.sgd-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.sgd-pagination-footer>span{color:var(--sgd-muted);font-size:.62rem}.sgd-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.sgd-pagination a,.sgd-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.sgd-pagination .active{border-color:var(--sgd-primary);background:var(--sgd-primary);color:#fff}.sgd-empty{padding:3rem 1rem;text-align:center}.sgd-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.sgd-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.sgd-empty p{margin:0;color:var(--sgd-muted);font-size:.68rem}.sgd-empty .btn{display:inline-flex;align-items:center;gap:.3rem;margin-top:.8rem;border-radius:.58rem;font-size:.65rem;font-weight:700}.sgd-dashboard a:focus-visible,.sgd-dashboard button:focus-visible,.sgd-dashboard select:focus-visible,.sgd-modal button:focus-visible{outline:3px solid #174c8f;outline-offset:2px}.sgd-modal{border:0;border-radius:1rem}.sgd-modal .modal-title{font-size:1rem;font-weight:750}.sgd-modal .modal-body{font-size:.85rem}
+@media(max-width:1399.98px){.sgd-table-wrap{display:none}.sgd-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem;background:#f7f9fc}.sgd-card{overflow:hidden;border:1px solid var(--sgd-border);border-radius:.8rem;background:#fff}.sgd-card>header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.sgd-name-wrap{display:flex;align-items:center;gap:.5rem;min-width:0}.sgd-name-wrap>span:first-child{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:50%;background:#eaf2fd;color:var(--sgd-primary)}.sgd-name-wrap>span:last-child{min-width:0}.sgd-name-wrap strong,.sgd-name-wrap small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.67rem}.sgd-name-wrap small{color:var(--sgd-muted);font-size:.55rem}.sgd-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin:0;padding:.8rem}.sgd-card dt{color:var(--sgd-muted);font-size:.55rem;text-transform:uppercase}.sgd-card dd{margin:.1rem 0 0;font-size:.67rem;font-weight:750;overflow-wrap:anywhere}.sgd-card-wide{grid-column:1/-1}.sgd-card-actions{padding:0 .8rem .8rem}}
+@media(max-width:1199.98px){.sgd-hero{grid-template-columns:auto minmax(0,1fr)}.sgd-hero-actions{grid-column:1/-1}.sgd-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.sgd-filter-actions{grid-column:1/-1;justify-content:flex-end}}
+@media(max-width:767.98px){.sgd-hero-actions{flex-direction:column}.sgd-hero-meta{min-width:0}.sgd-card-list{grid-template-columns:1fr}.sgd-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.sgd-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.sgd-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.sgd-hero-copy>p{font-size:.8rem}.sgd-filter-card form{grid-template-columns:1fr}.sgd-filter-actions{grid-column:auto;flex-direction:column}.sgd-panel-head{flex-direction:column;padding:.9rem}.sgd-card dl{grid-template-columns:1fr}.sgd-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.sgd-dashboard *{transition:none!important}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
+(function () {
+  'use strict';
+  var modalEl = document.getElementById('sgd-confirm-modal');
+  var textEl = document.getElementById('sgd-confirm-text');
+  var titleEl = document.getElementById('sgd-confirm-title');
+  var okBtn = document.getElementById('sgd-confirm-ok');
+  var pendingForm = null;
+  var modal = (modalEl && window.bootstrap) ? new bootstrap.Modal(modalEl) : null;
+
+  document.querySelectorAll('.sgd-confirm-form').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      if (form.dataset.confirmed === '1') return;
+      e.preventDefault();
+      var kind = form.dataset.confirmKind;
+      var name = form.dataset.confirmName || '';
+      var msg, title, cls;
+      if (kind === 'restore') {
+        title = 'Restaurer la base de données ?';
+        msg = 'La base sera restaurée depuis « ' + name + ' ». Tout le contenu actuel sera REMPLACÉ par celui de cette sauvegarde. Une sauvegarde de sécurité de l’état actuel est créée automatiquement avant, mais l’opération reste irréversible sur le fonctionnement en cours.';
+        cls = 'btn btn-warning';
+      } else {
+        title = 'Supprimer cette sauvegarde ?';
+        msg = 'La sauvegarde « ' + name + ' » et son fichier seront définitivement supprimés.';
+        cls = 'btn btn-danger';
+      }
+      if (!modal) {
+        if (window.confirm(title + '\n\n' + msg)) { form.dataset.confirmed = '1'; form.submit(); }
+        return;
+      }
+      pendingForm = form;
+      titleEl.textContent = title;
+      textEl.textContent = msg;
+      okBtn.className = cls;
+      okBtn.textContent = kind === 'restore' ? 'Restaurer maintenant' : 'Supprimer';
+      modal.show();
+    });
   });
-});
+
+  if (okBtn) {
+    okBtn.addEventListener('click', function () {
+      if (!pendingForm) return;
+      okBtn.disabled = true;
+      okBtn.textContent = 'Traitement en cours…';
+      pendingForm.dataset.confirmed = '1';
+      pendingForm.submit();
+    });
+  }
+})();
 </script>
 {% endblock %}

@@ -4,176 +4,72 @@
 {% block page_title %}Jours non ouvrés{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Jours non ouvrés</li>
-  </ol>
-</nav>
+<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Jours non ouvrés</li></ol></nav>
 {% endblock %}
 
 {% block content %}
+<div class="closed-days-dashboard">
+  <header class="jno-hero" aria-labelledby="jno-page-title"><span class="jno-hero-icon" aria-hidden="true"><i class="bi bi-calendar-x"></i></span><div class="jno-hero-copy"><div class="jno-eyebrow"><i class="bi bi-calendar-event" aria-hidden="true"></i> Calendrier opérationnel</div><h1 id="jno-page-title">Jours non ouvrés</h1><p>Planifiez les fermetures qui affectent les visites, la production et les livraisons.</p></div><div class="jno-hero-meta"><span>Date du jour</span><strong>{{ today_date|date:"d/m/Y" }}</strong><small>{{ today_date|date:"l" }}</small></div></header>
 
-{# ── Partie 1 : liste des jours non ouvrés enregistrés ───────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-calendar-x me-2 text-primary"></i>Jours non ouvrés enregistrés
-  </div>
-  <div class="card-body p-0">
-    {% if jours_non_ouvres %}
-    {% comment %}
-      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
-      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
-      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
-    {% endcomment %}
-    {% for j in jours_non_ouvres %}
-    <form id="jour-non-ouvre-update-{{ j.pk }}" method="post" action="{% url 'administration:jour-non-ouvre-update' j.pk %}"></form>
-    <form id="jour-non-ouvre-delete-{{ j.pk }}" method="post" action="{% url 'administration:jour-non-ouvre-delete' j.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:150px;">Date</th>
-            <th style="min-width:200px;">Libellé</th>
-            <th style="min-width:180px;">Type</th>
-            <th class="text-center" style="width:120px;">Impacte livraison</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for j in jours_non_ouvres %}
-          <tr>
-            <td class="ps-3">
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="jour-non-ouvre-update-{{ j.pk }}">
-              <input type="date" name="date" value="{{ j.date|date:'Y-m-d' }}"
-                     class="form-control form-control-sm" form="jour-non-ouvre-update-{{ j.pk }}">
-            </td>
-            <td>
-              <input type="text" name="libelle" value="{{ j.libelle }}"
-                     class="form-control form-control-sm" style="min-width:190px;" form="jour-non-ouvre-update-{{ j.pk }}">
-            </td>
-            <td>
-              <select name="type_jour" class="form-select form-select-sm" form="jour-non-ouvre-update-{{ j.pk }}">
-                {% for valeur, libelle in type_choices %}
-                <option value="{{ valeur }}" {% if j.type_jour == valeur %}selected{% endif %}>{{ libelle }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="text-center">
-              <input type="checkbox" name="concerne_livraison" value="true"
-                     class="form-check-input" {% if j.concerne_livraison %}checked{% endif %}
-                     form="jour-non-ouvre-update-{{ j.pk }}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="submit" form="jour-non-ouvre-update-{{ j.pk }}"
-                      class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="jour-non-ouvre-delete-{{ j.pk }}">
-              <button type="submit" form="jour-non-ouvre-delete-{{ j.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                      onclick="return confirm('Supprimer le jour non ouvré « {{ j.libelle|escapejs }} » ?');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <section class="jno-kpi-grid" aria-label="Synthèse du calendrier"><article class="jno-kpi jno-kpi-blue"><span><i class="bi bi-calendar3" aria-hidden="true"></i></span><div><small>Total enregistré</small><strong>{{ total_jours }}</strong><em>jour{{ total_jours|pluralize }}</em></div></article><article class="jno-kpi jno-kpi-orange"><span><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><div><small>À venir</small><strong>{{ total_a_venir }}</strong><em>fermeture{{ total_a_venir|pluralize }}</em></div></article><article class="jno-kpi jno-kpi-muted"><span><i class="bi bi-clock-history" aria-hidden="true"></i></span><div><small>Déjà passés</small><strong>{{ total_passes }}</strong><em>historique</em></div></article><article class="jno-kpi jno-kpi-green"><span><i class="bi bi-truck" aria-hidden="true"></i></span><div><small>Impact livraison</small><strong>{{ total_livraison }}</strong><em>jour{{ total_livraison|pluralize }}</em></div></article></section>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} jour{{ page_obj.paginator.count|pluralize }} non ouvré{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+  <div class="jno-layout">
+    <main class="jno-main">
+      <section class="jno-panel" aria-labelledby="jno-list-title">
+        <header class="jno-panel-head"><div><div class="jno-section-label">Calendrier</div><h2 id="jno-list-title">Fermetures enregistrées</h2>{% if jours_non_ouvres %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>{% else %}<p>Aucune fermeture enregistrée pour le moment.</p>{% endif %}</div>{% if jours_non_ouvres %}<span class="jno-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} date{{ page_obj.paginator.count|pluralize }}</span>{% endif %}</header>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
+        {% if jours_non_ouvres %}
+        {% for j in jours_non_ouvres %}<form id="jno-update-{{ j.pk }}" method="post" action="{% url 'administration:jour-non-ouvre-update' j.pk %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}</form>{% endfor %}
+        <div class="jno-table-wrap"><table class="jno-table"><caption class="visually-hidden">Jours non ouvrés modifiables</caption><thead><tr><th scope="col">Date</th><th scope="col">Libellé</th><th scope="col">Type</th><th scope="col">Livraison</th><th scope="col">Situation</th><th scope="col" class="jno-actions-col">Actions</th></tr></thead><tbody>
+          {% for j in jours_non_ouvres %}<tr class="{% if j.date < today_date %}jno-past-row{% elif j.date == today_date %}jno-today-row{% endif %}">
+            <td data-label="Date"><input type="date" name="date" value="{{ j.date|date:'Y-m-d' }}" class="form-control jno-input" form="jno-update-{{ j.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></td>
+            <td data-label="Libellé"><input type="text" name="libelle" value="{{ j.libelle }}" class="form-control jno-input" form="jno-update-{{ j.pk }}" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></td>
+            <td data-label="Type"><select name="type_jour" class="form-select jno-input" form="jno-update-{{ j.pk }}">{% for valeur, libelle in type_choices %}<option value="{{ valeur }}" {% if j.type_jour == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></td>
+            <td data-label="Livraison" class="jno-delivery-cell"><label class="jno-check"><input type="checkbox" name="concerne_livraison" value="true" {% if j.concerne_livraison %}checked{% endif %} form="jno-update-{{ j.pk }}"><span>{% if j.concerne_livraison %}Impactée{% else %}Non impactée{% endif %}</span></label></td>
+            <td data-label="Situation">{% if j.date < today_date %}<span class="jno-status jno-status-past"><i class="bi bi-clock-history" aria-hidden="true"></i>Passé</span>{% elif j.date == today_date %}<span class="jno-status jno-status-today"><i class="bi bi-circle-fill" aria-hidden="true"></i>Aujourd'hui</span>{% else %}<span class="jno-status jno-status-upcoming"><i class="bi bi-calendar-check" aria-hidden="true"></i>À venir</span>{% endif %}</td>
+            <td data-label="Actions" class="jno-actions-col"><div class="jno-row-actions"><button type="submit" form="jno-update-{{ j.pk }}" class="jno-icon-btn jno-icon-btn-primary" aria-label="Enregistrer {{ j.libelle }}" title="Enregistrer"><i class="bi bi-check-lg" aria-hidden="true"></i><span class="jno-action-text">Enregistrer</span></button><button type="button" class="jno-icon-btn jno-icon-btn-danger jno-delete-btn" data-url="{% url 'administration:jour-non-ouvre-delete' j.pk %}" data-label="{{ j.libelle }} — {{ j.date|date:'d/m/Y' }}" aria-label="Supprimer {{ j.libelle }}" title="Supprimer"><i class="bi bi-trash" aria-hidden="true"></i><span class="jno-action-text">Supprimer</span></button></div></td>
+          </tr>{% endfor %}
+        </tbody></table></div>
 
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
+        {% if is_paginated %}<footer class="jno-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des jours non ouvrés"><ul class="jno-pagination">{% if page_obj.has_previous %}<li><a href="?page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+        {% else %}<div class="jno-empty"><span><i class="bi bi-calendar-check" aria-hidden="true"></i></span><h3>Aucune fermeture enregistrée</h3><p>Utilisez le formulaire d’ajout pour planifier votre premier jour non ouvré.</p></div>{% endif %}
+      </section>
+    </main>
 
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-25"></i>
-      Aucun jour non ouvré enregistré.
-    </div>
-    {% endif %}
+    <aside class="jno-aside" aria-label="Ajouter un jour non ouvré"><div class="jno-side-stack"><section class="jno-add-card" aria-labelledby="jno-add-title"><div class="jno-side-head"><span><i class="bi bi-calendar-plus" aria-hidden="true"></i></span><div><h2 id="jno-add-title">Ajouter une fermeture</h2><p>Créez une date exceptionnelle.</p></div></div><form method="post" action="{% url 'administration:jour-non-ouvre-create' %}" id="jno-add-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}
+      <div class="jno-add-field"><label for="jno-add-date">Date <span>*</span></label><input type="date" name="date" id="jno-add-date" value="{{ add_form.date.value|default:'' }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      <div class="jno-add-field"><label for="jno-add-label">Libellé <span>*</span></label><input type="text" name="libelle" id="jno-add-label" value="{{ add_form.libelle.value|default:'' }}" class="form-control" placeholder="Ex. : Fête de l'Indépendance" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></div>
+      <div class="jno-add-field"><label for="jno-add-type">Type <span>*</span></label><select name="type_jour" id="jno-add-type" class="form-select">{% for valeur, libelle in type_choices %}<option value="{{ valeur }}" {% if add_form.type_jour.value == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}</select></div>
+      <label class="jno-delivery-toggle" for="jno-add-delivery"><input type="checkbox" name="concerne_livraison" value="true" id="jno-add-delivery" {% if add_form.concerne_livraison.value is not False %}checked{% endif %}><span><strong>Impacte les livraisons</strong><small>Les visites prévues seront considérées comme non ouvrées.</small></span></label>
+      <button type="submit" class="btn btn-primary jno-add-submit"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter au calendrier</button>
+    </form></section><section class="jno-help-card"><span><i class="bi bi-lightbulb" aria-hidden="true"></i></span><div><strong>Bon à savoir</strong><p>Les jours impactant les livraisons sont exclus du calcul d’adhérence des visites commerciales.</p></div></section></div></aside>
   </div>
 </div>
 
-{# ── Partie 2 : ajout d'un nouveau jour non ouvré ─────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter un jour non ouvré
-  </div>
-  <div class="card-body">
-    <form method="post" action="{% url 'administration:jour-non-ouvre-create' %}">
-      {% csrf_token %}
-      <div class="row g-2 align-items-end">
-        <div class="col-sm-3">
-          <label class="form-label small mb-1">Date</label>
-          <input type="date" name="date" value="{{ add_form.date.value|default:'' }}" class="form-control">
-        </div>
-        <div class="col-sm-4">
-          <label class="form-label small mb-1">Libellé</label>
-          <input type="text" name="libelle" value="{{ add_form.libelle.value|default:'' }}" class="form-control"
-                 placeholder="Ex : Fête de l'Indépendance">
-        </div>
-        <div class="col-sm-3">
-          <label class="form-label small mb-1">Type</label>
-          <select name="type_jour" class="form-select">
-            {% for valeur, libelle in type_choices %}
-            <option value="{{ valeur }}">{{ libelle }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-sm-1">
-          <div class="form-check mb-2">
-            <input type="checkbox" name="concerne_livraison" value="true" class="form-check-input" checked
-                   id="concerne-livraison-add">
-            <label class="form-check-label small" for="concerne-livraison-add">Livraison</label>
-          </div>
-        </div>
-        <div class="col-sm-1">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg"></i>
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
+<div class="modal fade" id="jno-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="jno-delete-title"><div class="modal-dialog modal-dialog-centered"><form method="post" class="modal-content" id="jno-delete-form">{% csrf_token %}<div class="modal-header"><h2 class="modal-title fs-5" id="jno-delete-title">Supprimer ce jour non ouvré ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="fw-semibold mb-2" id="jno-delete-label"></p><div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Cette date sera retirée du calendrier opérationnel.</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger" id="jno-delete-confirm"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button></div></form></div></div>
+{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+/* ── Jours non ouvrés : interface ordinateur d'abord ──────────────────────── */
+.closed-days-dashboard{--jno-primary:#2c7be5;--jno-primary-dark:#1a4f9c;--jno-ink:#172033;--jno-muted:#667085;--jno-border:#e2e8f0;--jno-surface:#fff;--jno-radius:1rem;max-width:1550px;margin:0 auto;color:var(--jno-ink)}
+.jno-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.jno-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.4rem;height:4.4rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.jno-hero-copy{min-width:0}.jno-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.jno-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.jno-hero-copy>p{margin:0;color:rgba(255,255,255,.78);font-size:.86rem}.jno-hero-meta{display:flex;flex-direction:column;min-width:150px;padding:.65rem .8rem;border:1px solid rgba(255,255,255,.18);border-radius:.75rem;background:rgba(8,31,61,.2)}.jno-hero-meta span,.jno-hero-meta small{color:rgba(255,255,255,.65);font-size:.64rem}.jno-hero-meta strong{font-size:.9rem}
+.jno-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem;margin-top:1rem}.jno-kpi{--jno-accent:#2c7be5;--jno-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.7rem;min-height:96px;padding:.9rem;border:1px solid var(--jno-border);border-radius:.88rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.jno-kpi-blue{--jno-accent:#2c7be5;--jno-soft:#eaf2fd}.jno-kpi-orange{--jno-accent:#d97706;--jno-soft:#fff4e0}.jno-kpi-muted{--jno-accent:#667085;--jno-soft:#eef0f3}.jno-kpi-green{--jno-accent:#198754;--jno-soft:#e9f6ef}.jno-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.7rem;height:2.7rem;border-radius:.7rem;background:var(--jno-soft);color:var(--jno-accent);font-size:1.12rem}.jno-kpi small{display:block;color:var(--jno-muted);font-size:.66rem;font-weight:650}.jno-kpi strong{display:block;margin-top:.05rem;font-size:1.2rem;font-variant-numeric:tabular-nums;line-height:1.15}.jno-kpi em{display:block;color:var(--jno-muted);font-size:.62rem;font-style:normal}
+.jno-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(330px,.75fr);align-items:start;gap:1rem;margin-top:1rem}.jno-panel,.jno-add-card,.jno-help-card{overflow:hidden;border:1px solid var(--jno-border);border-radius:var(--jno-radius);background:var(--jno-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.jno-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:80px;padding:.95rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.jno-section-label{color:var(--jno-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.jno-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.jno-panel-head p{margin:.15rem 0 0;color:var(--jno-muted);font-size:.7rem}.jno-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--jno-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.jno-table-wrap{display:block}.jno-table{width:100%;border-collapse:collapse;table-layout:fixed}.jno-table thead{background:#f8fafc}.jno-table th{padding:.7rem .8rem;border-bottom:1px solid var(--jno-border);color:var(--jno-muted);font-size:.64rem;font-weight:800;letter-spacing:.04em;text-align:left;text-transform:uppercase}.jno-table td{padding:.68rem .8rem;border-bottom:1px solid #edf0f4;font-size:.73rem;vertical-align:middle}.jno-table tbody tr:last-child td{border-bottom:0}.jno-table th:nth-child(1){width:16%}.jno-table th:nth-child(2){width:25%}.jno-table th:nth-child(3){width:19%}.jno-table th:nth-child(4){width:14%}.jno-table th:nth-child(5){width:14%}.jno-table th:nth-child(6){width:12%}.jno-input{min-height:2.5rem;border-color:#d3dae4;border-radius:.58rem;font-size:.75rem}.jno-input:focus{border-color:#77a9e9;box-shadow:0 0 0 .18rem rgba(44,123,229,.12)}.jno-table [data-autofill-lock][readonly],.jno-add-card [data-autofill-lock][readonly]{background:#fff;cursor:text}.jno-delivery-cell{text-align:center}.jno-check{display:inline-flex;align-items:center;gap:.35rem;color:#526071;font-size:.65rem;cursor:pointer}.jno-check input{width:1.05rem;height:1.05rem}.jno-status{display:inline-flex;align-items:center;gap:.3rem;padding:.24rem .48rem;border-radius:2rem;font-size:.65rem;font-weight:750;white-space:nowrap}.jno-status i.bi-circle-fill{font-size:.4rem}.jno-status-past{background:#eef0f3;color:#667085}.jno-status-today{background:#eaf2fd;color:#1a4f9c}.jno-status-upcoming{background:#fff4e0;color:#8a5300}.jno-past-row{background:#fafbfc}.jno-today-row{background:#f7faff}.jno-actions-col{text-align:center!important}.jno-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.jno-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;padding:0;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;text-decoration:none}.jno-icon-btn-primary{border-color:#b8d0ef;color:var(--jno-primary-dark)}.jno-icon-btn-danger{border-color:#efc6cb;color:#b42332}.jno-action-text{display:none}.jno-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--jno-border);background:#fbfcfe}.jno-pagination-footer>span{color:var(--jno-muted);font-size:.7rem}.jno-pagination{display:flex;align-items:center;gap:.25rem;margin:0;padding:0;list-style:none}.jno-pagination a,.jno-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.2rem;height:2.2rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.52rem;background:#fff;color:#526071;font-size:.7rem;font-weight:700;text-decoration:none}.jno-pagination .active{border-color:var(--jno-primary);background:var(--jno-primary);color:#fff}.jno-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:270px;padding:2rem;text-align:center}.jno-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.8rem;height:3.8rem;border-radius:1rem;background:#e9f6ef;color:#198754;font-size:1.45rem}.jno-empty h3{margin:.7rem 0 0;font-size:.92rem}.jno-empty p{margin:.25rem 0 0;color:var(--jno-muted);font-size:.72rem}
+.jno-side-stack{position:sticky;top:calc(var(--topbar-h) + 1rem);display:grid;gap:1rem}.jno-add-card{padding:1rem}.jno-side-head{display:flex;align-items:center;gap:.7rem}.jno-side-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--jno-primary);font-size:1.02rem}.jno-side-head h2{margin:0;font-size:.94rem;font-weight:750}.jno-side-head p{margin:.1rem 0 0;color:var(--jno-muted);font-size:.68rem}.jno-add-field{margin-top:.85rem}.jno-add-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.7rem;font-weight:700}.jno-add-field label span{color:#c62838}.jno-add-field .form-control,.jno-add-field .form-select{min-height:2.85rem;border-color:#cfd7e3;border-radius:.65rem;font-size:.8rem}.jno-delivery-toggle{display:flex;align-items:flex-start;gap:.55rem;margin-top:.9rem;padding:.7rem;border:1px solid #dfe6ef;border-radius:.7rem;background:#f8fafc;cursor:pointer}.jno-delivery-toggle input{width:1.1rem;height:1.1rem;margin-top:.1rem}.jno-delivery-toggle strong,.jno-delivery-toggle small{display:block}.jno-delivery-toggle strong{font-size:.72rem}.jno-delivery-toggle small{margin-top:.12rem;color:var(--jno-muted);font-size:.62rem;line-height:1.35}.jno-add-submit{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:2.9rem;margin-top:.9rem;border-radius:.68rem;font-size:.76rem;font-weight:700}.jno-help-card{display:flex;align-items:flex-start;gap:.65rem;padding:.85rem;background:#fffaf0}.jno-help-card>span{color:#d97706}.jno-help-card strong{font-size:.7rem}.jno-help-card p{margin:.15rem 0 0;color:#72511e;font-size:.64rem;line-height:1.45}.closed-days-dashboard a:focus-visible,.closed-days-dashboard button:focus-visible,.closed-days-dashboard input:focus-visible,.closed-days-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.jno-hero{grid-template-columns:auto minmax(0,1fr)}.jno-hero-meta{grid-column:1/-1}.jno-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.jno-layout{grid-template-columns:1fr}.jno-side-stack{position:static;grid-template-columns:minmax(0,1fr) minmax(280px,.65fr)}.jno-help-card{align-self:start}}
+@media(max-width:767.98px){.jno-side-stack{grid-template-columns:1fr}.jno-table thead{display:none}.jno-table,.jno-table tbody,.jno-table tr,.jno-table td{display:block;width:100%}.jno-table-wrap{padding:.75rem;background:#f7f9fc}.jno-table tr{overflow:hidden;margin-bottom:.75rem;border:1px solid var(--jno-border);border-radius:.75rem;background:#fff}.jno-table tr:last-child{margin-bottom:0}.jno-table td{display:grid;grid-template-columns:7rem minmax(0,1fr);align-items:center;gap:.6rem;padding:.62rem .75rem;border-bottom:1px solid #edf0f4;text-align:left!important}.jno-table td:last-child{border-bottom:0}.jno-table td:before{content:attr(data-label);color:var(--jno-muted);font-size:.62rem;font-weight:700;text-transform:uppercase}.jno-delivery-cell{text-align:left}.jno-row-actions{justify-content:flex-start}.jno-icon-btn{width:auto;min-height:2.4rem;padding:0 .65rem;gap:.32rem}.jno-action-text{display:inline;font-size:.68rem;font-weight:700}.jno-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.jno-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.jno-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.jno-hero-copy>p{font-size:.8rem}.jno-kpi-grid{grid-template-columns:1fr}.jno-panel-head{flex-direction:column;padding:.9rem}.jno-table td{grid-template-columns:1fr;gap:.28rem}.jno-pagination-footer{align-items:flex-start;flex-direction:column}}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  document.querySelectorAll('[data-autofill-lock="true"]').forEach(function(field){function unlock(){field.readOnly=false;field.removeAttribute('readonly');field.removeAttribute('data-autofill-lock')}field.addEventListener('focus',unlock,{once:true});field.addEventListener('pointerdown',function(event){if(event.pointerType==='touch'){unlock()}},{once:true});if(document.activeElement===field){unlock()}});
+  document.querySelectorAll('.jno-check input').forEach(function(checkbox){checkbox.addEventListener('change',function(){checkbox.nextElementSibling.textContent=checkbox.checked?'Impactée':'Non impactée'})});
+  document.querySelectorAll('form[id^="jno-update-"]').forEach(function(form){form.addEventListener('submit',function(){var button=document.querySelector('[form="'+form.id+'"][type="submit"]');if(button){button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span class="jno-action-text">Enregistrement…</span>'}})});
+  var modalEl=document.getElementById('jno-delete-modal'),modal=new bootstrap.Modal(modalEl),deleteForm=document.getElementById('jno-delete-form'),deleteLabel=document.getElementById('jno-delete-label'),deleteConfirm=document.getElementById('jno-delete-confirm');document.querySelectorAll('.jno-delete-btn').forEach(function(button){button.addEventListener('click',function(){deleteForm.action=button.getAttribute('data-url');deleteLabel.textContent=button.getAttribute('data-label');modal.show()})});deleteForm.addEventListener('submit',function(){deleteConfirm.disabled=true;deleteConfirm.innerHTML='<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Suppression…'});
+  var addForm=document.getElementById('jno-add-form');addForm.addEventListener('submit',function(){var button=addForm.querySelector('[type="submit"]');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Ajout…'});
+})();
+</script>
 {% endblock %}

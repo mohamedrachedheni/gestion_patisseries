@@ -3,317 +3,58 @@
 {% block title %}Mise à jour du solde compte caisse — Administration{% endblock %}
 {% block page_title %}Mise à jour du solde compte caisse{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Mise à jour du solde compte caisse</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'administration:solde-caisse-list' %}">Soldes comptes caisses</a></li><li class="breadcrumb-item active" aria-current="page">Mise à jour</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="cash-update-dashboard">
+  <header class="scf-hero" aria-labelledby="scf-page-title">
+    <span class="scf-hero-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></span>
+    <div class="scf-hero-copy"><div class="scf-eyebrow"><i class="bi bi-shield-check" aria-hidden="true"></i> Rapprochement de caisse</div><h1 id="scf-page-title">Mise à jour du solde de caisse</h1><p>Contrôlez les transactions non soldées, saisissez le montant réellement constaté et enregistrez les transferts nécessaires.</p></div>
+    <div class="scf-hero-actions"><div class="scf-hero-meta"><div><span>Date du contrôle</span><strong>{{ solde_at|date:'d/m/Y' }}</strong><small>date système verrouillée</small></div><div><span>Compte sélectionné</span><strong>{% if compte_employe %}{{ compte_employe.get_full_name|default:compte_employe.username }}{% else %}Aucun employé{% endif %}</strong><small>{{ total_count }} transaction{{ total_count|pluralize }} en attente</small></div></div><a href="{% url 'administration:solde-caisse-list' %}" class="btn btn-light"><i class="bi bi-clock-history" aria-hidden="true"></i>Voir l’historique</a></div>
+  </header>
 
-{# ── Section 1 : Date + Employé ────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-person-badge me-2 text-primary"></i>Compte
-  </div>
-  <div class="card-body">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-3">
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date</label>
-          <input type="text" class="form-control form-control-sm" value="{{ solde_at|date:'d/m/Y' }}" disabled>
-        </div>
-        <div style="width:260px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Employé</label>
-          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="" {% if not user_id %}selected{% endif %}>— Sélectionner un employé —</option>
-            {% for u in employes_list %}
-            <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
+  <section class="scf-account-card" aria-labelledby="scf-account-title">
+    <div class="scf-account-head"><span>1</span><div><h2 id="scf-account-title">Sélectionner le compte à contrôler</h2><p>La liste des transactions et les formulaires sont chargés uniquement après validation.</p></div></div>
+    <form method="get" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="scf-date-display"><small>Date du jour</small><strong><i class="bi bi-calendar3" aria-hidden="true"></i>{{ solde_at|date:'d/m/Y' }}</strong></div><div class="scf-field"><label for="scf-employee">Employé</label><select name="user_id" id="scf-employee" class="form-select" autocomplete="off" required><option value="">Choisir un employé</option>{% for u in employes_list %}<option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div><div class="scf-account-actions"><a href="{% url 'administration:solde-caisse' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-check2" aria-hidden="true"></i>Afficher le compte</button></div></form>
+  </section>
 
-{# ── Section 2 : Transactions non soldées ──────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-list-check me-2 text-primary"></i>Transactions non soldées
-  </div>
-  <div class="card-body p-0">
-    {% if not user_id %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-person-x fs-1 d-block mb-2 opacity-25"></i>
-      Sélectionnez un employé pour afficher ses transactions non soldées.
-    </div>
-    {% elif lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:140px;">Date</th>
-            <th style="min-width:170px;">Libellé</th>
-            <th class="text-end pe-3" style="min-width:120px;">Montant (TND)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in lignes %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:140px;"
-                     value="{{ t.created_at|date:'d/m/Y H:i' }}" disabled>
-            </td>
-            <td>
-              <input type="text" class="form-control form-control-sm" style="min-width:170px;" value="{{ t.libelle }}" disabled>
-            </td>
-            <td class="text-end pe-3">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner {% if t.montant < 0 %}text-danger{% endif %}"
-                     style="min-width:120px;"
-                     value="{{ t.montant|stringformat:'.3f' }}" disabled>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <section class="scf-kpi-grid" aria-label="Synthèse des transactions non soldées">
+    <article class="scf-kpi scf-kpi-blue"><span><i class="bi bi-list-check" aria-hidden="true"></i></span><div><small>Transactions en attente</small><strong>{{ total_count }}</strong><em>écriture{{ total_count|pluralize }} à rapprocher</em></div></article>
+    <article class="scf-kpi scf-kpi-green"><span><i class="bi bi-arrow-down-left" aria-hidden="true"></i></span><div><small>Crédits</small><strong>+{{ transactions_totaux.credit|stringformat:'.3f' }}</strong><em>{{ transactions_totaux.nb_credits }} écriture{{ transactions_totaux.nb_credits|pluralize }} · TND</em></div></article>
+    <article class="scf-kpi scf-kpi-red"><span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span><div><small>Débits</small><strong>{{ transactions_totaux.debit|stringformat:'.3f' }}</strong><em>{{ transactions_totaux.nb_debits }} écriture{{ transactions_totaux.nb_debits|pluralize }} · TND</em></div></article>
+    <article class="scf-kpi {% if calcul_solde >= 0 %}scf-kpi-violet{% else %}scf-kpi-red{% endif %}"><span><i class="bi bi-calculator" aria-hidden="true"></i></span><div><small>Solde calculé</small><strong>{{ calcul_solde|stringformat:'.3f' }}</strong><em>crédits et débits · TND</em></div></article>
+  </section>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} transaction{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+  <details class="scf-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre le déroulement de la mise à jour</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><div><strong>1. Compte</strong><p>Sélectionnez manuellement l’employé dont la caisse doit être contrôlée.</p></div><div><strong>2. Transactions</strong><p>Vérifiez toutes les écritures non soldées incluses dans le calcul.</p></div><div><strong>3. Solde réel</strong><p>Saisissez le montant constaté et enregistrez le rapprochement.</p></div><div><strong>4. Transfert</strong><p>Ajoutez séparément un transfert si une régularisation entre comptes est nécessaire.</p></div></div></details>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?user_id={{ user_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
+  <section class="scf-panel" aria-labelledby="scf-transactions-title">
+    <header class="scf-panel-head"><div><div class="scf-section-label">Étape 2 · Vérification</div><h2 id="scf-transactions-title">Transactions non soldées</h2>{% if not compte_employe %}<p>Sélectionnez d’abord un employé pour charger ses écritures.</p>{% elif lignes %}<p>{{ total_count }} transaction{{ total_count|pluralize }} incluse{{ total_count|pluralize }} dans le solde calculé.</p>{% else %}<p>Aucune transaction n’est disponible pour ce compte.</p>{% endif %}</div>{% if lignes %}<span class="scf-result-badge"><i class="bi bi-calculator" aria-hidden="true"></i>{{ calcul_solde|stringformat:'.3f' }} TND</span>{% endif %}</header>
+    {% if not compte_employe %}<div class="scf-empty"><span><i class="bi bi-person-x" aria-hidden="true"></i></span><h3>Aucun compte sélectionné</h3><p>Utilisez l’étape 1 pour afficher les transactions à contrôler.</p></div>{% elif lignes %}
+    <div class="scf-table-wrap"><table class="scf-table"><caption class="visually-hidden">Transactions non soldées du compte sélectionné</caption><colgroup><col class="scf-col-date"><col class="scf-col-label"><col class="scf-col-reference"><col class="scf-col-amount"></colgroup><thead><tr><th scope="col">Date et heure</th><th scope="col">Libellé</th><th scope="col">Référence</th><th scope="col" class="scf-number-col">Montant</th></tr></thead><tbody>{% for t in lignes %}<tr><td><time datetime="{{ t.created_at|date:'c' }}"><strong>{{ t.created_at|date:'d/m/Y' }}</strong><small>{{ t.created_at|date:'H:i' }}</small></time></td><td><span class="scf-label"><i class="bi bi-tag" aria-hidden="true"></i>{{ t.libelle }}</span></td><td><code title="{{ t.table_id }}">{{ t.table_id }}</code></td><td class="scf-number-col"><strong class="scf-amount {% if t.montant >= 0 %}scf-positive{% else %}scf-negative{% endif %}">{% if t.montant >= 0 %}+{% endif %}{{ t.montant|stringformat:'.3f' }}</strong><small>TND</small></td></tr>{% endfor %}</tbody></table></div>
+    <div class="scf-card-list">{% for t in lignes %}<article class="scf-card"><header><div><strong>{{ t.created_at|date:'d/m/Y' }}</strong><small>{{ t.created_at|date:'H:i' }}</small></div><strong class="scf-amount {% if t.montant >= 0 %}scf-positive{% else %}scf-negative{% endif %}">{% if t.montant >= 0 %}+{% endif %}{{ t.montant|stringformat:'.3f' }} TND</strong></header><div><span class="scf-label"><i class="bi bi-tag" aria-hidden="true"></i>{{ t.libelle }}</span><code>{{ t.table_id }}</code></div></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="scf-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} transaction{{ total_count|pluralize }}</span><nav aria-label="Pagination des transactions non soldées"><ul class="scf-pagination">{% if page_obj.has_previous %}<li><a href="?user_id={{ user_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?user_id={{ user_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?user_id={{ user_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="scf-empty"><span><i class="bi bi-check-circle" aria-hidden="true"></i></span><h3>Aucune transaction non soldée</h3><p>Ce compte ne contient aucune nouvelle écriture à rapprocher.</p></div>{% endif %}
+  </section>
 
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?user_id={{ user_id }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
+  <div class="scf-workflow-grid">
+    <section class="scf-form-panel" aria-labelledby="scf-balance-title"><header><span>3</span><div><div class="scf-section-label">Rapprochement</div><h2 id="scf-balance-title">Enregistrer le solde réel</h2></div></header>{% if compte_employe %}<form method="post" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}<input type="hidden" name="action" value="enregistrer_solde"><input type="hidden" name="user_id" value="{{ user_id }}"><input type="hidden" name="solde_at" value="{{ solde_at|date:'Y-m-d' }}"><div class="scf-balance-summary"><small>Solde calculé par le système</small><strong class="{% if calcul_solde < 0 %}scf-negative{% endif %}">{{ calcul_solde|stringformat:'.3f' }} TND</strong><span>{{ total_count }} transaction{{ total_count|pluralize }} prise{{ total_count|pluralize }} en compte</span></div><div class="scf-form-grid"><div class="scf-field"><label for="scf-real-balance">Solde réel constaté</label><div class="input-group"><input type="number" step="0.001" min="0" name="correction_solde" value="{{ correction_solde }}" id="scf-real-balance" class="form-control no-spinner" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required><span class="input-group-text">TND</span></div><small>Saisissez manuellement le montant présent en caisse.</small></div><div class="scf-field"><label for="scf-observation">Observation</label><input type="text" name="observation" value="{{ observation }}" id="scf-observation" maxlength="255" class="form-control" placeholder="Commentaire facultatif" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div></div><button type="submit" class="btn btn-primary" {% if not peut_enregistrer_solde %}disabled title="Aucune nouvelle transaction éligible à solder"{% endif %}><i class="bi bi-check-lg" aria-hidden="true"></i>Enregistrer le solde</button>{% if not peut_enregistrer_solde %}<p class="scf-form-warning"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Aucune transaction métier nouvelle ne permet d’enregistrer un solde.</p>{% endif %}</form>{% else %}<div class="scf-form-locked"><i class="bi bi-lock" aria-hidden="true"></i><p>Sélectionnez un employé à l’étape 1 pour activer ce formulaire.</p></div>{% endif %}</section>
 
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?user_id={{ user_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
-      Aucune transaction non soldée pour cet employé.
-    </div>
-    {% endif %}
+    <section class="scf-form-panel" aria-labelledby="scf-transfer-title"><header><span>4</span><div><div class="scf-section-label">Opération facultative</div><h2 id="scf-transfer-title">Ajouter un transfert</h2></div></header>{% if compte_employe %}<form method="post" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}<input type="hidden" name="action" value="ajouter_transfert"><input type="hidden" name="user_id" value="{{ user_id }}"><div class="scf-transfer-note"><i class="bi bi-info-circle" aria-hidden="true"></i><p>Le compte source ou destinataire doit être <strong>{{ compte_employe.get_full_name|default:compte_employe.username }}</strong>. Aucun compte n’est sélectionné automatiquement.</p></div><div class="scf-transfer-grid"><div class="scf-field"><label for="scf-transfer-date">Date du transfert</label><input type="date" name="transfere_at" value="{{ transfere_at }}" id="scf-transfer-date" max="{{ solde_at|date:'Y-m-d' }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div><div class="scf-field"><label for="scf-transfer-amount">Montant</label><div class="input-group"><input type="number" step="0.001" min="0.001" name="montant" value="{{ montant }}" id="scf-transfer-amount" class="form-control no-spinner" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required><span class="input-group-text">TND</span></div></div><div class="scf-field"><label for="scf-transfer-source">Compte source</label><select name="compte_source_id" id="scf-transfer-source" class="form-select" autocomplete="off" required><option value="">Choisir le compte source</option>{% for u in comptes_users_list %}<option value="{{ u.pk }}" {% if compte_source_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div><div class="scf-field"><label for="scf-transfer-destination">Compte destinataire</label><select name="compte_destination_id" id="scf-transfer-destination" class="form-select" autocomplete="off" required><option value="">Choisir le compte destinataire</option>{% for u in comptes_users_list %}<option value="{{ u.pk }}" {% if compte_destination_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div><div class="scf-field scf-transfer-label"><label for="scf-transfer-label">Libellé du transfert</label><input type="text" name="libelle" value="{{ libelle }}" id="scf-transfer-label" maxlength="50" required class="form-control" placeholder="Motif du transfert" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div></div><button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Enregistrer le transfert</button></form>{% else %}<div class="scf-form-locked"><i class="bi bi-lock" aria-hidden="true"></i><p>Sélectionnez un employé à l’étape 1 pour activer ce formulaire.</p></div>{% endif %}</section>
   </div>
 </div>
-
-{# ── Section 3 : Solde ─────────────────────────────────────────────────────── #}
-<form method="post">
-  {% csrf_token %}
-  <input type="hidden" name="action" value="enregistrer_solde">
-  <input type="hidden" name="user_id" value="{{ user_id }}">
-  <input type="hidden" name="solde_at" value="{{ solde_at|date:'Y-m-d' }}">
-
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-calculator me-2 text-primary"></i>Solde
-    </div>
-    <div class="card-body">
-      <div class="d-flex flex-nowrap align-items-end gap-3">
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Solde calculé (TND)</label>
-          <input type="number" step="0.001"
-                 class="form-control form-control-sm text-end font-monospace no-spinner {% if calcul_solde < 0 %}text-danger{% endif %}"
-                 value="{{ calcul_solde|stringformat:'.3f' }}" disabled>
-        </div>
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Solde réel (TND)</label>
-          <input type="number" step="0.001" min="0" name="correction_solde" value="{{ correction_solde }}"
-                 id="id_correction_solde" class="form-control form-control-sm text-end font-monospace no-spinner">
-          <div class="invalid-feedback">Le solde réel ne doit pas être négatif.</div>
-        </div>
-        <div style="flex:1 1 auto;min-width:200px;">
-          <label class="form-label small mb-1">Observation</label>
-          <input type="text" name="observation" value="{{ observation }}" class="form-control form-control-sm">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ── Actions ──────────────────────────────────────────────────────────────── #}
-  <div class="d-flex justify-content-end gap-2 mb-4">
-    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
-      <i class="bi bi-arrow-left me-1"></i>Page précédente
-    </button>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
-    </button>
-  </div>
-</form>
-
-{# ── Section 4 : Ajouter un nouveau transfert ──────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-bank me-2 text-primary"></i>Ajouter un nouveau transfert
-  </div>
-  <div class="card-body">
-    {% if not user_id %}
-    <div class="text-muted small">Sélectionnez un employé (Section 1) pour ajouter un transfert.</div>
-    {% else %}
-    <div class="small text-muted mb-2">
-      Le compte source ou le compte destinataire doit obligatoirement être l'employé sélectionné en Section 1.
-    </div>
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="ajouter_transfert">
-      <input type="hidden" name="user_id" value="{{ user_id }}">
-      <div class="d-flex flex-nowrap align-items-end gap-3 overflow-auto">
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date</label>
-          <input type="date" name="transfere_at" value="{{ transfere_at }}" class="form-control form-control-sm">
-        </div>
-
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Compte source</label>
-          <select name="compte_source_id" id="id_compte_source" class="form-select form-select-sm">
-            <option value="">— Sélectionner —</option>
-            {% for u in comptes_users_list %}
-            <option value="{{ u.pk }}" {% if compte_source_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="flex:1 1 auto;min-width:180px;">
-          <label class="form-label small mb-1">Libellé</label>
-          <input type="text" name="libelle" value="{{ libelle }}" required class="form-control form-control-sm">
-        </div>
-
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Compte destinataire</label>
-          <select name="compte_destination_id" id="id_compte_destination" class="form-select form-select-sm">
-            <option value="">— Sélectionner —</option>
-            {% for u in comptes_users_list %}
-            <option value="{{ u.pk }}" {% if compte_destination_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Montant (TND)</label>
-          <input type="number" step="0.001" min="0" name="montant" value="{{ montant }}" id="id_transfert_montant"
-                 class="form-control form-control-sm text-end font-monospace no-spinner">
-          <div class="invalid-feedback">Le montant ne doit pas être négatif.</div>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-lg me-1"></i>Ajouter
-          </button>
-        </div>
-
-      </div>
-    </form>
-    {% endif %}
-  </div>
-</div>
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-
-// ── Solde réel / Montant du transfert : ne doivent pas être négatifs ───────
-['id_correction_solde', 'id_transfert_montant'].forEach(function (id) {
-  var input = document.getElementById(id);
-  if (!input) { return; }
-  input.addEventListener('input', function () {
-    input.classList.toggle('is-invalid', input.value !== '' && parseFloat(input.value) < 0);
-  });
-});
-
-// ── Transfert : compte source ≠ compte destinataire, et l'un des deux doit
-// obligatoirement être l'employé sélectionné en Section 1 ──────────────────
-(function () {
-  var source = document.getElementById('id_compte_source');
-  var destination = document.getElementById('id_compte_destination');
-  var employeId = '{{ user_id }}';
-  if (!source || !destination || !employeId) { return; }
-
-  function neConserverQue(select, valeurAutorisee) {
-    Array.prototype.forEach.call(select.options, function (option) {
-      option.disabled = option.value !== '' && option.value !== valeurAutorisee;
-    });
-    select.value = valeurAutorisee;
-  }
-
-  function exclure(select, valeurExclue) {
-    Array.prototype.forEach.call(select.options, function (option) {
-      if (option.value === '') { return; }
-      option.disabled = option.value === valeurExclue;
-    });
-  }
-
-  function surSource() {
-    if (source.value && source.value !== employeId) {
-      neConserverQue(destination, employeId);
-    } else {
-      exclure(destination, source.value);
-    }
-  }
-
-  function surDestination() {
-    if (destination.value && destination.value !== employeId) {
-      neConserverQue(source, employeId);
-    } else {
-      exclure(source, destination.value);
-    }
-  }
-
-  source.addEventListener('change', surSource);
-  destination.addEventListener('change', surDestination);
-  surSource();
-  surDestination();
-})();
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Mise à jour du solde de caisse : workflow ordinateur d'abord. */
+.cash-update-dashboard{--scf-primary:#2c7be5;--scf-primary-dark:#1a4f9c;--scf-ink:#172033;--scf-muted:#667085;--scf-border:#e2e8f0;--scf-radius:1rem;max-width:1700px;margin:0 auto;color:var(--scf-ink)}
+.scf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.scf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.scf-hero-copy{min-width:0}.scf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.scf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.scf-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.84rem}.scf-hero-actions{display:flex;align-items:stretch;gap:.55rem}.scf-hero-meta{display:grid;grid-template-columns:.8fr 1.2fr;min-width:360px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.scf-hero-meta div{min-width:0;padding:.5rem}.scf-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.scf-hero-meta span,.scf-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.61rem}.scf-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}.scf-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.75rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.scf-account-card,.scf-method,.scf-panel,.scf-form-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--scf-border);border-radius:var(--scf-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.scf-account-head,.scf-form-panel>header{display:flex;align-items:center;gap:.65rem;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.scf-account-head>span,.scf-form-panel>header>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.62rem;background:#eaf2fd;color:var(--scf-primary);font-size:.72rem;font-weight:800}.scf-account-head h2,.scf-form-panel h2{margin:0;font-size:.88rem;font-weight:750}.scf-account-head p{margin:.1rem 0 0;color:var(--scf-muted);font-size:.62rem}.scf-account-card>form{display:grid;grid-template-columns:180px minmax(260px,1fr) auto;align-items:end;gap:.75rem;padding:1rem}.scf-date-display small,.scf-field label{display:block;margin-bottom:.3rem;color:#344054;font-size:.64rem;font-weight:700}.scf-date-display strong{display:flex;align-items:center;gap:.35rem;min-height:2.7rem;padding:.55rem .7rem;border:1px solid #e0e6ee;border-radius:.6rem;background:#f7f9fc;font-size:.7rem}.scf-field .form-control,.scf-field .form-select,.scf-field .input-group-text{min-height:2.7rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.7rem}.scf-field .input-group>.form-control{border-top-right-radius:0;border-bottom-right-radius:0}.scf-field .input-group-text{border-top-left-radius:0;border-bottom-left-radius:0;background:#f7f9fc;color:var(--scf-muted)}.scf-account-actions{display:flex;gap:.45rem}.scf-account-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;min-height:2.7rem;padding-inline:.72rem;border-radius:.6rem;font-size:.64rem;font-weight:700;white-space:nowrap}
+.scf-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.scf-kpi{--scf-accent:#2c7be5;--scf-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--scf-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.scf-kpi-blue{--scf-accent:#2c7be5;--scf-soft:#eaf2fd}.scf-kpi-green{--scf-accent:#198754;--scf-soft:#e9f6ef}.scf-kpi-red{--scf-accent:#dc3545;--scf-soft:#fdecee}.scf-kpi-violet{--scf-accent:#6f42c1;--scf-soft:#f1ebfb}.scf-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--scf-soft);color:var(--scf-accent);font-size:1.1rem}.scf-kpi small{display:block;color:var(--scf-muted);font-size:.64rem;font-weight:650}.scf-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.05rem;font-variant-numeric:tabular-nums;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}.scf-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--scf-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}.scf-positive{color:#18794e}.scf-negative{color:#b42332}
+.scf-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.scf-method summary::-webkit-details-marker{display:none}.scf-method summary span{display:flex;align-items:center;gap:.4rem}.scf-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.scf-method[open] summary>i{transform:rotate(180deg)}.scf-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.scf-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.scf-method strong{font-size:.68rem}.scf-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.scf-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.scf-section-label{color:var(--scf-primary-dark);font-size:.61rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.scf-panel-head h2{margin:.12rem 0 0;font-size:.94rem;font-weight:750}.scf-panel-head p{margin:.14rem 0 0;color:var(--scf-muted);font-size:.65rem}.scf-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--scf-primary-dark);font-size:.65rem;font-weight:750;white-space:nowrap}.scf-table{width:100%;border-collapse:collapse;table-layout:fixed}.scf-col-date{width:18%}.scf-col-label{width:28%}.scf-col-reference{width:34%}.scf-col-amount{width:20%}.scf-table thead{background:#f8fafc}.scf-table th{padding:.68rem .75rem;border-bottom:1px solid var(--scf-border);color:var(--scf-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.scf-table td{padding:.72rem .75rem;border-bottom:1px solid #edf0f4;font-size:.65rem;vertical-align:middle}.scf-table tbody tr:last-child td{border-bottom:0}.scf-table tbody tr:hover{background:#f8faff}.scf-table time strong,.scf-table time small{display:block}.scf-table time small{margin-top:.06rem;color:var(--scf-muted);font-size:.55rem}.scf-label{display:inline-flex;align-items:center;gap:.28rem;max-width:100%;padding:.22rem .42rem;border:1px solid #dfe5ed;border-radius:2rem;background:#f8fafc;font-size:.58rem;font-weight:700}.scf-table code,.scf-card code{display:block;overflow:hidden;color:#526071;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}.scf-number-col{text-align:right!important}.scf-amount{display:block;font-size:.7rem;font-variant-numeric:tabular-nums;white-space:nowrap}.scf-table td>small{display:block;margin-top:.06rem;color:var(--scf-muted);font-size:.53rem}.scf-card-list{display:none}.scf-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.scf-pagination-footer>span{color:var(--scf-muted);font-size:.62rem}.scf-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.scf-pagination a,.scf-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.scf-pagination .active{border-color:var(--scf-primary);background:var(--scf-primary);color:#fff}.scf-empty{padding:3rem 1rem;text-align:center}.scf-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.scf-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.scf-empty p{margin:0;color:var(--scf-muted);font-size:.68rem}
+.scf-workflow-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:1rem}.scf-form-panel form{padding:1rem}.scf-balance-summary{display:flex;align-items:center;gap:.55rem;padding:.7rem .8rem;border:1px solid #dce7f4;border-radius:.65rem;background:#f2f7fd}.scf-balance-summary small{color:var(--scf-muted);font-size:.6rem}.scf-balance-summary strong{margin-left:auto;font-size:.8rem;font-variant-numeric:tabular-nums}.scf-balance-summary span{padding-left:.55rem;border-left:1px solid #cbd8e8;color:var(--scf-muted);font-size:.56rem}.scf-form-grid{display:grid;grid-template-columns:180px minmax(0,1fr);gap:.7rem;margin-top:.8rem}.scf-field small{display:block;margin-top:.35rem;color:var(--scf-muted);font-size:.56rem;line-height:1.4}.scf-form-panel form>.btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.7rem;margin-top:.85rem;padding-inline:.85rem;border-radius:.6rem;font-size:.66rem;font-weight:700}.scf-form-panel form>.btn:disabled{cursor:not-allowed;opacity:.5}.scf-form-warning{display:flex;align-items:flex-start;gap:.35rem;margin:.55rem 0 0;color:#8a5300;font-size:.58rem}.scf-form-locked{display:flex;align-items:center;justify-content:center;gap:.55rem;min-height:210px;padding:1.5rem;color:var(--scf-muted);text-align:center}.scf-form-locked i{font-size:1.2rem}.scf-form-locked p{max-width:280px;margin:0;font-size:.65rem}.scf-transfer-note{display:flex;align-items:flex-start;gap:.42rem;padding:.65rem .72rem;border:1px solid #dce7f4;border-radius:.62rem;background:#f2f7fd;color:#45576d}.scf-transfer-note p{margin:0;font-size:.58rem;line-height:1.45}.scf-transfer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin-top:.8rem}.scf-transfer-label{grid-column:1/-1}.cash-update-dashboard a:focus-visible,.cash-update-dashboard button:focus-visible,.cash-update-dashboard input:focus-visible,.cash-update-dashboard select:focus-visible,.cash-update-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.scf-hero{grid-template-columns:auto minmax(0,1fr)}.scf-hero-actions{grid-column:1/-1}.scf-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scf-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}.scf-workflow-grid{grid-template-columns:1fr}}
+@media(max-width:767.98px){.scf-hero-actions{align-items:stretch;flex-direction:column}.scf-hero-meta{min-width:0}.scf-account-card>form{grid-template-columns:1fr}.scf-account-actions{justify-content:flex-start}.scf-table-wrap{display:none}.scf-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;padding:.8rem;background:#f7f9fc}.scf-card{overflow:hidden;border:1px solid var(--scf-border);border-radius:.78rem;background:#fff}.scf-card header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.7rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.scf-card header strong,.scf-card header small{display:block}.scf-card header small{color:var(--scf-muted);font-size:.56rem}.scf-card>div{display:grid;gap:.55rem;padding:.8rem}.scf-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.scf-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.scf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.scf-hero-copy>p{font-size:.8rem}.scf-hero-meta{grid-template-columns:1fr}.scf-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.scf-kpi-grid,.scf-method>div,.scf-form-grid,.scf-transfer-grid{grid-template-columns:1fr}.scf-account-actions{flex-direction:column}.scf-panel-head{flex-direction:column;padding:.9rem}.scf-card-list{grid-template-columns:1fr}.scf-transfer-label{grid-column:auto}.scf-balance-summary{align-items:flex-start;flex-direction:column}.scf-balance-summary strong{margin-left:0}.scf-balance-summary span{padding:0;border-left:0}.scf-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}

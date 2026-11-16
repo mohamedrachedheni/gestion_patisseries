@@ -376,11 +376,8 @@
     CLIENTS.forEach(function (c) {
       var isSelected = selectedId && String(c.id) === String(selectedId);
       if (!isSelected) {
-        if (zoneId) {
-          if (String(c.zone_id) !== String(zoneId)) { return; }
-        } else if (allowed) {
-          if (!allowed.has(String(c.id))) { return; }
-        }
+        if (allowed && !allowed.has(String(c.id))) { return; }
+        if (zoneId && String(c.zone_id) !== String(zoneId)) { return; }
       }
       html += '<option value="' + c.id + '"' + (isSelected ? ' selected' : '') + '>' + esc(c.label) + '</option>';
     });

@@ -1,270 +1,51 @@
-{% extends "administration/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Adhérence visites — Commercial{% endblock %}
 {% block page_title %}Adhérence visites{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Adhérence visites</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Adhérence visites</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="adherence-dashboard">
+  <header class="adv-hero" aria-labelledby="adv-page-title"><span class="adv-hero-icon" aria-hidden="true"><i class="bi bi-calendar2-check"></i></span><div class="adv-hero-copy"><div class="adv-eyebrow"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i> Qualité des tournées</div><h1 id="adv-page-title">Adhérence des visites récurrentes</h1><p>Comparez les jours attendus aux livraisons et comptes-rendus réellement enregistrés.</p></div><div class="adv-hero-actions"><div class="adv-hero-meta"><div><span>Commercial</span><strong>{% if commercial_selectionne %}{{ commercial_selectionne.get_full_name|default:commercial_selectionne.username }}{% elif is_administration %}Tous les commerciaux{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</strong></div><div><span>Période</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong></div></div><a href="{% url 'commercial:client-adherence-graphique' %}?commercial_id={{ commercial_id|urlencode }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" class="btn btn-light"><i class="bi bi-graph-up" aria-hidden="true"></i>Voir les courbes</a></div></header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Adhérence des visites récurrentes</h4>
-  <a href="{% url 'commercial:client-adherence-graphique' %}?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-     class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-graph-up me-1"></i>Voir les courbes
-  </a>
-</div>
+  <section class="adv-filter-card" aria-labelledby="adv-filter-title"><div class="adv-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="adv-filter-title">Périmètre de l’analyse</h2><p>Filtrez un commercial et une période commune.</p></div></div><form method="get" id="filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    <div class="adv-period-group"><span>Période rapide</span><div role="group" aria-label="Période rapide"><button type="button" class="btn btn-outline-secondary adv-period" data-days="6">7 jours</button><button type="button" class="btn btn-outline-secondary adv-period" data-days="29">30 jours</button><button type="button" class="btn btn-outline-secondary adv-period" data-days="89">90 jours</button></div></div>
+    {% if is_administration %}<div class="adv-filter-field"><label for="adv-commercial">Commercial</label><select name="commercial_id" id="adv-commercial" class="form-select" data-autosubmit><option value="">Tous les commerciaux</option>{% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>{% else %}<div class="adv-locked-commercial"><span>Commercial connecté</span><strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong></div>{% endif %}
+    <div class="adv-filter-field"><label for="adv-date-start">Du</label><input type="date" name="date_debut" id="adv-date-start" value="{{ date_debut }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div><div class="adv-filter-field"><label for="adv-date-end">Au</label><input type="date" name="date_fin" id="adv-date-end" value="{{ date_fin }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div><a href="{% url 'commercial:client-adherence-visites' %}" class="btn btn-outline-secondary adv-reset"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>
+  </form></section>
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body">
-    <p>
-      Cette page compare, pour chaque client, les <strong>jours de visite récurrents</strong> définis sur sa fiche
-      aux <strong>bons de livraison réellement enregistrés</strong> sur la période choisie.
-    </p>
-    <p class="mb-2">Pour chaque jour attendu, un statut est déterminé :</p>
-    <ul class="mb-2">
-      <li>
-        <strong>Honoré</strong> : une livraison a eu lieu le jour même, ou à {{ tolerance_jours }} jour près (une
-        livraison ne peut valider qu'un seul jour attendu, jamais deux) — ou une visite a été notée réalisée dans
-        l'Agenda même sans livraison.
-      </li>
-      <li>
-        <strong>Manqué</strong> : aucune livraison ni visite enregistrée pour ce jour attendu.
-      </li>
-      <li>
-        <strong>Ignoré</strong> : uniquement quand un commercial précis est filtré — le client a bien été livré ce
-        jour-là, mais par un <strong>autre</strong> commercial (client partagé). Ce jour n'est alors compté ni comme
-        honoré, ni comme manqué pour le commercial affiché.
-      </li>
-      <li>
-        <strong>Absent</strong> : uniquement quand un commercial précis est filtré — ce jour ne peut être expliqué
-        ni par une livraison, ni par un compte-rendu, ni par un collègue, mais le commercial était enregistré absent
-        (congé, maladie...) — le jour n'est alors compté ni comme honoré, ni comme manqué.
-      </li>
-    </ul>
-    <p class="mb-0">
-      Les jours fériés/fermetures (jours non ouvrés) sont exclus du planning attendu, et le
-      <strong>taux d'adhérence</strong> ne porte que sur les jours honorés et manqués — les jours ignorés et absents
-      n'y entrent pas.
-    </p>
-  </div>
-</div>
+  <section class="adv-kpi-grid" aria-label="Synthèse de l’adhérence"><article class="adv-kpi adv-kpi-green"><span><i class="bi bi-check2-circle" aria-hidden="true"></i></span><div><small>Honorés</small><strong>{{ nb_honorees }}</strong><em>visite{{ nb_honorees|pluralize }} confirmée{{ nb_honorees|pluralize }}</em></div></article><article class="adv-kpi adv-kpi-red"><span><i class="bi bi-x-circle" aria-hidden="true"></i></span><div><small>Manqués</small><strong>{{ nb_manquees }}</strong><em>sans preuve de visite</em></div></article><article class="adv-kpi adv-kpi-blue"><span><i class="bi bi-people" aria-hidden="true"></i></span><div><small>Ignorés</small><strong>{{ nb_ignorees }}</strong><em>couverts par un collègue</em></div></article><article class="adv-kpi adv-kpi-orange"><span><i class="bi bi-person-dash" aria-hidden="true"></i></span><div><small>Absents</small><strong>{{ nb_absentes }}</strong><em>absence déclarée</em></div></article><article class="adv-kpi adv-kpi-violet"><span><i class="bi bi-speedometer2" aria-hidden="true"></i></span><div><small>Taux d’adhérence</small><strong>{{ taux_adherence|default_if_none:"—" }}{% if taux_adherence is not None %}%{% endif %}</strong><em>{{ nb_evaluees }} visite{{ nb_evaluees|pluralize }} évaluée{{ nb_evaluees|pluralize }}</em></div></article></section>
 
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        {% if is_administration %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
+  <details class="adv-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre les statuts et le calcul</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><div><strong class="adv-method-honored">Honoré</strong><p>Livraison le jour attendu ou à ±{{ tolerance_jours }} jour{{ tolerance_jours|pluralize }}, ou visite marquée réalisée dans l’Agenda.</p></div><div><strong class="adv-method-missed">Manqué</strong><p>Aucune livraison ni visite enregistrée.</p></div><div><strong class="adv-method-ignored">Ignoré</strong><p>Client livré par un autre commercial lorsque le client est partagé.</p></div><div><strong class="adv-method-absent">Absent</strong><p>Commercial déclaré absent sur cette date.</p></div><footer>Les jours non ouvrés sont exclus. Le taux utilise uniquement les jours honorés et manqués.</footer></div></details>
 
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:client-adherence-visites' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
-{# ── Section 2 : résumé ──────────────────────────────────────────────────── #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-success">{{ nb_honorees }}</div>
-        <div class="text-muted small">Honorés</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-danger">{{ nb_manquees }}</div>
-        <div class="text-muted small">Manqués</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-secondary">{{ nb_ignorees }}</div>
-        <div class="text-muted small">Ignorés</div>
-        <div class="text-muted" style="font-size:.7rem;">(couverts par un autre commercial)</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-secondary">{{ nb_absentes }}</div>
-        <div class="text-muted small">Absents</div>
-        <div class="text-muted" style="font-size:.7rem;">(commercial en congé/absence)</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold">{{ taux_adherence|default_if_none:'—' }}{% if taux_adherence is not None %}%{% endif %}</div>
-        <div class="text-muted small">Taux d'adhérence</div>
-        <div class="text-muted" style="font-size:.7rem;">(hors ignorés/absents)</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-{# ── Section 3 : détail par jour attendu ──────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="adv-panel" aria-labelledby="adv-results-title"><header class="adv-panel-head"><div><div class="adv-section-label">Planning attendu</div><h2 id="adv-results-title">Détail des visites</h2>{% if lignes %}<p>{{ nb_attendues }} jour{{ nb_attendues|pluralize }} attendu{{ nb_attendues|pluralize }} pour {{ nb_clients_concernes }} client{{ nb_clients_concernes|pluralize }}.</p>{% else %}<p>Aucune visite récurrente sur cette période.</p>{% endif %}</div>{% if lignes %}<span class="adv-result-badge"><i class="bi bi-calendar-week" aria-hidden="true"></i>{{ nb_attendues }} occurrence{{ nb_attendues|pluralize }}</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive" style="max-height:65vh;overflow-y:auto;">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light" style="position:sticky;top:0;z-index:1;">
-          <tr>
-            <th class="ps-3" style="min-width:110px;">Date</th>
-            <th style="min-width:100px;">Jour</th>
-            <th style="min-width:200px;">Client</th>
-            <th style="min-width:100px;">Statut</th>
-            <th style="min-width:220px;">Détail</th>
-            <th class="text-center pe-3" style="width:100px;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="ps-3">{{ l.date_attendue|date:'d/m/Y' }}</td>
-            <td>{{ l.date_attendue|date:'l' }}</td>
-            <td>
-              <a href="{% url 'commercial:client-detail' l.client.pk %}">{{ l.client }}</a>
-            </td>
-            <td>
-              {% if l.statut == 'honoré' %}
-              <span class="badge text-bg-success">Honoré</span>
-              {% elif l.statut == 'ignoré' %}
-              <span class="badge text-bg-secondary">Ignoré</span>
-              {% elif l.statut == 'absent' %}
-              <span class="badge text-bg-secondary">Absent</span>
-              {% else %}
-              <span class="badge text-bg-danger">Manqué</span>
-              {% endif %}
-            </td>
-            <td class="text-muted small">{{ l.detail }}</td>
-            <td class="text-center pe-3">
-              <a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut }}&date_fin={{ bl_agenda_date_fin }}&client_id={{ l.client.pk }}"
-                 class="btn btn-sm btn-outline-info" title="Voir l'agenda">
-                Agenda
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ nb_attendues }} ligne{{ nb_attendues|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-calendar-check fs-1 d-block mb-2 opacity-25"></i>
-      Aucun jour de visite récurrent attendu sur cette période
-      {% if commercial_id %}pour ce commercial{% endif %}.
-      <br>
-      <small>Vérifiez que des jours de visite récurrents sont définis sur les fiches clients.</small>
-    </div>
-    {% endif %}
-  </div>
+    <div class="adv-table-wrap"><table class="adv-table"><caption class="visually-hidden">Jours de visite attendus et statut d’adhérence</caption><thead><tr><th scope="col">Date attendue</th><th scope="col">Client</th><th scope="col">Statut</th><th scope="col">Explication</th><th scope="col" class="adv-actions-col">Action</th></tr></thead><tbody>{% for l in lignes %}<tr class="adv-row-{{ l.statut }}"><td><strong>{{ l.date_attendue|date:"d/m/Y" }}</strong><small>{{ l.date_attendue|date:"l" }}</small></td><td><a href="{% url 'commercial:client-detail' l.client.pk %}" class="adv-client"><span><i class="bi bi-shop" aria-hidden="true"></i></span><strong>{{ l.client }}</strong></a></td><td>{% if l.statut == 'honoré' %}<span class="adv-status adv-status-honored"><i class="bi bi-check-circle" aria-hidden="true"></i>Honoré</span>{% elif l.statut == 'ignoré' %}<span class="adv-status adv-status-ignored"><i class="bi bi-people" aria-hidden="true"></i>Ignoré</span>{% elif l.statut == 'absent' %}<span class="adv-status adv-status-absent"><i class="bi bi-person-dash" aria-hidden="true"></i>Absent</span>{% else %}<span class="adv-status adv-status-missed"><i class="bi bi-x-circle" aria-hidden="true"></i>Manqué</span>{% endif %}</td><td><span class="adv-detail">{{ l.detail }}</span></td><td class="adv-actions-col"><a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut|urlencode }}&amp;date_fin={{ bl_agenda_date_fin|urlencode }}&amp;client_id={{ l.client.pk }}" class="adv-icon-btn" aria-label="Voir l’agenda de {{ l.client }}" title="Voir l’agenda"><i class="bi bi-calendar-week" aria-hidden="true"></i></a></td></tr>{% endfor %}</tbody></table></div>
+    <div class="adv-mobile-list">{% for l in lignes %}<article class="adv-card"><header><div><strong>{{ l.date_attendue|date:"d/m/Y" }}</strong><small>{{ l.date_attendue|date:"l" }}</small></div>{% if l.statut == 'honoré' %}<span class="adv-status adv-status-honored">Honoré</span>{% elif l.statut == 'ignoré' %}<span class="adv-status adv-status-ignored">Ignoré</span>{% elif l.statut == 'absent' %}<span class="adv-status adv-status-absent">Absent</span>{% else %}<span class="adv-status adv-status-missed">Manqué</span>{% endif %}</header><a href="{% url 'commercial:client-detail' l.client.pk %}" class="adv-card-client"><i class="bi bi-shop" aria-hidden="true"></i>{{ l.client }}</a><p>{{ l.detail }}</p><footer><a href="{% url 'commercial:agenda-list' %}?date_debut={{ bl_agenda_date_debut|urlencode }}&amp;date_fin={{ bl_agenda_date_fin|urlencode }}&amp;client_id={{ l.client.pk }}" class="btn btn-outline-info"><i class="bi bi-calendar-week" aria-hidden="true"></i>Voir l’agenda</a></footer></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="adv-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span><nav aria-label="Pagination de l’adhérence"><ul class="adv-pagination">{% if page_obj.has_previous %}<li><a href="?commercial_id={{ commercial_id|urlencode }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?commercial_id={{ commercial_id|urlencode }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?commercial_id={{ commercial_id|urlencode }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="adv-empty"><span><i class="bi bi-calendar-check" aria-hidden="true"></i></span><h3>Aucun jour de visite attendu</h3><p>Vérifiez que des jours récurrents sont définis sur les fiches clients{% if commercial_id %} de ce commercial{% endif %}.</p></div>{% endif %}
+  </section>
 </div>
+{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+/* ── Adhérence visites : tableau de bord ordinateur d'abord ──────────────── */
+.adherence-dashboard{--adv-primary:#2c7be5;--adv-primary-dark:#1a4f9c;--adv-ink:#172033;--adv-muted:#667085;--adv-border:#e2e8f0;--adv-surface:#fff;--adv-radius:1rem;max-width:1650px;margin:0 auto;color:var(--adv-ink)}
+.adv-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.adv-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.adv-hero-copy{min-width:0}.adv-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.adv-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.adv-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.86rem}.adv-hero-actions{display:flex;align-items:stretch;gap:.55rem}.adv-hero-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));min-width:310px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.adv-hero-meta div{min-width:0;padding:.5rem}.adv-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.adv-hero-meta span{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.adv-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}.adv-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.8rem;border-radius:.7rem;color:#194f89;font-size:.72rem;font-weight:750}
+.adv-filter-card,.adv-panel,.adv-method{margin-top:1rem;border:1px solid var(--adv-border);border-radius:var(--adv-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.adv-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.adv-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--adv-primary)}.adv-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.adv-filter-head p{margin:.12rem 0 0;color:var(--adv-muted);font-size:.68rem}.adv-filter-card form{display:grid;grid-template-columns:minmax(245px,1.1fr) minmax(200px,.9fr) 145px 145px auto;align-items:end;gap:.7rem;padding:1rem}.adv-period-group>span,.adv-filter-field label,.adv-locked-commercial>span{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.adv-period-group>div{display:flex;gap:.3rem}.adv-period-group .btn{flex:1 1 auto;min-height:2.8rem;border-radius:.62rem;font-size:.68rem;font-weight:650}.adv-filter-field .form-control,.adv-filter-field .form-select{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.adv-locked-commercial strong{display:flex;align-items:center;gap:.35rem;min-height:2.8rem;padding:.6rem .7rem;border:1px solid #e0e6ee;border-radius:.62rem;background:#f7f9fc;font-size:.72rem}.adv-reset{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;border-radius:.62rem;font-size:.68rem;font-weight:700}
+.adv-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;margin-top:1rem}.adv-kpi{--adv-accent:#2c7be5;--adv-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.65rem;min-height:98px;padding:.85rem;border:1px solid var(--adv-border);border-radius:.85rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.adv-kpi-green{--adv-accent:#198754;--adv-soft:#e9f6ef}.adv-kpi-red{--adv-accent:#dc3545;--adv-soft:#fdecee}.adv-kpi-blue{--adv-accent:#2c7be5;--adv-soft:#eaf2fd}.adv-kpi-orange{--adv-accent:#d97706;--adv-soft:#fff4e0}.adv-kpi-violet{--adv-accent:#6f42c1;--adv-soft:#f1ebfb}.adv-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.6rem;height:2.6rem;border-radius:.68rem;background:var(--adv-soft);color:var(--adv-accent);font-size:1.08rem}.adv-kpi small{display:block;color:var(--adv-muted);font-size:.63rem;font-weight:650}.adv-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.15}.adv-kpi em{display:block;overflow:hidden;color:var(--adv-muted);font-size:.59rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.adv-method{overflow:hidden}.adv-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.adv-method summary::-webkit-details-marker{display:none}.adv-method summary span{display:flex;align-items:center;gap:.4rem}.adv-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.adv-method[open] summary>i{transform:rotate(180deg)}.adv-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.adv-method>div>div{padding:.65rem;border:1px solid #e5eaf0;border-radius:.65rem}.adv-method strong{font-size:.68rem}.adv-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}.adv-method footer{grid-column:1/-1;color:var(--adv-muted);font-size:.64rem}.adv-method-honored{color:#18794e}.adv-method-missed{color:#b42332}.adv-method-ignored{color:#31577f}.adv-method-absent{color:#8a5300}
+.adv-panel{overflow:hidden}.adv-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.adv-section-label{color:var(--adv-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.adv-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.adv-panel-head p{margin:.15rem 0 0;color:var(--adv-muted);font-size:.7rem}.adv-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--adv-primary-dark);font-size:.67rem;font-weight:750}.adv-table-wrap{display:block;max-height:65vh;overflow-y:auto}.adv-table{width:100%;border-collapse:collapse;table-layout:fixed}.adv-table thead{position:sticky;top:0;z-index:1;background:#f8fafc}.adv-table th{padding:.7rem .85rem;border-bottom:1px solid var(--adv-border);color:var(--adv-muted);font-size:.63rem;font-weight:800;letter-spacing:.04em;text-align:left;text-transform:uppercase}.adv-table td{padding:.75rem .85rem;border-bottom:1px solid #edf0f4;font-size:.72rem;vertical-align:middle}.adv-table tbody tr:last-child td{border-bottom:0}.adv-table th:nth-child(1){width:16%}.adv-table th:nth-child(2){width:23%}.adv-table th:nth-child(3){width:13%}.adv-table th:nth-child(4){width:40%}.adv-table th:nth-child(5){width:8%}.adv-table td>strong,.adv-table td>small{display:block}.adv-table td>small{margin-top:.1rem;color:var(--adv-muted);font-size:.62rem}.adv-client{display:flex;align-items:center;gap:.55rem;min-width:0;color:var(--adv-ink);font-weight:700;text-decoration:none}.adv-client>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:.6rem;background:#eaf2fd;color:var(--adv-primary)}.adv-client strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.adv-status{display:inline-flex;align-items:center;gap:.28rem;padding:.24rem .48rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.adv-status-honored{background:#e9f6ef;color:#18794e}.adv-status-missed{background:#fdecee;color:#b42332}.adv-status-ignored{background:#eaf2fd;color:#31577f}.adv-status-absent{background:#fff4e0;color:#8a5300}.adv-row-honoré{background:#fbfefc}.adv-row-manqué{background:#fffafb}.adv-detail{display:-webkit-box;overflow:hidden;color:#526071;font-size:.68rem;line-height:1.4;-webkit-box-orient:vertical;-webkit-line-clamp:2}.adv-actions-col{text-align:center!important}.adv-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border:1px solid #b7d9e5;border-radius:.55rem;background:#fff;color:#24778f;text-decoration:none}.adv-mobile-list{display:none}.adv-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-top:1px solid var(--adv-border);background:#fbfcfe}.adv-pagination-footer>span{color:var(--adv-muted);font-size:.7rem}.adv-pagination{display:flex;gap:.25rem;margin:0;padding:0;list-style:none}.adv-pagination a,.adv-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.2rem;height:2.2rem;border:1px solid #d8e0ea;border-radius:.52rem;background:#fff;color:#526071;font-size:.7rem;font-weight:700;text-decoration:none}.adv-pagination .active{border-color:var(--adv-primary);background:var(--adv-primary);color:#fff}.adv-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;padding:2rem;text-align:center}.adv-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.8rem;height:3.8rem;border-radius:1rem;background:#edf4fd;color:var(--adv-primary);font-size:1.45rem}.adv-empty h3{margin:.7rem 0 0;font-size:.92rem}.adv-empty p{margin:.25rem 0 0;color:var(--adv-muted);font-size:.72rem}.adherence-dashboard a:focus-visible,.adherence-dashboard button:focus-visible,.adherence-dashboard input:focus-visible,.adherence-dashboard select:focus-visible,.adherence-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.adv-hero{grid-template-columns:auto minmax(0,1fr)}.adv-hero-actions{grid-column:1/-1}.adv-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.adv-table-wrap{display:none}.adv-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}.adv-card{overflow:hidden;border:1px solid var(--adv-border);border-radius:.8rem;background:#fff}.adv-card header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.adv-card header div strong,.adv-card header div small{display:block}.adv-card header div small{color:var(--adv-muted);font-size:.62rem}.adv-card-client{display:flex;align-items:center;gap:.4rem;padding:.75rem .8rem 0;color:var(--adv-ink);font-size:.76rem;font-weight:750;text-decoration:none}.adv-card p{margin:.55rem .8rem;color:#526071;font-size:.68rem;line-height:1.4}.adv-card footer{padding:.7rem .8rem;border-top:1px solid #edf0f4}.adv-card footer .btn{display:flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.55rem;border-radius:.62rem;font-size:.68rem;font-weight:700}}
+@media(max-width:991.98px){.adv-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.adv-period-group{grid-column:1/-1}.adv-reset{grid-column:1/-1;justify-content:center}.adv-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}.adv-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.adv-mobile-list{grid-template-columns:1fr}.adv-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.adv-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.adv-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.adv-hero-copy>p{font-size:.8rem}.adv-hero-actions{align-items:stretch;flex-direction:column}.adv-hero-meta{min-width:0}.adv-kpi-grid{grid-template-columns:1fr}.adv-filter-card form{grid-template-columns:1fr}.adv-period-group{grid-column:auto}.adv-period-group>div{display:grid;grid-template-columns:1fr}.adv-reset{grid-column:auto}.adv-method>div{grid-template-columns:1fr}.adv-panel-head{flex-direction:column;padding:.9rem}.adv-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) { pageInput.remove(); }
-    form.submit();
-  });
-});
+(function(){var form=document.getElementById('filter-form'),startInput=document.getElementById('adv-date-start'),endInput=document.getElementById('adv-date-end');form.querySelectorAll('[data-autosubmit]').forEach(function(field){field.addEventListener('change',function(){form.submit()})});function pad(v){return v<10?'0'+v:String(v)}function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}var today=new Date();document.querySelectorAll('.adv-period').forEach(function(button){var start=new Date(today);start.setDate(start.getDate()-parseInt(button.getAttribute('data-days'),10));var sv=iso(start),ev=iso(today);if(startInput.value===sv&&endInput.value===ev){button.classList.replace('btn-outline-secondary','btn-secondary');button.setAttribute('aria-pressed','true')}button.addEventListener('click',function(){startInput.value=sv;endInput.value=ev;form.submit()})})})();
 </script>
 {% endblock %}

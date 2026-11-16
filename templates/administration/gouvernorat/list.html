@@ -3,138 +3,58 @@
 {% block title %}Gouvernorats — Administration{% endblock %}
 {% block page_title %}Gouvernorats{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Gouvernorats</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Gouvernorats</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="governorate-dashboard">
+  <header class="gvl-hero" aria-labelledby="gvl-page-title">
+    <span class="gvl-hero-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+    <div class="gvl-hero-copy"><div class="gvl-eyebrow"><i class="bi bi-map" aria-hidden="true"></i> Référentiel géographique</div><h1 id="gvl-page-title">Gouvernorats</h1><p>Gérez le premier niveau de la hiérarchie territoriale utilisée pour organiser les délégations, les zones et les clients.</p></div>
+    <div class="gvl-hero-meta"><div><span>Gouvernorats</span><strong>{{ total_count }}</strong><small>entrée{{ total_count|pluralize }} enregistrée{{ total_count|pluralize }}</small></div><div><span>Hiérarchie associée</span><strong>{{ total_delegations }} délégation{{ total_delegations|pluralize }}</strong><small>{{ total_zones }} zone{{ total_zones|pluralize }} rattachée{{ total_zones|pluralize }}</small></div></div>
+  </header>
 
-{# ── Partie 1 : liste des gouvernorats enregistrés ───────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-geo-alt me-2 text-primary"></i>Gouvernorats enregistrés
-  </div>
-  <div class="card-body p-0">
-    {% if gouvernorats %}
-    {% comment %}
-      Les <form> vivent hors du tableau : un <form> ne peut pas être un enfant
-      direct de <tbody>/<tr> (foster parenting HTML5, risque de perte du DOM).
-      Les champs de chaque ligne s'y rattachent via l'attribut form="...".
-    {% endcomment %}
-    {% for g in gouvernorats %}
-    <form id="gouvernorat-update-{{ g.pk }}" method="post" action="{% url 'administration:gouvernorat-update' g.pk %}"></form>
-    <form id="gouvernorat-delete-{{ g.pk }}" method="post" action="{% url 'administration:gouvernorat-delete' g.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:200px;">Nom</th>
-            <th class="text-center pe-3" style="width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for g in gouvernorats %}
-          <tr>
-            <td class="ps-3">
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="gouvernorat-update-{{ g.pk }}">
-              <input type="text" name="nom" value="{{ g.nom }}"
-                     class="form-control form-control-sm" style="min-width:200px;" form="gouvernorat-update-{{ g.pk }}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="submit" form="gouvernorat-update-{{ g.pk }}"
-                      class="btn btn-sm btn-outline-primary" title="Modifier">
-                <i class="bi bi-pencil"></i>
-              </button>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="gouvernorat-delete-{{ g.pk }}">
-              <button type="submit" form="gouvernorat-delete-{{ g.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer"
-                      onclick="return confirm('Supprimer le gouvernorat « {{ g.nom|escapejs }} » ?');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <section class="gvl-kpi-grid" aria-label="Synthèse du référentiel géographique">
+    <article class="gvl-kpi gvl-kpi-blue"><span><i class="bi bi-geo-alt" aria-hidden="true"></i></span><div><small>Gouvernorats</small><strong>{{ total_count }}</strong><em>premier niveau territorial</em></div></article>
+    <article class="gvl-kpi gvl-kpi-violet"><span><i class="bi bi-signpost-2" aria-hidden="true"></i></span><div><small>Délégations</small><strong>{{ total_delegations }}</strong><em>réparties par gouvernorat</em></div></article>
+    <article class="gvl-kpi gvl-kpi-green"><span><i class="bi bi-pin-map" aria-hidden="true"></i></span><div><small>Zones</small><strong>{{ total_zones }}</strong><em>dernier niveau géographique</em></div></article>
+    <article class="gvl-kpi {% if nb_sans_delegation %}gvl-kpi-orange{% else %}gvl-kpi-green{% endif %}"><span><i class="bi bi-diagram-3" aria-hidden="true"></i></span><div><small>Sans délégation</small><strong>{{ nb_sans_delegation }}</strong><em>{% if nb_sans_delegation %}structure à compléter{% else %}référentiel entièrement structuré{% endif %}</em></div></article>
+  </section>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} gouvernorat{{ page_obj.paginator.count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+  <div class="gvl-workspace">
+    <section class="gvl-panel" aria-labelledby="gvl-list-title">
+      <header class="gvl-panel-head"><div><div class="gvl-section-label">Référentiel existant</div><h2 id="gvl-list-title">Gouvernorats enregistrés</h2>{% if gouvernorats %}<p>Modifiez un nom directement, puis utilisez le bouton Enregistrer de sa ligne.</p>{% else %}<p>Le référentiel ne contient encore aucun gouvernorat.</p>{% endif %}</div>{% if gouvernorats %}<span class="gvl-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</span>{% endif %}</header>
+      {% if gouvernorats %}
+      {% for g in gouvernorats %}<form id="gvl-update-{{ g.pk }}" method="post" action="{% url 'administration:gouvernorat-update' g.pk %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}</form><form id="gvl-delete-{{ g.pk }}" method="post" action="{% url 'administration:gouvernorat-delete' g.pk %}">{% csrf_token %}</form>{% endfor %}
+      <div class="gvl-columns" aria-hidden="true"><span>Gouvernorat</span><span>Délégations</span><span>Zones</span><span>État</span><span>Actions</span></div>
+      <div class="gvl-list" role="list">{% for g in gouvernorats %}<article class="gvl-row" role="listitem">
+        <div class="gvl-name-cell"><span aria-hidden="true"><i class="bi bi-geo-alt"></i></span><div><label class="visually-hidden" for="gvl-name-{{ g.pk }}">Nom du gouvernorat {{ g.nom }}</label><input type="text" id="gvl-name-{{ g.pk }}" name="nom" value="{{ g.nom }}" maxlength="100" required class="form-control" form="gvl-update-{{ g.pk }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Nom unique dans le référentiel</small></div></div>
+        <div class="gvl-metric"><small>Délégations</small><strong>{{ g.nb_delegations }}</strong></div>
+        <div class="gvl-metric"><small>Zones</small><strong>{{ g.nb_zones }}</strong></div>
+        <div class="gvl-state">{% if g.nb_delegations %}<span class="gvl-status gvl-status-safe"><i class="bi bi-diagram-3" aria-hidden="true"></i>Structuré</span>{% else %}<span class="gvl-status gvl-status-warning"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>À compléter</span>{% endif %}</div>
+        <div class="gvl-actions"><button type="submit" form="gvl-update-{{ g.pk }}" class="btn btn-outline-primary"><i class="bi bi-check2" aria-hidden="true"></i>Enregistrer</button>{% if g.nb_delegations %}<button type="button" class="btn btn-outline-danger" disabled title="Suppression impossible : des délégations sont rattachées"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Suppression impossible</span></button>{% else %}<button type="submit" form="gvl-delete-{{ g.pk }}" class="btn btn-outline-danger" title="Supprimer {{ g.nom }}" aria-label="Supprimer le gouvernorat {{ g.nom }}" onclick="return confirm('Supprimer le gouvernorat « {{ g.nom|escapejs }} » ?');"><i class="bi bi-trash" aria-hidden="true"></i></button>{% endif %}</div>
+      </article>{% endfor %}</div>
+      {% if is_paginated %}<footer class="gvl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} gouvernorat{{ total_count|pluralize }}</span><nav aria-label="Pagination des gouvernorats"><ul class="gvl-pagination">{% if page_obj.has_previous %}<li><a href="?page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+      {% else %}<div class="gvl-empty"><span><i class="bi bi-geo-alt" aria-hidden="true"></i></span><h3>Aucun gouvernorat enregistré</h3><p>Utilisez le formulaire adjacent pour créer la première entrée.</p></div>{% endif %}
+    </section>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-geo-alt fs-1 d-block mb-2 opacity-25"></i>
-      Aucun gouvernorat enregistré.
-    </div>
-    {% endif %}
+    <aside class="gvl-create-panel" aria-labelledby="gvl-create-title">
+      <header><span><i class="bi bi-plus-lg" aria-hidden="true"></i></span><div><div class="gvl-section-label">Nouvelle entrée</div><h2 id="gvl-create-title">Ajouter un gouvernorat</h2></div></header>
+      <form method="post" action="{% url 'administration:gouvernorat-create' %}" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">{% csrf_token %}<div class="gvl-create-field"><label for="gvl-new-name">Nom du gouvernorat</label><input type="text" name="nom" id="gvl-new-name" value="" maxlength="100" required class="form-control" placeholder="Saisir un nom" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><small>Le nom doit être unique et comporter au maximum 100 caractères.</small></div><button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter le gouvernorat</button></form>
+      <div class="gvl-create-note"><i class="bi bi-info-circle" aria-hidden="true"></i><p>Après création, le gouvernorat pourra recevoir des délégations puis des zones.</p></div>
+    </aside>
   </div>
 </div>
+{% endblock %}
 
-{# ── Partie 2 : ajout d'un nouveau gouvernorat ────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-plus-lg me-2 text-primary"></i>Ajouter un gouvernorat
-  </div>
-  <div class="card-body">
-    <form method="post" action="{% url 'administration:gouvernorat-create' %}">
-      {% csrf_token %}
-      <div class="row g-2 align-items-end">
-        <div class="col-sm-10">
-          <label class="form-label small mb-1">Nouveau gouvernorat</label>
-          <input type="text" name="nom" value="{{ add_form.nom.value|default:'' }}" class="form-control">
-        </div>
-        <div class="col-sm-2">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-plus-lg me-1"></i>Ajouter
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+/* Gouvernorats : espace de gestion ordinateur d'abord. */
+.governorate-dashboard{--gvl-primary:#2c7be5;--gvl-primary-dark:#1a4f9c;--gvl-ink:#172033;--gvl-muted:#667085;--gvl-border:#e2e8f0;--gvl-radius:1rem;max-width:1700px;margin:0 auto;color:var(--gvl-ink)}
+.gvl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(340px,410px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.gvl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.gvl-hero-copy{min-width:0}.gvl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.gvl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.gvl-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.gvl-hero-meta{display:grid;grid-template-columns:.8fr 1.2fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.gvl-hero-meta div{min-width:0;padding:.55rem}.gvl-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.gvl-hero-meta span,.gvl-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.gvl-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.gvl-hero-meta small{margin-top:.1rem}
+.gvl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.gvl-kpi{--gvl-accent:#2c7be5;--gvl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--gvl-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.gvl-kpi-blue{--gvl-accent:#2c7be5;--gvl-soft:#eaf2fd}.gvl-kpi-green{--gvl-accent:#198754;--gvl-soft:#e9f6ef}.gvl-kpi-violet{--gvl-accent:#6f42c1;--gvl-soft:#f1ebfb}.gvl-kpi-orange{--gvl-accent:#d97706;--gvl-soft:#fff4e0}.gvl-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--gvl-soft);color:var(--gvl-accent);font-size:1.1rem}.gvl-kpi small{display:block;color:var(--gvl-muted);font-size:.64rem;font-weight:650}.gvl-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.gvl-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--gvl-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.gvl-workspace{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:1rem;margin-top:1rem}.gvl-panel,.gvl-create-panel{overflow:hidden;border:1px solid var(--gvl-border);border-radius:var(--gvl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.gvl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.gvl-section-label{color:var(--gvl-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.gvl-panel-head h2,.gvl-create-panel h2{margin:.12rem 0 0;font-size:.94rem;font-weight:750}.gvl-panel-head p{margin:.14rem 0 0;color:var(--gvl-muted);font-size:.66rem}.gvl-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--gvl-primary-dark);font-size:.65rem;font-weight:750;white-space:nowrap}.gvl-columns,.gvl-row{display:grid;grid-template-columns:minmax(190px,1fr) 70px 60px 105px 136px;align-items:center;gap:.5rem}.gvl-columns{padding:.58rem .8rem;border-bottom:1px solid var(--gvl-border);background:#f8fafc;color:var(--gvl-muted);font-size:.55rem;font-weight:800;letter-spacing:.035em;text-transform:uppercase}.gvl-columns span:nth-child(2),.gvl-columns span:nth-child(3){text-align:center}.gvl-row{padding:.68rem .8rem;border-bottom:1px solid #edf0f4}.gvl-row:last-child{border-bottom:0}.gvl-row:hover{background:#fbfcfe}.gvl-name-cell{display:flex;align-items:center;gap:.55rem;min-width:0}.gvl-name-cell>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.62rem;background:#eaf2fd;color:var(--gvl-primary)}.gvl-name-cell>div{min-width:0}.gvl-name-cell .form-control{min-height:2.35rem;border-color:#d5dde7;border-radius:.56rem;font-size:.7rem;font-weight:650}.gvl-name-cell small{display:block;overflow:hidden;margin-top:.18rem;color:var(--gvl-muted);font-size:.53rem;text-overflow:ellipsis;white-space:nowrap}.gvl-metric{text-align:center}.gvl-metric small{display:none}.gvl-metric strong{font-size:.74rem;font-variant-numeric:tabular-nums}.gvl-status{display:inline-flex;align-items:center;gap:.24rem;padding:.22rem .42rem;border-radius:2rem;font-size:.56rem;font-weight:750;white-space:nowrap}.gvl-status-safe{background:#e9f6ef;color:#18794e}.gvl-status-warning{background:#fff4e0;color:#8a5300}.gvl-actions{display:flex;justify-content:flex-end;gap:.35rem}.gvl-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.25rem;min-height:2.25rem;padding:.35rem .52rem;border-radius:.52rem;font-size:.58rem;font-weight:700}.gvl-actions .btn:last-child{width:2.3rem;padding:0}.gvl-actions .btn:disabled{cursor:not-allowed;opacity:.42}.gvl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.gvl-pagination-footer>span{color:var(--gvl-muted);font-size:.62rem}.gvl-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.gvl-pagination a,.gvl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.gvl-pagination .active{border-color:var(--gvl-primary);background:var(--gvl-primary);color:#fff}.gvl-empty{padding:3rem 1rem;text-align:center}.gvl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.gvl-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.gvl-empty p{margin:0;color:var(--gvl-muted);font-size:.68rem}
+.gvl-create-panel{position:sticky;top:1rem}.gvl-create-panel>header{display:flex;align-items:center;gap:.6rem;padding:.9rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.gvl-create-panel>header>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--gvl-primary)}.gvl-create-panel form{padding:1rem}.gvl-create-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.66rem;font-weight:700}.gvl-create-field .form-control{min-height:2.75rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.75rem}.gvl-create-field small{display:block;margin-top:.42rem;color:var(--gvl-muted);font-size:.58rem;line-height:1.4}.gvl-create-panel form .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.75rem;margin-top:.8rem;border-radius:.62rem;font-size:.68rem;font-weight:700}.gvl-create-note{display:flex;align-items:flex-start;gap:.45rem;padding:.8rem 1rem;border-top:1px solid #edf0f4;background:#f8fafc;color:var(--gvl-muted)}.gvl-create-note p{margin:0;font-size:.6rem;line-height:1.45}.governorate-dashboard a:focus-visible,.governorate-dashboard button:focus-visible,.governorate-dashboard input:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.gvl-hero{grid-template-columns:auto minmax(0,1fr)}.gvl-hero-meta{grid-column:1/-1}.gvl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gvl-workspace{grid-template-columns:1fr}.gvl-create-panel{position:static}.gvl-columns,.gvl-row{grid-template-columns:minmax(220px,1fr) 80px 70px 110px 150px}}
+@media(max-width:767.98px){.gvl-columns{display:none}.gvl-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;padding:.8rem}.gvl-name-cell{grid-column:1/-1}.gvl-metric{padding:.55rem;border-radius:.55rem;background:#f6f8fb;text-align:left}.gvl-metric small{display:block;color:var(--gvl-muted);font-size:.54rem;text-transform:uppercase}.gvl-metric strong{display:block;margin-top:.08rem}.gvl-state{align-self:center}.gvl-actions{justify-content:flex-end}.gvl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.gvl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.gvl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.gvl-hero-copy>p{font-size:.8rem}.gvl-hero-meta{grid-template-columns:1fr}.gvl-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.gvl-kpi-grid{grid-template-columns:1fr}.gvl-panel-head{flex-direction:column;padding:.9rem}.gvl-row{grid-template-columns:1fr}.gvl-name-cell,.gvl-state,.gvl-actions{grid-column:auto}.gvl-actions{justify-content:flex-start}.gvl-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}

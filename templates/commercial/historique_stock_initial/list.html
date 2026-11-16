@@ -1,221 +1,53 @@
-{% extends "administration/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Mises à jour des stocks commerciaux — Commercial{% endblock %}
 {% block page_title %}Mises à jour des stocks commerciaux{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Mises à jour des stocks commerciaux</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Mises à jour des stocks</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="stock-history-dashboard">
+  <header class="hsl-hero" aria-labelledby="hsl-page-title"><span class="hsl-hero-icon" aria-hidden="true"><i class="bi bi-boxes"></i></span><div class="hsl-hero-copy"><div class="hsl-eyebrow"><i class="bi bi-clipboard-data" aria-hidden="true"></i> Inventaires commerciaux</div><h1 id="hsl-page-title">Mises à jour des stocks</h1><p>Contrôlez les inventaires déclarés, les quantités réelles et les écarts par commercial.</p></div><div class="hsl-hero-actions"><div class="hsl-hero-meta"><div><span>Commercial</span><strong>{% if commercial_selectionne %}{{ commercial_selectionne.get_full_name|default:commercial_selectionne.username }}{% elif is_commercial %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Tous les commerciaux{% endif %}</strong></div><div><span>Période</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong></div></div><a href="{% url 'commercial:historique-stock-initial-create' %}" class="btn btn-light"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nouvelle mise à jour</a></div></header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Liste des mises à jour des stocks de produits chez les commerciaux</h4>
-  <a href="{% url 'commercial:historique-stock-initial-create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i> Nouvelle mise à jour
-  </a>
+  <section class="hsl-filter-card" aria-labelledby="hsl-filter-title"><div class="hsl-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="hsl-filter-title">Périmètre des inventaires</h2><p>Sélectionnez une période{% if not is_commercial %} et un commercial{% endif %}.</p></div></div><form method="get" id="filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+    <div class="hsl-period-group"><span>Période rapide</span><div role="group" aria-label="Période rapide"><button type="button" class="btn btn-outline-secondary hsl-period" data-days="6">7 jours</button><button type="button" class="btn btn-outline-secondary hsl-period" data-days="29">30 jours</button><button type="button" class="btn btn-outline-secondary hsl-period" data-days="89">90 jours</button></div></div>
+    {% if not is_commercial %}<div class="hsl-filter-field"><label for="hsl-commercial">Commercial</label><select name="commercial_id" id="hsl-commercial" class="form-select" data-autosubmit><option value="">Tous les commerciaux</option>{% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>{% else %}<div class="hsl-locked-commercial"><span>Commercial connecté</span><strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong></div>{% endif %}
+    <div class="hsl-filter-field"><label for="hsl-date-start">Du</label><input type="date" name="date_debut" id="hsl-date-start" value="{{ date_debut }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div><div class="hsl-filter-field"><label for="hsl-date-end">Au</label><input type="date" name="date_fin" id="hsl-date-end" value="{{ date_fin }}" class="form-control" data-autosubmit autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div><a href="{% url 'commercial:historique-stock-initial-list' %}" class="btn btn-outline-secondary hsl-reset"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>
+  </form></section>
+
+  <section class="hsl-kpi-grid" aria-label="Synthèse des inventaires"><article class="hsl-kpi hsl-kpi-blue"><span><i class="bi bi-calendar3" aria-hidden="true"></i></span><div><small>Mises à jour</small><strong>{{ total_mises_a_jour }}</strong><em>sur {{ nb_jours }} jour{{ nb_jours|pluralize }}</em></div></article><article class="hsl-kpi hsl-kpi-violet"><span><i class="bi bi-box-seam" aria-hidden="true"></i></span><div><small>Produits contrôlés</small><strong>{{ total_produits }}</strong><em>lignes d’inventaire</em></div></article><article class="hsl-kpi {% if total_ecarts %}hsl-kpi-red{% else %}hsl-kpi-green{% endif %}"><span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span><div><small>Écarts constatés</small><strong>{{ total_ecarts }}</strong><em>à vérifier</em></div></article><article class="hsl-kpi hsl-kpi-green"><span><i class="bi bi-person-check" aria-hidden="true"></i></span><div><small>Commercial</small><strong class="hsl-kpi-name">{% if commercial_selectionne %}{{ commercial_selectionne.get_full_name|default:commercial_selectionne.username }}{% elif is_commercial %}{{ request.user.get_full_name|default:request.user.username }}{% else %}Tous{% endif %}</strong><em>périmètre actuel</em></div></article></section>
+
+  <details class="hsl-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre les stocks et les écarts</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><p><strong>Stock calculé</strong> : quantité théorique obtenue à partir des mouvements enregistrés.</p><p><strong>Stock réel</strong> : quantité physiquement constatée lors de l’inventaire.</p><p><strong>Écart</strong> : produit dont le stock réel diffère du stock calculé. Le détail permet d’identifier la quantité et l’observation saisie.</p></div></details>
+
+  <section class="hsl-panel" aria-labelledby="hsl-results-title"><header class="hsl-panel-head"><div><div class="hsl-section-label">Historique</div><h2 id="hsl-results-title">Inventaires enregistrés</h2>{% if historiques %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}.</p>{% else %}<p>Aucune mise à jour sur la période sélectionnée.</p>{% endif %}</div>{% if historiques %}<span class="hsl-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ page_obj.paginator.count }} inventaire{{ page_obj.paginator.count|pluralize }}</span>{% endif %}</header>
+    {% if historiques %}
+    <div class="hsl-table-wrap"><table class="hsl-table"><caption class="visually-hidden">Mises à jour des stocks commerciaux</caption><thead><tr><th scope="col">Référence</th><th scope="col">Commercial</th><th scope="col">Date</th><th scope="col">Produits</th><th scope="col">Stock réel total</th><th scope="col">Contrôle</th><th scope="col" class="hsl-actions-col">Action</th></tr></thead><tbody>{% for h in historiques %}<tr class="{% if h.nb_ecarts %}hsl-anomaly-row{% endif %}"><td><span class="hsl-reference"><span><i class="bi bi-boxes" aria-hidden="true"></i></span><strong>MS-{{ h.pk }}</strong></span></td><td><div class="hsl-person"><span class="hsl-avatar" aria-hidden="true">{{ h.user.first_name|slice:":1"|upper }}{{ h.user.last_name|slice:":1"|upper }}</span><span><strong>{{ h.user.get_full_name|default:h.user.username }}</strong><small>@{{ h.user.username }}</small></span></div></td><td><span class="hsl-date"><i class="bi bi-calendar3" aria-hidden="true"></i>{{ h.stock_initial_at|date:"d/m/Y" }}</span></td><td><strong>{{ h.nb_produits }}</strong> produit{{ h.nb_produits|pluralize }}</td><td><strong class="hsl-stock-total">{{ h.stock_reel_total|default_if_none:"0" }}</strong> unités</td><td>{% if h.nb_ecarts %}<span class="hsl-status hsl-status-alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>{{ h.nb_ecarts }} écart{{ h.nb_ecarts|pluralize }}</span>{% else %}<span class="hsl-status hsl-status-ok"><i class="bi bi-check-circle" aria-hidden="true"></i>Conforme</span>{% endif %}</td><td class="hsl-actions-col"><button type="button" class="hsl-icon-btn hsi-detail-btn" data-url="{% url 'commercial:historique-stock-initial-detail-popup' h.pk %}" aria-label="Visualiser MS-{{ h.pk }}" title="Visualiser"><i class="bi bi-eye" aria-hidden="true"></i></button></td></tr>{% endfor %}</tbody></table></div>
+    <div class="hsl-mobile-list">{% for h in historiques %}<article class="hsl-card {% if h.nb_ecarts %}hsl-card-alert{% endif %}"><header><span class="hsl-reference"><span><i class="bi bi-boxes" aria-hidden="true"></i></span><strong>MS-{{ h.pk }}</strong></span>{% if h.nb_ecarts %}<span class="hsl-status hsl-status-alert">{{ h.nb_ecarts }} écart{{ h.nb_ecarts|pluralize }}</span>{% else %}<span class="hsl-status hsl-status-ok">Conforme</span>{% endif %}</header><dl><div><dt>Commercial</dt><dd>{{ h.user.get_full_name|default:h.user.username }}</dd></div><div><dt>Date</dt><dd>{{ h.stock_initial_at|date:"d/m/Y" }}</dd></div><div><dt>Produits</dt><dd>{{ h.nb_produits }}</dd></div><div><dt>Stock réel total</dt><dd>{{ h.stock_reel_total|default_if_none:"0" }}</dd></div></dl><footer><button type="button" class="btn btn-outline-secondary hsi-detail-btn" data-url="{% url 'commercial:historique-stock-initial-detail-popup' h.pk %}"><i class="bi bi-eye" aria-hidden="true"></i>Visualiser le détail</button></footer></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="hsl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des mises à jour de stock"><ul class="hsl-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;commercial_id={{ commercial_id|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="hsl-empty"><span><i class="bi bi-boxes" aria-hidden="true"></i></span><h3>Aucune mise à jour de stock</h3><p>Aucun inventaire enregistré du {{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}{% if commercial_id %} pour ce commercial{% endif %}.</p><a href="{% url 'commercial:historique-stock-initial-create' %}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Créer une mise à jour</a></div>{% endif %}
+  </section>
 </div>
 
-{# ── Section 1 : filtres ──────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
+<div class="modal fade" id="hsi-detail-modal" tabindex="-1" aria-hidden="true" aria-labelledby="hsi-detail-title"><div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="hsi-detail-title">Quantités conservées chez le commercial</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body" id="hsi-detail-modal-body" aria-live="polite"><div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" aria-hidden="true"></div> Chargement…</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button></div></div></div></div>
+{% endblock %}
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        {% if not is_commercial %}
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% endif %}
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:historique-stock-initial-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
-    </form>
-  </div>
-</div>
-
-{# ── Section 2 : liste des enregistrements ────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            {% if not is_commercial %}
-            <th class="ps-3" style="min-width:180px;">Commercial</th>
-            {% endif %}
-            <th {% if is_commercial %}class="ps-3"{% endif %} style="min-width:160px;">Date de mise à jour</th>
-            <th class="text-center pe-3" style="min-width:100px;width:100px">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for h in page_obj.object_list %}
-          <tr>
-            {% if not is_commercial %}
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:160px;"
-                     value="{{ h.user.get_full_name|default:h.user.username }}" disabled>
-            </td>
-            {% endif %}
-            <td {% if is_commercial %}class="ps-3"{% endif %}>
-              <input type="date" class="form-control form-control-sm" style="min-width:140px;"
-                     value="{{ h.stock_initial_at|date:'Y-m-d' }}" disabled>
-            </td>
-            <td class="text-center pe-3">
-              <div class="d-flex justify-content-center gap-1">
-                <button type="button" class="btn btn-sm btn-outline-secondary hsi-detail-btn"
-                        data-url="{% url 'commercial:historique-stock-initial-detail-popup' h.pk %}" title="Visualiser">
-                  <i class="bi bi-eye"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ page_obj.paginator.count }} mise{{ page_obj.paginator.count|pluralize }} à jour
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&commercial_id={{ commercial_id }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-boxes fs-1 d-block mb-2 opacity-25"></i>
-      Aucune mise à jour de stock sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if commercial_id %}avec ces filtres{% endif %}.
-    </div>
-    {% endif %}
-  </div>
-</div>
-
-{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
-<div class="modal fade" id="hsi-detail-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Les quantités de produits conservées en stock chez le commercial</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body" id="hsi-detail-modal-body">
-        <div class="text-center py-4 text-muted">
-          <div class="spinner-border spinner-border-sm"></div> Chargement…
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+/* ── Historique stock initial : tableau de bord ordinateur d'abord ────────── */
+.stock-history-dashboard{--hsl-primary:#2c7be5;--hsl-primary-dark:#1a4f9c;--hsl-ink:#172033;--hsl-muted:#667085;--hsl-border:#e2e8f0;--hsl-surface:#fff;--hsl-radius:1rem;max-width:1650px;margin:0 auto;color:var(--hsl-ink)}
+.hsl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.hsl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.hsl-hero-copy{min-width:0}.hsl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.hsl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.hsl-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.86rem}.hsl-hero-actions{display:flex;align-items:stretch;gap:.55rem}.hsl-hero-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));min-width:310px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.hsl-hero-meta div{min-width:0;padding:.5rem}.hsl-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.hsl-hero-meta span{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.hsl-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}.hsl-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.8rem;border-radius:.7rem;color:#194f89;font-size:.72rem;font-weight:750}
+.hsl-filter-card,.hsl-panel,.hsl-method{margin-top:1rem;border:1px solid var(--hsl-border);border-radius:var(--hsl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.hsl-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.hsl-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--hsl-primary)}.hsl-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.hsl-filter-head p{margin:.12rem 0 0;color:var(--hsl-muted);font-size:.68rem}.hsl-filter-card form{display:grid;grid-template-columns:minmax(245px,1.1fr) minmax(200px,.9fr) 145px 145px auto;align-items:end;gap:.7rem;padding:1rem}.hsl-period-group>span,.hsl-filter-field label,.hsl-locked-commercial>span{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.hsl-period-group>div{display:flex;gap:.3rem}.hsl-period-group .btn{flex:1 1 auto;min-height:2.8rem;border-radius:.62rem;font-size:.68rem;font-weight:650}.hsl-filter-field .form-control,.hsl-filter-field .form-select{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.hsl-locked-commercial strong{display:flex;align-items:center;gap:.35rem;min-height:2.8rem;padding:.6rem .7rem;border:1px solid #e0e6ee;border-radius:.62rem;background:#f7f9fc;font-size:.72rem}.hsl-reset{display:inline-flex;align-items:center;gap:.35rem;min-height:2.8rem;border-radius:.62rem;font-size:.68rem;font-weight:700}
+.hsl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.hsl-kpi{--hsl-accent:#2c7be5;--hsl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.65rem;min-height:98px;padding:.85rem;border:1px solid var(--hsl-border);border-radius:.85rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.hsl-kpi-blue{--hsl-accent:#2c7be5;--hsl-soft:#eaf2fd}.hsl-kpi-violet{--hsl-accent:#6f42c1;--hsl-soft:#f1ebfb}.hsl-kpi-green{--hsl-accent:#198754;--hsl-soft:#e9f6ef}.hsl-kpi-red{--hsl-accent:#dc3545;--hsl-soft:#fdecee}.hsl-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.6rem;height:2.6rem;border-radius:.68rem;background:var(--hsl-soft);color:var(--hsl-accent);font-size:1.08rem}.hsl-kpi small{display:block;color:var(--hsl-muted);font-size:.63rem;font-weight:650}.hsl-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;text-overflow:ellipsis;white-space:nowrap}.hsl-kpi .hsl-kpi-name{font-size:.82rem}.hsl-kpi em{display:block;overflow:hidden;color:var(--hsl-muted);font-size:.59rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.hsl-method{overflow:hidden}.hsl-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.hsl-method summary::-webkit-details-marker{display:none}.hsl-method summary span{display:flex;align-items:center;gap:.4rem}.hsl-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.hsl-method[open] summary>i{transform:rotate(180deg)}.hsl-method>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;padding:.9rem}.hsl-method p{margin:0;padding:.65rem;border:1px solid #e5eaf0;border-radius:.65rem;color:#526071;font-size:.66rem;line-height:1.45}
+.hsl-panel{overflow:hidden}.hsl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.hsl-section-label{color:var(--hsl-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.hsl-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.hsl-panel-head p{margin:.15rem 0 0;color:var(--hsl-muted);font-size:.7rem}.hsl-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--hsl-primary-dark);font-size:.67rem;font-weight:750}.hsl-table-wrap{display:block}.hsl-table{width:100%;border-collapse:collapse;table-layout:fixed}.hsl-table thead{background:#f8fafc}.hsl-table th{padding:.7rem .8rem;border-bottom:1px solid var(--hsl-border);color:var(--hsl-muted);font-size:.62rem;font-weight:800;letter-spacing:.04em;text-align:left;text-transform:uppercase}.hsl-table td{padding:.75rem .8rem;border-bottom:1px solid #edf0f4;font-size:.72rem;vertical-align:middle}.hsl-table tbody tr:last-child td{border-bottom:0}.hsl-anomaly-row{background:#fffafb}.hsl-table th:nth-child(1){width:13%}.hsl-table th:nth-child(2){width:22%}.hsl-table th:nth-child(3){width:15%}.hsl-table th:nth-child(4){width:13%}.hsl-table th:nth-child(5){width:16%}.hsl-table th:nth-child(6){width:13%}.hsl-table th:nth-child(7){width:8%}.hsl-reference{display:flex;align-items:center;gap:.5rem}.hsl-reference>span{display:inline-flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.6rem;background:#eaf2fd;color:var(--hsl-primary)}.hsl-person{display:flex;align-items:center;gap:.5rem;min-width:0}.hsl-avatar{display:inline-flex;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.62rem;background:linear-gradient(145deg,#2c7be5,#1c5fac);color:#fff;font-size:.65rem;font-weight:800}.hsl-person>span:last-child{min-width:0}.hsl-person strong,.hsl-person small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hsl-person small{color:var(--hsl-muted);font-size:.6rem}.hsl-date{display:flex;align-items:center;gap:.35rem;white-space:nowrap}.hsl-stock-total{font-variant-numeric:tabular-nums}.hsl-status{display:inline-flex;align-items:center;gap:.3rem;padding:.24rem .48rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.hsl-status-ok{background:#e9f6ef;color:#18794e}.hsl-status-alert{background:#fdecee;color:#b42332}.hsl-actions-col{text-align:center!important}.hsl-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border:1px solid #d6dde7;border-radius:.55rem;background:#fff;color:#526071}.hsl-mobile-list{display:none}.hsl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-top:1px solid var(--hsl-border);background:#fbfcfe}.hsl-pagination-footer>span{color:var(--hsl-muted);font-size:.7rem}.hsl-pagination{display:flex;gap:.25rem;margin:0;padding:0;list-style:none}.hsl-pagination a,.hsl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.2rem;height:2.2rem;border:1px solid #d8e0ea;border-radius:.52rem;background:#fff;color:#526071;font-size:.7rem;font-weight:700;text-decoration:none}.hsl-pagination .active{border-color:var(--hsl-primary);background:var(--hsl-primary);color:#fff}.hsl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;padding:2rem;text-align:center}.hsl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.8rem;height:3.8rem;border-radius:1rem;background:#edf4fd;color:var(--hsl-primary);font-size:1.45rem}.hsl-empty h3{margin:.7rem 0 0;font-size:.92rem}.hsl-empty p{margin:.25rem 0 1rem;color:var(--hsl-muted);font-size:.72rem}.hsl-empty .btn{display:inline-flex;align-items:center;gap:.35rem;min-height:2.7rem;border-radius:.65rem;font-size:.72rem;font-weight:700}.stock-history-dashboard a:focus-visible,.stock-history-dashboard button:focus-visible,.stock-history-dashboard input:focus-visible,.stock-history-dashboard select:focus-visible,.stock-history-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.hsl-hero{grid-template-columns:auto minmax(0,1fr)}.hsl-hero-actions{grid-column:1/-1}.hsl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hsl-table-wrap{display:none}.hsl-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}.hsl-card{overflow:hidden;border:1px solid var(--hsl-border);border-radius:.8rem;background:#fff}.hsl-card-alert{border-color:#edbcc2}.hsl-card header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.hsl-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem;margin:0;padding:.85rem}.hsl-card dt{color:var(--hsl-muted);font-size:.61rem;text-transform:uppercase}.hsl-card dd{margin:.12rem 0 0;font-size:.72rem;font-weight:700}.hsl-card footer{padding:.7rem .8rem;border-top:1px solid #edf0f4}.hsl-card footer .btn{display:flex;align-items:center;justify-content:center;gap:.35rem;width:100%;min-height:2.55rem;border-radius:.62rem;font-size:.68rem;font-weight:700}}
+@media(max-width:991.98px){.hsl-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.hsl-period-group{grid-column:1/-1}.hsl-reset{grid-column:1/-1;justify-content:center}.hsl-method>div{grid-template-columns:1fr}}
+@media(max-width:767.98px){.hsl-mobile-list{grid-template-columns:1fr}.hsl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.hsl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.hsl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.hsl-hero-copy>p{font-size:.8rem}.hsl-hero-actions{align-items:stretch;flex-direction:column}.hsl-hero-meta{min-width:0}.hsl-kpi-grid{grid-template-columns:1fr}.hsl-filter-card form{grid-template-columns:1fr}.hsl-period-group{grid-column:auto}.hsl-period-group>div{display:grid;grid-template-columns:1fr}.hsl-reset{grid-column:auto}.hsl-panel-head{flex-direction:column;padding:.9rem}.hsl-card dl{grid-template-columns:1fr}.hsl-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-
-// ── Pop-up « Détail » ───────────────────────────────────────────────────────
-(function () {
-  var modalEl = document.getElementById('hsi-detail-modal');
-  var modalBody = document.getElementById('hsi-detail-modal-body');
-  if (!modalEl || !modalBody) { return; }
-  var modal = new bootstrap.Modal(modalEl);
-
-  document.querySelectorAll('.hsi-detail-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
-        '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
-      modal.show();
-      fetch(btn.getAttribute('data-url')).then(function (r) { return r.text(); }).then(function (html) {
-        modalBody.innerHTML = html;
-      });
-    });
-  });
-})();
+(function(){var form=document.getElementById('filter-form'),startInput=document.getElementById('hsl-date-start'),endInput=document.getElementById('hsl-date-end');form.querySelectorAll('[data-autosubmit]').forEach(function(field){field.addEventListener('change',function(){form.submit()})});function pad(v){return v<10?'0'+v:String(v)}function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}var today=new Date();document.querySelectorAll('.hsl-period').forEach(function(button){var start=new Date(today);start.setDate(start.getDate()-parseInt(button.getAttribute('data-days'),10));var sv=iso(start),ev=iso(today);if(startInput.value===sv&&endInput.value===ev){button.classList.replace('btn-outline-secondary','btn-secondary');button.setAttribute('aria-pressed','true')}button.addEventListener('click',function(){startInput.value=sv;endInput.value=ev;form.submit()})});var modalEl=document.getElementById('hsi-detail-modal'),modalBody=document.getElementById('hsi-detail-modal-body'),modal=new bootstrap.Modal(modalEl);document.querySelectorAll('.hsi-detail-btn').forEach(function(button){button.addEventListener('click',function(){modalBody.setAttribute('aria-busy','true');modalBody.innerHTML='<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" aria-hidden="true"></div> Chargement…</div>';modal.show();fetch(button.getAttribute('data-url')).then(function(response){if(!response.ok){throw new Error()}return response.text()}).then(function(html){modalBody.innerHTML=html}).catch(function(){modalBody.innerHTML='<div class="alert alert-danger mb-0">Le détail n’a pas pu être chargé.</div>'}).finally(function(){modalBody.removeAttribute('aria-busy')})})})})();
 </script>
 {% endblock %}

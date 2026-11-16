@@ -3,174 +3,66 @@
 {% block title %}Coût de production — Administration{% endblock %}
 {% block page_title %}Coût de production{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Coût de production</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Coût de production</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="cost-production-dashboard">
+  <header class="cpp-hero" aria-labelledby="cpp-page-title">
+    <span class="cpp-hero-icon" aria-hidden="true"><i class="bi bi-calculator"></i></span>
+    <div class="cpp-hero-copy"><div class="cpp-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Pilotage de la rentabilité</div><h1 id="cpp-page-title">Coût de production</h1><p>Comparez le prix de vente au coût actualisé des recettes et mesurez l’effet des meilleures performances de production.</p></div>
+    <div class="cpp-hero-meta"><div><span>Produits analysés</span><strong>{{ total_count }}</strong><small>produit{{ total_count|pluralize }} fini{{ total_count|pluralize }}</small></div><div><span>Source des coûts</span><strong>Derniers prix d’achat</strong><small>recettes standard développées</small></div></div>
+  </header>
 
-<h4 class="mb-4 fw-bold">
-  Coût unitaire de production des produits actualisés en fonction des prix d'achats récents des matières premières,
-  basé sur la recette standard
-</h4>
+  <section class="cpp-kpi-grid" aria-label="Synthèse des coûts de production">
+    <article class="cpp-kpi cpp-kpi-blue"><span><i class="bi bi-boxes" aria-hidden="true"></i></span><div><small>Produits calculés</small><strong>{{ total_count }}</strong><em>avec recette exploitable</em></div></article>
+    <article class="cpp-kpi cpp-kpi-green"><span><i class="bi bi-graph-up-arrow" aria-hidden="true"></i></span><div><small>Marge positive ou nulle</small><strong>{{ nb_rentables }}</strong><em>au coût standard</em></div></article>
+    <article class="cpp-kpi {% if nb_deficitaires %}cpp-kpi-red{% else %}cpp-kpi-green{% endif %}"><span><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span><div><small>Marge négative</small><strong>{{ nb_deficitaires }}</strong><em>produit{{ nb_deficitaires|pluralize }} à surveiller</em></div></article>
+    <article class="cpp-kpi cpp-kpi-violet"><span><i class="bi bi-stars" aria-hidden="true"></i></span><div><small>Références optimisées</small><strong>{{ nb_optimises }}</strong><em>{{ nb_non_optimises }} sans historique exploitable</em></div></article>
+  </section>
 
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <details class="cpp-method">
+    <summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre les coûts et la référence optimisée</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+    <div><div><strong>Coût standard</strong><p>Chaque recette est développée jusqu’aux matières premières puis valorisée avec leur dernier prix d’achat connu.</p></div><div><strong>Marge standard</strong><p>Prix de vente unitaire moins coût de production unitaire.</p></div><div><strong>Référence optimisée</strong><p>Commande interne présentant le plus faible rapport entre quantité commandée et quantité produite.</p></div><div><strong>Valeur absente</strong><p>Le tiret indique qu’aucune commande interne complète ne permet de calculer une référence optimisée.</p></div></div>
+  </details>
+
+  <section class="cpp-panel" aria-labelledby="cpp-results-title">
+    <header class="cpp-panel-head"><div><div class="cpp-section-label">Analyse unitaire</div><h2 id="cpp-results-title">Rentabilité par produit fini</h2>{% if lignes %}<p>{{ total_count }} produit{{ total_count|pluralize }} classé{{ total_count|pluralize }} par ordre alphabétique.</p>{% else %}<p>Aucun produit fini ne possède une recette exploitable.</p>{% endif %}</div>{% if lignes %}<span class="cpp-result-badge"><i class="bi bi-list-check" aria-hidden="true"></i>{{ total_count }} référence{{ total_count|pluralize }}</span>{% endif %}</header>
     {% if lignes %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:180px;">Produit</th>
-            <th class="text-end">Prix unitaire (TND)</th>
-            <th class="text-end">Coût de production unitaire (TND)</th>
-            <th class="text-end col-benefice">Bénéfice brut unitaire (TND)</th>
-            <th class="text-end">Qté commandée maximisée</th>
-            <th class="text-end">Quantité produite maximisée</th>
-            <th class="text-end">Indice de maximisation de la production</th>
-            <th class="text-end">Coût unitaire de la production maximisée (TND)</th>
-            <th class="text-end pe-3 col-benefice-max">Bénéfice brut unitaire maximisé (TND)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in lignes %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" style="min-width:180px;" value="{{ l.produit }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.prix_unitaire|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.cout_unitaire|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end col-benefice">
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner {% if l.benefice_unitaire < 0 %}text-danger{% endif %}"
-                     value="{{ l.benefice_unitaire|stringformat:'.3f' }}" disabled>
-            </td>
-            <td class="text-end">
-              {% if l.qte_commandee_max is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.qte_commandee_max|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              {% if l.qte_produite_max is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.qte_produite_max|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              {% if l.indice_max is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.indice_max|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              {% if l.cout_unitaire_max is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner"
-                     value="{{ l.cout_unitaire_max|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-            <td class="text-end pe-3 col-benefice-max">
-              {% if l.benefice_max is not None %}
-              <input type="number" step="0.001"
-                     class="form-control form-control-sm text-end font-monospace no-spinner {% if l.benefice_max < 0 %}text-danger{% endif %}"
-                     value="{{ l.benefice_max|stringformat:'.3f' }}" disabled>
-              {% else %}
-              <input type="text" class="form-control form-control-sm text-end" value="—" disabled>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
+    <div class="cpp-table-wrap">
+      <table class="cpp-table">
+        <caption class="visually-hidden">Prix, coûts et marges unitaires standards et optimisés par produit</caption>
+        <colgroup><col class="cpp-col-product"><col class="cpp-col-price"><col class="cpp-col-cost"><col class="cpp-col-margin"><col class="cpp-col-reference"><col class="cpp-col-cost"><col class="cpp-col-margin"></colgroup>
+        <thead><tr class="cpp-group-head"><th scope="col" rowspan="2">Produit</th><th scope="colgroup" colspan="3" class="cpp-group-standard">Calcul standard</th><th scope="colgroup" colspan="3" class="cpp-group-optimized">Référence optimisée</th></tr><tr><th scope="col" class="cpp-number-col">Prix de vente</th><th scope="col" class="cpp-number-col">Coût</th><th scope="col" class="cpp-number-col">Marge brute</th><th scope="col">Commande / production</th><th scope="col" class="cpp-number-col">Coût</th><th scope="col" class="cpp-number-col">Marge brute</th></tr></thead>
+        <tbody>{% for l in lignes %}<tr class="{% if l.benefice_unitaire < 0 %}cpp-row-deficit{% endif %}">
+          <td><span class="cpp-product"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><strong>{{ l.produit }}</strong></span></td>
+          <td class="cpp-number-col"><strong class="cpp-money">{{ l.prix_unitaire|stringformat:'.3f' }}</strong><small>TND</small></td>
+          <td class="cpp-number-col"><strong class="cpp-money">{{ l.cout_unitaire|stringformat:'.3f' }}</strong><small>TND / unité</small></td>
+          <td class="cpp-number-col"><strong class="cpp-money {% if l.benefice_unitaire < 0 %}cpp-negative{% else %}cpp-positive{% endif %}">{{ l.benefice_unitaire|stringformat:'.3f' }}</strong><span class="cpp-status {% if l.benefice_unitaire < 0 %}cpp-status-danger{% else %}cpp-status-safe{% endif %}">{% if l.benefice_unitaire < 0 %}<i class="bi bi-arrow-down" aria-hidden="true"></i>Négative{% else %}<i class="bi bi-arrow-up" aria-hidden="true"></i>Positive{% endif %}</span></td>
+          <td>{% if l.qte_commandee_max is not None %}<dl class="cpp-ratio"><div><dt>Commandée</dt><dd>{{ l.qte_commandee_max|stringformat:'.3f' }}</dd></div><div><dt>Produite</dt><dd>{{ l.qte_produite_max|stringformat:'.3f' }}</dd></div><div><dt>Indice</dt><dd>{{ l.indice_max|stringformat:'.3f' }}</dd></div></dl>{% else %}<span class="cpp-unavailable"><i class="bi bi-dash-circle" aria-hidden="true"></i>Non disponible</span>{% endif %}</td>
+          <td class="cpp-number-col">{% if l.cout_unitaire_max is not None %}<strong class="cpp-money cpp-optimized-value">{{ l.cout_unitaire_max|stringformat:'.3f' }}</strong><small>TND / unité</small>{% else %}<span class="cpp-dash">—</span>{% endif %}</td>
+          <td class="cpp-number-col">{% if l.benefice_max is not None %}<strong class="cpp-money {% if l.benefice_max < 0 %}cpp-negative{% else %}cpp-positive{% endif %}">{{ l.benefice_max|stringformat:'.3f' }}</strong><span class="cpp-status {% if l.benefice_max < 0 %}cpp-status-danger{% else %}cpp-status-safe{% endif %}">{% if l.benefice_max < 0 %}Négative{% else %}Positive{% endif %}</span>{% else %}<span class="cpp-dash">—</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
       </table>
     </div>
 
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} produit{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
+    <div class="cpp-card-list">{% for l in lignes %}<article class="cpp-card {% if l.benefice_unitaire < 0 %}cpp-card-deficit{% endif %}"><header><span class="cpp-product"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><strong>{{ l.produit }}</strong></span><span class="cpp-status {% if l.benefice_unitaire < 0 %}cpp-status-danger{% else %}cpp-status-safe{% endif %}">{% if l.benefice_unitaire < 0 %}Marge négative{% else %}Marge positive{% endif %}</span></header><div class="cpp-card-section"><h3>Calcul standard</h3><dl><div><dt>Prix de vente</dt><dd>{{ l.prix_unitaire|stringformat:'.3f' }} TND</dd></div><div><dt>Coût unitaire</dt><dd>{{ l.cout_unitaire|stringformat:'.3f' }} TND</dd></div><div><dt>Marge brute</dt><dd class="{% if l.benefice_unitaire < 0 %}cpp-negative{% else %}cpp-positive{% endif %}">{{ l.benefice_unitaire|stringformat:'.3f' }} TND</dd></div></dl></div><div class="cpp-card-section cpp-card-optimized"><h3>Référence optimisée</h3>{% if l.qte_commandee_max is not None %}<dl><div><dt>Commandée</dt><dd>{{ l.qte_commandee_max|stringformat:'.3f' }}</dd></div><div><dt>Produite</dt><dd>{{ l.qte_produite_max|stringformat:'.3f' }}</dd></div><div><dt>Indice</dt><dd>{{ l.indice_max|stringformat:'.3f' }}</dd></div><div><dt>Coût unitaire</dt><dd>{{ l.cout_unitaire_max|stringformat:'.3f' }} TND</dd></div><div><dt>Marge brute</dt><dd class="{% if l.benefice_max < 0 %}cpp-negative{% else %}cpp-positive{% endif %}">{{ l.benefice_max|stringformat:'.3f' }} TND</dd></div></dl>{% else %}<p>Aucune commande interne complète disponible.</p>{% endif %}</div></article>{% endfor %}</div>
 
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-calculator fs-1 d-block mb-2 opacity-25"></i>
-      Aucun produit fini avec une recette valide.
-    </div>
-    {% endif %}
-  </div>
+    {% if is_paginated %}<footer class="cpp-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} produit{{ total_count|pluralize }}</span><nav aria-label="Pagination des coûts de production"><ul class="cpp-pagination">{% if page_obj.has_previous %}<li><a href="?page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="cpp-empty"><span><i class="bi bi-calculator" aria-hidden="true"></i></span><h3>Aucun coût calculable</h3><p>Ajoutez une recette avec une quantité de référence valide à un produit fini.</p></div>{% endif %}
+  </section>
 </div>
-
 {% endblock %}
 
 {% block extra_css %}
 {{ block.super }}
-td.col-benefice, th.col-benefice {
-  background-color: #eaf2fb;
-}
-td.col-benefice-max, th.col-benefice-max {
-  background-color: #eaf8f0;
-}
-td.col-benefice .form-control,
-td.col-benefice-max .form-control {
-  background-color: transparent;
-}
+/* Coûts de production : tableau de bord ordinateur d'abord. */
+.cost-production-dashboard{--cpp-primary:#2c7be5;--cpp-primary-dark:#1a4f9c;--cpp-ink:#172033;--cpp-muted:#667085;--cpp-border:#e2e8f0;--cpp-radius:1rem;max-width:1700px;margin:0 auto;color:var(--cpp-ink)}
+.cpp-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(320px,390px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.cpp-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.cpp-hero-copy{min-width:0}.cpp-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.cpp-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.cpp-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.86rem}.cpp-hero-meta{display:grid;grid-template-columns:.8fr 1.2fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.8rem;background:rgba(8,31,61,.2)}.cpp-hero-meta div{min-width:0;padding:.55rem}.cpp-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.cpp-hero-meta span,.cpp-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.cpp-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}.cpp-hero-meta small{margin-top:.1rem}
+.cpp-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.cpp-kpi{--cpp-accent:#2c7be5;--cpp-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--cpp-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.cpp-kpi-blue{--cpp-accent:#2c7be5;--cpp-soft:#eaf2fd}.cpp-kpi-green{--cpp-accent:#198754;--cpp-soft:#e9f6ef}.cpp-kpi-red{--cpp-accent:#dc3545;--cpp-soft:#fdecee}.cpp-kpi-violet{--cpp-accent:#6f42c1;--cpp-soft:#f1ebfb}.cpp-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--cpp-soft);color:var(--cpp-accent);font-size:1.1rem}.cpp-kpi small{display:block;color:var(--cpp-muted);font-size:.64rem;font-weight:650}.cpp-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.cpp-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--cpp-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.cpp-method,.cpp-panel{margin-top:1rem;border:1px solid var(--cpp-border);border-radius:var(--cpp-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04);overflow:hidden}.cpp-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.cpp-method summary::-webkit-details-marker{display:none}.cpp-method summary span{display:flex;align-items:center;gap:.4rem}.cpp-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.cpp-method[open] summary>i{transform:rotate(180deg)}.cpp-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.cpp-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.cpp-method strong{font-size:.68rem}.cpp-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.cpp-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cpp-section-label{color:var(--cpp-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.cpp-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.cpp-panel-head p{margin:.15rem 0 0;color:var(--cpp-muted);font-size:.7rem}.cpp-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--cpp-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.cpp-table{width:100%;border-collapse:collapse;table-layout:fixed}.cpp-col-product{width:19%}.cpp-col-price,.cpp-col-cost{width:11%}.cpp-col-margin{width:13%}.cpp-col-reference{width:22%}.cpp-table thead{background:#f8fafc}.cpp-table th{padding:.62rem .55rem;border-bottom:1px solid var(--cpp-border);color:var(--cpp-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase;vertical-align:middle}.cpp-table td{padding:.72rem .55rem;border-bottom:1px solid #edf0f4;font-size:.67rem;vertical-align:middle}.cpp-table tbody tr:last-child td{border-bottom:0}.cpp-table tbody tr:hover{background:#f8faff}.cpp-table .cpp-group-standard{background:#edf4fd;color:#31577f;text-align:center}.cpp-table .cpp-group-optimized{background:#edf8f2;color:#18794e;text-align:center}.cpp-table .cpp-group-head th:first-child{background:#f8fafc}.cpp-row-deficit{background:#fffafa}.cpp-product{display:flex;align-items:center;gap:.52rem;min-width:0}.cpp-product>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;border-radius:.62rem;background:#eaf2fd;color:var(--cpp-primary)}.cpp-product strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cpp-number-col{text-align:right!important}.cpp-money{display:block;font-size:.72rem;font-variant-numeric:tabular-nums;white-space:nowrap}.cpp-table td>small{display:block;margin-top:.08rem;color:var(--cpp-muted);font-size:.56rem}.cpp-positive{color:#18794e}.cpp-negative{color:#b42332}.cpp-optimized-value{color:#176b45}.cpp-status{display:inline-flex;align-items:center;gap:.2rem;margin-top:.18rem;padding:.18rem .36rem;border-radius:2rem;font-size:.56rem;font-weight:750;white-space:nowrap}.cpp-status-safe{background:#e9f6ef;color:#18794e}.cpp-status-danger{background:#fdecee;color:#b42332}.cpp-ratio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem;margin:0}.cpp-ratio div{min-width:0;padding:.28rem;border-radius:.42rem;background:#f4f6f9;text-align:center}.cpp-ratio dt{color:var(--cpp-muted);font-size:.48rem;font-weight:700;text-transform:uppercase}.cpp-ratio dd{overflow:hidden;margin:.06rem 0 0;font-size:.58rem;font-weight:750;text-overflow:ellipsis}.cpp-unavailable{display:inline-flex;align-items:center;gap:.3rem;color:var(--cpp-muted);font-size:.59rem}.cpp-dash{color:#98a2b3}.cpp-card-list{display:none}
+.cpp-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.cpp-pagination-footer>span{color:var(--cpp-muted);font-size:.65rem}.cpp-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.cpp-pagination a,.cpp-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.cpp-pagination .active{border-color:var(--cpp-primary);background:var(--cpp-primary);color:#fff}.cpp-empty{padding:3rem 1rem;text-align:center}.cpp-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.cpp-empty h3{margin:.7rem 0 .25rem;font-size:.95rem}.cpp-empty p{margin:0;color:var(--cpp-muted);font-size:.72rem}.cost-production-dashboard a:focus-visible,.cost-production-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.cpp-hero{grid-template-columns:auto minmax(0,1fr)}.cpp-hero-meta{grid-column:1/-1}.cpp-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cpp-table-wrap{display:none}.cpp-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem;background:#f7f9fc}.cpp-card{overflow:hidden;border:1px solid var(--cpp-border);border-radius:.8rem;background:#fff}.cpp-card-deficit{border-color:#edbcc2}.cpp-card>header{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.75rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.cpp-card-section{padding:.8rem}.cpp-card-section+.cpp-card-section{border-top:1px solid #edf0f4}.cpp-card-section h3{margin:0 0 .6rem;color:#31577f;font-size:.64rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.cpp-card-optimized h3{color:#18794e}.cpp-card-section dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:0}.cpp-card-section dt{color:var(--cpp-muted);font-size:.55rem;text-transform:uppercase}.cpp-card-section dd{margin:.1rem 0 0;font-size:.67rem;font-weight:750}.cpp-card-section p{margin:0;color:var(--cpp-muted);font-size:.65rem}.cpp-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.cpp-card-list{grid-template-columns:1fr}.cpp-panel-head{align-items:flex-start}.cpp-card-section dl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.cpp-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.cpp-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.cpp-hero-copy>p{font-size:.8rem}.cpp-hero-meta{grid-template-columns:1fr}.cpp-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.cpp-kpi-grid{grid-template-columns:1fr}.cpp-method>div{grid-template-columns:1fr}.cpp-panel-head{flex-direction:column;padding:.9rem}.cpp-card>header{align-items:flex-start;flex-direction:column}.cpp-card-section dl{grid-template-columns:1fr}.cpp-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}

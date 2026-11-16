@@ -1,14 +1,14 @@
 {% extends "commercial/base.html" %}
 
-{% block title %}Nouveau bon de restitution — Commercial{% endblock %}
-{% block page_title %}Nouveau bon de restitution{% endblock %}
+{% block title %}{% if bon_restitution %}Modifier BR-{{ bon_restitution.pk }}{% else %}Nouveau bon de restitution{% endif %} — Commercial{% endblock %}
+{% block page_title %}{% if bon_restitution %}Modification d'un bon de restitution{% else %}Nouveau bon de restitution{% endif %}{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb mb-0">
     <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
     <li class="breadcrumb-item"><a href="{% url 'commercial:bon-restitution-list' %}">Bons de restitution</a></li>
-    <li class="breadcrumb-item active">Nouveau bon de restitution</li>
+    <li class="breadcrumb-item active" aria-current="page">{% if bon_restitution %}Modifier BR-{{ bon_restitution.pk }}{% else %}Nouveau bon de restitution{% endif %}</li>
   </ol>
 </nav>
 {% endblock %}
@@ -20,8 +20,16 @@
    detail_produit_id, detail_quantite_restituee) sont ceux attendus par
    BonRestitutionCreateView.post().
 {% endcomment %}
-<form id="br-create-form" method="post" novalidate>
+<form id="br-form" method="post" novalidate autocomplete="off"
+      data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
   {% csrf_token %}
+
+  {% if bon_restitution %}
+  <div class="blx-note blx-note-warn br-update-note">
+    <i class="bi bi-pencil-square me-1"></i>
+    Vous modifiez BR-{{ bon_restitution.pk }}. Les produits affichés correspondent à la version actuellement enregistrée.
+  </div>
+  {% endif %}
 
   <p class="text-muted mb-3">
     <i class="bi bi-info-circle me-1"></i>Notez les produits que le commercial rend à la société.
@@ -34,7 +42,7 @@
       <span class="blx-step-num">1</span>
       <div>
         <div class="blx-step-title">{% if is_commercial %}Date de restitution{% else %}Commercial et date{% endif %}</div>
-        <div class="blx-step-help">Par défaut, la date du jour.</div>
+        <div class="blx-step-help">{% if bon_restitution %}Le commercial et la date restent modifiables tant que le bon n'est pas soldé.{% else %}Par défaut, la date du jour.{% endif %}</div>
       </div>
     </div>
 
@@ -58,7 +66,8 @@
       <div class="blx-field mb-0">
         <label class="blx-label" for="br-date-input">Date <span class="blx-req">*</span></label>
         <input type="date" id="br-date-input" name="restitution_at" value="{{ restitution_at }}" max="{{ today }}"
-               class="form-control blx-input">
+               class="form-control blx-input" autocomplete="new-password" aria-autocomplete="none"
+               data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
         <div class="blx-hint">La date ne peut pas être dans le futur.</div>
       </div>
     </div>
@@ -92,7 +101,7 @@
 
   {# ── Action secondaire ────────────────────────────────────────────────────── #}
   <div class="blx-secondary-actions">
-    <a href="{% url 'commercial:home' %}" class="btn btn-link text-secondary">
+    <a href="{% if bon_restitution %}{% url 'commercial:bon-restitution-list' %}{% else %}{% url 'commercial:home' %}{% endif %}" class="btn btn-link text-secondary">
       <i class="bi bi-x-lg me-1"></i>Annuler
     </a>
   </div>
@@ -104,7 +113,7 @@
       <strong id="br-bar-total">0 produit</strong>
     </div>
     <button type="submit" id="br-save-btn" class="btn btn-primary blx-bar-btn">
-      <i class="bi bi-check-lg me-1"></i>Vérifier et enregistrer
+      <i class="bi bi-check-lg me-1"></i>{% if bon_restitution %}Vérifier les modifications{% else %}Vérifier et enregistrer{% endif %}
     </button>
   </div>
 </form>
@@ -114,7 +123,7 @@
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="br-recap-title"><i class="bi bi-clipboard-check me-2"></i>Vérifiez le bon de restitution</h5>
+        <h5 class="modal-title" id="br-recap-title"><i class="bi bi-clipboard-check me-2"></i>{% if bon_restitution %}Vérifiez les modifications{% else %}Vérifiez le bon de restitution{% endif %}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
       <div class="modal-body" id="br-recap-body"></div>
@@ -123,7 +132,7 @@
           <i class="bi bi-pencil me-1"></i>Modifier
         </button>
         <button type="button" class="btn btn-success blx-btn" id="br-recap-confirm">
-          <i class="bi bi-check-lg me-1"></i>Confirmer et enregistrer
+          <i class="bi bi-check-lg me-1"></i>{% if bon_restitution %}Confirmer la modification{% else %}Confirmer et enregistrer{% endif %}
         </button>
       </div>
     </div>
@@ -136,11 +145,13 @@
 {% block extra_css %}
 {{ block.super }}
 {% include 'commercial/bon_livraison/_blx_styles.html' %}
+.br-update-note { margin-bottom: 1rem; }
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
+  var IS_UPDATE = {% if bon_restitution %}true{% else %}false{% endif %};
   var PRODUITS = {{ produits_json|safe }};
   var PRESERVED_LIGNES = {{ detail_rows_json|safe }};
   var DEFAULTS_URL = "{% url 'commercial:bon-restitution-defaults' %}";
@@ -149,7 +160,7 @@
   var IS_COMMERCIAL = {{ is_commercial|yesno:"true,false" }};
   var TODAY = "{{ today }}";
 
-  var form            = document.getElementById('br-create-form');
+  var form            = document.getElementById('br-form');
   var commercialEl    = document.getElementById('br-commercial-select');
   var dateInput       = document.getElementById('br-date-input');
   var rowsContainer   = document.getElementById('br-rows');
@@ -263,7 +274,7 @@
     return '<span class="blx-sub-label">Quantité rendue</span>' +
       '<div class="blx-stepper">' +
         '<button type="button" class="qte-moins" tabindex="-1" aria-label="Diminuer la quantité">−</button>' +
-        '<input type="number" step="1" min="0" name="detail_quantite_restituee" class="form-control blx-input no-spinner qte-input" value="' + esc(valeur) + '" inputmode="numeric" aria-label="Quantité rendue">' +
+        '<input type="number" step="1" min="0" name="' + (IS_UPDATE ? 'detail_quantite' : 'detail_quantite_restituee') + '" class="form-control blx-input no-spinner qte-input" value="' + esc(valeur) + '" inputmode="numeric" aria-label="Quantité rendue" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">' +
         '<button type="button" class="qte-plus" tabindex="-1" aria-label="Augmenter la quantité">+</button>' +
       '</div>';
   }
@@ -432,6 +443,7 @@
       if (commercialEl.value) { showError(infosError, ''); }
       if (commercialEl.value === prevCommercial) { return; }
       prevCommercial = commercialEl.value;
+      if (IS_UPDATE) { dirty = true; return; }
       if (!confirmerRemplacement()) { return; }
       refreshDefaults();
     });
@@ -442,6 +454,7 @@
     if (dateInput.value && dateInput.value <= TODAY) { showError(infosError, ''); }
     if (dateInput.value === prevDate) { return; }
     prevDate = dateInput.value;
+    if (IS_UPDATE) { dirty = true; return; }
     if (!dateInput.value || !confirmerRemplacement()) { return; }
     refreshDefaults();
   });
@@ -533,7 +546,7 @@
     // Évite un double enregistrement en cas de double appui.
     recapConfirmBtn.disabled = true;
     saveBtn.disabled = true;
-    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enregistrement…';
+    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + (IS_UPDATE ? 'Mise à jour…' : 'Enregistrement…');
     form.submit();
   });
 
@@ -544,8 +557,13 @@
   // date relance normalement le calcul).
   if (PRESERVED_LIGNES.length) {
     PRESERVED_LIGNES.forEach(function (l) { addLibreRow(l); });
-    showBox(defaultsInfo, '<i class="bi bi-info-circle me-1"></i>Vos saisies ont été conservées. Changez la date ou le commercial pour recalculer la liste.');
+    showBox(defaultsInfo, IS_UPDATE
+      ? '<i class="bi bi-info-circle me-1"></i>Les produits actuellement enregistrés sont affichés ci-dessous. Vous pouvez les modifier, les retirer ou en ajouter.'
+      : '<i class="bi bi-info-circle me-1"></i>Vos saisies ont été conservées. Changez la date ou le commercial pour recalculer la liste.');
     dirty = true;
+  } else if (IS_UPDATE) {
+    addLibreRow();
+    showBox(defaultsInfo, '<i class="bi bi-info-circle me-1"></i>Ajoutez au moins un produit avec une quantité rendue.');
   } else {
     refreshDefaults();
   }

@@ -3,271 +3,60 @@
 {% block title %}Transactions — Administration{% endblock %}
 {% block page_title %}Transactions caisse{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Transactions</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Transactions</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="transaction-list-dashboard">
+  <header class="txl-hero" aria-labelledby="txl-page-title">
+    <span class="txl-hero-icon" aria-hidden="true"><i class="bi bi-receipt-cutoff"></i></span>
+    <div class="txl-hero-copy"><div class="txl-eyebrow"><i class="bi bi-cash-coin" aria-hidden="true"></i> Journal de caisse</div><h1 id="txl-page-title">Transactions caisse</h1><p>Analysez les crédits et débits, contrôlez leur statut de rapprochement et ouvrez le document métier à l’origine de chaque écriture.</p></div>
+    <div class="txl-hero-meta"><div><span>Période analysée</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong><small>{{ nb_jours }} jour{{ nb_jours|pluralize }}</small></div><div><span>Périmètre</span><strong>{% if user_selectionne %}{{ user_selectionne.get_full_name|default:user_selectionne.username }}{% else %}Tous les employés{% endif %}</strong><small>{% if libelle_selectionne %}{{ libelle_selectionne.libelle }}{% else %}Tous les libellés{% endif %}</small></div></div>
+  </header>
 
-{# ── Barre de filtres ──────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-2 overflow-auto">
+  <section class="txl-kpi-grid" aria-label="Synthèse des transactions">
+    <article class="txl-kpi txl-kpi-blue"><span><i class="bi bi-list-check" aria-hidden="true"></i></span><div><small>Transactions</small><strong>{{ total_count }}</strong><em>{{ totaux.nb_soldees }} soldée{{ totaux.nb_soldees|pluralize }} · {{ totaux.nb_non_soldees }} en attente</em></div></article>
+    <article class="txl-kpi txl-kpi-green"><span><i class="bi bi-arrow-down-left" aria-hidden="true"></i></span><div><small>Crédits</small><strong>+{{ totaux.credit|stringformat:'.3f' }}</strong><em>{{ totaux.nb_credits }} écriture{{ totaux.nb_credits|pluralize }} · TND</em></div></article>
+    <article class="txl-kpi txl-kpi-red"><span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span><div><small>Débits</small><strong>{{ totaux.debit|stringformat:'.3f' }}</strong><em>{{ totaux.nb_debits }} écriture{{ totaux.nb_debits|pluralize }} · TND</em></div></article>
+    <article class="txl-kpi {% if totaux.net >= 0 %}txl-kpi-violet{% else %}txl-kpi-red{% endif %}"><span><i class="bi bi-bank" aria-hidden="true"></i></span><div><small>Solde net</small><strong>{{ totaux.net|stringformat:'.3f' }}</strong><em>crédits et débits · TND</em></div></article>
+  </section>
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
+  <section class="txl-filter-card" aria-labelledby="txl-filter-title">
+    <div class="txl-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="txl-filter-title">Périmètre du journal</h2><p>Renseignez les critères souhaités puis appliquez-les en une seule fois.</p></div></div>
+    <form method="get" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><div class="txl-filter-fields"><div class="txl-filter-field"><label for="txl-date-start">Date de début</label><input type="date" name="date_debut" id="txl-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div><div class="txl-filter-field"><label for="txl-date-end">Date de fin</label><input type="date" name="date_fin" id="txl-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div><div class="txl-filter-field"><label for="txl-user">Employé</label><select name="user_id" id="txl-user" class="form-select" autocomplete="off"><option value="">Tous les employés</option>{% for u in users_list %}<option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div><div class="txl-filter-field"><label for="txl-label">Libellé</label><select name="libelle_id" id="txl-label" class="form-select" autocomplete="off"><option value="">Tous les libellés</option>{% for l in libelles_list %}<option value="{{ l.pk }}" {% if libelle_id == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.libelle }}</option>{% endfor %}</select></div></div><footer class="txl-filter-footer"><label class="txl-check" for="txl-non-zero"><input type="checkbox" name="montant_non_zero" value="1" id="txl-non-zero" autocomplete="off" {% if montant_non_zero %}checked{% endif %}><span>Exclure les montants nuls</span></label><p><i class="bi bi-list-check" aria-hidden="true"></i>{{ total_count }} résultat{{ total_count|pluralize }}</p><div class="txl-filter-actions"><a href="{% url 'administration:transaction-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-check2" aria-hidden="true"></i>Appliquer les filtres</button></div></footer></form>
+  </section>
 
-        <div style="width:135px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
+  <details class="txl-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre le journal de caisse</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><div><strong>Crédit</strong><p>Une écriture positive augmente le solde du compte caisse concerné.</p></div><div><strong>Débit</strong><p>Une écriture négative diminue le solde et apparaît en rouge.</p></div><div><strong>Statut soldé</strong><p>La transaction a déjà été intégrée dans un contrôle de caisse.</p></div><div><strong>Référence</strong><p>L’identifiant technique permet de retrouver le document ouvert par le bouton Détail.</p></div></div></details>
 
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Employé</label>
-          <select name="user_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les employés —</option>
-            {% for u in users_list %}
-            <option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Libellé</label>
-          <select name="libelle_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les libellés —</option>
-            {% for l in libelles_list %}
-            <option value="{{ l.pk }}" {% if libelle_id == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.libelle }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <div class="form-check mt-4 text-nowrap">
-            <input type="checkbox" name="montant_non_zero" value="1" id="montant_non_zero"
-                   class="form-check-input" {% if montant_non_zero %}checked{% endif %} data-autosubmit>
-            <label class="form-check-label small" for="montant_non_zero">
-              Montant différent de zéro
-            </label>
-          </div>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'administration:transaction-list' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-
-      </div>
-    </form>
-  </div>
-</div>
-
-{# ── Barre de résumé ──────────────────────────────────────────────────────── #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5">{{ total_count }}</div>
-      <div class="text-muted small">Transaction{{ total_count|pluralize }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5 text-success font-monospace">
-        +{{ totaux.credit|default:"0.000" }}
-      </div>
-      <div class="text-muted small">Crédits (TND)</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5 text-danger font-monospace">
-        {{ totaux.debit|default:"0.000" }}
-      </div>
-      <div class="text-muted small">Débits (TND)</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm text-center py-3">
-      <div class="fw-bold fs-5 font-monospace
-                  {% if totaux.net >= 0 %}text-success{% else %}text-danger{% endif %}">
-        {{ totaux.net|default:"0.000" }}
-      </div>
-      <div class="text-muted small">Solde net (TND)</div>
-    </div>
-  </div>
-</div>
-
-{# ── Tableau ──────────────────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
+  <section class="txl-panel" aria-labelledby="txl-results-title">
+    <header class="txl-panel-head"><div><div class="txl-section-label">Écritures de caisse</div><h2 id="txl-results-title">Journal des transactions</h2>{% if page_obj.object_list %}<p>{{ total_count }} transaction{{ total_count|pluralize }} classée{{ total_count|pluralize }} de la plus récente à la plus ancienne.</p>{% else %}<p>Aucune écriture ne correspond au périmètre actuel.</p>{% endif %}</div>{% if page_obj.object_list %}<span class="txl-result-badge"><i class="bi bi-check2-circle" aria-hidden="true"></i>{{ totaux.nb_soldees }} soldée{{ totaux.nb_soldees|pluralize }} · {{ totaux.nb_non_soldees }} en attente</span>{% endif %}</header>
     {% if page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:100px;">Date / Heure</th>
-            <th style="min-width:160px;">Employé</th>
-            <th style="min-width:130px;">Libellé</th>
-            <th class="d-none">Référence</th>
-            <th class="text-end" style="min-width:110px;">Montant (TND)</th>
-            <th class="text-center" style="min-width:80px;">Soldé</th>
-            <th class="text-center pe-3" style="width:70px">Détail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in page_obj.object_list %}
-          <tr>
-            <td class="ps-3">
-              {% if t.created_at %}
-              <div class="fw-medium small">{{ t.created_at|date:"d/m/Y" }}</div>
-              <div class="text-muted" style="font-size:.75rem;">{{ t.created_at|date:"H:i" }}</div>
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-            <td>
-              <div class="fw-medium small">{{ t.user.get_full_name|default:t.user.username }}</div>
-            </td>
-            <td>
-              <span class="badge rounded-pill bg-light text-dark border small">{{ t.libelle }}</span>
-            </td>
-            <td class="d-none">
-              <span class="font-monospace text-muted" style="font-size:.8rem;">{{ t.table_id }}</span>
-            </td>
-            <td class="text-end font-monospace fw-semibold">
-              {% if t.montant >= 0 %}
-              <span class="text-success">+{{ t.montant }}</span>
-              {% else %}
-              <span class="text-danger">{{ t.montant }}</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <input type="checkbox" class="form-check-input" disabled
-                     {% if t.hist_solde_compte_id %}checked{% endif %}
-                     title="{% if t.hist_solde_compte_id %}Soldée{% else %}Non soldée{% endif %}">
-            </td>
-            <td class="text-center pe-3">
-              <button type="button"
-                      class="btn btn-sm btn-outline-secondary transaction-detail-btn"
-                      data-url="{% url 'administration:transaction-detail-popup' t.pk %}"
-                      title="Détail">
-                <i class="bi bi-box-arrow-up-right"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# ── Pagination ──────────────────────────────────────────────────────── #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} enregistrement{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&montant_non_zero={{ montant_non_zero }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link"
-                 href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&montant_non_zero={{ montant_non_zero }}&page={{ num }}">
-                {{ num }}
-              </a>
-            </li>
-            {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-               href="?date_debut={{ date_debut }}&date_fin={{ date_fin }}&user_id={{ user_id }}&libelle_id={{ libelle_id }}&montant_non_zero={{ montant_non_zero }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-
-    {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
-      Aucune transaction sur la période
-      <strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }}</strong>
-      →
-      <strong>{{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong>
-      {% if user_id or libelle_id %}avec ces filtres{% endif %}.
-    </div>
-    {% endif %}
-  </div>
+    <div class="txl-table-wrap"><table class="txl-table"><caption class="visually-hidden">Journal global des transactions de caisse</caption><colgroup><col class="txl-col-date"><col class="txl-col-user"><col class="txl-col-label"><col class="txl-col-reference"><col class="txl-col-amount"><col class="txl-col-status"><col class="txl-col-action"></colgroup><thead><tr><th scope="col">Date et heure</th><th scope="col">Employé</th><th scope="col">Libellé</th><th scope="col">Référence</th><th scope="col" class="txl-number-col">Montant</th><th scope="col">Statut</th><th scope="col">Détail</th></tr></thead><tbody>{% for t in page_obj.object_list %}<tr><td>{% if t.created_at %}<time datetime="{{ t.created_at|date:'c' }}"><strong>{{ t.created_at|date:'d/m/Y' }}</strong><small>{{ t.created_at|date:'H:i' }}</small></time>{% else %}<span class="txl-dash">—</span>{% endif %}</td><td><span class="txl-user"><span aria-hidden="true"><i class="bi bi-person"></i></span><span><strong>{{ t.user.get_full_name|default:t.user.username }}</strong><small>{{ t.user.username }}</small></span></span></td><td><span class="txl-label"><i class="bi bi-tag" aria-hidden="true"></i>{{ t.libelle }}</span></td><td><code title="{{ t.table_id }}">{{ t.table_id }}</code></td><td class="txl-number-col"><strong class="txl-amount {% if t.montant >= 0 %}txl-positive{% else %}txl-negative{% endif %}">{% if t.montant >= 0 %}+{% endif %}{{ t.montant|stringformat:'.3f' }}</strong><small>TND</small></td><td>{% if t.hist_solde_compte_id %}<span class="txl-status txl-status-safe"><i class="bi bi-check-circle" aria-hidden="true"></i>Soldée</span>{% else %}<span class="txl-status txl-status-pending"><i class="bi bi-clock" aria-hidden="true"></i>En attente</span>{% endif %}</td><td><button type="button" class="btn btn-outline-secondary transaction-detail-btn" data-url="{% url 'administration:transaction-detail-popup' t.pk %}" aria-label="Afficher le détail de la transaction {{ t.table_id }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Voir</button></td></tr>{% endfor %}</tbody></table></div>
+    <div class="txl-card-list">{% for t in page_obj.object_list %}<article class="txl-card"><header><span class="txl-user"><span aria-hidden="true"><i class="bi bi-person"></i></span><span><strong>{{ t.user.get_full_name|default:t.user.username }}</strong><small>{{ t.created_at|date:'d/m/Y H:i' }}</small></span></span>{% if t.hist_solde_compte_id %}<span class="txl-status txl-status-safe">Soldée</span>{% else %}<span class="txl-status txl-status-pending">En attente</span>{% endif %}</header><div class="txl-card-main"><span class="txl-label"><i class="bi bi-tag" aria-hidden="true"></i>{{ t.libelle }}</span><strong class="txl-amount {% if t.montant >= 0 %}txl-positive{% else %}txl-negative{% endif %}">{% if t.montant >= 0 %}+{% endif %}{{ t.montant|stringformat:'.3f' }} TND</strong><code>{{ t.table_id }}</code></div><button type="button" class="btn btn-outline-secondary transaction-detail-btn" data-url="{% url 'administration:transaction-detail-popup' t.pk %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Afficher le détail</button></article>{% endfor %}</div>
+    {% if is_paginated %}<footer class="txl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} transaction{{ total_count|pluralize }}</span><nav aria-label="Pagination des transactions"><ul class="txl-pagination">{% if page_obj.has_previous %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;user_id={{ user_id|urlencode }}&amp;libelle_id={{ libelle_id|urlencode }}&amp;montant_non_zero={% if montant_non_zero %}1{% endif %}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;user_id={{ user_id|urlencode }}&amp;libelle_id={{ libelle_id|urlencode }}&amp;montant_non_zero={% if montant_non_zero %}1{% endif %}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}&amp;user_id={{ user_id|urlencode }}&amp;libelle_id={{ libelle_id|urlencode }}&amp;montant_non_zero={% if montant_non_zero %}1{% endif %}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="txl-empty"><span><i class="bi bi-inbox" aria-hidden="true"></i></span><h3>Aucune transaction trouvée</h3><p>Élargissez la période ou réduisez le nombre de critères sélectionnés.</p></div>{% endif %}
+  </section>
 </div>
 
-{# ── Pop-up « Détail » (contenu chargé en AJAX) ───────────────────────────── #}
-<div class="modal fade" id="transaction-detail-modal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="transaction-detail-modal-title">Détail</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-      </div>
-      <div class="modal-body" id="transaction-detail-modal-body">
-        <div class="text-center py-4 text-muted">
-          <div class="spinner-border spinner-border-sm"></div> Chargement…
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="modal fade" id="transaction-detail-modal" tabindex="-1" aria-labelledby="transaction-detail-modal-title" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content txl-modal"><div class="modal-header"><div><div class="txl-section-label">Document source</div><h2 class="modal-title" id="transaction-detail-modal-title">Détail de la transaction</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body" id="transaction-detail-modal-body" aria-live="polite"><div class="txl-modal-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Chargement du détail…</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button></div></div></div></div>
+{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+/* Journal des transactions : interface ordinateur d'abord. */
+.transaction-list-dashboard{--txl-primary:#2c7be5;--txl-primary-dark:#1a4f9c;--txl-ink:#172033;--txl-muted:#667085;--txl-border:#e2e8f0;--txl-radius:1rem;max-width:1700px;margin:0 auto;color:var(--txl-ink)}
+.txl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(360px,430px);align-items:center;gap:1.2rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.txl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.txl-hero-copy{min-width:0}.txl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.txl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.txl-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.84rem}.txl-hero-meta{display:grid;grid-template-columns:1.25fr .75fr;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.txl-hero-meta div{min-width:0;padding:.5rem}.txl-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.txl-hero-meta span,.txl-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.61rem}.txl-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.69rem;text-overflow:ellipsis;white-space:nowrap}
+.txl-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.txl-kpi{--txl-accent:#2c7be5;--txl-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--txl-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.txl-kpi-blue{--txl-accent:#2c7be5;--txl-soft:#eaf2fd}.txl-kpi-green{--txl-accent:#198754;--txl-soft:#e9f6ef}.txl-kpi-red{--txl-accent:#dc3545;--txl-soft:#fdecee}.txl-kpi-violet{--txl-accent:#6f42c1;--txl-soft:#f1ebfb}.txl-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--txl-soft);color:var(--txl-accent);font-size:1.1rem}.txl-kpi small{display:block;color:var(--txl-muted);font-size:.64rem;font-weight:650}.txl-kpi strong{display:block;overflow:hidden;margin-top:.04rem;font-size:1.05rem;font-variant-numeric:tabular-nums;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}.txl-kpi em{display:block;overflow:hidden;margin-top:.1rem;color:var(--txl-muted);font-size:.6rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}.txl-positive{color:#18794e}.txl-negative{color:#b42332}
+.txl-filter-card,.txl-method,.txl-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--txl-border);border-radius:var(--txl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.txl-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.txl-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--txl-primary)}.txl-filter-head h2{margin:0;font-size:.88rem;font-weight:750}.txl-filter-head p{margin:.12rem 0 0;color:var(--txl-muted);font-size:.65rem}.txl-filter-fields{display:grid;grid-template-columns:145px 145px minmax(210px,1fr) minmax(190px,1fr);gap:.7rem;padding:.9rem 1rem}.txl-filter-field label{display:block;margin-bottom:.3rem;color:#344054;font-size:.65rem;font-weight:700}.txl-filter-field .form-control,.txl-filter-field .form-select{min-height:2.65rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.7rem}.txl-filter-footer{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.txl-check{display:flex;align-items:center;gap:.42rem;margin:0;cursor:pointer;color:#344054;font-size:.64rem;font-weight:650}.txl-check input{width:1rem;height:1rem;accent-color:var(--txl-primary)}.txl-filter-footer p{display:flex;align-items:center;gap:.3rem;margin:0 auto 0 0;color:var(--txl-muted);font-size:.61rem}.txl-filter-actions{display:flex;gap:.45rem}.txl-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.3rem;min-height:2.6rem;padding-inline:.7rem;border-radius:.58rem;font-size:.63rem;font-weight:700;white-space:nowrap}
+.txl-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.txl-method summary::-webkit-details-marker{display:none}.txl-method summary span{display:flex;align-items:center;gap:.4rem}.txl-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.txl-method[open] summary>i{transform:rotate(180deg)}.txl-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.txl-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.txl-method strong{font-size:.68rem}.txl-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}
+.txl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.txl-section-label{color:var(--txl-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.txl-panel-head h2{margin:.12rem 0 0;font-size:.94rem;font-weight:750}.txl-panel-head p{margin:.14rem 0 0;color:var(--txl-muted);font-size:.65rem}.txl-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--txl-primary-dark);font-size:.62rem;font-weight:750;white-space:nowrap}.txl-table{width:100%;border-collapse:collapse;table-layout:fixed}.txl-col-date{width:13%}.txl-col-user{width:18%}.txl-col-label{width:15%}.txl-col-reference{width:22%}.txl-col-amount{width:13%}.txl-col-status{width:10%}.txl-col-action{width:9%}.txl-table thead{background:#f8fafc}.txl-table th{padding:.66rem .58rem;border-bottom:1px solid var(--txl-border);color:var(--txl-muted);font-size:.55rem;font-weight:800;letter-spacing:.022em;text-align:left;text-transform:uppercase}.txl-table td{padding:.7rem .58rem;border-bottom:1px solid #edf0f4;font-size:.62rem;vertical-align:middle}.txl-table tbody tr:last-child td{border-bottom:0}.txl-table tbody tr:hover{background:#f8faff}.txl-table time strong,.txl-table time small{display:block}.txl-table time small{margin-top:.06rem;color:var(--txl-muted);font-size:.53rem}.txl-user{display:flex;align-items:center;gap:.46rem;min-width:0}.txl-user>span:first-child{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:#eaf2fd;color:var(--txl-primary)}.txl-user>span:last-child{min-width:0}.txl-user strong,.txl-user small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.txl-user small{margin-top:.05rem;color:var(--txl-muted);font-size:.52rem}.txl-label{display:inline-flex;align-items:center;gap:.25rem;max-width:100%;padding:.2rem .38rem;border:1px solid #dfe5ed;border-radius:2rem;background:#f8fafc;font-size:.55rem;font-weight:700}.txl-table code,.txl-card code{display:block;overflow:hidden;color:#526071;font-size:.55rem;text-overflow:ellipsis;white-space:nowrap}.txl-number-col{text-align:right!important}.txl-amount{display:block;font-size:.68rem;font-variant-numeric:tabular-nums;white-space:nowrap}.txl-table td>small{display:block;margin-top:.05rem;color:var(--txl-muted);font-size:.51rem}.txl-status{display:inline-flex;align-items:center;gap:.2rem;padding:.2rem .36rem;border-radius:2rem;font-size:.51rem;font-weight:750;white-space:nowrap}.txl-status-safe{background:#e9f6ef;color:#18794e}.txl-status-pending{background:#fff4e0;color:#8a5300}.txl-table td>.btn{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-height:2.15rem;padding:.32rem .4rem;border-radius:.5rem;font-size:.53rem;font-weight:700}.txl-card-list{display:none}
+.txl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.txl-pagination-footer>span{color:var(--txl-muted);font-size:.62rem}.txl-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.txl-pagination a,.txl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.txl-pagination .active{border-color:var(--txl-primary);background:var(--txl-primary);color:#fff}.txl-empty{padding:3rem 1rem;text-align:center}.txl-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.txl-empty h3{margin:.7rem 0 .25rem;font-size:.9rem}.txl-empty p{margin:0;color:var(--txl-muted);font-size:.68rem}.txl-modal{--txl-primary-dark:#1a4f9c;--txl-muted:#667085;border:0;border-radius:.9rem;box-shadow:0 18px 50px rgba(15,23,42,.22)}.txl-modal .modal-header{background:#fbfcfe}.txl-modal .modal-title{font-size:.95rem}.txl-modal-loading{display:flex;align-items:center;justify-content:center;gap:.5rem;min-height:150px;color:var(--txl-muted);font-size:.7rem}.transaction-list-dashboard a:focus-visible,.transaction-list-dashboard button:focus-visible,.transaction-list-dashboard input:focus-visible,.transaction-list-dashboard select:focus-visible,.transaction-list-dashboard summary:focus-visible,.txl-modal button:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.txl-hero{grid-template-columns:auto minmax(0,1fr)}.txl-hero-meta{grid-column:1/-1}.txl-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.txl-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}.txl-table-wrap{display:none}.txl-card-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem;background:#f7f9fc}.txl-card{overflow:hidden;border:1px solid var(--txl-border);border-radius:.8rem;background:#fff}.txl-card>header{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.7rem .8rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.txl-card-main{display:grid;gap:.55rem;padding:.8rem}.txl-card .txl-amount{font-size:.78rem}.txl-card>.btn{display:flex;align-items:center;justify-content:center;gap:.3rem;margin:0 .8rem .8rem;border-radius:.55rem;font-size:.62rem;font-weight:700}}
+@media(max-width:767.98px){.txl-filter-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.txl-filter-footer{align-items:stretch;flex-direction:column}.txl-filter-footer p{margin:0}.txl-filter-actions{justify-content:flex-end}.txl-card-list{grid-template-columns:1fr}.txl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.txl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.txl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.txl-hero-copy>p{font-size:.8rem}.txl-hero-meta{grid-template-columns:1fr}.txl-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.txl-kpi-grid,.txl-method>div,.txl-filter-fields{grid-template-columns:1fr}.txl-filter-actions{flex-direction:column}.txl-panel-head{flex-direction:column;padding:.9rem}.txl-pagination-footer{align-items:flex-start;flex-direction:column}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    // Réinitialiser la pagination à la page 1 lors d'un changement de filtre
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
-  });
-});
-
-// ── Pop-up « Détail » ───────────────────────────────────────────────────────
 (function () {
   var modalEl = document.getElementById('transaction-detail-modal');
   var modalTitleEl = document.getElementById('transaction-detail-modal-title');
@@ -276,31 +65,29 @@ document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
   var modal = new bootstrap.Modal(modalEl);
 
   function loadDetail(url) {
-    modalBody.innerHTML = '<div class="text-center py-4 text-muted">' +
-      '<div class="spinner-border spinner-border-sm"></div> Chargement…</div>';
+    modalBody.innerHTML = '<div class="txl-modal-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span>Chargement du détail…</div>';
     modal.show();
-    fetch(url).then(function (r) {
-      var title = r.headers.get('X-Popup-Title');
-      if (title) { modalTitleEl.textContent = title; }
-      return r.text();
-    }).then(function (html) {
-      modalBody.innerHTML = html;
-    });
+    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(function (response) {
+        if (!response.ok) { throw new Error('Erreur HTTP ' + response.status); }
+        var title = response.headers.get('X-Popup-Title');
+        if (title) { modalTitleEl.textContent = title; }
+        return response.text();
+      })
+      .then(function (html) { modalBody.innerHTML = html; })
+      .catch(function () {
+        modalBody.innerHTML = '<div class="alert alert-danger mb-0" role="alert">Le détail de cette transaction n’a pas pu être chargé.</div>';
+      });
   }
 
-  document.querySelectorAll('.transaction-detail-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      loadDetail(btn.getAttribute('data-url'));
-    });
+  document.querySelectorAll('.transaction-detail-btn').forEach(function (button) {
+    button.addEventListener('click', function () { loadDetail(button.getAttribute('data-url')); });
   });
 
-  // Délégation d'événement : le contenu de la pop-up est entièrement
-  // remplacé à chaque navigation (page précédente/suivante), les boutons du
-  // pager n'existent donc pas encore au moment de l'attache des listeners.
-  modalBody.addEventListener('click', function (e) {
-    var link = e.target.closest('.bl-pager-btn');
+  modalBody.addEventListener('click', function (event) {
+    var link = event.target.closest('.bl-pager-btn');
     if (!link || link.classList.contains('disabled')) { return; }
-    e.preventDefault();
+    event.preventDefault();
     loadDetail(link.getAttribute('data-url'));
   });
 })();

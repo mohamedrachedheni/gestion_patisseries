@@ -1,163 +1,90 @@
 {% extends "administration/base.html" %}
 
 {% block title %}Modifier achat — Commercial{% endblock %}
-{% block page_title %}Modification de l'enregistrement Achat des matières premières{% endblock %}
+{% block page_title %}Modification d'un achat de matières premières{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:achat-list' %}">Achats</a></li>
-    <li class="breadcrumb-item active">Modifier</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:achat-list' %}">Achats</a></li><li class="breadcrumb-item active" aria-current="page">Modifier</li></ol></nav>{% endblock %}
 
 {% block content %}
-<form method="post" id="achat-form" novalidate>
-  {% csrf_token %}
+<div class="purchase-form-dashboard">
+  <header class="acf-hero" aria-labelledby="acf-page-title">
+    <span class="acf-hero-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
+    <div class="acf-hero-copy"><div class="acf-eyebrow"><i class="bi bi-pencil-square" aria-hidden="true"></i> Approvisionnement</div><h1 id="acf-page-title">Modification de l’achat n° {{ achat_numero }}</h1><p>Corrigez le fournisseur, les matières achetées ou ajoutez un nouveau paiement. La date et le numéro ne peuvent pas être modifiés.</p></div>
+    <div class="acf-hero-actions"><a href="{% url 'commercial:achat-list' %}" class="btn btn-light"><i class="bi bi-clock-history" aria-hidden="true"></i>Voir les achats</a></div>
+  </header>
 
-  {# ══ Partie 1 : informations générales de l'achat ═══════════════════════ #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-cart3 me-2 text-primary"></i>Informations de l'achat
+  <form method="post" id="achat-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" novalidate>
+    {% csrf_token %}
+
+    {# ── Étape 1 : informations de l'achat ─────────────────────────────────── #}
+    <section class="acf-panel" aria-labelledby="acf-s1-title">
+      <header class="acf-panel-head"><span aria-hidden="true">1</span><div><div class="acf-section-label">Étape 1</div><h2 id="acf-s1-title">Informations de l’achat</h2><p>Vérifiez le fournisseur et indiquez le nouveau paiement éventuel.</p></div></header>
+      <div class="acf-alert d-none" id="acf-paiement-error" role="alert"></div>
+      <div class="acf-grid acf-grid-4">
+        <div class="acf-field"><label for="id_achat_at">Date de l’achat</label><input type="date" id="id_achat_at" value="{{ achat_at }}" class="form-control" disabled><small>Non modifiable.</small></div>
+        <div class="acf-field"><label for="id_achat_numero">Numéro de l’achat</label><input type="text" id="id_achat_numero" value="{{ achat_numero }}" class="form-control" disabled><small>Non modifiable.</small></div>
+        <div class="acf-field acf-span-2"><label for="id_fournisseur_id">Fournisseur</label><select name="fournisseur_id" id="id_fournisseur_id" class="form-select" autocomplete="off"><option value="" {% if not fournisseur_id %}selected{% endif %}>Non défini</option>{% for f in fournisseurs_list %}<option value="{{ f.pk }}" {% if fournisseur_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>{% endfor %}</select></div>
+        <div class="acf-field"><label for="id_nouveau_acompte">Nouveau montant payé</label><div class="input-group"><input type="number" step="0.001" min="0" name="nouveau_acompte" id="id_nouveau_acompte" value="{{ nouveau_acompte }}" class="form-control no-spinner" inputmode="decimal" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"><span class="input-group-text">TND</span></div></div>
+        <div class="acf-field"><label for="id_mode_paiement">Mode de paiement</label><select name="mode_paiement" id="id_mode_paiement" class="form-select" autocomplete="off">{% for value, label in mode_paiement_choices %}<option value="{{ value }}" {% if value == mode_paiement %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="acf-field acf-span-2"><label for="id_observation">Observation <span class="acf-optional">(facultatif)</span></label><input type="text" name="observation" id="id_observation" value="{{ observation }}" class="form-control" placeholder="Commentaire facultatif" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></div>
+      </div>
+      <div class="acf-totals acf-totals-4" aria-label="Totaux de l’achat">
+        <div class="acf-total"><label for="id_total_montant">Montant total</label><div class="input-group"><input type="number" step="0.001" id="id_total_montant" value="0.000" class="form-control no-spinner" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="acf-total"><label for="id_total_acompte">Déjà payé</label><div class="input-group"><input type="number" step="0.001" id="id_total_acompte" value="{{ total_acompte }}" class="form-control no-spinner" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="acf-total"><label for="id_reste_a_payer">Reste à payer</label><div class="input-group"><input type="number" step="0.001" id="id_reste_a_payer" value="0.000" class="form-control no-spinner" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="acf-total"><label for="id_statut">Statut du paiement</label><input type="text" id="id_statut" value="" class="form-control" disabled></div>
+      </div>
+    </section>
+
+    {# ── Étape 2 : détails par unité ───────────────────────────────────────── #}
+    <section class="acf-panel" aria-labelledby="acf-s2-title">
+      <header class="acf-panel-head"><span aria-hidden="true">2</span><div><div class="acf-section-label">Étape 2</div><h2 id="acf-s2-title">Achats par unité</h2><p>Une ligne par matière première achetée à l’unité (kg, litre, pièce…).</p></div>
+        <div class="acf-head-actions"><button type="button" id="add-unite-row-btn" class="btn btn-outline-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter une ligne</button></div></header>
+      <div class="acf-table-wrap"><table class="acf-table"><caption class="visually-hidden">Détails des achats par unité</caption><thead><tr><th scope="col" class="acf-col-mp">Matière première</th><th scope="col">Quantité</th><th scope="col">Unité</th><th scope="col">Prix unitaire</th><th scope="col" class="acf-number-col">Total ligne</th><th scope="col" class="acf-center-col">Retirer</th></tr></thead><tbody id="unite-rows"></tbody></table></div>
+    </section>
+
+    {# ── Étape 3 : détails par pack ────────────────────────────────────────── #}
+    <section class="acf-panel" aria-labelledby="acf-s3-title">
+      <header class="acf-panel-head"><span aria-hidden="true">3</span><div><div class="acf-section-label">Étape 3</div><h2 id="acf-s3-title">Achats par pack</h2><p>Une ligne par matière première achetée en packs (carton, sac…).</p></div>
+        <div class="acf-head-actions"><button type="button" id="add-pack-row-btn" class="btn btn-outline-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>Ajouter une ligne</button></div></header>
+      <div class="acf-table-wrap"><table class="acf-table"><caption class="visually-hidden">Détails des achats par pack</caption><thead><tr><th scope="col" class="acf-col-mp">Matière première</th><th scope="col">Nombre de packs</th><th scope="col">Prix du pack</th><th scope="col">Unités par pack</th><th scope="col">Unité</th><th scope="col">Quantité totale</th><th scope="col">Prix unitaire</th><th scope="col" class="acf-number-col">Total ligne</th><th scope="col" class="acf-center-col">Retirer</th></tr></thead><tbody id="pack-rows"></tbody></table></div>
+    </section>
+
+    <div class="acf-actions">
+      <div class="acf-actions-total"><span>Montant total</span><strong id="acf-bar-total">0,000 TND</strong></div>
+      <a href="{% url 'commercial:achat-list' %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg" aria-hidden="true"></i>Annuler</a>
+      <button type="submit" id="achat-save-btn" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i>Vérifier la modification</button>
     </div>
-    <div class="card-body">
+  </form>
+</div>
 
-      <div class="overflow-auto">
-      {# ── Ligne 1 : champs modifiables (Date achat verrouillée) ───────── #}
-      <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date achat</label>
-          <input type="date" value="{{ achat_at }}" class="form-control form-control-sm" disabled>
-        </div>
-
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Fournisseur</label>
-          <select name="fournisseur_id" id="id_fournisseur_id" class="form-select form-select-sm">
-            <option value="" {% if not fournisseur_id %}selected{% endif %}>Non défini</option>
-            {% for f in fournisseurs_list %}
-            <option value="{{ f.pk }}" {% if fournisseur_id == f.pk|stringformat:"s" %}selected{% endif %}>{{ f.raison_sociale }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="width:140px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Montant payé</label>
-          <input type="number" step="0.001" min="0" name="nouveau_acompte" id="id_nouveau_acompte"
-                 value="{{ nouveau_acompte }}" class="form-control form-control-sm no-spinner">
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Mode paiement</label>
-          <select name="mode_paiement" id="id_mode_paiement" class="form-select form-select-sm">
-            {% for value, label in mode_paiement_choices %}
-            <option value="{{ value }}" {% if value == mode_paiement %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <div style="flex:1 1 auto;min-width:200px;">
-          <label class="form-label small mb-1">Observation</label>
-          <input type="text" name="observation" value="{{ observation }}" class="form-control form-control-sm">
-        </div>
-      </div>
-
-      {# ── Ligne 2 : champs auto-définis / verrouillés ─────────────────── #}
-      <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
-        <div style="width:140px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Numéro achat</label>
-          <input type="text" value="{{ achat_numero }}" class="form-control form-control-sm" disabled>
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Montant total</label>
-          <input type="number" step="0.001" id="id_total_montant" value="0.000"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total acompte</label>
-          <input type="number" step="0.001" id="id_total_acompte" value="{{ total_acompte }}"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Reste à payer</label>
-          <input type="number" step="0.001" id="id_reste_a_payer" value="0.000"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-        </div>
-
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Statut paiement</label>
-          <input type="text" id="id_statut" value="" class="form-control form-control-sm" disabled>
-        </div>
-      </div>
-      </div>
-
+{# ── Récapitulatif avant enregistrement ───────────────────────────────────── #}
+<div class="modal fade" id="acf-recap-modal" tabindex="-1" aria-hidden="true" aria-labelledby="acf-recap-title">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="acf-recap-title"><i class="bi bi-clipboard-check me-2"></i>Vérifiez la modification</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div>
+      <div class="modal-body" id="acf-recap-body"></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-pencil me-1"></i>Modifier</button><button type="button" class="btn btn-success" id="acf-recap-confirm"><i class="bi bi-check-lg me-1"></i>Confirmer la modification</button></div>
     </div>
   </div>
+</div>
+{% endblock %}
 
-  {# ══ Partie 2 : détails des achats par unité ═════════════════════════════ #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-box-seam me-2 text-primary"></i>Détails des achats par unité
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 220px;min-width:180px;"><span class="form-label small text-muted mb-0">Matière première</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Quantité</span></div>
-          <div style="width:90px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="unite-rows"></div>
-      </div>
-      <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="add-unite-row-btn" class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
-        </button>
-      </div>
-    </div>
-  </div>
-
-  {# ══ Partie 3 : détails des achats par pack ══════════════════════════════ #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-boxes me-2 text-primary"></i>Détails des achats par pack
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="flex:1 1 200px;min-width:160px;"><span class="form-label small text-muted mb-0">Matière première</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Nombre de pack</span></div>
-          <div style="width:100px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix pack</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité par pack</span></div>
-          <div style="width:80px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Unité</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total quantité</span></div>
-          <div style="width:110px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Prix unitaire</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Total ligne</span></div>
-          <div style="width:44px;flex:0 0 auto;"></div>
-        </div>
-        <div id="pack-rows"></div>
-      </div>
-      <div class="d-flex justify-content-end mt-2">
-        <button type="button" id="add-pack-row-btn" class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-plus-lg me-1"></i>Ajouter une autre ligne
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'commercial:achat-list' %}" class="btn btn-outline-secondary">Annuler</a>
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Modifier l'enregistrement
-    </button>
-  </div>
-</form>
+{% block extra_css %}
+{{ block.super }}
+/* Modification d'un achat : même système que Nouvel achat (ordinateur d'abord). */
+.purchase-form-dashboard{--acf-primary:#2c7be5;--acf-primary-dark:#1a4f9c;--acf-ink:#172033;--acf-muted:#667085;--acf-border:#e2e8f0;max-width:1600px;margin:0 auto;color:var(--acf-ink)}
+.acf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.acf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.acf-hero-copy{min-width:0}.acf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.acf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.acf-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.84rem}.acf-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.9rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.acf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--acf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.acf-panel-head{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.acf-panel-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.65rem;background:#eaf2fd;color:var(--acf-primary);font-size:.75rem;font-weight:800}.acf-section-label{color:var(--acf-primary-dark);font-size:.6rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.acf-panel-head h2{margin:.1rem 0 0;font-size:.95rem;font-weight:750}.acf-panel-head p{margin:.12rem 0 0;color:var(--acf-muted);font-size:.65rem}.acf-head-actions{margin-left:auto}.acf-head-actions .btn{display:inline-flex;align-items:center;gap:.3rem;min-height:2.5rem;border-radius:.58rem;font-size:.65rem;font-weight:700;white-space:nowrap}
+.acf-alert{margin:1rem 1.1rem 0;padding:.7rem .9rem;border:1px solid #edbcc2;border-radius:.7rem;background:#fdecee;color:#b42332;font-size:.72rem;font-weight:650}
+.acf-grid{display:grid;gap:1rem;padding:1.1rem}.acf-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.acf-span-2{grid-column:span 2}.acf-field label,.acf-total label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.acf-optional{color:var(--acf-muted);font-weight:500}.acf-field .form-control,.acf-field .form-select,.acf-field .input-group-text,.acf-total .form-control,.acf-total .input-group-text{min-height:2.75rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.75rem}.acf-field .input-group>.form-control,.acf-total .input-group>.form-control{border-top-right-radius:0;border-bottom-right-radius:0}.acf-field .input-group-text,.acf-total .input-group-text{border-top-left-radius:0;border-bottom-left-radius:0;background:#f7f9fc;color:var(--acf-muted)}.acf-field small{display:block;margin-top:.3rem;color:var(--acf-muted);font-size:.6rem}.acf-totals-4{grid-template-columns:repeat(4,minmax(0,1fr))!important}.acf-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem 1.1rem;border-top:1px solid #edf0f4;background:#f6f9fd}.acf-total .form-control{background:#fff;font-weight:750;font-variant-numeric:tabular-nums}.acf-total .input-group .form-control{text-align:right}.acf-total .form-control:disabled{color:var(--acf-ink)}
+.acf-table{width:100%;border-collapse:collapse}.acf-table thead{background:#f8fafc}.acf-table th{padding:.65rem .55rem;border-bottom:1px solid var(--acf-border);color:var(--acf-muted);font-size:.57rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.acf-table td{padding:.55rem;border-bottom:1px solid #edf0f4;vertical-align:middle}.acf-table tbody tr:last-child td{border-bottom:0}.acf-table .form-control,.acf-table .form-select{min-height:2.5rem;border-color:#cfd7e3;border-radius:.55rem;font-size:.72rem}.acf-table .form-control:disabled{background:#f5f7fa;color:var(--acf-ink);font-variant-numeric:tabular-nums}.acf-table .acf-col-mp{min-width:210px}.acf-number-col{text-align:right!important}.acf-center-col{text-align:center!important;width:80px}.acf-table .btn{display:inline-flex;align-items:center;justify-content:center;min-width:2.4rem;min-height:2.4rem;border-radius:.55rem}
+.acf-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:.6rem;margin-top:1rem;padding:.9rem 1.1rem;border:1px solid var(--acf-border);border-radius:1rem;background:#fbfcfe}.acf-actions-total{display:flex;align-items:baseline;gap:.6rem;margin-right:auto;color:var(--acf-muted);font-size:.72rem}.acf-actions-total strong{color:var(--acf-ink);font-size:1.05rem;font-variant-numeric:tabular-nums}.acf-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:1rem;border-radius:.6rem;font-size:.72rem;font-weight:700}.purchase-form-dashboard a:focus-visible,.purchase-form-dashboard button:focus-visible,.purchase-form-dashboard input:focus-visible,.purchase-form-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+.acf-recap h6{margin:1rem 0 .4rem;color:var(--acf-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.acf-recap h6:first-child{margin-top:0}.acf-recap-row{display:flex;justify-content:space-between;gap:1rem;padding:.3rem 0;font-size:.8rem}.acf-recap-row strong{font-variant-numeric:tabular-nums}.acf-recap ul{margin:0;padding:0;list-style:none}.acf-recap li{display:flex;justify-content:space-between;gap:1rem;padding:.35rem 0;border-bottom:1px solid #edf0f4;font-size:.78rem}.acf-recap .acf-recap-warn{margin-bottom:.8rem;padding:.6rem .8rem;border:1px solid #f1d9a8;border-radius:.6rem;background:#fff8e8;color:#8a5300;font-size:.75rem}
+@media(max-width:1399.98px){.acf-table-wrap{overflow-x:auto}.acf-table{min-width:900px}}
+@media(max-width:1199.98px){.acf-totals-4{grid-template-columns:repeat(2,minmax(0,1fr))!important}.acf-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}.acf-hero{grid-template-columns:auto minmax(0,1fr)}.acf-hero-actions{grid-column:1/-1}}
+@media(max-width:767.98px){.acf-grid-4,.acf-totals,.acf-totals-4{grid-template-columns:1fr!important}.acf-span-2{grid-column:auto}.acf-panel-head{flex-wrap:wrap}.acf-head-actions{margin-left:0}.acf-actions{flex-direction:column;align-items:stretch}.acf-actions-total{margin-right:0}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.acf-hero{gap:.8rem;padding:1rem}.acf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}}
 {% endblock %}
 
 {% block extra_js %}
@@ -168,14 +95,28 @@
   var PACK_ROWS = {{ pack_rows_json|safe }};
   var FOCUS_FIELD = {% if focus_field %}"{{ focus_field }}"{% else %}null{% endif %};
 
+  var form              = document.getElementById('achat-form');
   var uniteRowsContainer = document.getElementById('unite-rows');
   var packRowsContainer  = document.getElementById('pack-rows');
 
-  var montantPayeInput   = document.getElementById('id_nouveau_acompte');
-  var totalMontantInput  = document.getElementById('id_total_montant');
-  var totalAcompteInput  = document.getElementById('id_total_acompte');
-  var resteInput         = document.getElementById('id_reste_a_payer');
-  var statutInput        = document.getElementById('id_statut');
+  var achatAtInput      = document.getElementById('id_achat_at');
+  var achatNumeroInput  = document.getElementById('id_achat_numero');
+  var fournisseurSelect = document.getElementById('id_fournisseur_id');
+  var modeSelect        = document.getElementById('id_mode_paiement');
+  var observationInput  = document.getElementById('id_observation');
+  var montantPayeInput  = document.getElementById('id_nouveau_acompte');
+  var totalMontantInput = document.getElementById('id_total_montant');
+  var totalAcompteInput = document.getElementById('id_total_acompte');
+  var resteInput        = document.getElementById('id_reste_a_payer');
+  var statutInput       = document.getElementById('id_statut');
+  var barTotal          = document.getElementById('acf-bar-total');
+  var paiementError     = document.getElementById('acf-paiement-error');
+  var saveBtn           = document.getElementById('achat-save-btn');
+  var recapModal        = new bootstrap.Modal(document.getElementById('acf-recap-modal'));
+  var recapBody         = document.getElementById('acf-recap-body');
+  var recapConfirmBtn   = document.getElementById('acf-recap-confirm');
+
+  var AUTO = ' autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"';
 
   function num(el) {
     var v = parseFloat(el.value);
@@ -186,22 +127,59 @@
     return Math.round(v * 1000) / 1000;
   }
 
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function fmt(v) {
+    return Number(v || 0).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  }
+
+  function fmtDate(iso) {
+    var p = (iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+  }
+
+  function selectedText(select) {
+    var opt = select && select.options ? select.options[select.selectedIndex] : null;
+    return opt ? opt.text.trim() : '';
+  }
+
+  function showError(message) {
+    if (!message) { paiementError.classList.add('d-none'); paiementError.textContent = ''; return; }
+    paiementError.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>' + esc(message);
+    paiementError.classList.remove('d-none');
+  }
+
   function buildMpOptions() {
-    var html = '<option value="">— Choisir —</option>';
+    var html = '<option value="">Choisir une matière</option>';
     MATIERES.forEach(function (m) {
-      html += '<option value="' + m.id + '" data-unite="' + (m.unite || '') + '">' + m.nom + '</option>';
+      html += '<option value="' + esc(m.id) + '" data-unite="' + esc(m.unite || '') + '">' + esc(m.nom) + '</option>';
     });
     return html;
   }
 
+  // ── Protection contre la perte de saisie / Entrée ne soumet pas ──────────
+  var dirty = false;
+  var enregistrementEnCours = false;
+  form.addEventListener('input', function () { dirty = true; });
+  form.addEventListener('change', function () { dirty = true; });
+  window.addEventListener('beforeunload', function (e) {
+    if (dirty && !enregistrementEnCours) { e.preventDefault(); e.returnValue = ''; }
+  });
+  form.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); }
+  });
+
   // ── Récapitulatif (Montant total / Reste à payer / Statut) ───────────────
-  // Reste à payer = Montant total − (Total acompte, figé + Montant payé, saisi).
   function recalcResteEtStatut() {
     var total = num(totalMontantInput);
     var paye  = num(totalAcompteInput) + num(montantPayeInput);
     var reste = round3(total - paye);
     resteInput.value = reste.toFixed(3);
-    resteInput.style.color = reste < 0 ? 'red' : '';
+    resteInput.style.color = reste < 0 ? '#b42332' : '';
 
     var statut = '';
     if (reste === 0) {
@@ -212,6 +190,7 @@
       statut = 'Non payé';
     }
     statutInput.value = statut;
+    if (reste >= 0) { showError(''); }
   }
 
   function recalcMontantTotal() {
@@ -219,42 +198,31 @@
     document.querySelectorAll('.total-ligne-input').forEach(function (el) {
       total += num(el);
     });
-    totalMontantInput.value = round3(total).toFixed(3);
+    total = round3(total);
+    totalMontantInput.value = total.toFixed(3);
+    barTotal.textContent = fmt(total) + ' TND';
     recalcResteEtStatut();
   }
 
   montantPayeInput.addEventListener('input', recalcResteEtStatut);
 
-  // ── Partie 2 : lignes « par unité » ───────────────────────────────────────
+  // ── Étape 2 : lignes « par unité » ────────────────────────────────────────
   function addUniteRow(prefill) {
     prefill = prefill || {};
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    var row = document.createElement('tr');
     row.innerHTML =
-      '<div style="flex:1 1 220px;min-width:180px;">' +
-        '<select name="detail_unite_matiere_premiere_id" class="form-select form-select-sm mp-select">' + buildMpOptions() + '</select>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" min="0" name="detail_unite_quantite" class="form-control form-control-sm no-spinner qte-input" value="0">' +
-      '</div>' +
-      '<div style="width:90px;flex:0 0 auto;">' +
-        '<input type="text" class="form-control form-control-sm unite-auto" value="" disabled>' +
-      '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" min="0" name="detail_unite_prix_unitaire" class="form-control form-control-sm no-spinner prix-input" value="0">' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
+      '<td><select name="detail_unite_matiere_premiere_id" class="form-select mp-select" aria-label="Matière première">' + buildMpOptions() + '</select></td>' +
+      '<td><input type="number" step="0.001" min="0" name="detail_unite_quantite" class="form-control no-spinner qte-input" value="0" aria-label="Quantité"' + AUTO + '></td>' +
+      '<td><input type="text" class="form-control unite-auto" value="" disabled aria-label="Unité"></td>' +
+      '<td><input type="number" step="0.001" min="0" name="detail_unite_prix_unitaire" class="form-control no-spinner prix-input" value="0" aria-label="Prix unitaire"' + AUTO + '></td>' +
+      '<td><input type="number" step="0.001" class="form-control no-spinner text-end total-ligne-input" value="0.000" disabled aria-label="Total de la ligne"></td>' +
+      '<td class="acf-center-col"><button type="button" class="btn btn-outline-danger remove-row" title="Retirer cette ligne" aria-label="Retirer cette ligne"><i class="bi bi-trash" aria-hidden="true"></i></button></td>';
 
-    var mpSelect     = row.querySelector('.mp-select');
-    var uniteAuto    = row.querySelector('.unite-auto');
-    var qteInput     = row.querySelector('.qte-input');
-    var prixInput    = row.querySelector('.prix-input');
-    var totalInput   = row.querySelector('.total-ligne-input');
+    var mpSelect   = row.querySelector('.mp-select');
+    var uniteAuto  = row.querySelector('.unite-auto');
+    var qteInput   = row.querySelector('.qte-input');
+    var prixInput  = row.querySelector('.prix-input');
+    var totalInput = row.querySelector('.total-ligne-input');
 
     function syncUnite() {
       var opt = mpSelect.options[mpSelect.selectedIndex];
@@ -269,8 +237,11 @@
     mpSelect.addEventListener('change', syncUnite);
     qteInput.addEventListener('input', syncTotal);
     prixInput.addEventListener('input', syncTotal);
+    qteInput.addEventListener('focus', function () { qteInput.select(); });
+    prixInput.addEventListener('focus', function () { prixInput.select(); });
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
+      dirty = true;
       recalcMontantTotal();
     });
 
@@ -281,43 +252,29 @@
     syncTotal();
 
     uniteRowsContainer.appendChild(row);
+    return row;
   }
 
-  document.getElementById('add-unite-row-btn').addEventListener('click', function () { addUniteRow(); });
+  document.getElementById('add-unite-row-btn').addEventListener('click', function () {
+    var row = addUniteRow();
+    dirty = true;
+    row.querySelector('.mp-select').focus();
+  });
 
-  // ── Partie 3 : lignes « par pack » ────────────────────────────────────────
+  // ── Étape 3 : lignes « par pack » ─────────────────────────────────────────
   function addPackRow(prefill) {
     prefill = prefill || {};
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2';
+    var row = document.createElement('tr');
     row.innerHTML =
-      '<div style="flex:1 1 200px;min-width:160px;">' +
-        '<select name="detail_pack_matiere_premiere_id" class="form-select form-select-sm mp-select">' + buildMpOptions() + '</select>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_pack_nombre_pack" class="form-control form-control-sm no-spinner nombre-pack-input" value="0">' +
-      '</div>' +
-      '<div style="width:100px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" min="0" name="detail_pack_prix_pack" class="form-control form-control-sm no-spinner prix-pack-input" value="0">' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="1" min="0" name="detail_pack_unite_pack" class="form-control form-control-sm no-spinner unite-pack-input" value="0">' +
-      '</div>' +
-      '<div style="width:80px;flex:0 0 auto;">' +
-        '<input type="text" class="form-control form-control-sm unite-auto" value="" disabled>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-quantite-input" value="0.000" disabled>' +
-      '</div>' +
-      '<div style="width:110px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner prix-unitaire-auto" value="0.000" disabled>' +
-      '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
-        '<input type="number" step="0.001" class="form-control form-control-sm no-spinner total-ligne-input" value="0.000" disabled>' +
-      '</div>' +
-      '<div style="width:44px;flex:0 0 auto;text-align:end;">' +
-        '<button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Supprimer la ligne"><i class="bi bi-trash"></i></button>' +
-      '</div>';
+      '<td><select name="detail_pack_matiere_premiere_id" class="form-select mp-select" aria-label="Matière première">' + buildMpOptions() + '</select></td>' +
+      '<td><input type="number" step="1" min="0" name="detail_pack_nombre_pack" class="form-control no-spinner nombre-pack-input" value="0" aria-label="Nombre de packs"' + AUTO + '></td>' +
+      '<td><input type="number" step="0.001" min="0" name="detail_pack_prix_pack" class="form-control no-spinner prix-pack-input" value="0" aria-label="Prix du pack"' + AUTO + '></td>' +
+      '<td><input type="number" step="1" min="0" name="detail_pack_unite_pack" class="form-control no-spinner unite-pack-input" value="0" aria-label="Unités par pack"' + AUTO + '></td>' +
+      '<td><input type="text" class="form-control unite-auto" value="" disabled aria-label="Unité"></td>' +
+      '<td><input type="number" step="0.001" class="form-control no-spinner total-quantite-input" value="0.000" disabled aria-label="Quantité totale"></td>' +
+      '<td><input type="number" step="0.001" class="form-control no-spinner prix-unitaire-auto" value="0.000" disabled aria-label="Prix unitaire"></td>' +
+      '<td><input type="number" step="0.001" class="form-control no-spinner text-end total-ligne-input" value="0.000" disabled aria-label="Total de la ligne"></td>' +
+      '<td class="acf-center-col"><button type="button" class="btn btn-outline-danger remove-row" title="Retirer cette ligne" aria-label="Retirer cette ligne"><i class="bi bi-trash" aria-hidden="true"></i></button></td>';
 
     var mpSelect        = row.querySelector('.mp-select');
     var uniteAuto       = row.querySelector('.unite-auto');
@@ -345,11 +302,13 @@
     }
 
     mpSelect.addEventListener('change', syncUnite);
-    nombrePackInput.addEventListener('input', syncCalc);
-    prixPackInput.addEventListener('input', syncCalc);
-    unitePackInput.addEventListener('input', syncCalc);
+    [nombrePackInput, prixPackInput, unitePackInput].forEach(function (el) {
+      el.addEventListener('input', syncCalc);
+      el.addEventListener('focus', function () { el.select(); });
+    });
     row.querySelector('.remove-row').addEventListener('click', function () {
       row.remove();
+      dirty = true;
       recalcMontantTotal();
     });
 
@@ -361,11 +320,86 @@
     syncCalc();
 
     packRowsContainer.appendChild(row);
+    return row;
   }
 
-  document.getElementById('add-pack-row-btn').addEventListener('click', function () { addPackRow(); });
+  document.getElementById('add-pack-row-btn').addEventListener('click', function () {
+    var row = addPackRow();
+    dirty = true;
+    row.querySelector('.mp-select').focus();
+  });
 
-  // ── Initialisation : lignes existantes de l'achat, puis premier calcul ───
+  // ── Vérification puis récapitulatif avant enregistrement ─────────────────
+  // (les règles métier restent contrôlées côté serveur)
+  function construireRecap() {
+    var lignes = [];
+    function collecter(container, nomClasse, calc) {
+      container.querySelectorAll('tr').forEach(function (row) {
+        var mp = row.querySelector('.mp-select');
+        if (!mp || !mp.value) { return; }
+        lignes.push({ nom: selectedText(mp), detail: calc(row), total: num(row.querySelector('.total-ligne-input')) });
+      });
+    }
+    collecter(uniteRowsContainer, 'unite', function (row) {
+      return fmt(num(row.querySelector('.qte-input'))) + ' ' + esc(row.querySelector('.unite-auto').value) + ' × ' + fmt(num(row.querySelector('.prix-input')));
+    });
+    collecter(packRowsContainer, 'pack', function (row) {
+      return fmt(num(row.querySelector('.nombre-pack-input'))) + ' pack(s) × ' + fmt(num(row.querySelector('.prix-pack-input')));
+    });
+
+    var total = num(totalMontantInput);
+    var paye = num(montantPayeInput);
+    var reste = num(resteInput);
+    var html = '<div class="acf-recap">';
+    if (!lignes.length) {
+      html += '<div class="acf-recap-warn"><i class="bi bi-exclamation-triangle me-1"></i>Aucune matière première n’a été choisie : l’achat risque d’être refusé.</div>';
+    }
+    if (reste < 0) {
+      html += '<div class="acf-recap-warn"><i class="bi bi-exclamation-triangle me-1"></i>Le montant payé dépasse le montant total.</div>';
+    }
+    html += '<h6>Fournisseur</h6><div class="acf-recap-row"><span>' + esc(selectedText(fournisseurSelect)) + '</span><strong>n° ' + esc(achatNumeroInput.value) + ' · ' + esc(fmtDate(achatAtInput.value)) + '</strong></div>';
+    if (lignes.length) {
+      html += '<h6>Matières (' + lignes.length + ')</h6><ul>';
+      lignes.forEach(function (l) {
+        html += '<li><span>' + esc(l.nom) + '<br><small class="text-muted">' + l.detail + '</small></span><strong>' + fmt(l.total) + ' TND</strong></li>';
+      });
+      html += '</ul>';
+    }
+    html += '<h6>Paiement</h6>' +
+      '<div class="acf-recap-row"><span>Montant total</span><strong>' + fmt(total) + ' TND</strong></div>' +
+      '<div class="acf-recap-row"><span>Déjà payé</span><strong>' + fmt(num(totalAcompteInput)) + ' TND</strong></div>' +
+      '<div class="acf-recap-row"><span>Nouveau paiement (' + esc(selectedText(modeSelect)) + ')</span><strong>' + fmt(paye) + ' TND</strong></div>' +
+      '<div class="acf-recap-row"><span>Reste à payer</span><strong class="' + (reste > 0 ? 'text-danger' : 'text-success') + '">' + fmt(reste) + ' TND</strong></div>';
+    if (observationInput.value.trim()) {
+      html += '<h6>Observation</h6><div>' + esc(observationInput.value.trim()) + '</div>';
+    }
+    recapBody.innerHTML = html + '</div>';
+  }
+
+  var recapConfirme = false;
+  form.addEventListener('submit', function (e) {
+    if (recapConfirme) { return; }
+    e.preventDefault();
+    if (num(resteInput) < 0) {
+      showError('Le total payé ne peut pas dépasser le montant total (' + fmt(num(totalMontantInput)) + ' TND).');
+      montantPayeInput.focus();
+      return;
+    }
+    construireRecap();
+    recapModal.show();
+  });
+
+  recapConfirmBtn.addEventListener('click', function () {
+    recapConfirme = true;
+    enregistrementEnCours = true;
+    recapConfirmBtn.disabled = true;
+    saveBtn.disabled = true;
+    recapConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mise à jour…';
+    form.submit();
+  });
+
+  // ── Initialisation : lignes existantes de l'achat, ─
+  // sinon une ligne vide de chaque type, puis premier calcul.
   if (UNITE_ROWS.length > 0) {
     UNITE_ROWS.forEach(function (r) { addUniteRow(r); });
   } else {

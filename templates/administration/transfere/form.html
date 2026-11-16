@@ -1,51 +1,47 @@
 {% extends "administration/base.html" %}
-{% load crispy_forms_tags %}
 
 {% block title %}{{ title }} — Administration{% endblock %}
 {% block page_title %}{{ title }}{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'administration:transfere-list' %}">Transferts</a></li>
-    <li class="breadcrumb-item active">{{ title }}</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'administration:transfere-list' %}">Transferts</a></li><li class="breadcrumb-item active" aria-current="page">{{ title }}</li></ol></nav>{% endblock %}
 
 {% block content %}
-<datalist id="libelles-transfere">
-  {% for l in libelles_transfere %}
-  <option value="{{ l }}"></option>
-  {% endfor %}
-</datalist>
+<div class="transfer-form-dashboard">
+  <header class="tff-hero" aria-labelledby="tff-page-title">
+    <span class="tff-hero-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span>
+    <div class="tff-hero-copy"><div class="tff-eyebrow"><i class="bi bi-bank" aria-hidden="true"></i> Mouvements de caisse</div><h1 id="tff-page-title">{{ title }}</h1><p>{% if is_update %}Corrigez les informations de ce transfert, puis enregistrez les modifications.{% else %}Renseignez la date, le motif, les deux comptes concernés et le montant à transférer.{% endif %}</p></div>
+    <div class="tff-hero-actions"><a href="{% url 'administration:transfere-list' %}" class="btn btn-light"><i class="bi bi-clock-history" aria-hidden="true"></i>Voir les transferts</a></div>
+  </header>
 
-<form method="post" novalidate>
-  {% csrf_token %}
-  <div class="row g-4">
+  <form method="post" class="tff-panel" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" novalidate>
+    {% csrf_token %}
+    <header class="tff-panel-head"><span aria-hidden="true"><i class="bi bi-bank"></i></span><div><div class="tff-section-label">Formulaire</div><h2>Informations du transfert</h2><p>Tous les champs sont obligatoires.</p></div></header>
 
-    <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-transparent fw-semibold py-3">
-          <i class="bi bi-bank me-2 text-primary"></i>Transfert entre comptes
-        </div>
-        <div class="card-body">
-          {% crispy form %}
-        </div>
-      </div>
+    {% if form.errors %}<div class="tff-alert" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><div><strong>Le transfert n’a pas été enregistré.</strong><p>Corrigez les champs signalés ci-dessous : vos informations sont conservées.</p>{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div></div>{% endif %}
+
+    <div class="tff-grid">
+      <div class="tff-field"><label for="trf-transfere_at">Date du transfert</label>{{ form.transfere_at }}{% for e in form.transfere_at.errors %}<p class="tff-error">{{ e }}</p>{% endfor %}</div>
+      <div class="tff-field tff-wide"><label for="trf-libelle">Libellé (motif)</label>{{ form.libelle }}<small>Exemple : remise caisse.</small>{% for e in form.libelle.errors %}<p class="tff-error">{{ e }}</p>{% endfor %}</div>
+      <div class="tff-field"><label for="trf-compte_source">Compte source (qui donne)</label>{{ form.compte_source }}{% for e in form.compte_source.errors %}<p class="tff-error">{{ e }}</p>{% endfor %}</div>
+      <div class="tff-field"><label for="trf-compte_destination">Compte destination (qui reçoit)</label>{{ form.compte_destination }}{% for e in form.compte_destination.errors %}<p class="tff-error">{{ e }}</p>{% endfor %}</div>
+      <div class="tff-field"><label for="trf-montant">Montant</label><div class="input-group">{{ form.montant }}<span class="input-group-text">TND</span></div><small>Trois décimales maximum, supérieur à 0.</small>{% for e in form.montant.errors %}<p class="tff-error">{{ e }}</p>{% endfor %}</div>
     </div>
 
-    <div class="col-12 d-flex gap-2 justify-content-end">
-      <a href="{% url 'administration:transfere-list' %}" class="btn btn-outline-secondary">
-        Annuler
-      </a>
-      <button type="submit" class="btn btn-primary">
-        <i class="bi bi-check-lg me-1"></i>
-        {% if is_update %}Enregistrer les modifications{% else %}Enregistrer le transfert{% endif %}
-      </button>
-    </div>
+    <footer class="tff-actions"><a href="{% url 'administration:transfere-list' %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg" aria-hidden="true"></i>Annuler</a><button type="submit" class="btn btn-primary"><i class="bi bi-check-lg" aria-hidden="true"></i>{% if is_update %}Enregistrer les modifications{% else %}Enregistrer le transfert{% endif %}</button></footer>
+  </form>
+</div>
+{% endblock %}
 
-  </div>
-</form>
+{% block extra_css %}
+{{ block.super }}
+/* Formulaire de transfert : ordinateur d'abord, même système que Soldes de caisse. */
+.transfer-form-dashboard{--tff-primary:#2c7be5;--tff-primary-dark:#1a4f9c;--tff-ink:#172033;--tff-muted:#667085;--tff-border:#e2e8f0;max-width:1100px;margin:0 auto;color:var(--tff-ink)}
+.tff-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.tff-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.tff-hero-copy{min-width:0}.tff-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.tff-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.tff-hero-copy>p{margin:0;max-width:640px;color:rgba(255,255,255,.78);font-size:.84rem}.tff-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.9rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.tff-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--tff-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.tff-panel-head{display:flex;align-items:center;gap:.7rem;padding:.9rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.tff-panel-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--tff-primary)}.tff-section-label{color:var(--tff-primary-dark);font-size:.62rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.tff-panel-head h2{margin:.1rem 0 0;font-size:.95rem;font-weight:750}.tff-panel-head p{margin:.12rem 0 0;color:var(--tff-muted);font-size:.65rem}
+.tff-alert{display:flex;gap:.6rem;margin:1rem 1.1rem 0;padding:.75rem .9rem;border:1px solid #edbcc2;border-radius:.7rem;background:#fdecee;color:#b42332;font-size:.7rem}.tff-alert i{margin-top:.1rem}.tff-alert p{margin:.15rem 0 0}
+.tff-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;padding:1.1rem}.tff-wide{grid-column:span 1}.tff-field label{display:block;margin-bottom:.32rem;color:#344054;font-size:.7rem;font-weight:700}.tff-field .form-control,.tff-field .form-select,.tff-field .input-group-text{min-height:2.8rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.78rem}.tff-field .input-group>.form-control{border-top-right-radius:0;border-bottom-right-radius:0}.tff-field .input-group-text{border-top-left-radius:0;border-bottom-left-radius:0;background:#f7f9fc;color:var(--tff-muted)}.tff-field small{display:block;margin-top:.35rem;color:var(--tff-muted);font-size:.62rem}.tff-error{margin:.35rem 0 0;color:#b42332;font-size:.66rem;font-weight:650}
+.tff-actions{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.1rem;border-top:1px solid #edf0f4;background:#fbfcfe}.tff-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:1rem;border-radius:.6rem;font-size:.72rem;font-weight:700}.transfer-form-dashboard a:focus-visible,.transfer-form-dashboard button:focus-visible,.transfer-form-dashboard input:focus-visible,.transfer-form-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:991.98px){.tff-hero{grid-template-columns:auto minmax(0,1fr)}.tff-hero-actions{grid-column:1/-1}}
+@media(max-width:767.98px){.tff-grid{grid-template-columns:1fr}.tff-actions{flex-direction:column-reverse}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.tff-hero{gap:.8rem;padding:1rem}.tff-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}}
 {% endblock %}

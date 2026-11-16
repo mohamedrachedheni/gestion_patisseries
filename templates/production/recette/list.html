@@ -3,149 +3,112 @@
 {% block title %}Recettes — Production{% endblock %}
 {% block page_title %}Recettes{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item active">Recettes</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'production:home' %}">Accueil</a></li><li class="breadcrumb-item active" aria-current="page">Recettes</li></ol></nav>{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Recettes</h4>
-  <a href="{% url 'production:recette-create' %}" class="btn btn-primary">
-    <i class="bi bi-journal-plus me-1"></i> Créer une nouvelle recette
-  </a>
-</div>
+<div class="recipe-directory">
+  <header class="rcl-hero" aria-labelledby="rcl-page-title">
+    <span class="rcl-hero-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></span>
+    <div class="rcl-hero-copy"><div class="rcl-eyebrow"><i class="bi bi-box-seam" aria-hidden="true"></i> Catalogue de production</div><h1 id="rcl-page-title">Recettes</h1><p>Retrouvez la composition de chaque produit, consultez-la, modifiez-la ou créez une nouvelle recette.</p></div>
+    <div class="rcl-hero-actions"><div class="rcl-count-card" aria-label="{{ total_count }} recettes trouvées"><strong>{{ total_count }}</strong><span>recette{{ total_count|pluralize }}</span></div><a href="{% url 'production:recette-create' %}" class="btn btn-light rcl-add-btn"><i class="bi bi-journal-plus" aria-hidden="true"></i>Nouvelle recette</a></div>
+  </header>
 
-{# ══ Partie 1 : liste des recettes ═══════════════════════════════════════ #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-journal-text me-2 text-primary"></i>Recettes enregistrées
-  </div>
-
-  <div class="card-body py-3 border-bottom">
-    <form method="get" id="filter-form">
-      <div class="row g-2 align-items-end">
-        <div class="col-sm-6 col-md-4 col-lg-3">
-          <label class="form-label small mb-1">Nom du produit</label>
-          <input type="text" name="nom" value="{{ nom }}"
-                 class="form-control form-control-sm" placeholder="Rechercher par produit…" data-autosubmit>
-        </div>
-        <div class="col-auto">
-          <a href="{% url 'production:recette-list' %}"
-             class="btn btn-outline-secondary btn-sm" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-      </div>
+  <section class="rcl-filter-card" aria-labelledby="rcl-filter-title">
+    <div class="rcl-filter-head"><span class="rcl-filter-icon"><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="rcl-filter-title">Filtrer les recettes</h2><p>Saisissez le nom d’un produit, puis appliquez le filtre.</p></div>{% if nom %}<span class="rcl-active-filter"><i class="bi bi-check-circle" aria-hidden="true"></i> Filtre actif</span>{% endif %}</div>
+    <form method="get" id="rcl-filter-form" class="rcl-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <div class="rcl-filter-field"><label for="rcl-nom">Nom du produit</label><div class="rcl-search-control"><i class="bi bi-search" aria-hidden="true"></i><input type="search" name="nom" id="rcl-nom" value="{{ nom }}" class="form-control" placeholder="Rechercher par produit…" autocomplete="new-password" aria-autocomplete="none" readonly data-autofill-lock="true" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"></div></div>
+      <div class="rcl-filter-actions"><button type="submit" class="btn btn-primary"><i class="bi bi-funnel" aria-hidden="true"></i>Appliquer</button>{% if nom %}<a href="{% url 'production:recette-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a>{% endif %}</div>
     </form>
-  </div>
+  </section>
 
-  <div class="card-body p-0">
+  <section class="rcl-panel" aria-labelledby="rcl-results-title">
+    <header class="rcl-panel-head"><div><div class="rcl-section-label">Recettes</div><h2 id="rcl-results-title">{% if nom %}Résultats filtrés{% else %}Toutes les recettes{% endif %}</h2>{% if page_obj.object_list %}<p>Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }} sur {{ total_count }}, classées par produit.</p>{% else %}<p>Aucune recette ne correspond aux critères actuels.</p>{% endif %}</div>{% if page_obj.object_list %}<span class="rcl-result-badge"><i class="bi bi-list-ul" aria-hidden="true"></i>{{ total_count }} recette{{ total_count|pluralize }}</span>{% endif %}</header>
+
     {% if page_obj.object_list %}
-    {% for r in page_obj.object_list %}
-    <form id="recette-delete-{{ r.pk }}" method="post" action="{% url 'production:recette-delete' r.pk %}"></form>
-    {% endfor %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3" style="min-width:200px;">Produit</th>
-            <th class="text-end" style="min-width:130px;">Quantité</th>
-            <th>Unité</th>
-            <th class="text-center pe-3" style="min-width:140px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in page_obj.object_list %}
-          <tr>
-            <td class="ps-3 fw-medium" style="min-width:200px;">{{ r.produit.nom }}</td>
-            <td class="text-end font-monospace" style="min-width:130px;">{{ r.quantite|stringformat:'s' }}</td>
-            <td>{{ r.unite|default:'—' }}</td>
-            <td class="text-center pe-3 text-nowrap" style="min-width:140px;">
-              <a href="{% url 'production:recette-detail' r.pk %}"
-                 class="btn btn-sm btn-outline-secondary" title="Visualiser">
-                <i class="bi bi-eye"></i>
-              </a>
-              <a href="{% url 'production:recette-update' r.pk %}"
-                 class="btn btn-sm btn-outline-primary ms-1" title="Modifier recette">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" form="recette-delete-{{ r.pk }}">
-              <button type="submit" form="recette-delete-{{ r.pk }}"
-                      class="btn btn-sm btn-outline-danger ms-1" title="Supprimer recette"
-                      onclick="return confirm('Supprimer la recette « {{ r.produit.nom|escapejs }} » ? Ses lignes de composition seront supprimées avec.');">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    {% for r in page_obj.object_list %}<form id="recette-delete-{{ r.pk }}" method="post" action="{% url 'production:recette-delete' r.pk %}">{% csrf_token %}</form>{% endfor %}
+    <div class="rcl-table-wrap"><table class="rcl-table"><caption class="visually-hidden">Liste des recettes avec quantité produite et unité</caption><thead><tr><th scope="col">Produit</th><th scope="col" class="rcl-num">Quantité produite</th><th scope="col">Unité</th><th scope="col" class="rcl-actions-col">Actions</th></tr></thead><tbody>
+      {% for r in page_obj.object_list %}<tr>
+        <td><div class="rcl-identity"><span class="rcl-icon" aria-hidden="true"><i class="bi bi-journal-text"></i></span><a href="{% url 'production:recette-detail' r.pk %}" class="rcl-name">{{ r.produit.nom }}</a></div></td>
+        <td class="rcl-num"><strong class="rcl-val">{{ r.quantite|stringformat:'s' }}</strong></td>
+        <td>{% if r.unite %}<span class="rcl-tag">{{ r.unite }}</span>{% else %}<span class="rcl-muted">—</span>{% endif %}</td>
+        <td class="rcl-actions-col"><div class="rcl-row-actions"><a href="{% url 'production:recette-detail' r.pk %}" class="rcl-icon-btn" aria-label="Voir la recette {{ r.produit.nom }}" title="Voir la recette"><i class="bi bi-eye" aria-hidden="true"></i></a><a href="{% url 'production:recette-update' r.pk %}" class="rcl-icon-btn rcl-icon-btn-primary" aria-label="Modifier la recette {{ r.produit.nom }}" title="Modifier"><i class="bi bi-pencil" aria-hidden="true"></i></a><button type="button" class="rcl-icon-btn rcl-icon-btn-danger rcl-delete-btn" data-form="recette-delete-{{ r.pk }}" data-name="{{ r.produit.nom }}" aria-label="Supprimer la recette {{ r.produit.nom }}" title="Supprimer"><i class="bi bi-trash" aria-hidden="true"></i></button></div></td>
+      </tr>{% endfor %}
+    </tbody></table></div>
 
-    {% if is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-      <small class="text-muted">
-        Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-        &nbsp;·&nbsp; {{ total_count }} recette{{ total_count|pluralize }}
-      </small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.previous_page_number }}">
-              <i class="bi bi-chevron-left"></i>
-            </a>
-          </li>
-          {% endif %}
-          {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-            <li class="page-item">
-              <a class="page-link" href="?nom={{ nom }}&page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-          {% endfor %}
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?nom={{ nom }}&page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
+    <div class="rcl-mobile-list">{% for r in page_obj.object_list %}<article class="rcl-card"><header class="rcl-card-head"><span class="rcl-icon rcl-icon-large" aria-hidden="true"><i class="bi bi-journal-text"></i></span><span class="rcl-card-title"><a href="{% url 'production:recette-detail' r.pk %}">{{ r.produit.nom }}</a></span></header><dl class="rcl-card-details"><div><dt>Quantité produite</dt><dd>{{ r.quantite|stringformat:'s' }}</dd></div><div><dt>Unité</dt><dd>{{ r.unite|default:"—" }}</dd></div></dl><footer class="rcl-card-actions"><a href="{% url 'production:recette-detail' r.pk %}" class="btn btn-outline-secondary"><i class="bi bi-eye" aria-hidden="true"></i>Voir</a><a href="{% url 'production:recette-update' r.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier</a><button type="button" class="btn btn-outline-danger rcl-delete-btn" data-form="recette-delete-{{ r.pk }}" data-name="{{ r.produit.nom }}"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Supprimer la recette {{ r.produit.nom }}</span></button></footer></article>{% endfor %}</div>
+
+    {% if is_paginated %}<footer class="rcl-pagination-footer"><span>Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }} · {{ total_count }} recette{{ total_count|pluralize }}</span><nav aria-label="Pagination des recettes"><ul class="rcl-pagination">{% if page_obj.has_previous %}<li><a href="?nom={{ nom|urlencode }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li><a href="?nom={{ nom|urlencode }}&amp;page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if page_obj.has_next %}<li><a href="?nom={{ nom|urlencode }}&amp;page={{ page_obj.next_page_number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
 
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-journal-x fs-1 d-block mb-2 opacity-25"></i>
-      Aucune recette ne correspond à ces critères.
-      {% if nom %}
-      <br><a href="{% url 'production:recette-list' %}" class="mt-2 d-inline-block">Effacer le filtre</a>
-      {% endif %}
+    <div class="rcl-empty-state"><span class="rcl-empty-icon"><i class="bi {% if nom %}bi-search{% else %}bi-journal-x{% endif %}" aria-hidden="true"></i></span>
+      {% if nom %}<h2>Aucune recette trouvée</h2><p>Modifiez le nom recherché ou réinitialisez le filtre pour afficher toutes les recettes.</p><a href="{% url 'production:recette-list' %}" class="btn btn-outline-primary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser le filtre</a>
+      {% else %}<h2>Aucune recette enregistrée</h2><p>Créez votre première recette pour décrire la composition d’un produit.</p><a href="{% url 'production:recette-create' %}" class="btn btn-primary"><i class="bi bi-journal-plus" aria-hidden="true"></i>Créer la première recette</a>{% endif %}
     </div>
     {% endif %}
-  </div>
-</div>
+  </section>
 
+  <div class="modal fade" id="rcl-confirm-modal" tabindex="-1" aria-labelledby="rcl-confirm-title" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="rcl-confirm-title">Supprimer cette recette ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="mb-1">Vous allez supprimer la recette de <strong id="rcl-confirm-name"></strong>.</p><p class="mb-0 text-muted small">Ses lignes de composition seront supprimées avec elle. Le produit lui-même est conservé.</p></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="button" class="btn btn-danger" id="rcl-confirm-ok"><i class="bi bi-trash" aria-hidden="true"></i> Supprimer la recette</button></div></div></div></div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Recettes : ordinateur d'abord, même système que Fournisseurs ── */
+.recipe-directory{--rcl-primary:#2c7be5;--rcl-primary-dark:#1a4f9c;--rcl-ink:#172033;--rcl-muted:#667085;--rcl-border:#e2e8f0;--rcl-radius:1rem;max-width:1600px;margin:0 auto;color:var(--rcl-ink)}
+.rcl-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:132px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}
+.rcl-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.3rem;height:4.3rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.65rem}
+.rcl-hero-copy{min-width:0}.rcl-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.rcl-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.5rem,2vw,2rem);font-weight:750;letter-spacing:-.02em}.rcl-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.88rem;line-height:1.5}
+.rcl-hero-actions{display:flex;align-items:stretch;gap:.65rem}.rcl-count-card{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:92px;padding:.55rem .8rem;border:1px solid rgba(255,255,255,.2);border-radius:.78rem;background:rgba(8,31,61,.2)}.rcl-count-card strong{font-size:1.35rem;font-variant-numeric:tabular-nums;line-height:1.05}.rcl-count-card span{margin-top:.14rem;color:rgba(255,255,255,.72);font-size:.68rem}.rcl-add-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:3.15rem;padding-inline:1rem;border-radius:.78rem;color:#194f89;font-size:.82rem;font-weight:750}
+.rcl-filter-card,.rcl-panel{margin-top:1.1rem;overflow:hidden;border:1px solid var(--rcl-border);border-radius:var(--rcl-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}
+.rcl-filter-head{display:flex;align-items:center;gap:.7rem;min-height:72px;padding:.85rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.rcl-filter-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.45rem;height:2.45rem;border-radius:.7rem;background:#eaf2fd;color:var(--rcl-primary);font-size:1.02rem}.rcl-filter-head h2{margin:0;font-size:.94rem;font-weight:750}.rcl-filter-head p{margin:.12rem 0 0;color:var(--rcl-muted);font-size:.7rem}.rcl-active-filter{display:inline-flex;align-items:center;gap:.3rem;margin-left:auto;padding:.3rem .58rem;border-radius:2rem;background:#e9f6ef;color:#18794e;font-size:.68rem;font-weight:750;white-space:nowrap}
+.rcl-filter-form{display:grid;grid-template-columns:minmax(260px,480px) auto;align-items:end;gap:.8rem;padding:1rem}.rcl-filter-field{min-width:0}.rcl-filter-field label{display:block;margin-bottom:.35rem;color:#344054;font-size:.72rem;font-weight:700}.rcl-filter-field .form-control{min-height:2.9rem;border-color:#cfd7e3;border-radius:.68rem;font-size:.82rem}.rcl-filter-field .form-control:focus{border-color:#77a9e9;box-shadow:0 0 0 .2rem rgba(44,123,229,.13)}.rcl-filter-field [data-autofill-lock][readonly]{background:#fff;cursor:text}
+.rcl-search-control{position:relative}.rcl-search-control>i{position:absolute;top:50%;left:.85rem;z-index:1;color:#98a2b3;transform:translateY(-50%)}.rcl-search-control .form-control{padding-left:2.35rem}
+.rcl-check{display:flex;align-items:center;min-height:2.9rem;padding:0 .9rem;border:1px solid #cfd7e3;border-radius:.68rem;background:#f8fafc}.rcl-check .form-check{margin:0;min-height:0}.rcl-check .form-check-label{margin:0;font-size:.78rem;font-weight:600}.rcl-check .form-check-input{cursor:pointer}
+.rcl-filter-actions{display:flex;align-items:center;gap:.45rem}.rcl-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.9rem;padding-inline:.85rem;border-radius:.68rem;font-size:.75rem;font-weight:700;white-space:nowrap}
+.rcl-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:82px;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.rcl-section-label{color:var(--rcl-primary-dark);font-size:.65rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.rcl-panel-head h2{margin:.18rem 0 0;font-size:1.05rem;font-weight:750}.rcl-panel-head p{margin:.18rem 0 0;color:var(--rcl-muted);font-size:.73rem}.rcl-result-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .65rem;border-radius:2rem;background:#eaf2fd;color:var(--rcl-primary-dark);font-size:.7rem;font-weight:750;white-space:nowrap}
+.rcl-table{width:100%;border-collapse:collapse;table-layout:fixed}.rcl-table thead{background:#f8fafc}.rcl-table th{padding:.7rem 1rem;border-bottom:1px solid var(--rcl-border);color:var(--rcl-muted);font-size:.67rem;font-weight:800;letter-spacing:.055em;text-align:left;text-transform:uppercase}.rcl-table td{padding:.82rem 1rem;border-bottom:1px solid #edf0f4;font-size:.78rem;vertical-align:middle}.rcl-table tbody tr:last-child td{border-bottom:0}.rcl-table tbody tr:hover{background:#f8faff}.rcl-table th:nth-child(1){width:46%}.rcl-table th:nth-child(2){width:18%}.rcl-table th:nth-child(3){width:16%}.rcl-table th:nth-child(4){width:20%}
+.rcl-num{text-align:right!important}.rcl-val{font-variant-numeric:tabular-nums}.rcl-table td small{color:var(--rcl-muted);font-size:.64rem}
+.rcl-identity{display:flex;align-items:center;gap:.7rem;min-width:0}.rcl-icon{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.7rem;height:2.7rem;border-radius:.75rem;background:#eaf2fd;color:var(--rcl-primary);font-size:1.05rem}.rcl-icon-large{width:3.1rem;height:3.1rem;border-radius:.85rem;font-size:1.2rem}.rcl-name{display:block;overflow:hidden;color:var(--rcl-ink);font-size:.82rem;font-weight:750;text-decoration:none;text-overflow:ellipsis;white-space:nowrap}.rcl-name:hover{color:var(--rcl-primary-dark)}
+.rcl-tag{display:inline-flex;padding:.18rem .55rem;border:1px solid #dce3eb;border-radius:2rem;background:#f8fafc;color:#526071;font-size:.68rem;font-weight:700}.rcl-muted{color:#8b95a4}button.rcl-icon-btn{cursor:pointer;padding:0}.rcl-card-actions{grid-template-columns:1fr 1fr auto}
+.rcl-pill{display:inline-flex;align-items:center;gap:.28rem;padding:.24rem .55rem;border-radius:2rem;font-size:.64rem;font-weight:750;white-space:nowrap}.rcl-pill-ok{background:#e7f6ec;color:#146c2e}.rcl-pill-low{background:#fdeceb;color:#b42318}
+.rcl-actions-col{text-align:center!important}.rcl-row-actions{display:flex;align-items:center;justify-content:center;gap:.3rem}.rcl-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border:1px solid #d6dde7;border-radius:.56rem;background:#fff;color:#596579;text-decoration:none;transition:border-color .14s,background-color .14s,color .14s}.rcl-icon-btn:hover{border-color:#aeb9c7;background:#f7f9fb;color:var(--rcl-ink)}.rcl-icon-btn-primary{border-color:#b8d0ef;color:var(--rcl-primary-dark)}.rcl-icon-btn-primary:hover{border-color:#8eb6ea;background:#eef5fe;color:#174c8f}.rcl-icon-btn-danger{border-color:#efc6cb;color:#b42332}.rcl-icon-btn-danger:hover{border-color:#df9da5;background:#fff5f6;color:#991c2a}
+.rcl-mobile-list{display:none}.rcl-card{overflow:hidden;border:1px solid var(--rcl-border);border-radius:.85rem;background:#fff}.rcl-card-head{display:flex;align-items:center;gap:.7rem;padding:.9rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.rcl-card-title{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;min-width:0}.rcl-card-title a{color:var(--rcl-ink);font-size:.86rem;font-weight:750;text-decoration:none;overflow-wrap:anywhere}.rcl-card-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem 1rem;margin:0;padding:1rem}.rcl-card-details dt{margin-bottom:.15rem;color:var(--rcl-muted);font-size:.64rem;font-weight:650;text-transform:uppercase}.rcl-card-details dd{margin:0;font-size:.78rem;font-weight:700}.rcl-wide{grid-column:1/-1}.rcl-card-actions{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;padding:.75rem .9rem;border-top:1px solid #edf0f4}.rcl-card-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;min-height:2.65rem;border-radius:.65rem;font-size:.74rem;font-weight:700}
+.rcl-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:62px;padding:.75rem 1rem;border-top:1px solid var(--rcl-border);background:#fbfcfe}.rcl-pagination-footer>span{color:var(--rcl-muted);font-size:.72rem}.rcl-pagination{display:flex;gap:.25rem;margin:0;padding:0;list-style:none}.rcl-pagination a,.rcl-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2.25rem;height:2.25rem;padding:0 .4rem;border:1px solid #d8e0ea;border-radius:.55rem;background:#fff;color:#526071;font-size:.72rem;font-weight:700;text-decoration:none}.rcl-pagination a:hover{border-color:#9cbee9;background:#f4f8fe;color:var(--rcl-primary-dark)}.rcl-pagination .active{border-color:var(--rcl-primary);background:var(--rcl-primary);color:#fff}
+.rcl-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;padding:2rem;text-align:center}.rcl-empty-icon{display:inline-flex;align-items:center;justify-content:center;width:4rem;height:4rem;margin-bottom:.9rem;border-radius:1rem;background:#edf4fd;color:var(--rcl-primary);font-size:1.55rem}.rcl-empty-state h2{margin:0;font-size:1rem;font-weight:750}.rcl-empty-state p{max-width:440px;margin:.35rem 0 1rem;color:var(--rcl-muted);font-size:.78rem}.rcl-empty-state .btn{display:inline-flex;align-items:center;gap:.4rem;min-height:2.75rem;border-radius:.68rem;font-size:.78rem;font-weight:700}
+.recipe-directory a:focus-visible,.recipe-directory button:focus-visible,.recipe-directory input:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.rcl-filter-form{grid-template-columns:1fr}.rcl-table-wrap{display:none}.rcl-mobile-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;padding:.9rem}}
+@media(max-width:991.98px){.rcl-hero{grid-template-columns:auto minmax(0,1fr)}.rcl-hero-actions{grid-column:1/-1}}
+@media(max-width:767.98px){.rcl-filter-form{grid-template-columns:1fr}.rcl-filter-actions{flex-wrap:wrap}.rcl-mobile-list{grid-template-columns:1fr}.rcl-panel-head{align-items:flex-start}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.rcl-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.rcl-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.rcl-hero-actions{flex-direction:column}.rcl-filter-head{flex-wrap:wrap}.rcl-active-filter{margin-left:3.15rem}.rcl-filter-actions .btn{flex:1 1 100%}.rcl-panel-head{flex-direction:column;padding:.9rem}.rcl-pagination-footer{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.rcl-icon-btn{transition:none}}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('[data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    var form = this.closest('form');
-    var pageInput = form.querySelector('[name="page"]');
-    if (pageInput) pageInput.remove();
-    form.submit();
+(function () {
+  var form = document.getElementById('rcl-filter-form');
+  if (form) {
+    form.querySelectorAll('[data-autofill-lock="true"]').forEach(function (field) {
+      function unlock() { field.readOnly = false; field.removeAttribute('readonly'); field.removeAttribute('data-autofill-lock'); }
+      field.addEventListener('focus', unlock, { once: true });
+      field.addEventListener('pointerdown', function (e) { if (e.pointerType === 'touch') { unlock(); } }, { once: true });
+    });
+  }
+  var modalEl = document.getElementById('rcl-confirm-modal');
+  var nameEl = document.getElementById('rcl-confirm-name');
+  var okBtn = document.getElementById('rcl-confirm-ok');
+  var pending = null;
+  document.querySelectorAll('.rcl-delete-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      pending = document.getElementById(b.getAttribute('data-form'));
+      nameEl.textContent = '« ' + b.getAttribute('data-name') + ' »';
+      if (window.bootstrap && modalEl) { bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
+      else if (window.confirm('Supprimer la recette de ' + b.getAttribute('data-name') + ' ?')) { pending.submit(); }
+    });
   });
-});
+  if (okBtn) {
+    okBtn.addEventListener('click', function () { if (pending) { okBtn.disabled = true; pending.submit(); } });
+  }
+})();
 </script>
 {% endblock %}

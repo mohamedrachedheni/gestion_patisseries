@@ -1,262 +1,72 @@
 {% extends "administration/base.html" %}
 
 {% block title %}Visualiser achat — Commercial{% endblock %}
-{% block page_title %}Détail de l'enregistrement Achat des matières premières{% endblock %}
+{% block page_title %}Détail d'un achat de matières premières{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:achat-list' %}">Achats</a></li>
-    <li class="breadcrumb-item active">Visualiser</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:achat-list' %}">Achats</a></li><li class="breadcrumb-item active" aria-current="page">Visualiser</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="purchase-detail-dashboard">
+  <header class="acd-hero" aria-labelledby="acd-page-title">
+    <span class="acd-hero-icon" aria-hidden="true"><i class="bi bi-cart3"></i></span>
+    <div class="acd-hero-copy"><div class="acd-eyebrow"><i class="bi bi-eye" aria-hidden="true"></i> Consultation</div><h1 id="acd-page-title">Achat n° {{ achat_code.achat_numero }}</h1><p>{{ achat_code.fournisseur.raison_sociale|default:"Fournisseur non défini" }} · {{ achat_code.achat_at|date:'d/m/Y' }}. Cette page est en lecture seule.</p></div>
+    <div class="acd-hero-actions"><span class="acd-status {% if achat.statut == 'Payé' %}acd-status-safe{% else %}acd-status-alert{% endif %}">{{ achat.statut }}</span><a href="{% url 'commercial:achat-list' %}" class="btn btn-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Revenir à la liste</a></div>
+  </header>
 
-{# ══ Partie 1 : informations générales de l'achat (lecture seule) ═══════ #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-cart3 me-2 text-primary"></i>Informations de l'achat
-  </div>
-  <div class="card-body">
+  <section class="acd-kpi-grid" aria-label="Synthèse financière de l'achat">
+    <article class="acd-kpi acd-kpi-blue"><span><i class="bi bi-cash-stack" aria-hidden="true"></i></span><div><small>Montant total</small><strong>{{ achat.total_montant|stringformat:'.3f' }}</strong><em>TND</em></div></article>
+    <article class="acd-kpi acd-kpi-green"><span><i class="bi bi-check2-circle" aria-hidden="true"></i></span><div><small>Total payé</small><strong>{{ achat.total_acompte|stringformat:'.3f' }}</strong><em>TND · dernier paiement {{ achat.nouveau_acompte|stringformat:'.3f' }}</em></div></article>
+    <article class="acd-kpi {% if achat.reste_a_payer > 0 %}acd-kpi-red{% else %}acd-kpi-green{% endif %}"><span><i class="bi bi-hourglass-split" aria-hidden="true"></i></span><div><small>Reste à payer</small><strong>{{ achat.reste_a_payer|stringformat:'.3f' }}</strong><em>TND</em></div></article>
+    <article class="acd-kpi acd-kpi-violet"><span><i class="bi bi-credit-card" aria-hidden="true"></i></span><div><small>Mode de paiement</small><strong class="acd-kpi-text">{{ achat.mode_paiement }}</strong><em>{{ achat.statut }}</em></div></article>
+  </section>
 
-    <div class="overflow-auto">
-    {# ── Ligne 1 ────────────────────────────────────────────────────── #}
-    <div class="d-flex flex-nowrap align-items-end gap-3 mb-3">
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Date achat</label>
-        <input type="date" value="{{ achat_code.achat_at|date:'Y-m-d' }}"
-               class="form-control form-control-sm" disabled>
-      </div>
+  <section class="acd-panel" aria-labelledby="acd-info-title">
+    <header class="acd-panel-head"><span aria-hidden="true"><i class="bi bi-info-circle"></i></span><div><div class="acd-section-label">Informations</div><h2 id="acd-info-title">Informations de l’achat</h2></div></header>
+    <dl class="acd-info">
+      <div><dt>Date de l’achat</dt><dd>{{ achat_code.achat_at|date:'d/m/Y' }}</dd></div>
+      <div><dt>Numéro de l’achat</dt><dd>{{ achat_code.achat_numero }}</dd></div>
+      <div><dt>Fournisseur</dt><dd>{{ achat_code.fournisseur.raison_sociale|default:"Non défini" }}</dd></div>
+      <div><dt>Utilisateur lié à l’achat</dt><dd>{{ user_lie.get_full_name|default:user_lie.username|default:"—" }}</dd></div>
+      <div class="acd-info-wide"><dt>Observation</dt><dd>{{ achat.observation|default:"Aucune observation" }}</dd></div>
+    </dl>
+  </section>
 
-      <div style="width:220px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Fournisseur</label>
-        <select class="form-select form-select-sm" disabled>
-          {% for f in fournisseurs_list %}
-          <option value="{{ f.pk }}" {% if f.pk == achat_code.fournisseur_id %}selected{% endif %}>{{ f.raison_sociale }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div style="width:180px;flex:0 0 auto;">
-        <label class="form-label small mb-1">User lié à l'achat</label>
-        <input type="text" value="{{ user_lie.get_full_name|default:user_lie.username|default:'' }}"
-               class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="width:140px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Montant payé</label>
-        <input type="number" step="0.001" value="{{ achat.nouveau_acompte|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Mode paiement</label>
-        <select class="form-select form-select-sm" disabled>
-          {% for value, label in mode_paiement_choices %}
-          <option value="{{ value }}" {% if value == achat.mode_paiement %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div style="flex:1 1 auto;min-width:200px;">
-        <label class="form-label small mb-1">Observation</label>
-        <input type="text" value="{{ achat.observation|default:'' }}" class="form-control form-control-sm" disabled>
-      </div>
-    </div>
-
-    {# ── Ligne 2 ────────────────────────────────────────────────────── #}
-    <div class="d-flex flex-nowrap align-items-end justify-content-between gap-3">
-      <div style="width:140px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Numéro achat</label>
-        <input type="text" value="{{ achat_code.achat_numero }}" class="form-control form-control-sm" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Montant total</label>
-        <input type="number" step="0.001" value="{{ achat.total_montant|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Montant total payé</label>
-        <input type="number" step="0.001" value="{{ achat.total_acompte|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner text-end font-monospace" disabled>
-      </div>
-
-      <div style="width:150px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Reste à payer</label>
-        <input type="number" step="0.001" value="{{ achat.reste_a_payer|stringformat:'s' }}"
-               class="form-control form-control-sm no-spinner text-end font-monospace {% if achat.reste_a_payer < 0 %}text-danger{% endif %}"
-               disabled>
-      </div>
-
-      <div style="width:170px;flex:0 0 auto;">
-        <label class="form-label small mb-1">Statut paiement</label>
-        <input type="text" value="{{ achat.statut }}" class="form-control form-control-sm" disabled>
-      </div>
-    </div>
-    </div>
-
-  </div>
-</div>
-
-{# ══ Partie 2 : détails des achats par unité (lecture seule) ═══════════ #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-box-seam me-2 text-primary"></i>Détails des achats par unité
-  </div>
-  <div class="card-body p-0">
+  <section class="acd-panel" aria-labelledby="acd-unite-title">
+    <header class="acd-panel-head"><span aria-hidden="true"><i class="bi bi-box-seam"></i></span><div><div class="acd-section-label">Détails</div><h2 id="acd-unite-title">Achats par unité</h2><p>{% if unite_page_obj.object_list %}{{ unite_page_obj.paginator.count }} ligne{{ unite_page_obj.paginator.count|pluralize }}.{% else %}Aucune ligne pour cet achat.{% endif %}</p></div></header>
     {% if unite_page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Matière première</th>
-            <th>Quantité</th>
-            <th>Unité</th>
-            <th>Prix unitaire</th>
-            <th class="pe-3">Total ligne</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in unite_page_obj.object_list %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.nom }}" disabled>
-            </td>
-            <td style="width:110px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
-            </td>
-            <td style="width:90px;">
-              <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.unite }}" disabled>
-            </td>
-            <td style="width:120px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
-            </td>
-            <td class="pe-3" style="width:130px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% if unite_is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-      <small class="text-muted">Page {{ unite_page_obj.number }}/{{ unite_page_obj.paginator.num_pages }}</small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          {% if unite_page_obj.has_previous %}
-          <li class="page-item"><a class="page-link" href="?page_unite={{ unite_page_obj.previous_page_number }}&page_pack={{ pack_page_obj.number }}"><i class="bi bi-chevron-left"></i></a></li>
-          {% endif %}
-          {% for num in unite_page_obj.paginator.page_range %}
-            {% if unite_page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > unite_page_obj.number|add:"-3" and num < unite_page_obj.number|add:"3" %}
-            <li class="page-item"><a class="page-link" href="?page_unite={{ num }}&page_pack={{ pack_page_obj.number }}">{{ num }}</a></li>
-            {% endif %}
-          {% endfor %}
-          {% if unite_page_obj.has_next %}
-          <li class="page-item"><a class="page-link" href="?page_unite={{ unite_page_obj.next_page_number }}&page_pack={{ pack_page_obj.number }}"><i class="bi bi-chevron-right"></i></a></li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-    {% else %}
-    <div class="text-center py-4 text-muted">Aucun détail par unité pour cet achat.</div>
-    {% endif %}
-  </div>
-</div>
+    <div class="acd-table-wrap"><table class="acd-table"><caption class="visually-hidden">Détails des achats par unité</caption><thead><tr><th scope="col">Matière première</th><th scope="col" class="acd-number-col">Quantité</th><th scope="col">Unité</th><th scope="col" class="acd-number-col">Prix unitaire</th><th scope="col" class="acd-number-col">Total ligne</th></tr></thead><tbody>{% for d in unite_page_obj.object_list %}<tr><td><strong>{{ d.matiere_premiere.nom }}</strong></td><td class="acd-number-col">{{ d.quantite|stringformat:'s' }}</td><td>{{ d.matiere_premiere.unite }}</td><td class="acd-number-col">{{ d.prix_unitaire|stringformat:'s' }}</td><td class="acd-number-col"><strong>{{ d.total_ligne|stringformat:'s' }}</strong></td></tr>{% endfor %}</tbody></table></div>
+    {% if unite_is_paginated %}<footer class="acd-pagination-footer"><span>Page {{ unite_page_obj.number }} sur {{ unite_page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des achats par unité"><ul class="acd-pagination">{% if unite_page_obj.has_previous %}<li><a href="?page_unite={{ unite_page_obj.previous_page_number }}&amp;page_pack={{ pack_page_obj.number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in unite_page_obj.paginator.page_range %}{% if unite_page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > unite_page_obj.number|add:"-3" and num < unite_page_obj.number|add:"3" %}<li><a href="?page_unite={{ num }}&amp;page_pack={{ pack_page_obj.number }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if unite_page_obj.has_next %}<li><a href="?page_unite={{ unite_page_obj.next_page_number }}&amp;page_pack={{ pack_page_obj.number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="acd-empty"><i class="bi bi-box-seam" aria-hidden="true"></i><p>Aucun détail par unité pour cet achat.</p></div>{% endif %}
+  </section>
 
-{# ══ Partie 3 : détails des achats par pack (lecture seule) ════════════ #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-boxes me-2 text-primary"></i>Détails des achats par pack
-  </div>
-  <div class="card-body p-0">
+  <section class="acd-panel" aria-labelledby="acd-pack-title">
+    <header class="acd-panel-head"><span aria-hidden="true"><i class="bi bi-boxes"></i></span><div><div class="acd-section-label">Détails</div><h2 id="acd-pack-title">Achats par pack</h2><p>{% if pack_page_obj.object_list %}{{ pack_page_obj.paginator.count }} ligne{{ pack_page_obj.paginator.count|pluralize }}.{% else %}Aucune ligne pour cet achat.{% endif %}</p></div></header>
     {% if pack_page_obj.object_list %}
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">Matière première</th>
-            <th>Nombre de pack</th>
-            <th>Prix pack</th>
-            <th>Unité par pack</th>
-            <th>Unité</th>
-            <th>Total quantité</th>
-            <th>Prix unitaire</th>
-            <th class="pe-3">Total ligne</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in pack_page_obj.object_list %}
-          <tr>
-            <td class="ps-3">
-              <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.nom }}" disabled>
-            </td>
-            <td style="width:110px;">
-              <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.nombre_pack|stringformat:'s' }}" disabled>
-            </td>
-            <td style="width:100px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_pack|stringformat:'s' }}" disabled>
-            </td>
-            <td style="width:110px;">
-              <input type="number" step="1" class="form-control form-control-sm no-spinner" value="{{ d.unite_pack }}" disabled>
-            </td>
-            <td style="width:80px;">
-              <input type="text" class="form-control form-control-sm" value="{{ d.matiere_premiere.unite }}" disabled>
-            </td>
-            <td style="width:110px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.quantite|stringformat:'s' }}" disabled>
-            </td>
-            <td style="width:110px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.prix_unitaire|stringformat:'s' }}" disabled>
-            </td>
-            <td class="pe-3" style="width:120px;">
-              <input type="number" step="0.001" class="form-control form-control-sm no-spinner" value="{{ d.total_ligne|stringformat:'s' }}" disabled>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% if pack_is_paginated %}
-    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-      <small class="text-muted">Page {{ pack_page_obj.number }}/{{ pack_page_obj.paginator.num_pages }}</small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          {% if pack_page_obj.has_previous %}
-          <li class="page-item"><a class="page-link" href="?page_pack={{ pack_page_obj.previous_page_number }}&page_unite={{ unite_page_obj.number }}"><i class="bi bi-chevron-left"></i></a></li>
-          {% endif %}
-          {% for num in pack_page_obj.paginator.page_range %}
-            {% if pack_page_obj.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% elif num > pack_page_obj.number|add:"-3" and num < pack_page_obj.number|add:"3" %}
-            <li class="page-item"><a class="page-link" href="?page_pack={{ num }}&page_unite={{ unite_page_obj.number }}">{{ num }}</a></li>
-            {% endif %}
-          {% endfor %}
-          {% if pack_page_obj.has_next %}
-          <li class="page-item"><a class="page-link" href="?page_pack={{ pack_page_obj.next_page_number }}&page_unite={{ unite_page_obj.number }}"><i class="bi bi-chevron-right"></i></a></li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
-    {% else %}
-    <div class="text-center py-4 text-muted">Aucun détail par pack pour cet achat.</div>
-    {% endif %}
+    <div class="acd-table-wrap"><table class="acd-table"><caption class="visually-hidden">Détails des achats par pack</caption><thead><tr><th scope="col">Matière première</th><th scope="col" class="acd-number-col">Nombre de packs</th><th scope="col" class="acd-number-col">Prix du pack</th><th scope="col" class="acd-number-col">Unités par pack</th><th scope="col">Unité</th><th scope="col" class="acd-number-col">Quantité totale</th><th scope="col" class="acd-number-col">Prix unitaire</th><th scope="col" class="acd-number-col">Total ligne</th></tr></thead><tbody>{% for d in pack_page_obj.object_list %}<tr><td><strong>{{ d.matiere_premiere.nom }}</strong></td><td class="acd-number-col">{{ d.nombre_pack|stringformat:'s' }}</td><td class="acd-number-col">{{ d.prix_pack|stringformat:'s' }}</td><td class="acd-number-col">{{ d.unite_pack }}</td><td>{{ d.matiere_premiere.unite }}</td><td class="acd-number-col">{{ d.quantite|stringformat:'s' }}</td><td class="acd-number-col">{{ d.prix_unitaire|stringformat:'s' }}</td><td class="acd-number-col"><strong>{{ d.total_ligne|stringformat:'s' }}</strong></td></tr>{% endfor %}</tbody></table></div>
+    {% if pack_is_paginated %}<footer class="acd-pagination-footer"><span>Page {{ pack_page_obj.number }} sur {{ pack_page_obj.paginator.num_pages }}</span><nav aria-label="Pagination des achats par pack"><ul class="acd-pagination">{% if pack_page_obj.has_previous %}<li><a href="?page_pack={{ pack_page_obj.previous_page_number }}&amp;page_unite={{ unite_page_obj.number }}" aria-label="Page précédente"><i class="bi bi-chevron-left" aria-hidden="true"></i></a></li>{% endif %}{% for num in pack_page_obj.paginator.page_range %}{% if pack_page_obj.number == num %}<li><span class="active" aria-current="page">{{ num }}</span></li>{% elif num > pack_page_obj.number|add:"-3" and num < pack_page_obj.number|add:"3" %}<li><a href="?page_pack={{ num }}&amp;page_unite={{ unite_page_obj.number }}">{{ num }}</a></li>{% endif %}{% endfor %}{% if pack_page_obj.has_next %}<li><a href="?page_pack={{ pack_page_obj.next_page_number }}&amp;page_unite={{ unite_page_obj.number }}" aria-label="Page suivante"><i class="bi bi-chevron-right" aria-hidden="true"></i></a></li>{% endif %}</ul></nav></footer>{% endif %}
+    {% else %}<div class="acd-empty"><i class="bi bi-boxes" aria-hidden="true"></i><p>Aucun détail par pack pour cet achat.</p></div>{% endif %}
+  </section>
+
+  <div class="acd-actions">
+    <a href="{% url 'commercial:achat-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>Revenir à la liste</a>
+    <a href="{% url 'commercial:achat-update' achat.pk %}" class="btn btn-primary"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier cet achat</a>
   </div>
 </div>
+{% endblock %}
 
-<div class="d-flex justify-content-end">
-  <a href="{% url 'commercial:achat-list' %}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-  </a>
-</div>
-
+{% block extra_css %}
+{{ block.super }}
+/* Détail d'un achat : ordinateur d'abord, même système que la liste des achats. */
+.purchase-detail-dashboard{--acd-primary:#2c7be5;--acd-primary-dark:#1a4f9c;--acd-ink:#172033;--acd-muted:#667085;--acd-border:#e2e8f0;max-width:1600px;margin:0 auto;color:var(--acd-ink)}
+.acd-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.acd-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.acd-hero-copy{min-width:0}.acd-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.acd-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.acd-hero-copy>p{margin:0;max-width:720px;color:rgba(255,255,255,.78);font-size:.84rem}.acd-hero-actions{display:flex;align-items:center;gap:.7rem}.acd-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.9rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.acd-status{display:inline-flex;align-items:center;padding:.3rem .65rem;border-radius:2rem;font-size:.65rem;font-weight:750;white-space:nowrap}.acd-status-safe{background:#e9f6ef;color:#18794e}.acd-status-alert{background:#fff4e0;color:#8a5300}
+.acd-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:1rem}.acd-kpi{--acd-accent:#2c7be5;--acd-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.68rem;min-height:98px;padding:.88rem;border:1px solid var(--acd-border);border-radius:.86rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.acd-kpi-blue{--acd-accent:#2c7be5;--acd-soft:#eaf2fd}.acd-kpi-green{--acd-accent:#198754;--acd-soft:#e9f6ef}.acd-kpi-violet{--acd-accent:#6f42c1;--acd-soft:#f1ebfb}.acd-kpi-red{--acd-accent:#dc3545;--acd-soft:#fdecee}.acd-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.65rem;height:2.65rem;border-radius:.7rem;background:var(--acd-soft);color:var(--acd-accent);font-size:1.1rem}.acd-kpi small{display:block;color:var(--acd-muted);font-size:.64rem;font-weight:650}.acd-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.18}.acd-kpi-text{font-size:.95rem!important}.acd-kpi em{display:block;margin-top:.1rem;color:var(--acd-muted);font-size:.6rem;font-style:normal}
+.acd-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--acd-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.acd-panel-head{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.acd-panel-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.65rem;background:#eaf2fd;color:var(--acd-primary)}.acd-section-label{color:var(--acd-primary-dark);font-size:.6rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.acd-panel-head h2{margin:.1rem 0 0;font-size:.95rem;font-weight:750}.acd-panel-head p{margin:.12rem 0 0;color:var(--acd-muted);font-size:.65rem}
+.acd-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin:0;padding:1.1rem}.acd-info dt{color:var(--acd-muted);font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}.acd-info dd{margin:.2rem 0 0;font-size:.8rem;font-weight:700;overflow-wrap:anywhere}.acd-info-wide{grid-column:1/-1}
+.acd-table{width:100%;border-collapse:collapse}.acd-table thead{background:#f8fafc}.acd-table th{padding:.68rem .8rem;border-bottom:1px solid var(--acd-border);color:var(--acd-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.acd-table td{padding:.7rem .8rem;border-bottom:1px solid #edf0f4;font-size:.72rem;vertical-align:middle}.acd-table tbody tr:last-child td{border-bottom:0}.acd-table tbody tr:hover{background:#f8faff}.acd-number-col{text-align:right!important;font-variant-numeric:tabular-nums}.acd-empty{padding:2rem 1rem;color:var(--acd-muted);text-align:center}.acd-empty i{display:block;margin-bottom:.4rem;font-size:1.5rem;opacity:.4}.acd-empty p{margin:0;font-size:.72rem}
+.acd-pagination-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem .9rem;border-top:1px solid #edf0f4;background:#fbfcfe}.acd-pagination-footer>span{color:var(--acd-muted);font-size:.62rem}.acd-pagination{display:flex;gap:.28rem;margin:0;padding:0;list-style:none}.acd-pagination a,.acd-pagination span{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:2rem;padding:0 .42rem;border:1px solid #dce3ec;border-radius:.48rem;color:#45576d;font-size:.65rem;font-weight:700;text-decoration:none}.acd-pagination .active{border-color:var(--acd-primary);background:var(--acd-primary);color:#fff}
+.acd-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:.6rem;margin-top:1rem;padding:.9rem 1.1rem;border:1px solid var(--acd-border);border-radius:1rem;background:#fbfcfe}.acd-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:1rem;border-radius:.6rem;font-size:.72rem;font-weight:700}.purchase-detail-dashboard a:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1399.98px){.acd-table-wrap{overflow-x:auto}.acd-table{min-width:760px}}
+@media(max-width:1199.98px){.acd-hero{grid-template-columns:auto minmax(0,1fr)}.acd-hero-actions{grid-column:1/-1}.acd-kpi-grid,.acd-info{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.acd-hero{gap:.8rem;padding:1rem}.acd-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.acd-hero-actions{flex-direction:column;align-items:stretch}.acd-kpi-grid,.acd-info{grid-template-columns:1fr}.acd-actions{flex-direction:column-reverse}}
 {% endblock %}

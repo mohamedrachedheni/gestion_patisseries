@@ -1,152 +1,63 @@
-{% extends "administration/base.html" %}
+{% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}Courbes d'adhérence — Commercial{% endblock %}
 {% block page_title %}Courbes d'adhérence{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'administration:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:client-adherence-visites' %}">Adhérence visites</a></li>
-    <li class="breadcrumb-item active">Courbes</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:client-adherence-visites' %}">Adhérence visites</a></li><li class="breadcrumb-item active" aria-current="page">Courbes</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="adherence-chart-dashboard">
+  <header class="adg-hero" aria-labelledby="adg-page-title">
+    <span class="adg-hero-icon" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></span>
+    <div class="adg-hero-copy"><div class="adg-eyebrow"><i class="bi bi-calendar2-check" aria-hidden="true"></i> Qualité des tournées</div><h1 id="adg-page-title">Évolution de l’adhérence</h1><p>Suivez le taux quotidien des visites récurrentes et repérez rapidement les périodes qui nécessitent une attention.</p></div>
+    <div class="adg-hero-actions">
+      <div class="adg-hero-meta"><div><span>Commercial</span><strong>{% if commercial_selectionne %}{{ commercial_selectionne.get_full_name|default:commercial_selectionne.username }}{% elif is_administration %}Tous les commerciaux{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</strong><small>{% if is_administration and not commercial_selectionne %}{% if nb_commerciaux == 1 %}1 commercial analysé{% else %}{{ nb_commerciaux }} commerciaux analysés{% endif %}{% else %}Périmètre individuel{% endif %}</small></div><div><span>Période</span><strong>{{ date_debut|slice:"8:10" }}/{{ date_debut|slice:"5:7" }}/{{ date_debut|slice:":4" }} au {{ date_fin|slice:"8:10" }}/{{ date_fin|slice:"5:7" }}/{{ date_fin|slice:":4" }}</strong><small>{{ nb_jours }} jour{{ nb_jours|pluralize }}</small></div></div>
+      <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ commercial_id|urlencode }}&amp;date_debut={{ date_debut|urlencode }}&amp;date_fin={{ date_fin|urlencode }}" class="btn btn-light"><i class="bi bi-table" aria-hidden="true"></i>Voir le détail</a>
+    </div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Taux d'adhérence quotidien par commercial</h4>
-  <a href="{% url 'commercial:client-adherence-visites' %}?commercial_id={{ commercial_id }}&date_debut={{ date_debut }}&date_fin={{ date_fin }}"
-     class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-table me-1"></i>Voir le détail
-  </a>
-</div>
-
-{# ── Section 1 : filtres ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <form method="get" id="filter-form">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        {% if is_administration %}
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <select name="commercial_id" class="form-select form-select-sm" data-autosubmit>
-            <option value="">— Tous les commerciaux —</option>
-            {% for u in commerciaux_list %}
-            <option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>
-              {{ u.get_full_name|default:u.username }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        {% else %}
-        <input type="hidden" name="commercial_id" value="{{ commercial_id }}">
-        {% endif %}
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date début</label>
-          <input type="date" name="date_debut" value="{{ date_debut }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date fin</label>
-          <input type="date" name="date_fin" value="{{ date_fin }}"
-                 class="form-control form-control-sm" data-autosubmit>
-        </div>
-
-        <div style="flex:0 0 auto;">
-          <a href="{% url 'commercial:client-adherence-graphique' %}"
-             class="btn btn-outline-secondary btn-sm text-nowrap" title="Réinitialiser les filtres">
-            <i class="bi bi-x-circle"></i> Réinitialiser
-          </a>
-        </div>
-      </div>
+  <section class="adg-filter-card" aria-labelledby="adg-filter-title">
+    <div class="adg-filter-head"><span><i class="bi bi-funnel" aria-hidden="true"></i></span><div><h2 id="adg-filter-title">Périmètre du graphique</h2><p>Choisissez le commercial et la période avant d’actualiser l’analyse.</p></div></div>
+    <form method="get" id="adg-filter-form" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      {% if is_administration %}<div class="adg-filter-field"><label for="adg-commercial">Commercial</label><select name="commercial_id" id="adg-commercial" class="form-select" autocomplete="off"><option value="">Tous les commerciaux</option>{% for u in commerciaux_list %}<option value="{{ u.pk }}" {% if commercial_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>{% else %}<div class="adg-locked-commercial"><span>Commercial connecté</span><strong><i class="bi bi-person" aria-hidden="true"></i>{{ request.user.get_full_name|default:request.user.username }}</strong></div>{% endif %}
+      <div class="adg-filter-field"><label for="adg-date-start">Date de début</label><input type="date" name="date_debut" id="adg-date-start" value="{{ date_debut }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <div class="adg-filter-field"><label for="adg-date-end">Date de fin</label><input type="date" name="date_fin" id="adg-date-end" value="{{ date_fin }}" class="form-control" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" required></div>
+      <div class="adg-filter-actions"><a href="{% url 'commercial:client-adherence-graphique' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>Réinitialiser</a><button type="submit" class="btn btn-primary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Actualiser le graphique</button></div>
     </form>
-  </div>
-</div>
+  </section>
 
-{# ── Section 2 : résultat global de la période ───────────────────────────── #}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-success">{{ nb_honorees }}</div>
-        <div class="text-muted small">Honorés</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-danger">{{ nb_manquees }}</div>
-        <div class="text-muted small">Manqués</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-secondary">{{ nb_ignorees }}</div>
-        <div class="text-muted small">Ignorés</div>
-        <div class="text-muted" style="font-size:.7rem;">(couverts par un autre commercial)</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold text-secondary">{{ nb_absentes }}</div>
-        <div class="text-muted small">Absents</div>
-        <div class="text-muted" style="font-size:.7rem;">(commercial en congé/absence)</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-body text-center py-3">
-        <div class="fs-4 fw-bold">{{ taux_adherence|default_if_none:'—' }}{% if taux_adherence is not None %}%{% endif %}</div>
-        <div class="text-muted small">Taux d'adhérence</div>
-        <div class="text-muted" style="font-size:.7rem;">(hors ignorés/absents)</div>
-      </div>
-    </div>
-  </div>
-</div>
+  <section class="adg-kpi-grid" aria-label="Synthèse de l’adhérence"><article class="adg-kpi adg-kpi-green"><span><i class="bi bi-check2-circle" aria-hidden="true"></i></span><div><small>Honorés</small><strong>{{ nb_honorees }}</strong><em>visite{{ nb_honorees|pluralize }} confirmée{{ nb_honorees|pluralize }}</em></div></article><article class="adg-kpi adg-kpi-red"><span><i class="bi bi-x-circle" aria-hidden="true"></i></span><div><small>Manqués</small><strong>{{ nb_manquees }}</strong><em>sans preuve de visite</em></div></article><article class="adg-kpi adg-kpi-blue"><span><i class="bi bi-people" aria-hidden="true"></i></span><div><small>Ignorés</small><strong>{{ nb_ignorees }}</strong><em>couverts par un collègue</em></div></article><article class="adg-kpi adg-kpi-orange"><span><i class="bi bi-person-dash" aria-hidden="true"></i></span><div><small>Absents</small><strong>{{ nb_absentes }}</strong><em>absence déclarée</em></div></article><article class="adg-kpi adg-kpi-violet"><span><i class="bi bi-speedometer2" aria-hidden="true"></i></span><div><small>Taux d’adhérence</small><strong>{{ taux_adherence|default_if_none:"—" }}{% if taux_adherence is not None %}%{% endif %}</strong><em>{{ nb_evaluees }} visite{{ nb_evaluees|pluralize }} évaluée{{ nb_evaluees|pluralize }}</em></div></article></section>
 
-{# ── Section 3 : courbes ─────────────────────────────────────────────────── #}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-graph-up me-2 text-primary"></i>Évolution du taux d'adhérence
-  </div>
-  <div class="card-body">
+  <details class="adg-method"><summary><span><i class="bi bi-info-circle" aria-hidden="true"></i>Comprendre la courbe et les statuts</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><div><strong>Taux quotidien</strong><p>Nombre de visites honorées divisé par les visites honorées et manquées du jour.</p></div><div><strong class="adg-method-honored">Honoré</strong><p>Livraison à ±{{ tolerance_jours }} jour{{ tolerance_jours|pluralize }} ou visite réalisée dans l’Agenda.</p></div><div><strong class="adg-method-muted">Exclusions</strong><p>Les statuts ignoré et absent ne diminuent pas le taux d’adhérence.</p></div><div><strong>Courbe interrompue</strong><p>Un espace signifie qu’aucune visite n’était évaluable à cette date.</p></div></div></details>
+
+  <section class="adg-panel" aria-labelledby="adg-chart-title">
+    <header class="adg-panel-head"><div><div class="adg-section-label">Tendance quotidienne</div><h2 id="adg-chart-title">Taux d’adhérence par commercial</h2><p>{{ nb_attendues }} visite{{ nb_attendues|pluralize }} attendue{{ nb_attendues|pluralize }} sur {{ nb_jours }} jour{{ nb_jours|pluralize }}.</p></div><span class="adg-result-badge"><i class="bi bi-speedometer2" aria-hidden="true"></i>{% if taux_adherence is not None %}{{ taux_adherence }}% sur la période{% else %}Non évalué{% endif %}</span></header>
+    <div class="adg-chart-body">
     {% if chart_b64 %}
-    <img src="data:image/png;base64,{{ chart_b64 }}" class="img-fluid" alt="Courbes d'adhérence par commercial">
+      <figure class="adg-chart-figure"><img src="data:image/png;base64,{{ chart_b64 }}" width="1650" height="750" alt="Évolution du taux d’adhérence quotidien par commercial du {{ date_debut|slice:'8:10' }}/{{ date_debut|slice:'5:7' }}/{{ date_debut|slice:':4' }} au {{ date_fin|slice:'8:10' }}/{{ date_fin|slice:'5:7' }}/{{ date_fin|slice:':4' }}"><figcaption>Les points absents correspondent aux jours sans visite évaluable. Le taux est compris entre 0 et 100 %.</figcaption></figure>
     {% else %}
-    <div class="text-center py-5 text-muted">
-      <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
-      Aucune donnée d'adhérence sur cette période.
-      <br>
-      <small>Vérifiez que des jours de visite récurrents sont définis sur les fiches clients.</small>
-    </div>
+      <div class="adg-empty"><span><i class="bi bi-graph-up" aria-hidden="true"></i></span><h3>Aucune donnée d’adhérence</h3><p>Vérifiez la période ou les jours de visite récurrents définis sur les fiches clients.</p></div>
     {% endif %}
 
     {% if commerciaux_sans_donnees %}
-    <p class="text-muted small mt-3 mb-0">
-      Sans donnée sur cette période : {{ commerciaux_sans_donnees|join:", " }}.
-    </p>
+      <aside class="adg-no-data" aria-labelledby="adg-no-data-title"><span><i class="bi bi-exclamation-circle" aria-hidden="true"></i></span><div><h3 id="adg-no-data-title">Sans donnée sur cette période</h3><ul>{% for nom in commerciaux_sans_donnees %}<li>{{ nom }}</li>{% endfor %}</ul></div></aside>
     {% endif %}
-  </div>
+    </div>
+  </section>
 </div>
-
 {% endblock %}
 
-{% block extra_js %}
-<script>
-document.querySelectorAll('#filter-form [data-autosubmit]').forEach(function (el) {
-  el.addEventListener('change', function () {
-    this.closest('form').submit();
-  });
-});
-</script>
+{% block extra_css %}
+{{ block.super }}
+/* Courbes d'adhérence : tableau de bord ordinateur d'abord. */
+.adherence-chart-dashboard{--adg-primary:#2c7be5;--adg-primary-dark:#1a4f9c;--adg-ink:#172033;--adg-muted:#667085;--adg-border:#e2e8f0;--adg-radius:1rem;max-width:1650px;margin:0 auto;color:var(--adg-ink)}
+.adg-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:150px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.adg-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.adg-hero-copy{min-width:0}.adg-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.adg-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.adg-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.86rem}.adg-hero-actions{display:flex;align-items:stretch;gap:.55rem}.adg-hero-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));min-width:360px;padding:.45rem;border:1px solid rgba(255,255,255,.16);border-radius:.78rem;background:rgba(8,31,61,.2)}.adg-hero-meta div{min-width:0;padding:.5rem}.adg-hero-meta div+div{border-left:1px solid rgba(255,255,255,.13)}.adg-hero-meta span,.adg-hero-meta small{display:block;color:rgba(255,255,255,.62);font-size:.62rem}.adg-hero-meta strong{display:block;overflow:hidden;margin-top:.1rem;font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}.adg-hero-meta small{margin-top:.1rem}.adg-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.8rem;border-radius:.7rem;color:#194f89;font-size:.72rem;font-weight:750;white-space:nowrap}
+.adg-filter-card,.adg-panel,.adg-method{margin-top:1rem;border:1px solid var(--adg-border);border-radius:var(--adg-radius);background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.adg-filter-card,.adg-panel,.adg-method{overflow:hidden}.adg-filter-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.adg-filter-head>span{display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.68rem;background:#eaf2fd;color:var(--adg-primary)}.adg-filter-head h2{margin:0;font-size:.92rem;font-weight:750}.adg-filter-head p{margin:.12rem 0 0;color:var(--adg-muted);font-size:.68rem}.adg-filter-card form{display:grid;grid-template-columns:minmax(240px,1fr) 145px 145px auto;align-items:end;gap:.75rem;padding:1rem}.adg-filter-field label,.adg-locked-commercial>span{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.adg-filter-field .form-control,.adg-filter-field .form-select{min-height:2.8rem;border-color:#cfd7e3;border-radius:.62rem;font-size:.78rem}.adg-locked-commercial strong{display:flex;align-items:center;gap:.35rem;min-height:2.8rem;padding:.6rem .7rem;border:1px solid #e0e6ee;border-radius:.62rem;background:#f7f9fc;font-size:.72rem}.adg-filter-actions{display:flex;gap:.5rem}.adg-filter-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:.75rem;border-radius:.62rem;font-size:.68rem;font-weight:700;white-space:nowrap}
+.adg-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;margin-top:1rem}.adg-kpi{--adg-accent:#2c7be5;--adg-soft:#eaf2fd;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.65rem;min-height:98px;padding:.85rem;border:1px solid var(--adg-border);border-radius:.85rem;background:#fff;box-shadow:0 2px 8px rgba(16,24,40,.035)}.adg-kpi-green{--adg-accent:#198754;--adg-soft:#e9f6ef}.adg-kpi-red{--adg-accent:#dc3545;--adg-soft:#fdecee}.adg-kpi-blue{--adg-accent:#2c7be5;--adg-soft:#eaf2fd}.adg-kpi-orange{--adg-accent:#d97706;--adg-soft:#fff4e0}.adg-kpi-violet{--adg-accent:#6f42c1;--adg-soft:#f1ebfb}.adg-kpi>span{display:inline-flex;align-items:center;justify-content:center;width:2.6rem;height:2.6rem;border-radius:.68rem;background:var(--adg-soft);color:var(--adg-accent);font-size:1.08rem}.adg-kpi small{display:block;color:var(--adg-muted);font-size:.63rem;font-weight:650}.adg-kpi strong{display:block;margin-top:.04rem;font-size:1.15rem;font-variant-numeric:tabular-nums;line-height:1.15}.adg-kpi em{display:block;overflow:hidden;color:var(--adg-muted);font-size:.59rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.adg-method summary{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;cursor:pointer;list-style:none;color:#45576d;font-size:.72rem;font-weight:700}.adg-method summary::-webkit-details-marker{display:none}.adg-method summary span{display:flex;align-items:center;gap:.4rem}.adg-method[open] summary{border-bottom:1px solid #e5ebf2;background:#f8fafc}.adg-method[open] summary>i{transform:rotate(180deg)}.adg-method>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;padding:.9rem}.adg-method>div>div{padding:.68rem;border:1px solid #e5eaf0;border-radius:.65rem}.adg-method strong{font-size:.68rem}.adg-method p{margin:.18rem 0 0;color:#526071;font-size:.64rem;line-height:1.45}.adg-method-honored{color:#18794e}.adg-method-muted{color:#31577f}
+.adg-panel-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.adg-section-label{color:var(--adg-primary-dark);font-size:.64rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.adg-panel-head h2{margin:.15rem 0 0;font-size:1rem;font-weight:750}.adg-panel-head p{margin:.15rem 0 0;color:var(--adg-muted);font-size:.7rem}.adg-result-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.34rem .58rem;border-radius:2rem;background:#eaf2fd;color:var(--adg-primary-dark);font-size:.67rem;font-weight:750;white-space:nowrap}.adg-chart-body{padding:1rem}.adg-chart-figure{margin:0}.adg-chart-figure img{display:block;width:100%;height:auto;border:1px solid #e7ecf2;border-radius:.78rem;background:#fff}.adg-chart-figure figcaption{margin-top:.55rem;color:var(--adg-muted);font-size:.64rem;text-align:center}.adg-empty{padding:3rem 1rem;text-align:center}.adg-empty>span{display:inline-flex;align-items:center;justify-content:center;width:3.5rem;height:3.5rem;border-radius:1rem;background:#edf4fd;color:#31577f;font-size:1.35rem}.adg-empty h3{margin:.7rem 0 .25rem;font-size:.95rem}.adg-empty p{margin:0;color:var(--adg-muted);font-size:.72rem}.adg-no-data{display:flex;align-items:flex-start;gap:.65rem;margin-top:.8rem;padding:.75rem .85rem;border:1px solid #f0d9aa;border-radius:.72rem;background:#fffaf0}.adg-no-data>span{display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:.55rem;background:#fff0cf;color:#8a5300}.adg-no-data h3{margin:.05rem 0 .35rem;color:#6e4700;font-size:.7rem}.adg-no-data ul{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}.adg-no-data li{padding:.2rem .42rem;border-radius:2rem;background:#fff;color:#6e4700;font-size:.62rem;font-weight:650}.adherence-chart-dashboard a:focus-visible,.adherence-chart-dashboard button:focus-visible,.adherence-chart-dashboard input:focus-visible,.adherence-chart-dashboard select:focus-visible,.adherence-chart-dashboard summary:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.adg-hero{grid-template-columns:auto minmax(0,1fr)}.adg-hero-actions{grid-column:1/-1}.adg-filter-card form{grid-template-columns:repeat(2,minmax(0,1fr))}.adg-filter-actions{grid-column:1/-1;justify-content:flex-end}.adg-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:991.98px){.adg-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.adg-method>div{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.adg-hero-actions{align-items:stretch;flex-direction:column}.adg-hero-meta{min-width:0}.adg-panel-head{align-items:flex-start}.adg-chart-body{padding:.75rem}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.adg-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.adg-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}.adg-hero-copy>p{font-size:.8rem}.adg-hero-meta{grid-template-columns:1fr}.adg-hero-meta div+div{border-top:1px solid rgba(255,255,255,.13);border-left:0}.adg-filter-card form{grid-template-columns:1fr}.adg-filter-actions{grid-column:auto;flex-direction:column}.adg-kpi-grid{grid-template-columns:1fr}.adg-method>div{grid-template-columns:1fr}.adg-panel-head{flex-direction:column;padding:.9rem}.adg-no-data ul{display:grid}}
 {% endblock %}

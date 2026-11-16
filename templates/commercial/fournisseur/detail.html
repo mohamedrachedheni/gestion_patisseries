@@ -1,77 +1,65 @@
 {% extends is_administration_user|yesno:"administration/base.html,commercial/base.html" %}
 
 {% block title %}{{ fournisseur }} — Fournisseurs{% endblock %}
-{% block page_title %}Détail fournisseur{% endblock %}
+{% block page_title %}Fiche fournisseur{% endblock %}
 
 {% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:fournisseur-list' %}">Fournisseurs</a></li>
-    <li class="breadcrumb-item active">{{ fournisseur }}</li>
-  </ol>
-</nav>
+<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:fournisseur-list' %}">Fournisseurs</a></li><li class="breadcrumb-item active" aria-current="page">{{ fournisseur }}</li></ol></nav>
 {% endblock %}
 
 {% block content %}
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent fw-semibold py-3">
-    <i class="bi bi-building me-2 text-primary"></i>Fiche fournisseur
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
+<div class="supplier-profile">
+  <header class="spd-hero" aria-labelledby="spd-page-title">
+    <span class="spd-hero-icon" aria-hidden="true"><i class="bi bi-building"></i></span>
+    <div class="spd-hero-copy"><div class="spd-eyebrow"><i class="bi bi-truck" aria-hidden="true"></i> Dossier fournisseur</div><h1 id="spd-page-title">{{ fournisseur.raison_sociale|default:"Fournisseur sans nom" }}</h1><p>{% if fournisseur.nom_contact %}Contact principal : {{ fournisseur.nom_contact }}{% else %}Aucun contact principal renseigné{% endif %}</p><div class="spd-hero-tags"><span class="spd-tag"><i class="bi bi-tag" aria-hidden="true"></i>{{ fournisseur.type_fournisseur|default:"Divers" }}</span>{% if fournisseur.tva %}<span class="spd-tag"><i class="bi bi-receipt" aria-hidden="true"></i>TVA {{ fournisseur.tva }}</span>{% endif %}{% if fournisseur.created_at %}<span class="spd-tag"><i class="bi bi-calendar3" aria-hidden="true"></i>Créé le {{ fournisseur.created_at|date:"d/m/Y" }}</span>{% endif %}</div></div>
+    <div class="spd-hero-actions"><a href="{% url 'commercial:fournisseur-list' %}" class="btn btn-outline-light"><i class="bi bi-arrow-left" aria-hidden="true"></i>Retour au répertoire</a><a href="{% url 'commercial:fournisseur-update' fournisseur.pk %}" class="btn btn-light"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier la fiche</a></div>
+  </header>
 
-      <div class="col-md-6">
-        <label class="form-label small mb-1">Raison sociale</label>
-        <input type="text" value="{{ fournisseur.raison_sociale|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label small mb-1">Nom contact</label>
-        <input type="text" value="{{ fournisseur.nom_contact|default:'' }}" class="form-control" disabled>
-      </div>
+  <div class="spd-layout">
+    <main class="spd-main">
+      <section class="spd-card" aria-labelledby="spd-contact-title">
+        <header class="spd-card-head"><span class="spd-card-icon"><i class="bi bi-person-lines-fill" aria-hidden="true"></i></span><div><h2 id="spd-contact-title">Contact et coordonnées</h2><p>Informations utiles pour joindre et localiser le fournisseur.</p></div></header>
+        <dl class="spd-info-grid">
+          <div><dt><i class="bi bi-person" aria-hidden="true"></i>Contact principal</dt><dd>{{ fournisseur.nom_contact|default:"Non renseigné" }}</dd></div>
+          <div><dt><i class="bi bi-telephone" aria-hidden="true"></i>Téléphone</dt><dd>{% if fournisseur.telephone %}<a href="tel:{{ fournisseur.telephone }}">{{ fournisseur.telephone }}</a>{% else %}<span class="spd-empty-value">Non renseigné</span>{% endif %}</dd></div>
+          <div><dt><i class="bi bi-envelope" aria-hidden="true"></i>Email</dt><dd>{% if fournisseur.email %}<a href="mailto:{{ fournisseur.email }}">{{ fournisseur.email }}</a>{% else %}<span class="spd-empty-value">Non renseigné</span>{% endif %}</dd></div>
+          <div class="spd-info-wide"><dt><i class="bi bi-geo-alt" aria-hidden="true"></i>Adresse</dt><dd>{{ fournisseur.adresse|default:"Non renseignée" }}</dd></div>
+        </dl>
+      </section>
 
-      <div class="col-md-6">
-        <label class="form-label small mb-1">Type fournisseur</label>
-        <input type="text" value="{{ fournisseur.type_fournisseur|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label small mb-1">Téléphone</label>
-        <input type="text" value="{{ fournisseur.telephone|default:'' }}" class="form-control" disabled>
-      </div>
+      <section class="spd-card" aria-labelledby="spd-admin-title">
+        <header class="spd-card-head"><span class="spd-card-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span><div><h2 id="spd-admin-title">Informations administratives</h2><p>Références utilisées dans les achats et le suivi comptable.</p></div></header>
+        <dl class="spd-info-grid spd-admin-grid">
+          <div><dt><i class="bi bi-tags" aria-hidden="true"></i>Type de fournisseur</dt><dd><span class="spd-type">{{ fournisseur.type_fournisseur|default:"Divers" }}</span></dd></div>
+          <div><dt><i class="bi bi-receipt-cutoff" aria-hidden="true"></i>N° TVA</dt><dd>{{ fournisseur.tva|default:"Non renseigné" }}</dd></div>
+          <div><dt><i class="bi bi-bank" aria-hidden="true"></i>RIB</dt><dd>{{ fournisseur.rib|default:"Non renseigné" }}</dd></div>
+          <div><dt><i class="bi bi-calendar-check" aria-hidden="true"></i>Date de création</dt><dd>{% if fournisseur.created_at %}{{ fournisseur.created_at|date:"d/m/Y" }}{% else %}<span class="spd-empty-value">Non renseignée</span>{% endif %}</dd></div>
+          <div class="spd-info-wide"><dt><i class="bi bi-chat-left-text" aria-hidden="true"></i>Observations</dt><dd>{% if fournisseur.observations %}{{ fournisseur.observations|linebreaksbr }}{% else %}<span class="spd-empty-value">Aucune observation</span>{% endif %}</dd></div>
+        </dl>
+      </section>
+    </main>
 
-      <div class="col-md-8">
-        <label class="form-label small mb-1">Adresse</label>
-        <input type="text" value="{{ fournisseur.adresse|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Date de création</label>
-        <input type="date" value="{{ fournisseur.created_at|date:'Y-m-d' }}" class="form-control" disabled>
-      </div>
+    <aside class="spd-aside" aria-label="Contact rapide et actions">
+      <div class="spd-side-stack">
+        <section class="spd-contact-card" aria-labelledby="spd-quick-title"><div class="spd-side-head"><span><i class="bi bi-send" aria-hidden="true"></i></span><div><h2 id="spd-quick-title">Contact rapide</h2><p>Joignez directement votre interlocuteur.</p></div></div><div class="spd-contact-person"><span class="spd-contact-avatar" aria-hidden="true">{% if fournisseur.nom_contact %}{{ fournisseur.nom_contact|slice:":1"|upper }}{% else %}<i class="bi bi-person"></i>{% endif %}</span><span><strong>{{ fournisseur.nom_contact|default:"Contact non renseigné" }}</strong><small>{{ fournisseur.raison_sociale }}</small></span></div><div class="spd-contact-actions">{% if fournisseur.telephone %}<a href="tel:{{ fournisseur.telephone }}" class="btn btn-outline-primary"><i class="bi bi-telephone" aria-hidden="true"></i>Appeler</a>{% endif %}{% if fournisseur.email %}<a href="mailto:{{ fournisseur.email }}" class="btn btn-outline-primary"><i class="bi bi-envelope" aria-hidden="true"></i>Écrire</a>{% endif %}{% if not fournisseur.telephone and not fournisseur.email %}<p>Aucune coordonnée directe n’est disponible.</p>{% endif %}</div></section>
 
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Email</label>
-        <input type="text" value="{{ fournisseur.email|default:'' }}" class="form-control" disabled>
+        <section class="spd-actions-card" aria-labelledby="spd-actions-title"><div class="spd-side-head"><span class="spd-actions-icon"><i class="bi bi-gear" aria-hidden="true"></i></span><div><h2 id="spd-actions-title">Actions sur la fiche</h2><p>Gérez ce fournisseur.</p></div></div><a href="{% url 'commercial:fournisseur-update' fournisseur.pk %}" class="btn btn-primary spd-action-btn"><i class="bi bi-pencil" aria-hidden="true"></i>Modifier les informations</a><a href="{% url 'commercial:fournisseur-list' %}" class="btn btn-outline-secondary spd-action-btn"><i class="bi bi-list-ul" aria-hidden="true"></i>Revenir au répertoire</a>{% if is_administration_user %}<div class="spd-danger-zone"><span><strong>Suppression du fournisseur</strong><small>Une confirmation sera demandée.</small></span><button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#spd-delete-modal"><i class="bi bi-trash" aria-hidden="true"></i>Supprimer</button></div>{% endif %}</section>
       </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">N° TVA</label>
-        <input type="text" value="{{ fournisseur.tva|default:'' }}" class="form-control" disabled>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">RIB</label>
-        <input type="text" value="{{ fournisseur.rib|default:'' }}" class="form-control" disabled>
-      </div>
-
-      <div class="col-12">
-        <label class="form-label small mb-1">Observations</label>
-        <textarea class="form-control" rows="3" disabled>{{ fournisseur.observations|default:'' }}</textarea>
-      </div>
-
-    </div>
-  </div>
-  <div class="card-footer bg-transparent d-flex justify-content-end py-3">
-    <a href="{% url 'commercial:fournisseur-list' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-    </a>
+    </aside>
   </div>
 </div>
+
+{% if is_administration_user %}<div class="modal fade" id="spd-delete-modal" tabindex="-1" aria-hidden="true" aria-labelledby="spd-delete-title"><div class="modal-dialog modal-dialog-centered"><form method="post" action="{% url 'commercial:fournisseur-delete' fournisseur.pk %}" class="modal-content">{% csrf_token %}<div class="modal-header"><h2 class="modal-title fs-5" id="spd-delete-title">Supprimer ce fournisseur ?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button></div><div class="modal-body"><p class="fw-semibold">{{ fournisseur.raison_sociale }}</p><div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>La suppression sera refusée si ce fournisseur est encore lié à des achats ou des dépenses.</div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button><button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer définitivement</button></div></form></div></div>{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+/* ── Fiche fournisseur : ordinateur d'abord, sans champs de saisie ────────── */
+.supplier-profile{--spd-primary:#2c7be5;--spd-primary-dark:#1a4f9c;--spd-ink:#172033;--spd-muted:#667085;--spd-border:#e2e8f0;--spd-surface:#fff;--spd-radius:1rem;max-width:1500px;margin:0 auto;color:var(--spd-ink)}
+.spd-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.2rem;min-height:154px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.spd-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:5.4rem;height:5.4rem;border:3px solid rgba(255,255,255,.5);border-radius:1.15rem;background:rgba(255,255,255,.15);font-size:1.8rem}.spd-hero-copy{min-width:0}.spd-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.spd-hero h1{overflow:hidden;margin:.2rem 0 .18rem;color:#fff;font-size:clamp(1.55rem,2.1vw,2.1rem);font-weight:750;letter-spacing:-.02em;text-overflow:ellipsis;white-space:nowrap}.spd-hero-copy>p{margin:0;color:rgba(255,255,255,.74);font-size:.82rem}.spd-hero-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem}.spd-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.26rem .58rem;border:1px solid rgba(255,255,255,.17);border-radius:2rem;background:rgba(8,31,61,.2);color:#fff;font-size:.68rem;font-weight:650}.spd-hero-actions{display:flex;align-items:center;gap:.55rem}.spd-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.85rem;padding-inline:.9rem;border-radius:.7rem;font-size:.76rem;font-weight:700}.spd-hero-actions .btn-light{color:#194f89}
+.spd-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,.82fr);align-items:start;gap:1rem;margin-top:1rem}.spd-main{display:grid;gap:1rem;min-width:0}.spd-card,.spd-contact-card,.spd-actions-card{overflow:hidden;border:1px solid var(--spd-border);border-radius:var(--spd-radius);background:var(--spd-surface);box-shadow:0 2px 9px rgba(16,24,40,.04)}.spd-card-head{display:flex;align-items:center;gap:.75rem;min-height:78px;padding:.95rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.spd-card-icon,.spd-side-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;border-radius:.72rem;background:#eaf2fd;color:var(--spd-primary);font-size:1.05rem}.spd-card-head h2,.spd-side-head h2{margin:0;color:var(--spd-ink);font-size:.96rem;font-weight:750}.spd-card-head p,.spd-side-head p{margin:.14rem 0 0;color:var(--spd-muted);font-size:.72rem}.spd-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0}.spd-admin-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.spd-info-grid>div{min-width:0;min-height:104px;padding:1rem 1.1rem;border-right:1px solid #edf0f4;border-bottom:1px solid #edf0f4}.spd-info-grid>div:nth-child(3n){border-right:0}.spd-admin-grid>div:nth-child(3n){border-right:1px}.spd-admin-grid>div:nth-child(4n){border-right:0}.spd-info-grid .spd-info-wide{grid-column:1/-1;min-height:88px;border-right:0;border-bottom:0}.spd-info-grid dt{display:flex;align-items:center;gap:.35rem;margin-bottom:.4rem;color:var(--spd-muted);font-size:.68rem;font-weight:650}.spd-info-grid dd{overflow-wrap:anywhere;margin:0;color:var(--spd-ink);font-size:.82rem;font-weight:650;line-height:1.45}.spd-info-grid a{color:var(--spd-primary-dark);text-decoration:none}.spd-info-grid a:hover{text-decoration:underline}.spd-type{display:inline-flex;padding:.2rem .48rem;border:1px solid #dce3eb;border-radius:2rem;background:#f8fafc;font-size:.7rem}.spd-empty-value{color:#8b95a4;font-weight:500}
+.spd-side-stack{position:sticky;top:calc(var(--topbar-h) + 1rem);display:grid;gap:1rem}.spd-contact-card,.spd-actions-card{padding:1rem}.spd-side-head{display:flex;align-items:center;gap:.7rem}.spd-contact-person{display:flex;align-items:center;gap:.7rem;margin-top:1rem;padding:.75rem;border:1px solid #e4eaf1;border-radius:.75rem;background:#f8fafc}.spd-contact-avatar{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.7rem;height:2.7rem;border-radius:.72rem;background:linear-gradient(145deg,#2c7be5,#1c5fac);color:#fff;font-size:.9rem;font-weight:800}.spd-contact-person>span:last-child{min-width:0}.spd-contact-person strong,.spd-contact-person small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spd-contact-person strong{font-size:.78rem}.spd-contact-person small{margin-top:.1rem;color:var(--spd-muted);font-size:.65rem}.spd-contact-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;margin-top:.75rem}.spd-contact-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.65rem;border-radius:.65rem;font-size:.72rem;font-weight:700}.spd-contact-actions p{grid-column:1/-1;margin:0;color:var(--spd-muted);font-size:.72rem}.spd-actions-card .spd-actions-icon{background:#fff4e0;color:#8a5300}.spd-action-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;min-height:2.9rem;margin-top:.75rem;border-radius:.68rem;font-size:.76rem;font-weight:700}.spd-action-btn+.spd-action-btn{margin-top:.5rem}.spd-danger-zone{display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin-top:.9rem;padding-top:.9rem;border-top:1px solid #f0d8db}.spd-danger-zone>span{min-width:0}.spd-danger-zone strong,.spd-danger-zone small{display:block}.spd-danger-zone strong{color:#8c2430;font-size:.7rem}.spd-danger-zone small{margin-top:.12rem;color:var(--spd-muted);font-size:.62rem}.spd-danger-zone .btn{display:inline-flex;flex:0 0 auto;align-items:center;gap:.3rem;min-height:2.35rem;border-radius:.6rem;font-size:.66rem;font-weight:700}.supplier-profile a:focus-visible,.supplier-profile button:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.spd-hero{grid-template-columns:auto minmax(0,1fr)}.spd-hero-actions{grid-column:1/-1}.spd-layout{grid-template-columns:1fr}.spd-side-stack{position:static;grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767.98px){.spd-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spd-info-grid>div,.spd-info-grid>div:nth-child(3n){border-right:1px solid #edf0f4}.spd-info-grid>div:nth-child(2n){border-right:0}.spd-info-grid .spd-info-wide{grid-column:1/-1;border-right:0}.spd-side-stack{grid-template-columns:1fr}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.spd-hero{gap:.8rem;padding:1rem;border-radius:.9rem}.spd-hero-icon{width:4rem;height:4rem;font-size:1.35rem}.spd-hero h1{white-space:normal}.spd-hero-actions{align-items:stretch;flex-direction:column-reverse}.spd-hero-actions .btn{width:100%}.spd-info-grid{grid-template-columns:1fr}.spd-info-grid>div,.spd-info-grid>div:nth-child(2n),.spd-info-grid>div:nth-child(3n){min-height:auto;border-right:0}.spd-info-grid .spd-info-wide{grid-column:auto}.spd-card-head{padding:.9rem}.spd-contact-actions{grid-template-columns:1fr}.spd-danger-zone{align-items:stretch;flex-direction:column}.spd-danger-zone .btn{justify-content:center;width:100%}}
 {% endblock %}

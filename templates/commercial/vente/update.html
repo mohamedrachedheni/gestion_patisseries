@@ -3,165 +3,76 @@
 {% block title %}Modification d'une vente — Commercial{% endblock %}
 {% block page_title %}Modification d'une vente{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'commercial:vente-list' %}">Ventes</a></li>
-    <li class="breadcrumb-item active">Modification d'une vente</li>
-  </ol>
-</nav>
-{% endblock %}
+{% block breadcrumb %}<nav aria-label="Fil d'Ariane"><ol class="breadcrumb mb-0"><li class="breadcrumb-item"><a href="{% url 'commercial:home' %}">Accueil</a></li><li class="breadcrumb-item"><a href="{% url 'commercial:vente-list' %}">Ventes</a></li><li class="breadcrumb-item active" aria-current="page">Modification d'une vente</li></ol></nav>{% endblock %}
 
 {% block content %}
+<div class="sale-form-dashboard">
+  <header class="vnf-hero" aria-labelledby="vnf-page-title">
+    <span class="vnf-hero-icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+    <div class="vnf-hero-copy"><div class="vnf-eyebrow"><i class="bi bi-pencil-square" aria-hidden="true"></i> Suivi commercial</div><h1 id="vnf-page-title">Modification d’une vente</h1><p>Vente n° <strong>{{ vente_code.vente_numero }}</strong> du {{ vente_code.vente_at|date:'d/m/Y' }}. Seuls le paiement, le mode de paiement et l’observation peuvent être modifiés.</p></div>
+    <div class="vnf-hero-actions"><a href="{% url 'commercial:vente-list' %}" class="btn btn-light"><i class="bi bi-clock-history" aria-hidden="true"></i>Voir les ventes</a></div>
+  </header>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Modification d'une vente</h4>
+  <form id="vente-update-form" method="post" autocomplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" novalidate>
+    {% csrf_token %}
+
+    {# ── Section 1 : information de la vente ──────────────────────────────── #}
+    <section class="vnf-panel" aria-labelledby="vnf-s1-title">
+      <header class="vnf-panel-head"><span aria-hidden="true">1</span><div><div class="vnf-section-label">Étape 1</div><h2 id="vnf-s1-title">Informations de la vente</h2><p>Les informations de la vente sont en lecture seule ; indiquez le nouveau paiement reçu.</p></div></header>
+      <div class="vnf-grid vnf-grid-4">
+        <div class="vnf-field"><label for="vnf-commercial">Commercial</label><input type="text" id="vnf-commercial" class="form-control" value="{{ vente.user.get_full_name|default:vente.user.username }}" disabled></div>
+        <div class="vnf-field"><label for="vnf-zone">Zone</label><input type="text" id="vnf-zone" class="form-control" value="{{ vente_code.client.zone|default:'' }}" disabled></div>
+        <div class="vnf-field"><label for="vnf-client">Client</label><input type="text" id="vnf-client" class="form-control" value="{{ vente_code.client }}" disabled></div>
+        <div class="vnf-field"><label for="vnf-date">Date de la vente</label><input type="date" id="vnf-date" class="form-control" value="{{ vente_code.vente_at|date:'Y-m-d' }}" disabled></div>
+        <div class="vnf-field"><label for="vnf-numero">Numéro de la vente</label><input type="text" id="vnf-numero" class="form-control" value="{{ vente_code.vente_numero }}" disabled></div>
+        <div class="vnf-field"><label for="vente-nouveau-acompte">Nouveau montant payé</label><div class="input-group"><input type="number" step="0.001" min="0.001" required id="vente-nouveau-acompte" name="nouveau_acompte" class="form-control no-spinner" value="{{ nouveau_acompte_value }}" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" {% if locked %}disabled{% endif %}><span class="input-group-text">TND</span></div></div>
+        <div class="vnf-field"><label for="vente-mode-paiement">Mode de paiement</label><select id="vente-mode-paiement" name="mode_paiement" class="form-select" autocomplete="off" {% if locked %}disabled{% endif %}>{% for value, label in mode_paiement_choices %}<option value="{{ value }}" {% if value == mode_paiement_value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="vnf-field"><label for="vente-observation">Observation</label><input type="text" id="vente-observation" name="observation" value="{{ observation_value }}" class="form-control" placeholder="Commentaire facultatif" autocomplete="new-password" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" {% if locked %}disabled{% endif %}></div>
+      </div>
+      <div class="vnf-totals" aria-label="Totaux de la vente">
+        <div class="vnf-total"><label for="vente-total-montant">Total des bons de livraison</label><div class="input-group"><input type="number" step="0.001" id="vente-total-montant" class="form-control no-spinner" value="{{ vente.total_montant|stringformat:'s' }}" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="vnf-total"><label for="vente-total-paye">Total déjà payé</label><div class="input-group"><input type="number" step="0.001" id="vente-total-paye" class="form-control no-spinner" value="{{ vente.total_acompte|stringformat:'s' }}" disabled><span class="input-group-text">TND</span></div></div>
+        <div class="vnf-total"><label for="vente-total-reste">Total reste à payer</label><div class="input-group"><input type="number" step="0.001" id="vente-total-reste" class="form-control no-spinner" value="" disabled><span class="input-group-text">TND</span></div></div>
+      </div>
+    </section>
+
+    {% if locked %}<div class="vnf-note" role="status"><i class="bi bi-lock" aria-hidden="true"></i>Cette vente est entièrement payée : elle n’est plus modifiable.</div>{% endif %}
+
+    {# ── Section 2 : bons de livraison de la vente ────────────────────────── #}
+    <section class="vnf-panel" aria-labelledby="vnf-s2-title">
+      <header class="vnf-panel-head"><span aria-hidden="true">2</span><div><div class="vnf-section-label">Étape 2</div><h2 id="vnf-s2-title">Bons de livraison de la vente</h2><p>Liste en lecture seule : les bons inclus ne peuvent plus être changés.</p></div></header>
+      <div class="vnf-table-wrap"><table class="vnf-table"><caption class="visually-hidden">Bons de livraison liés à cette vente</caption><thead><tr><th scope="col">Date</th><th scope="col">Numéro</th><th scope="col" class="vnf-number-col">Montant total</th><th scope="col" class="vnf-number-col">Déjà payé</th><th scope="col" class="vnf-number-col">Reste à régler</th><th scope="col" class="vnf-center-col">Inclus</th></tr></thead>
+        <tbody id="vente-section2-rows"><tr id="vente-section2-empty"><td colspan="6" class="vnf-empty-cell">Aucun bon de livraison lié à cette vente.</td></tr></tbody></table></div>
+    </section>
+
+    {# ── Section 3 : produits ─────────────────────────────────────────────── #}
+    <section class="vnf-panel" aria-labelledby="vnf-s3-title">
+      <header class="vnf-panel-head"><span aria-hidden="true">3</span><div><div class="vnf-section-label">Étape 3</div><h2 id="vnf-s3-title">Liste des produits</h2><p>Récapitulatif des produits des bons de la vente.</p></div></header>
+      <div class="vnf-table-wrap"><table class="vnf-table"><caption class="visually-hidden">Produits regroupés</caption><thead><tr><th scope="col">Produit</th><th scope="col" class="vnf-number-col">Quantité</th><th scope="col" class="vnf-number-col">Prix unitaire</th><th scope="col" class="vnf-number-col">Total ligne</th></tr></thead>
+        <tbody id="vente-section3-rows"><tr id="vente-section3-empty"><td colspan="4" class="vnf-empty-cell">Aucun bon de livraison inclus.</td></tr></tbody></table></div>
+    </section>
+
+    <div class="vnf-actions">
+      <a href="{% url 'commercial:vente-list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>Revenir à la liste</a>
+      <a href="{% url 'commercial:vente-pdf' vente.pk %}" target="_blank" rel="noopener" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>État PDF</a>
+      <button type="submit" class="btn btn-primary" {% if locked %}disabled{% endif %}><i class="bi bi-check-lg" aria-hidden="true"></i>Enregistrer les modifications</button>
+    </div>
+  </form>
 </div>
+{% endblock %}
 
-<form id="vente-update-form" method="post" novalidate>
-  {% csrf_token %}
-
-  {# ── Section 1 : information de la vente ──────────────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-info-circle me-2 text-primary"></i>Information de la vente
-    </div>
-    <div class="card-body py-3">
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto mb-3">
-        <div style="width:220px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Commercial</label>
-          <input type="text" class="form-control form-control-sm"
-                 value="{{ vente.user.get_full_name|default:vente.user.username }}" disabled>
-        </div>
-        <div style="width:200px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Zone</label>
-          <input type="text" class="form-control form-control-sm"
-                 value="{{ vente_code.client.zone|default:'' }}" disabled>
-        </div>
-        <div style="width:260px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Client</label>
-          <input type="text" class="form-control form-control-sm" value="{{ vente_code.client }}" disabled>
-        </div>
-      </div>
-
-      <div class="d-flex flex-nowrap align-items-end gap-2 overflow-auto">
-        <div style="width:150px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Date vente</label>
-          <input type="date" class="form-control form-control-sm"
-                 value="{{ vente_code.vente_at|date:'Y-m-d' }}" disabled>
-        </div>
-        <div style="width:140px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Numéro vente</label>
-          <input type="text" class="form-control form-control-sm" value="{{ vente_code.vente_numero }}" disabled>
-        </div>
-        <div style="width:180px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total montant des BL</label>
-          <input type="number" step="0.001" id="vente-total-montant"
-                 class="form-control form-control-sm no-spinner text-end font-monospace"
-                 value="{{ vente.total_montant|stringformat:'s' }}" disabled>
-        </div>
-        <div style="width:190px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total montant payé des BL</label>
-          <input type="number" step="0.001" id="vente-total-paye"
-                 class="form-control form-control-sm no-spinner text-end font-monospace"
-                 value="{{ vente.total_acompte|stringformat:'s' }}" disabled>
-        </div>
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Nouveau montant payé</label>
-          <input type="number" step="0.001" min="0.001" required id="vente-nouveau-acompte" name="nouveau_acompte"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" value="{{ nouveau_acompte_value }}"
-                 {% if locked %}disabled{% endif %}>
-        </div>
-        <div style="width:170px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Mode de paiement</label>
-          <select id="vente-mode-paiement" name="mode_paiement" class="form-select form-select-sm"
-                  {% if locked %}disabled{% endif %}>
-            {% for value, label in mode_paiement_choices %}
-            <option value="{{ value }}" {% if value == mode_paiement_value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div style="width:190px;flex:0 0 auto;">
-          <label class="form-label small mb-1">Total reste à payer des BL</label>
-          <input type="number" step="0.001" id="vente-total-reste"
-                 class="form-control form-control-sm no-spinner text-end font-monospace" value="" disabled>
-        </div>
-      </div>
-
-      <div class="d-flex flex-nowrap align-items-end gap-2 mt-3">
-        <div style="flex:1 1 auto;">
-          <label class="form-label small mb-1">Observation</label>
-          <input type="text" id="vente-observation" name="observation" value="{{ observation_value }}"
-                 class="form-control form-control-sm" {% if locked %}disabled{% endif %}>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ── Section 2 : liste des bons de livraison de la vente ─────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-truck me-2 text-primary"></i>Liste des bons de livraison de la vente
-    </div>
-    <div class="card-body">
-      <div class="overflow-auto">
-        <div class="d-flex flex-nowrap gap-2 mb-1">
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Date bon de livraison</span></div>
-          <div style="width:120px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Numéro bon de livraison</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Montant total payé</span></div>
-          <div style="width:130px;flex:0 0 auto;"><span class="form-label small text-muted mb-0">Reste à régler</span></div>
-          <div style="width:80px;flex:0 0 auto;text-align:center;"><span class="form-label small text-muted mb-0">Inclure</span></div>
-        </div>
-        <div id="vente-section2-rows">
-          <div class="text-muted small py-2" id="vente-section2-empty">Aucun bon de livraison lié à cette vente.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {# ── Section 3 (ex-section 4) : liste des produits ────────────────────────── #}
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-transparent fw-semibold py-3">
-      <i class="bi bi-box-seam me-2 text-primary"></i>Liste des produits
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="ps-3">Produit</th>
-              <th>Qté</th>
-              <th>Prix unitaire</th>
-              <th class="pe-3">Total ligne</th>
-            </tr>
-          </thead>
-          <tbody id="vente-section3-rows">
-            <tr id="vente-section3-empty">
-              <td colspan="4" class="text-center py-3 text-muted">Aucun bon de livraison inclus.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  {# ── Actions ───────────────────────────────────────────────────────────────── #}
-  <div class="d-flex gap-2 justify-content-end">
-    <a href="{% url 'commercial:vente-list' %}" class="btn btn-outline-secondary">
-      <i class="bi bi-arrow-left me-1"></i>Revenir à la liste
-    </a>
-    <a href="{% url 'commercial:vente-pdf' vente.pk %}" target="_blank" class="btn btn-outline-primary">
-      <i class="bi bi-file-earmark-pdf me-1"></i>Etat PDF
-    </a>
-    <button type="submit" class="btn btn-primary" {% if locked %}disabled{% endif %}>
-      <i class="bi bi-check-lg me-1"></i>Enregistrer
-    </button>
-  </div>
-
-</form>
-
+{% block extra_css %}
+{{ block.super }}
+/* Modification d'une vente : même système que Nouvelle vente (ordinateur d'abord). */
+.sale-form-dashboard{--vnf-primary:#2c7be5;--vnf-primary-dark:#1a4f9c;--vnf-ink:#172033;--vnf-muted:#667085;--vnf-border:#e2e8f0;max-width:1500px;margin:0 auto;color:var(--vnf-ink)}
+.vnf-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:1.15rem;min-height:140px;padding:1.4rem 1.55rem;border-radius:1.05rem;background:linear-gradient(118deg,#17345a 0%,#235f9e 62%,#2c7be5 100%);box-shadow:0 9px 28px rgba(25,74,128,.15);color:#fff}.vnf-hero-icon{display:inline-flex;align-items:center;justify-content:center;width:4.5rem;height:4.5rem;border:2px solid rgba(255,255,255,.35);border-radius:1rem;background:rgba(255,255,255,.14);font-size:1.7rem}.vnf-hero-copy{min-width:0}.vnf-eyebrow{display:flex;align-items:center;gap:.35rem;color:rgba(255,255,255,.68);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.vnf-hero h1{margin:.2rem 0 .25rem;font-size:clamp(1.55rem,2vw,2.05rem);font-weight:750;letter-spacing:-.02em}.vnf-hero-copy>p{margin:0;max-width:700px;color:rgba(255,255,255,.78);font-size:.84rem}.vnf-hero-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:3rem;padding-inline:.9rem;border-radius:.68rem;color:#194f89;font-size:.68rem;font-weight:750;white-space:nowrap}
+.vnf-panel{overflow:hidden;margin-top:1rem;border:1px solid var(--vnf-border);border-radius:1rem;background:#fff;box-shadow:0 2px 9px rgba(16,24,40,.04)}.vnf-panel-head{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;border-bottom:1px solid #edf0f4;background:#fbfcfe}.vnf-panel-head>span{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;width:2.3rem;height:2.3rem;border-radius:.65rem;background:#eaf2fd;color:var(--vnf-primary);font-size:.75rem;font-weight:800}.vnf-section-label{color:var(--vnf-primary-dark);font-size:.6rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.vnf-panel-head h2{margin:.1rem 0 0;font-size:.95rem;font-weight:750}.vnf-panel-head p{margin:.12rem 0 0;color:var(--vnf-muted);font-size:.65rem}
+.vnf-grid{display:grid;gap:1rem;padding:1.1rem}.vnf-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}.vnf-field label,.vnf-total label{display:block;margin-bottom:.32rem;color:#344054;font-size:.68rem;font-weight:700}.vnf-field .form-control,.vnf-field .form-select,.vnf-field .input-group-text,.vnf-total .form-control,.vnf-total .input-group-text{min-height:2.75rem;border-color:#cfd7e3;border-radius:.6rem;font-size:.75rem}.vnf-field .input-group>.form-control,.vnf-total .input-group>.form-control{border-top-right-radius:0;border-bottom-right-radius:0}.vnf-field .input-group-text,.vnf-total .input-group-text{border-top-left-radius:0;border-bottom-left-radius:0;background:#f7f9fc;color:var(--vnf-muted)}.vnf-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;padding:1rem 1.1rem;border-top:1px solid #edf0f4;background:#f6f9fd}.vnf-total .form-control{background:#fff;font-weight:750;font-variant-numeric:tabular-nums;text-align:right}.vnf-total .form-control:disabled{color:var(--vnf-ink)}.vnf-note{display:flex;align-items:center;gap:.5rem;margin-top:1rem;padding:.75rem .95rem;border:1px solid #f1d9a8;border-radius:.7rem;background:#fff8e8;color:#8a5300;font-size:.72rem}
+.vnf-table{width:100%;border-collapse:collapse}.vnf-table thead{background:#f8fafc}.vnf-table th{padding:.68rem .8rem;border-bottom:1px solid var(--vnf-border);color:var(--vnf-muted);font-size:.58rem;font-weight:800;letter-spacing:.025em;text-align:left;text-transform:uppercase}.vnf-table td{padding:.7rem .8rem;border-bottom:1px solid #edf0f4;font-size:.7rem;vertical-align:middle}.vnf-table tbody tr:last-child td{border-bottom:0}.vnf-table tbody tr:hover{background:#f8faff}.vnf-number-col{text-align:right!important;font-variant-numeric:tabular-nums}.vnf-center-col{text-align:center!important;width:90px}.vnf-empty-cell{padding:1.6rem .8rem!important;color:var(--vnf-muted);text-align:center}.vnf-table .form-check-input{width:1.25rem;height:1.25rem}
+.vnf-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:.6rem;margin-top:1rem;padding:.9rem 1.1rem;border:1px solid var(--vnf-border);border-radius:1rem;background:#fbfcfe}.vnf-actions .btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2.8rem;padding-inline:1rem;border-radius:.6rem;font-size:.72rem;font-weight:700}.sale-form-dashboard a:focus-visible,.sale-form-dashboard button:focus-visible,.sale-form-dashboard input:focus-visible,.sale-form-dashboard select:focus-visible{outline:3px solid #174c8f;outline-offset:2px}
+@media(max-width:1199.98px){.vnf-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}.vnf-hero{grid-template-columns:auto minmax(0,1fr)}.vnf-hero-actions{grid-column:1/-1}.vnf-table-wrap{overflow-x:auto}}
+@media(max-width:767.98px){.vnf-grid-4,.vnf-totals{grid-template-columns:1fr}.vnf-actions{flex-direction:column-reverse}}
+@media(max-width:575.98px){#main-content{padding:1rem .75rem}.vnf-hero{gap:.8rem;padding:1rem}.vnf-hero-icon{width:3.5rem;height:3.5rem;font-size:1.35rem}}
 {% endblock %}
 
 {% block extra_js %}
@@ -181,8 +92,18 @@
     return isNaN(n) ? 0 : n;
   }
 
-  // ── Section 1 : Total reste à payer = total_montant − total_acompte −
-  // Nouveau montant payé, plafonné à [0, total_montant − total_acompte] ─────
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(iso) {
+    var p = String(iso || '').split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : esc(iso);
+  }
+
+  // ── Total reste à payer = total_montant − total_acompte − Nouveau montant
+  // payé, plafonné à [0, total_montant − total_acompte] ─────────────────────
   var plafond = Math.max(0, TOTAL_MONTANT - TOTAL_ACOMPTE);
 
   function recomputeTotals() {
@@ -206,35 +127,21 @@
     recomputeTotals();
   });
 
-  // ── Section 2 : lignes verrouillées (affichage seul, case Inclure toujours
-  // cochée et désactivée, pas de bouton Supprimer) ──────────────────────────
+  // ── Section 2 : lignes en lecture seule ───────────────────────────────────
   function addBlRow(l) {
-    var row = document.createElement('div');
-    row.className = 'd-flex flex-nowrap align-items-center gap-2 mb-2 vente-bl-row';
+    var row = document.createElement('tr');
+    row.className = 'vente-bl-row';
     row.innerHTML =
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="date" class="form-control form-control-sm" value="' + l.date + '" disabled>' +
-      '</div>' +
-      '<div style="width:120px;flex:0 0 auto;">' +
-        '<input type="text" class="form-control form-control-sm" value="' + l.numero + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.montant_total + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.montant_paye + '" disabled>' +
-      '</div>' +
-      '<div style="width:130px;flex:0 0 auto;">' +
-        '<input type="number" class="form-control form-control-sm no-spinner text-end font-monospace" value="' + l.reste + '" disabled>' +
-      '</div>' +
-      '<div style="width:80px;flex:0 0 auto;text-align:center;">' +
-        '<input type="checkbox" class="form-check-input" checked disabled>' +
-      '</div>';
+      '<td>' + fmtDate(l.date) + '</td>' +
+      '<td>' + esc(l.numero) + '</td>' +
+      '<td class="vnf-number-col">' + esc(l.montant_total) + '</td>' +
+      '<td class="vnf-number-col">' + esc(l.montant_paye) + '</td>' +
+      '<td class="vnf-number-col"><strong>' + esc(l.reste) + '</strong></td>' +
+      '<td class="vnf-center-col"><input type="checkbox" class="form-check-input" checked disabled aria-label="Bon inclus dans la vente"></td>';
     section2Rows.appendChild(row);
   }
 
-  // ── Section 3 : produits regroupés (Produit + Prix unitaire), ensemble
-  // fixe puisque la Section 2 ne peut plus être modifiée ────────────────────
+  // ── Section 3 : produits regroupés (Produit + Prix unitaire) ──────────────
   function renderSection3() {
     var groupes = {};
     var ordre = [];
@@ -252,7 +159,7 @@
     section3Rows.innerHTML = '';
     if (!ordre.length) {
       section3Rows.innerHTML =
-        '<tr><td colspan="4" class="text-center py-3 text-muted">Aucun bon de livraison inclus.</td></tr>';
+        '<tr><td colspan="4" class="vnf-empty-cell">Aucun bon de livraison inclus.</td></tr>';
       return;
     }
     ordre.sort(function (a, b) { return groupes[a].produit_nom.localeCompare(groupes[b].produit_nom); });
@@ -261,10 +168,10 @@
       var totalLigne = num(g.prix_unitaire) * g.quantite;
       var tr = document.createElement('tr');
       tr.innerHTML =
-        '<td class="ps-3">' + g.produit_nom + '</td>' +
-        '<td>' + g.quantite + '</td>' +
-        '<td>' + g.prix_unitaire + '</td>' +
-        '<td class="pe-3">' + totalLigne.toFixed(3) + '</td>';
+        '<td><strong>' + esc(g.produit_nom) + '</strong></td>' +
+        '<td class="vnf-number-col">' + esc(g.quantite) + '</td>' +
+        '<td class="vnf-number-col">' + esc(g.prix_unitaire) + '</td>' +
+        '<td class="vnf-number-col"><strong>' + totalLigne.toFixed(3) + '</strong></td>';
       section3Rows.appendChild(tr);
     });
   }
